@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import {
   nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ahlTeams,
@@ -28,6 +28,15 @@ const ARCH_PILL = {
   skill:  { label: 'SKILL',  cls: 'text-emerald-600 bg-emerald-50 border-emerald-200', hover: 'hover:border-emerald-400' },
   gamble: { label: 'GAMBLE', cls: 'text-amber-600 bg-amber-50 border-amber-200',       hover: 'hover:border-amber-400' },
 };
+
+const MASTER_ACHIEVEMENTS = [
+  { id: 'first_overall', name: 'Generational', desc: 'Drafted 1st Overall', icon: '🌟' },
+  { id: 'mem_cup', name: 'Junior Legend', desc: 'Win the Memorial Cup', icon: '🏆' },
+  { id: 'stanley_cup', name: 'Lord Stanley', desc: 'Win the Stanley Cup', icon: '💍' },
+  { id: 'gold_medal', name: 'National Hero', desc: 'Win International Gold', icon: '🥇' },
+  { id: 'franchise_legend', name: 'Statue Outside', desc: 'Reach Max Fan Status', icon: '🗽' },
+  { id: 'fifty_mil', name: 'Bag Secured', desc: 'Earn $50M Career', icon: '💰' }
+];
 
 // TeamLogo: BUG FIX #7. The original check only excluded AHL/Euro teams,
 // so junior teams that happen to share an abbreviation with an NHL team
@@ -96,9 +105,9 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
                 <img
                   src={nationalities.find(n => n.id === player.nat)?.img}
                   alt={player.nat}
-                  className="w-8 h-6 object-cover rounded-sm border border-slate-300 shadow-sm"
+                  className="w-[30px] h-[20px] object-cover rounded-sm border border-slate-300 shadow-sm block"
                 />
-                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tighter sports-font leading-none m-0 p-0">
+                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tighter sports-font leading-[0.8] -mt-1 m-0 p-0">
                   {player.name}
                 </h1>
               </div>
@@ -239,6 +248,45 @@ function App() {
     idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: []
   });
 
+  // --- ACHIEVEMENTS & PERSISTENCE ---
+  const [unlockedAchievements, setUnlockedAchievements] = useState(() => {
+    const saved = localStorage.getItem('hockey_achievements');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const unlockAchievement = (id) => {
+    setUnlockedAchievements(prev => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      localStorage.setItem('hockey_achievements', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (player.idolatry >= 1000) unlockAchievement('franchise_legend');
+    if (player.stats.earnings >= 50000000) unlockAchievement('fifty_mil');
+  }, [player.idolatry, player.stats.earnings]);
+
+  const handleNewGame = () => {
+    setPlayer({
+      name: '', number: 97, pos: 'C', age: 16, ovr: 55, nat: 'CAN',
+      shooting: 55, skating: 55, physicality: 55, hockeyIQ: 55, stamina: 55,
+      team: null, league: null, contract: { salary: 0, years: 0 },
+      stats: { 
+        chl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+        ahl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+        nhl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+        titles: 0, earnings: 0, value: 50000, seasonsPlayed: 0, memCupBoost: 0 
+      },
+      idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: []
+    });
+    setSeasonRecap(null);
+    setActiveEvent(null);
+    setPendingPlayoffs(null);
+    setScreen('creation');
+  };
+
   const currentYear = 2026 + player.stats.seasonsPlayed;
   const isJunior = juniorLeagues.includes(player.league);
   const isEuro = euroLeagues.includes(player.league);
@@ -321,6 +369,7 @@ function App() {
     if (isElite) {
       draftStr = '1st Overall';
       idolBoost = 25;
+      unlockAchievement('first_overall');
     } else if (isGreat) {
       const pick = Math.floor(Math.random() * 9) + 2;
       const suffix = pick === 2 ? 'nd' : pick === 3 ? 'rd' : 'th';
@@ -467,6 +516,7 @@ function App() {
           setMemCup({ round: 1, status: 'won' });
           setPlayer(p => ({ ...p, stats: { ...p.stats, memCupBoost: 50, titles: p.stats.titles + 1 } }));
           setEventFeedback('You won the Memorial Cup! ' + successMsg);
+          unlockAchievement('mem_cup');
         }
       } else {
         setMemCup({ ...memCup, status: 'lost' });
@@ -480,6 +530,7 @@ function App() {
       const nat = nationalities.find(n => n.id === player.nat);
       const countryName = nat?.sentenceName || nat?.name;
       if (scored) {
+        unlockAchievement('gold_medal');
         // BUG FIX #3 (same class as event choices): distribute the OVR
         // bump across all five attributes so it survives the next season
         // recompute instead of being silently erased.
@@ -573,6 +624,7 @@ function App() {
 
     if (newWins === 4) {
       newStatus = 'won';
+      if (player.league === 'NHL') unlockAchievement('stanley_cup');
       setPlayer(p => ({
         ...p, idolatry: capIdol(p.idolatry + 30),
         stats: { ...p.stats, titles: p.stats.titles + 1 }
@@ -604,9 +656,37 @@ function App() {
   const generateOffers = (isTradeRequest = false, overrideTeam = null) => {
     const actingTeam = overrideTeam || player.team;
     const multi = player.inventory.includes('agent') ? 1.15 : 1.0;
-    // Small bonus: player.stats.value is now reflected in the offer
-    // baseline, since it was previously computed but never used anywhere.
-    const base = (player.ovr * 100000 + player.stats.value * 0.1) * multi;
+    
+    let baseSalary = 775000; // NHL minimum baseline
+    let maxYears = 2;
+
+    if (player.league === 'AHL' || isJunior) {
+      // THE REALITY CHECK: If you haven't played in the NHL, you don't get NHL money. "Show me" deals only.
+      baseSalary = (775000 + (Math.random() * 150000)) * multi;
+      maxYears = 2;
+    } else if (player.league === 'NHL') {
+      // You proved you belong. Pay scales exponentially based on your OVR tier.
+      if (player.ovr >= 85) {
+        baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi; // Franchise Player: $7.5M - $12M+
+        maxYears = 7;
+      } else if (player.ovr >= 80) {
+        baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi; // Top 6 / Top 4: $4.5M - $7.5M
+        maxYears = 5;
+      } else if (player.ovr >= 75) {
+        baseSalary = (2000000 + ((player.ovr - 75) * 500000)) * multi; // Roster Player: $2M - $4.5M
+        maxYears = 3;
+      } else {
+        baseSalary = (900000 + ((player.ovr - 70) * 100000)) * multi; // Depth Player: $900k - $1.4M
+        maxYears = 2;
+      }
+    } else {
+      // Euro leagues/other
+      baseSalary = 1000000 * multi;
+      maxYears = 2;
+    }
+
+    // Clean up the numbers to the nearest 25k for realistic looking contracts
+    baseSalary = Math.round(baseSalary / 25000) * 25000;
 
     let offers = [];
     const isRFA = player.age === 21;
@@ -615,8 +695,8 @@ function App() {
       offers.push({
         team: actingTeam,
         type: isRFA ? 'RFA EXTENSION' : 'EXTENSION',
-        salary: base * 1.1,
-        years: 3,
+        salary: baseSalary,
+        years: Math.min(3, maxYears), // Extensions usually start around 2-3 years for RFAs
         idolHit: 10
       });
     }
@@ -627,15 +707,28 @@ function App() {
     for (let i = 0; i < offerCount; i++) {
       const t = nhlTeams[Math.floor(Math.random() * nhlTeams.length)].id;
       if (t !== actingTeam && !offers.find(o => o.team === t)) {
+        
+        // Rivals offer +/- 15-20% of your base market value
+        let offerSalary = baseSalary * (0.85 + (Math.random() * 0.35)); 
+        
+        // Offer sheets (stealing an RFA) require an overpay
+        if (isRFA && player.league === 'NHL') offerSalary *= 1.25; 
+        
+        offerSalary = Math.round(offerSalary / 25000) * 25000;
+
         offers.push({
           team: t,
           type: isRFA ? 'OFFER SHEET' : (isTradeRequest ? 'TRADE' : 'FREE AGENCY'),
-          salary: base * (isRFA ? 1.5 : (0.8 + Math.random())),
-          years: Math.floor(Math.random() * 3) + 1,
+          salary: Math.max(775000, offerSalary),
+          years: Math.floor(Math.random() * maxYears) + 1,
           idolHit: getTransferImpact(actingTeam, t)
         });
       }
     }
+    
+    // Sort offers so the highest paying contract is always at the top of the UI
+    offers.sort((a, b) => b.salary - a.salary);
+
     setFreeAgencyOffers(offers);
     setScreen('transfer');
   };
@@ -763,9 +856,25 @@ function App() {
             ))}
           </div>
 
-          <button onClick={handleStart} disabled={!player.name} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-lg text-xl disabled:opacity-50 transition-colors shadow-md sports-font tracking-wide">
+          <button onClick={handleStart} disabled={!player.name} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-lg text-xl disabled:opacity-50 transition-colors shadow-md sports-font tracking-wide mb-8">
             LACE UP THE SKATES
           </button>
+
+          <div className="border-t border-slate-200 pt-6">
+            <h3 className="text-sm font-bold text-slate-500 tracking-widest uppercase mb-4 font-sans text-center">Career Achievements</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {MASTER_ACHIEVEMENTS.map(a => {
+                const isUnlocked = unlockedAchievements.includes(a.id);
+                return (
+                  <div key={a.id} className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${isUnlocked ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-60 grayscale'}`}>
+                    <span className="text-2xl mb-1">{a.icon}</span>
+                    <span className={`text-[10px] font-black uppercase tracking-widest sports-font leading-tight mb-1 ${isUnlocked ? 'text-amber-700' : 'text-slate-500'}`}>{a.name}</span>
+                    <span className="text-[9px] text-slate-400 font-sans font-bold leading-tight">{a.desc}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -829,6 +938,12 @@ function App() {
                 ))}
               </div>
             </div>
+          </div>
+          
+          <div className="mt-12 text-center relative z-10">
+            <button onClick={handleNewGame} className="bg-slate-900 hover:bg-slate-800 text-white font-black py-4 px-12 rounded-full text-xl shadow-xl transition-transform hover:-translate-y-1 cursor-pointer sports-font tracking-widest uppercase">
+              START NEW CAREER
+            </button>
           </div>
         </div>
       </div>
