@@ -1325,7 +1325,7 @@ function App() {
           } else {
               if (seasonRecap.standings <= 16) {
                   if (seasonRecap.playoffWins === 4) {
-                      narrativeTitle = "CHAMPIONS OF THE WORLD";
+                      narrativeTitle = "STANLEY CUP CHAMPIONS";
                       narrative = "Absolute glory. You climbed the mountain and won it all!";
                   } else if (seasonRecap.standings === 1 && seasonRecap.playoffWins < 2) {
                       narrativeTitle = "HISTORIC COLLAPSE";
@@ -1387,7 +1387,7 @@ function App() {
                 
                 {seasonRecap.standings <= 16 ? (
                   <li className={`border-l-4 ${seasonRecap.playoffWins === 4 ? 'border-amber-500 text-amber-700 font-bold' : 'border-red-500'} pl-4 py-1`}>
-                    {seasonRecap.playoffWins === 4 ? '🏆 You went all the way and won the Championship!' : 
+                    {seasonRecap.playoffWins === 4 ? '🏆 You went all the way and won the Cup!' : 
                      seasonRecap.playoffWins === 3 ? '💔 Heartbreak in the Finals. Eliminated in the last round.' :
                      seasonRecap.playoffWins === 2 ? '⚔️ A deep run, but eliminated in the Conference Finals.' :
                      seasonRecap.playoffWins === 1 ? '❌ Knocked out in the second round.' :
