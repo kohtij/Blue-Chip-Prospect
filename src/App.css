@@ -1,3 +1,8 @@
+@import "tailwindcss";
+
+/* Enable manual dark mode via the 'dark' class on the HTML tag */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Oswald:ital,wght@0,400;0,600;0,700;1,700&display=swap');
 
 body {
@@ -7,6 +12,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f8fafc;
   color: #0f172a;
+}
+
+/* Dark mode body fallback (matches slate-900 and slate-50 text) */
+.dark body {
+  background-color: #0f172a;
+  color: #f8fafc;
 }
 
 .sports-font {
@@ -25,6 +36,13 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+}
+
+/* Dark mode glass card */
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.85); /* slate-800 with transparency */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
 }
 
 button {
