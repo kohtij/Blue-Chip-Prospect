@@ -1,105 +1,254 @@
-// --- DATABASES: TEAMS & LEAGUES ---
-
+// --- NHL & AHL ---
 export const nhlTeams = [
-  { id: 'BOS', name: 'Boston Bruins', div: 'ATL', conf: 'EAST', ahlId: 'PRO', color: '#FFB81C', bg: '#000000' },
-  { id: 'TOR', name: 'Toronto Maple Leafs', div: 'ATL', conf: 'EAST', ahlId: 'TORA', color: '#FFFFFF', bg: '#00205B' },
-  { id: 'MTL', name: 'Montreal Canadiens', div: 'ATL', conf: 'EAST', ahlId: 'LAV', color: '#FFFFFF', bg: '#AF1E2D' },
-  { id: 'TBL', name: 'Tampa Bay Lightning', div: 'ATL', conf: 'EAST', ahlId: 'SYR', color: '#FFFFFF', bg: '#002868' },
-  { id: 'FLA', name: 'Florida Panthers', div: 'ATL', conf: 'EAST', ahlId: 'CLT', color: '#B9975B', bg: '#041E42' },
-  { id: 'BUF', name: 'Buffalo Sabres', div: 'ATL', conf: 'EAST', ahlId: 'ROC', color: '#FFB81C', bg: '#002654' },
-  { id: 'DET', name: 'Detroit Red Wings', div: 'ATL', conf: 'EAST', ahlId: 'GR', color: '#FFFFFF', bg: '#CE1126' },
-  { id: 'OTT', name: 'Ottawa Senators', div: 'ATL', conf: 'EAST', ahlId: 'BEL', color: '#C52032', bg: '#000000' },
-  { id: 'NYR', name: 'New York Rangers', div: 'MET', conf: 'EAST', ahlId: 'HFD', color: '#FFFFFF', bg: '#0038A8' },
-  { id: 'NYI', name: 'New York Islanders', div: 'MET', conf: 'EAST', ahlId: 'BRI', color: '#F47D30', bg: '#00539B' },
-  { id: 'NJD', name: 'New Jersey Devils', div: 'MET', conf: 'EAST', ahlId: 'UTI', color: '#FFFFFF', bg: '#CE1126' },
-  { id: 'CAR', name: 'Carolina Hurricanes', div: 'MET', conf: 'EAST', ahlId: 'CHI', color: '#FFFFFF', bg: '#CE1126' },
-  { id: 'WSH', name: 'Washington Capitals', div: 'MET', conf: 'EAST', ahlId: 'HER', color: '#FFFFFF', bg: '#041E42' },
-  { id: 'PIT', name: 'Pittsburgh Penguins', div: 'MET', conf: 'EAST', ahlId: 'WBS', color: '#FCB514', bg: '#000000' },
-  { id: 'PHI', name: 'Philadelphia Flyers', div: 'MET', conf: 'EAST', ahlId: 'LV', color: '#000000', bg: '#F74902' },
-  { id: 'CBJ', name: 'Columbus Blue Jackets', div: 'MET', conf: 'EAST', ahlId: 'CLE', color: '#CE1126', bg: '#002654' },
-  { id: 'COL', name: 'Colorado Avalanche', div: 'CEN', conf: 'WEST', ahlId: 'COLE', color: '#FFFFFF', bg: '#6F263D' },
-  { id: 'DAL', name: 'Dallas Stars', div: 'CEN', conf: 'WEST', ahlId: 'TEX', color: '#FFFFFF', bg: '#006847' },
-  { id: 'WPG', name: 'Winnipeg Jets', div: 'CEN', conf: 'WEST', ahlId: 'MAN', color: '#FFFFFF', bg: '#041E42' },
-  { id: 'NSH', name: 'Nashville Predators', div: 'CEN', conf: 'WEST', ahlId: 'MIL', color: '#041E42', bg: '#FFB81C' },
-  { id: 'STL', name: 'St. Louis Blues', div: 'CEN', conf: 'WEST', ahlId: 'SPR', color: '#FCB514', bg: '#002F87' },
-  { id: 'MIN', name: 'Minnesota Wild', div: 'CEN', conf: 'WEST', ahlId: 'IA', color: '#DDCBA4', bg: '#154734' },
-  { id: 'UTA', name: 'Utah Hockey Club', div: 'CEN', conf: 'WEST', ahlId: 'TUC', color: '#FFFFFF', bg: '#000000' },
-  { id: 'CHI', name: 'Chicago Blackhawks', div: 'CEN', conf: 'WEST', ahlId: 'RFD', color: '#FFFFFF', bg: '#CF0A2C' },
-  { id: 'VGK', name: 'Vegas Golden Knights', div: 'PAC', conf: 'WEST', ahlId: 'HSK', color: '#B4975A', bg: '#333F42' },
-  { id: 'EDM', name: 'Edmonton Oilers', div: 'PAC', conf: 'WEST', ahlId: 'BAK', color: '#FF4C00', bg: '#041E42' },
-  { id: 'VAN', name: 'Vancouver Canucks', div: 'PAC', conf: 'WEST', ahlId: 'ABB', color: '#FFFFFF', bg: '#00205B' },
-  { id: 'LAK', name: 'Los Angeles Kings', div: 'PAC', conf: 'WEST', ahlId: 'ONT', color: '#A2AAAD', bg: '#111111' },
-  { id: 'SEA', name: 'Seattle Kraken', div: 'PAC', conf: 'WEST', ahlId: 'CV', color: '#99D9D9', bg: '#001628' },
-  { id: 'CGY', name: 'Calgary Flames', div: 'PAC', conf: 'WEST', ahlId: 'CGYW', color: '#F62817', bg: '#111111' },
-  { id: 'ANA', name: 'Anaheim Ducks', div: 'PAC', conf: 'WEST', ahlId: 'SD', color: '#F95602', bg: '#000000' },
-  { id: 'SJS', name: 'San Jose Sharks', div: 'PAC', conf: 'WEST', ahlId: 'SJB', color: '#FFFFFF', bg: '#006D75' }
+  { id: 'ANA', name: 'Anaheim Ducks', city: 'Anaheim', bg: '#F47A38', color: '#000000', ahlId: 'SDG' },
+  { id: 'BOS', name: 'Boston Bruins', city: 'Boston', bg: '#FFB81C', color: '#000000', ahlId: 'PRO' },
+  { id: 'BUF', name: 'Buffalo Sabres', city: 'Buffalo', bg: '#002654', color: '#FCB514', ahlId: 'ROC' },
+  { id: 'CGY', name: 'Calgary Flames', city: 'Calgary', bg: '#C8102E', color: '#F1BE48', ahlId: 'WRN' },
+  { id: 'CAR', name: 'Carolina Hurricanes', city: 'Carolina', bg: '#CC0000', color: '#000000', ahlId: 'CHI' },
+  { id: 'CHI', name: 'Chicago Blackhawks', city: 'Chicago', bg: '#CF0A2C', color: '#000000', ahlId: 'RFD' },
+  { id: 'COL', name: 'Colorado Avalanche', city: 'Colorado', bg: '#6F263D', color: '#236192', ahlId: 'EAG' },
+  { id: 'CBJ', name: 'Columbus Blue Jackets', city: 'Columbus', bg: '#002654', color: '#CE1126', ahlId: 'CLE' },
+  { id: 'DAL', name: 'Dallas Stars', city: 'Dallas', bg: '#006847', color: '#8F8F8C', ahlId: 'TEX' },
+  { id: 'DET', name: 'Detroit Red Wings', city: 'Detroit', bg: '#CE1126', color: '#FFFFFF', ahlId: 'GRG' },
+  { id: 'EDM', name: 'Edmonton Oilers', city: 'Edmonton', bg: '#041E42', color: '#FF4C00', ahlId: 'BAK' },
+  { id: 'FLA', name: 'Florida Panthers', city: 'Florida', bg: '#041E42', color: '#C8102E', ahlId: 'CHA' },
+  { id: 'LAK', name: 'Los Angeles Kings', city: 'Los Angeles', bg: '#111111', color: '#A2AAAD', ahlId: 'ONT' },
+  { id: 'MIN', name: 'Minnesota Wild', city: 'Minnesota', bg: '#154734', color: '#A6192E', ahlId: 'IOW' },
+  { id: 'MTL', name: 'Montreal Canadiens', city: 'Montreal', bg: '#AF1E2D', color: '#192168', ahlId: 'LAV' },
+  { id: 'NSH', name: 'Nashville Predators', city: 'Nashville', bg: '#FFB81C', color: '#041E42', ahlId: 'MIL' },
+  { id: 'NJD', name: 'New Jersey Devils', city: 'New Jersey', bg: '#CE1126', color: '#000000', ahlId: 'UTI' },
+  { id: 'NYI', name: 'New York Islanders', city: 'New York', bg: '#00539B', color: '#F47D30', ahlId: 'BRI' },
+  { id: 'NYR', name: 'New York Rangers', city: 'New York', bg: '#0038A8', color: '#CE1126', ahlId: 'HFD' },
+  { id: 'OTT', name: 'Ottawa Senators', city: 'Ottawa', bg: '#C52032', color: '#000000', ahlId: 'BEL' },
+  { id: 'PHI', name: 'Philadelphia Flyers', city: 'Philadelphia', bg: '#F74902', color: '#000000', ahlId: 'LHV' },
+  { id: 'PIT', name: 'Pittsburgh Penguins', city: 'Pittsburgh', bg: '#000000', color: '#CFC493', ahlId: 'WBS' },
+  { id: 'SJS', name: 'San Jose Sharks', city: 'San Jose', bg: '#006D75', color: '#EA7200', ahlId: 'SJB' },
+  { id: 'SEA', name: 'Seattle Kraken', city: 'Seattle', bg: '#001628', color: '#99D9D9', ahlId: 'CVF' },
+  { id: 'STL', name: 'St. Louis Blues', city: 'St. Louis', bg: '#002F87', color: '#FCB514', ahlId: 'SPR' },
+  { id: 'TBL', name: 'Tampa Bay Lightning', city: 'Tampa Bay', bg: '#002868', color: '#FFFFFF', ahlId: 'SYR' },
+  { id: 'TOR', name: 'Toronto Maple Leafs', city: 'Toronto', bg: '#00205B', color: '#FFFFFF', ahlId: 'MAR' },
+  { id: 'UTA', name: 'Utah Hockey Club', city: 'Utah', bg: '#010101', color: '#6eaddc', ahlId: 'TUC' },
+  { id: 'VAN', name: 'Vancouver Canucks', city: 'Vancouver', bg: '#00205B', color: '#00843D', ahlId: 'ABB' },
+  { id: 'VGK', name: 'Vegas Golden Knights', city: 'Vegas', bg: '#B4975A', color: '#333F42', ahlId: 'HSK' },
+  { id: 'WSH', name: 'Washington Capitals', city: 'Washington', bg: '#041E42', color: '#C8102E', ahlId: 'HER' },
+  { id: 'WPG', name: 'Winnipeg Jets', city: 'Winnipeg', bg: '#041E42', color: '#004C97', ahlId: 'MAN' }
 ];
 
-export const ohlTeams = [ { id: 'LDN', name: 'London', color: '#006B54', bg: '#FFC425' }, { id: 'OTT', name: 'Ottawa', color: '#000000', bg: '#C8102E' }, { id: 'KIT', name: 'Kitchener', color: '#0033A0', bg: '#C8102E' }, { id: 'OSH', name: 'Oshawa', color: '#C8102E', bg: '#00205B' }, { id: 'SAG', name: 'Saginaw', color: '#002F87', bg: '#C8102E' }, { id: 'ERI', name: 'Erie', color: '#F2A900', bg: '#00205B' }, { id: 'GUE', name: 'Guelph', color: '#C8102E', bg: '#000000' }, { id: 'SOO', name: 'Sault Ste. Marie', color: '#C8102E', bg: '#FFFFFF' }, { id: 'FLN', name: 'Flint', color: '#00205B', bg: '#F2A900' }, { id: 'SBY', name: 'Sudbury', color: '#002F87', bg: '#FFFFFF' }, { id: 'PBO', name: 'Peterborough', color: '#660000', bg: '#FFFFFF' }, { id: 'KGN', name: 'Kingston', color: '#000000', bg: '#F2A900' }, { id: 'BAR', name: 'Barrie', color: '#00205B', bg: '#F2A900' }, { id: 'SAR', name: 'Sarnia', color: '#000000', bg: '#C8102E' }, { id: 'WIN', name: 'Windsor', color: '#C8102E', bg: '#00205B' }, { id: 'NIA', name: 'Niagara', color: '#000000', bg: '#C8102E' }, { id: 'NB', name: 'North Bay', color: '#000000', bg: '#4C8C2B' }, { id: 'MIS', name: 'Mississauga', color: '#00205B', bg: '#FFFFFF' } ];
-export const whlTeams = [ { id: 'POR', name: 'Portland', color: '#000000', bg: '#C8102E' }, { id: 'SEA', name: 'Seattle TB', color: '#002855', bg: '#00A3E0' }, { id: 'EDM', name: 'Edmonton', color: '#E31837', bg: '#041E42' }, { id: 'KEL', name: 'Kelowna', color: '#000000', bg: '#00843D' }, { id: 'KAM', name: 'Kamloops', color: '#00205B', bg: '#F2A900' }, { id: 'EVE', name: 'Everett', color: '#005826', bg: '#C2C4C6' }, { id: 'VIC', name: 'Victoria', color: '#00205B', bg: '#FFFFFF' }, { id: 'VAN', name: 'Vancouver', color: '#000000', bg: '#C8102E' }, { id: 'PG', name: 'Prince George', color: '#000000', bg: '#C8102E' }, { id: 'TC', name: 'Tri-City', color: '#00205B', bg: '#C8102E' }, { id: 'SPO', name: 'Spokane', color: '#00205B', bg: '#C8102E' }, { id: 'RD', name: 'Red Deer', color: '#000000', bg: '#C8102E' }, { id: 'MJ', name: 'Moose Jaw', color: '#000000', bg: '#C8102E' }, { id: 'SAS', name: 'Saskatoon', color: '#00205B', bg: '#F2A900' }, { id: 'MH', name: 'Medicine Hat', color: '#FF671F', bg: '#000000' }, { id: 'CAL', name: 'Calgary', color: '#000000', bg: '#F2A900' }, { id: 'LET', name: 'Lethbridge', color: '#00205B', bg: '#C8102E' }, { id: 'SC', name: 'Swift Current', color: '#0033A0', bg: '#009739' } ];
-export const qmjhlTeams = [ { id: 'HAL', name: 'Halifax', color: '#005A32', bg: '#C8102E' }, { id: 'QUE', name: 'Quebec', color: '#000000', bg: '#C8102E' }, { id: 'GAT', name: 'Gatineau', color: '#000000', bg: '#FFFFFF' }, { id: 'RIM', name: 'Rimouski', color: '#00205B', bg: '#FFFFFF' }, { id: 'SHE', name: 'Sherbrooke', color: '#00205B', bg: '#C8102E' }, { id: 'VIC', name: 'Victoriaville', color: '#000000', bg: '#FFB81C' }, { id: 'ROU', name: 'Rouyn-Noranda', color: '#C8102E', bg: '#000000' }, { id: 'CAP', name: 'Cape Breton', color: '#000000', bg: '#C8102E' }, { id: 'CHI', name: 'Chicoutimi', color: '#00205B', bg: '#89CFDC' }, { id: 'DRU', name: 'Drummondville', color: '#C8102E', bg: '#000000' }, { id: 'SNB', name: 'Saint John', color: '#00205B', bg: '#C8102E' }, { id: 'BAT', name: 'Acadie-Bathurst', color: '#000000', bg: '#C8102E' }, { id: 'MON', name: 'Moncton', color: '#00205B', bg: '#C8102E' }, { id: 'CHA', name: 'Charlottetown', color: '#000000', bg: '#FFB81C' }, { id: 'VDO', name: "Val-d'Or", color: '#005A32', bg: '#FFB81C' }, { id: 'BLB', name: 'Blainville', color: '#000000', bg: '#FFFFFF' }, { id: 'SHA', name: 'Shawinigan', color: '#00205B', bg: '#F2A900' }, { id: 'BAC', name: 'Baie-Comeau', color: '#C8102E', bg: '#FFFFFF' } ];
-export const ahlTeams = [ { id: 'HER', name: 'Hershey Bears', color: '#4B3029', bg: '#E4A282' }, { id: 'PRO', name: 'Providence Bruins', color: '#FFB81C', bg: '#000000' }, { id: 'SPR', name: 'Springfield Thunderbirds', color: '#FFFFFF', bg: '#041E42' }, { id: 'CV', name: 'Coachella Valley Firebirds', color: '#FFFFFF', bg: '#E31837' }, { id: 'TEX', name: 'Texas Stars', color: '#FFFFFF', bg: '#006847' }, { id: 'CHI', name: 'Chicago Wolves', color: '#C8102E', bg: '#F2A900' }, { id: 'UTI', name: 'Utica Comets', color: '#000000', bg: '#00A3E0' }, { id: 'SYR', name: 'Syracuse Crunch', color: '#FFFFFF', bg: '#002868' }, { id: 'LAV', name: 'Laval Rocket', color: '#FFFFFF', bg: '#AF1E2D' }, { id: 'BEL', name: 'Belleville Senators', color: '#000000', bg: '#C8102E' }, { id: 'ROC', name: 'Rochester Americans', color: '#00205B', bg: '#C8102E' }, { id: 'CLE', name: 'Cleveland Monsters', color: '#00205B', bg: '#C8102E' }, { id: 'GR', name: 'Grand Rapids Griffins', color: '#C8102E', bg: '#000000' }, { id: 'MIL', name: 'Milwaukee Admirals', color: '#000000', bg: '#89CFDC' }, { id: 'IA', name: 'Iowa Wild', color: '#000000', bg: '#C8102E' }, { id: 'ONT', name: 'Ontario Reign', color: '#A2AAAD', bg: '#111111' }, { id: 'COLE', name: 'Colorado Eagles', color: '#FFFFFF', bg: '#6F263D' }, { id: 'TUC', name: 'Tucson Roadrunners', color: '#8C2633', bg: '#E2D6B5' }, { id: 'TORA', name: 'Toronto Marlies', color: '#FFFFFF', bg: '#00205B' }, { id: 'CLT', name: 'Charlotte Checkers', color: '#000000', bg: '#C8102E' }, { id: 'HFD', name: 'Hartford Wolf Pack', color: '#FFFFFF', bg: '#0038A8' }, { id: 'BRI', name: 'Bridgeport Islanders', color: '#F47D30', bg: '#00539B' }, { id: 'WBS', name: 'WBS Penguins', color: '#FCB514', bg: '#000000' }, { id: 'LV', name: 'Lehigh Valley Phantoms', color: '#000000', bg: '#F74902' }, { id: 'MAN', name: 'Manitoba Moose', color: '#FFFFFF', bg: '#041E42' }, { id: 'RFD', name: 'Rockford IceHogs', color: '#FFFFFF', bg: '#CF0A2C' }, { id: 'HSK', name: 'Henderson Silver Knights', color: '#B4975A', bg: '#333F42' }, { id: 'BAK', name: 'Bakersfield Condors', color: '#FF4C00', bg: '#041E42' }, { id: 'ABB', name: 'Abbotsford Canucks', color: '#FFFFFF', bg: '#00205B' }, { id: 'CGYW', name: 'Calgary Wranglers', color: '#F62817', bg: '#111111' }, { id: 'SD', name: 'San Diego Gulls', color: '#F95602', bg: '#000000' }, { id: 'SJB', name: 'San Jose Barracuda', color: '#FFFFFF', bg: '#006D75' } ];
+export const ahlTeams = nhlTeams.map(t => ({ id: t.ahlId, name: `${t.city} (AHL)`, bg: t.bg, color: t.color }));
 
-export const euroTeams = [
-  { id: 'FHC', name: 'Frölunda HC', color: '#FFFFFF', bg: '#E31837', league: 'SHL' }, { id: 'FBK', name: 'Färjestad BK', color: '#FFFFFF', bg: '#006B54', league: 'SHL' }, { id: 'SAIK', name: 'Skellefteå AIK', color: '#000000', bg: '#FFB81C', league: 'SHL' }, { id: 'DIF', name: 'Djurgårdens IF', color: '#FFFFFF', bg: '#00205B', league: 'SHL' }, { id: 'BIF', name: 'Brynäs IF', color: '#FFFFFF', bg: '#000000', league: 'SHL' },
-  { id: 'TAP', name: 'Tappara', color: '#FFFFFF', bg: '#00539B', league: 'Liiga' }, { id: 'HIFK', name: 'HIFK', color: '#FFFFFF', bg: '#E31837', league: 'Liiga' }, { id: 'ILV', name: 'Ilves', color: '#000000', bg: '#FFB81C', league: 'Liiga' }, { id: 'KRP', name: 'Kärpät', color: '#FFFFFF', bg: '#000000', league: 'Liiga' }, { id: 'TPS', name: 'TPS', color: '#FFFFFF', bg: '#000000', league: 'Liiga' },
-  { id: 'SKA', name: 'SKA St. Petersburg', color: '#FFFFFF', bg: '#0038A8', league: 'KHL' }, { id: 'CSK', name: 'CSKA Moscow', color: '#FFFFFF', bg: '#E31837', league: 'KHL' }, { id: 'AVA', name: 'Avangard Omsk', color: '#FFFFFF', bg: '#CE1126', league: 'KHL' }, { id: 'MET', name: 'Metallurg Mg', color: '#FFFFFF', bg: '#00205B', league: 'KHL' }, { id: 'AKB', name: 'Ak Bars Kazan', color: '#FFFFFF', bg: '#006B54', league: 'KHL' }
+// --- THE 60 CHL TEAMS ---
+export const ohlTeams = [
+  { id: 'BAR', name: 'Barrie Colts', city: 'Barrie', bg: '#000000', color: '#c8102e' },
+  { id: 'BFD', name: 'Brantford Bulldogs', city: 'Brantford', bg: '#000000', color: '#f2a900' },
+  { id: 'ERI', name: 'Erie Otters', city: 'Erie', bg: '#00205b', color: '#fdd023' },
+  { id: 'FLN', name: 'Flint Firebirds', city: 'Flint', bg: '#00205b', color: '#f47920' },
+  { id: 'GUE', name: 'Guelph Storm', city: 'Guelph', bg: '#9e1b32', color: '#000000' },
+  { id: 'KGN', name: 'Kingston Frontenacs', city: 'Kingston', bg: '#000000', color: '#f2a900' },
+  { id: 'KIT', name: 'Kitchener Rangers', city: 'Kitchener', bg: '#0033a0', color: '#c8102e' },
+  { id: 'LDN', name: 'London Knights', city: 'London', bg: '#004f2f', color: '#f7cd44' },
+  { id: 'MIS', name: 'Mississauga Steelheads', city: 'Mississauga', bg: '#00205b', color: '#ffffff' },
+  { id: 'NIA', name: 'Niagara IceDogs', city: 'Niagara', bg: '#c8102e', color: '#000000' },
+  { id: 'NB', name: 'North Bay Battalion', city: 'North Bay', bg: '#004f2f', color: '#ffc72c' },
+  { id: 'OSH', name: 'Oshawa Generals', city: 'Oshawa', bg: '#d41327', color: '#00205b' },
+  { id: 'OTT', name: 'Ottawa 67\'s', city: 'Ottawa', bg: '#e03a3e', color: '#000000' },
+  { id: 'OS', name: 'Owen Sound Attack', city: 'Owen Sound', bg: '#c8102e', color: '#000000' },
+  { id: 'PBO', name: 'Peterborough Petes', city: 'Peterborough', bg: '#862633', color: '#ffffff' },
+  { id: 'SAG', name: 'Saginaw Spirit', city: 'Saginaw', bg: '#001628', color: '#c8102e' },
+  { id: 'SAR', name: 'Sarnia Sting', city: 'Sarnia', bg: '#000000', color: '#f2a900' },
+  { id: 'SOO', name: 'Soo Greyhounds', city: 'Sault Ste. Marie', bg: '#d1151a', color: '#ffffff' },
+  { id: 'SUD', name: 'Sudbury Wolves', city: 'Sudbury', bg: '#002f6c', color: '#7b878e' },
+  { id: 'WSR', name: 'Windsor Spitfires', city: 'Windsor', bg: '#00205b', color: '#c8102e' }
+];
+
+export const whlTeams = [
+  { id: 'BDN', name: 'Brandon Wheat Kings', city: 'Brandon', bg: '#000000', color: '#f2a900' },
+  { id: 'CGY', name: 'Calgary Hitmen', city: 'Calgary', bg: '#000000', color: '#c99700' },
+  { id: 'EDM', name: 'Edmonton Oil Kings', city: 'Edmonton', bg: '#000000', color: '#c8102e' },
+  { id: 'EVT', name: 'Everett Silvertips', city: 'Everett', bg: '#004d30', color: '#c4ced4' },
+  { id: 'KAM', name: 'Kamloops Blazers', city: 'Kamloops', bg: '#00205b', color: '#ef3e42' },
+  { id: 'KEL', name: 'Kelowna Rockets', city: 'Kelowna', bg: '#000000', color: '#00839a' },
+  { id: 'LET', name: 'Lethbridge Hurricanes', city: 'Lethbridge', bg: '#00205b', color: '#c8102e' },
+  { id: 'MHT', name: 'Medicine Hat Tigers', city: 'Medicine Hat', bg: '#000000', color: '#f2a900' },
+  { id: 'MJW', name: 'Moose Jaw Warriors', city: 'Moose Jaw', bg: '#000000', color: '#c8102e' },
+  { id: 'POR', name: 'Portland Winterhawks', city: 'Portland', bg: '#000000', color: '#c8102e' },
+  { id: 'PA', name: 'Prince Albert Raiders', city: 'Prince Albert', bg: '#004f2f', color: '#f2a900' },
+  { id: 'PG', name: 'Prince George Cougars', city: 'Prince George', bg: '#d41327', color: '#000000' },
+  { id: 'RD', name: 'Red Deer Rebels', city: 'Red Deer', bg: '#000000', color: '#c8102e' },
+  { id: 'REG', name: 'Regina Pats', city: 'Regina', bg: '#0033a0', color: '#d1151a' },
+  { id: 'SAS', name: 'Saskatoon Blades', city: 'Saskatoon', bg: '#0033a0', color: '#ffb81c' },
+  { id: 'SEA', name: 'Seattle Thunderbirds', city: 'Seattle', bg: '#002855', color: '#8dc63f' },
+  { id: 'SPO', name: 'Spokane Chiefs', city: 'Spokane', bg: '#c8102e', color: '#00205b' },
+  { id: 'SC', name: 'Swift Current Broncos', city: 'Swift Current', bg: '#00205b', color: '#00843d' },
+  { id: 'TC', name: 'Tri-City Americans', city: 'Tri-City', bg: '#00205b', color: '#c8102e' },
+  { id: 'VAN', name: 'Vancouver Giants', city: 'Vancouver', bg: '#540212', color: '#c1c6c8' },
+  { id: 'VIC', name: 'Victoria Royals', city: 'Victoria', bg: '#00205b', color: '#f2a900' },
+  { id: 'WEN', name: 'Wenatchee Wild', city: 'Wenatchee', bg: '#00205b', color: '#8dc63f' }
+];
+
+export const qmjhlTeams = [
+  { id: 'ACA', name: 'Acadie-Bathurst Titan', city: 'Acadie-Bathurst', bg: '#c8102e', color: '#d3af37' },
+  { id: 'BAC', name: 'Baie-Comeau Drakkar', city: 'Baie-Comeau', bg: '#ffc72c', color: '#000000' },
+  { id: 'BLA', name: 'Blainville-Boisbriand Armada', city: 'Blainville-Boisbriand', bg: '#000000', color: '#ffffff' },
+  { id: 'CAP', name: 'Cape Breton Eagles', city: 'Cape Breton', bg: '#000000', color: '#f2a900' },
+  { id: 'CHA', name: 'Charlottetown Islanders', city: 'Charlottetown', bg: '#000000', color: '#cfab7a' },
+  { id: 'CHI', name: 'Chicoutimi Saguenéens', city: 'Chicoutimi', bg: '#00205b', color: '#ffffff' },
+  { id: 'DRU', name: 'Drummondville Voltigeurs', city: 'Drummondville', bg: '#c8102e', color: '#000000' },
+  { id: 'GAT', name: 'Gatineau Olympiques', city: 'Gatineau', bg: '#000000', color: '#a2a9ad' },
+  { id: 'HAL', name: 'Halifax Mooseheads', city: 'Halifax', bg: '#004f2f', color: '#c8102e' },
+  { id: 'MON', name: 'Moncton Wildcats', city: 'Moncton', bg: '#003057', color: '#e4002b' },
+  { id: 'QUE', name: 'Quebec Remparts', city: 'Quebec', bg: '#e21836', color: '#000000' },
+  { id: 'RIM', name: 'Rimouski Océanic', city: 'Rimouski', bg: '#001e62', color: '#ffffff' },
+  { id: 'ROU', name: 'Rouyn-Noranda Huskies', city: 'Rouyn-Noranda', bg: '#000000', color: '#c8102e' },
+  { id: 'SJD', name: 'Saint John Sea Dogs', city: 'Saint John', bg: '#00205b', color: '#000000' },
+  { id: 'SHA', name: 'Shawinigan Cataractes', city: 'Shawinigan', bg: '#00205b', color: '#f2a900' },
+  { id: 'SHE', name: 'Sherbrooke Phoenix', city: 'Sherbrooke', bg: '#002855', color: '#e5e1e6' },
+  { id: 'VAL', name: 'Val-d\'Or Foreurs', city: 'Val-d\'Or', bg: '#004f2f', color: '#f2a900' },
+  { id: 'VIC', name: 'Victoriaville Tigres', city: 'Victoriaville', bg: '#000000', color: '#ffc72c' }
+];
+
+// --- EUROPEAN PRO LEAGUES ---
+export const shlTeams = [
+  { id: 'BRY', name: 'Brynäs IF', bg: '#000000', color: '#e2001a' },
+  { id: 'FBE', name: 'Färjestad BK', bg: '#006633', color: '#fff' },
+  { id: 'FRO', name: 'Frölunda HC', bg: '#101410', color: '#e2001a' },
+  { id: 'HV71', name: 'HV71', bg: '#002f6c', color: '#ffc72c' },
+  { id: 'LEK', name: 'Leksands IF', bg: '#002f6c', color: '#ffffff' },
+  { id: 'LHC', name: 'Linköping HC', bg: '#002f6c', color: '#e2001a' },
+  { id: 'LHF', name: 'Luleå HF', bg: '#e2001a', color: '#ffc72c' },
+  { id: 'MIF', name: 'Malmö Redhawks', bg: '#e2001a', color: '#000000' },
+  { id: 'MOD', name: 'MoDo Hockey', bg: '#e2001a', color: '#ffffff' },
+  { id: 'ORE', name: 'Örebro HK', bg: '#e2001a', color: '#000000' },
+  { id: 'RBK', name: 'Rögle BK', bg: '#004a2f', color: '#fff' },
+  { id: 'SKE', name: 'Skellefteå AIK', bg: '#000000', color: '#ffe600' },
+  { id: 'TIK', name: 'Timrå IK', bg: '#e2001a', color: '#ffffff' },
+  { id: 'VLH', name: 'Växjö Lakers', bg: '#003399', color: '#ff6600' }
+];
+
+export const liigaTeams = [
+  { id: 'HIFK', name: 'HIFK', bg: '#e2001a', color: '#00205b' },
+  { id: 'HPK', name: 'HPK', bg: '#f47920', color: '#000000' },
+  { id: 'ILV', name: 'Ilves', bg: '#006633', color: '#ffcc00' },
+  { id: 'JUK', name: 'Jukurit', bg: '#00205b', color: '#ffc72c' },
+  { id: 'JYP', name: 'JYP', bg: '#000000', color: '#e2001a' },
+  { id: 'KAL', name: 'KalPa', bg: '#ffc72c', color: '#000000' },
+  { id: 'KIE', name: 'Kiekko-Espoo', bg: '#0033a0', color: '#ffc72c' },
+  { id: 'KOO', name: 'KooKoo', bg: '#000000', color: '#f47920' },
+  { id: 'KAR', name: 'Kärpät', bg: '#000000', color: '#ffcc00' },
+  { id: 'LUK', name: 'Lukko', bg: '#0033a0', color: '#ffc72c' },
+  { id: 'PEL', name: 'Pelicans', bg: '#00a3e0', color: '#000000' },
+  { id: 'SAI', name: 'SaiPa', bg: '#ffc72c', color: '#000000' },
+  { id: 'SPO', name: 'Sport', bg: '#e2001a', color: '#ffffff' },
+  { id: 'TAP', name: 'Tappara', bg: '#0033a0', color: '#f47920' },
+  { id: 'TPS', name: 'TPS', bg: '#000000', color: '#ffffff' },
+  { id: 'ASS', name: 'Ässät', bg: '#e2001a', color: '#000000' }
+];
+
+export const ncaaTeams = [
+  // Hockey East
+  { id: 'BC', name: 'Boston College', bg: '#8a100b', color: '#decba4' },
+  { id: 'BU', name: 'Boston University', bg: '#cc0000', color: '#ffffff' },
+  { id: 'UMA', name: 'UMass Minutemen', bg: '#881c1c', color: '#ffffff' },
+  { id: 'PRO', name: 'Providence Friars', bg: '#000000', color: '#ffffff' },
+  { id: 'MNE', name: 'Maine Black Bears', bg: '#003263', color: '#b0d7ff' },
+  { id: 'NEU', name: 'Northeastern Huskies', bg: '#cc0000', color: '#000000' },
+  { id: 'UCO', name: 'UConn Huskies', bg: '#000e2f', color: '#ffffff' },
+  
+  // Big Ten
+  { id: 'MICH', name: 'Michigan Wolverines', bg: '#00274c', color: '#ffcb05' },
+  { id: 'MINN', name: 'Minnesota Gophers', bg: '#7a0019', color: '#ffcc33' },
+  { id: 'MSU', name: 'Michigan State', bg: '#18453b', color: '#ffffff' },
+  { id: 'WIS', name: 'Wisconsin Badgers', bg: '#c5050c', color: '#ffffff' },
+  { id: 'PSU', name: 'Penn State', bg: '#041e42', color: '#ffffff' },
+  { id: 'OSU', name: 'Ohio State', bg: '#bb0000', color: '#666666' },
+  { id: 'ND', name: 'Notre Dame', bg: '#0c2340', color: '#c99700' },
+
+  // NCHC
+  { id: 'DEN', name: 'Denver Pioneers', bg: '#ba0c2f', color: '#a8996e' },
+  { id: 'UND', name: 'North Dakota', bg: '#009a44', color: '#ffffff' },
+  { id: 'UMD', name: 'Minnesota Duluth', bg: '#7a0019', color: '#ffcc33' },
+  { id: 'SCSU', name: 'St. Cloud State', bg: '#a10214', color: '#ffffff' },
+  { id: 'WMU', name: 'Western Michigan', bg: '#532e1f', color: '#f1c500' },
+  { id: 'UNO', name: 'Omaha Mavericks', bg: '#000000', color: '#d71920' },
+  { id: 'CC', name: 'Colorado College', bg: '#000000', color: '#f3c300' },
+
+  // ECAC
+  { id: 'QUN', name: 'Quinnipiac Bobcats', bg: '#0a2240', color: '#ffb81c' },
+  { id: 'COR', name: 'Cornell Big Red', bg: '#b31b1b', color: '#ffffff' },
+  { id: 'HAR', name: 'Harvard Crimson', bg: '#a51c30', color: '#ffffff' },
+  { id: 'CLK', name: 'Clarkson Golden Knights', bg: '#03522b', color: '#ffd204' },
+  { id: 'SLU', name: 'St. Lawrence Saints', bg: '#af1e2d', color: '#41221b' },
+
+  // CCHA / Atlantic Hockey
+  { id: 'MNSU', name: 'Minnesota State', bg: '#480025', color: '#f0ab00' },
+  { id: 'MTU', name: 'Michigan Tech', bg: '#000000', color: '#ffcd00' },
+  { id: 'BGS', name: 'Bowling Green', bg: '#4f2c1d', color: '#ff7300' },
+  { id: 'RIT', name: 'RIT Tigers', bg: '#f36e21', color: '#000000' },
+  { id: 'AFA', name: 'Air Force Falcons', bg: '#003087', color: '#8a8d8f' },
+  { id: 'SHU', name: 'Sacred Heart', bg: '#cd1041', color: '#c4d8e2' }
 ];
 
 export const nationalities = [
-  { id: 'CAN', img: 'https://flagcdn.com/ca.svg', name: 'Canada', sentenceName: 'Canada' },
-  { id: 'USA', img: 'https://flagcdn.com/us.svg', name: 'United States', sentenceName: 'the United States' },
-  { id: 'SWE', img: 'https://flagcdn.com/se.svg', name: 'Sweden', sentenceName: 'Sweden' },
-  { id: 'FIN', img: 'https://flagcdn.com/fi.svg', name: 'Finland', sentenceName: 'Finland' },
-  { id: 'CZE', img: 'https://flagcdn.com/cz.svg', name: 'Czechia', sentenceName: 'Czechia' },
-  { id: 'RUS', img: 'https://flagcdn.com/ru.svg', name: 'Russia', sentenceName: 'Russia' }
+  { id: 'CAN', name: 'Canada', sentenceName: 'Canada', img: 'https://flagcdn.com/w40/ca.png' },
+  { id: 'USA', name: 'United States', sentenceName: 'the United States', img: 'https://flagcdn.com/w40/us.png' },
+  { id: 'SWE', name: 'Sweden', sentenceName: 'Sweden', img: 'https://flagcdn.com/w40/se.png' },
+  { id: 'FIN', name: 'Finland', sentenceName: 'Finland', img: 'https://flagcdn.com/w40/fi.png' },
+  { id: 'RUS', name: 'Russia', sentenceName: 'Russia', img: 'https://flagcdn.com/w40/ru.png' },
+  { id: 'CZE', name: 'Czechia', sentenceName: 'the Czech Republic', img: 'https://flagcdn.com/w40/cz.png' }
 ];
 
 export const juniorLeagues = ['OHL', 'WHL', 'QMJHL'];
-export const euroLeagues = ['SHL', 'Liiga', 'KHL'];
+export const euroLeagues = ['SHL', 'LIIGA'];
 
-// Number of teams and playoff spots per league. Used so junior/AHL leagues
-// can no longer make the playoffs 100% of the time (this was bug #4 in the
-// original code, where standings were always rolled 1-16 regardless of
-// league size).
 export const LEAGUE_CONFIG = {
-  NHL: { teams: nhlTeams.length, playoffSpots: 16 },
-  AHL: { teams: ahlTeams.length, playoffSpots: 16 },
-  OHL: { teams: ohlTeams.length, playoffSpots: 8 },
-  WHL: { teams: whlTeams.length, playoffSpots: 8 },
-  QMJHL: { teams: qmjhlTeams.length, playoffSpots: 8 }
+  NHL: { playoffSpots: 16, teams: 32 },
+  AHL: { playoffSpots: 16, teams: 32 },
+  OHL: { playoffSpots: 16, teams: 20 },
+  WHL: { playoffSpots: 16, teams: 22 },
+  QMJHL: { playoffSpots: 16, teams: 18 },
+  SHL: { playoffSpots: 10, teams: 14 },
+  LIIGA: { playoffSpots: 10, teams: 16 },
+  NCAA: { playoffSpots: 16, teams: 64 }
 };
 
 export const getTeamData = (teamId, league) => {
+  if (league === 'NHL') return nhlTeams.find(t => t.id === teamId);
+  if (league === 'AHL') return ahlTeams.find(t => t.id === teamId);
   if (league === 'OHL') return ohlTeams.find(t => t.id === teamId);
   if (league === 'WHL') return whlTeams.find(t => t.id === teamId);
   if (league === 'QMJHL') return qmjhlTeams.find(t => t.id === teamId);
-  if (league === 'AHL') return ahlTeams.find(t => t.id === teamId) || ahlTeams[0];
-  if (euroLeagues.includes(league)) return euroTeams.find(t => t.id === teamId) || euroTeams[0];
-  return nhlTeams.find(t => t.id === teamId) || nhlTeams[0];
-};
-
-export const getOpponentPool = (league) => {
-  if (league === 'OHL') return ohlTeams;
-  if (league === 'WHL') return whlTeams;
-  if (league === 'QMJHL') return qmjhlTeams;
-  if (league === 'AHL') return ahlTeams;
-  return nhlTeams;
+  if (league === 'SHL') return shlTeams.find(t => t.id === teamId);
+  if (league === 'LIIGA') return liigaTeams.find(t => t.id === teamId);
+  if (league === 'NCAA') return ncaaTeams.find(t => t.id === teamId);
+  return null;
 };
 
 export const getDeployment = (ovr, pos, league) => {
-  if (juniorLeagues.includes(league)) {
-    if (ovr >= 60) return pos === 'G' ? 'Starting Goalie' : '1st Line';
-    return pos === 'G' ? 'Backup Goalie' : '2nd Line';
+  if (league === 'NHL') {
+    if (pos === 'G') return ovr >= 84 ? 'Starter' : ovr >= 79 ? 'Backup' : 'Scratch';
+    if (ovr >= 85) return '1st Line';
+    if (ovr >= 80) return '2nd Line';
+    if (ovr >= 76) return '3rd Line';
+    return '4th Line';
+  } else {
+    // Junior/AHL/Euro scaling
+    if (pos === 'G') return ovr >= 70 ? 'Starter' : ovr >= 60 ? 'Backup' : 'Scratch';
+    if (ovr >= 70) return '1st Line';
+    if (ovr >= 64) return '2nd Line';
+    if (ovr >= 58) return '3rd Line';
+    return '4th Line';
   }
-  if (league === 'AHL') {
-    if (ovr >= 68) return pos === 'G' ? 'Starting Goalie' : '1st Line';
-    if (ovr >= 62) return pos === 'G' ? '1B Goalie' : '2nd Line';
-    return pos === 'G' ? 'Backup Goalie' : '3rd Line';
-  }
-  if (ovr >= 85) return pos === 'G' ? 'Franchise Goalie' : '1st Line';
-  if (ovr >= 78) return pos === 'G' ? 'Starting Goalie' : '2nd Line';
-  if (ovr >= 72) return pos === 'G' ? '1B Goalie' : '3rd Line';
-  if (ovr >= 65) return pos === 'G' ? 'Backup Goalie' : '4th Line';
-  return pos === 'G' ? 'AHL Call-up' : 'Healthy Scratch';
+};
+
+export const euroTeams = [...shlTeams, ...liigaTeams];
+
+export const getOpponentPool = (league) => {
+  if (league === 'NHL') return nhlTeams;
+  if (league === 'AHL') return ahlTeams;
+  if (league === 'OHL') return ohlTeams;
+  if (league === 'WHL') return whlTeams;
+  if (league === 'QMJHL') return qmjhlTeams;
+  if (league === 'SHL') return shlTeams;
+  if (league === 'LIIGA') return liigaTeams;
+  if (league === 'NCAA') return ncaaTeams;
+  return [];
 };
