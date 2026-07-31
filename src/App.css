@@ -1,3 +1,10 @@
+html, body {
+  background-color: #040505 !important;
+  color: #f8fafc !important;
+  min-height: 100vh;
+  margin: 0;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Oswald:ital,wght@0,400;0,600;0,700;1,700&display=swap');
 
 body {

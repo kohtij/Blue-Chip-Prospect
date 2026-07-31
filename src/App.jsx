@@ -35,6 +35,28 @@ const MASTER_ACHIEVEMENTS = [
   { id: 'fifty_mil', name: 'Bag Secured', desc: 'Earn $50M Career', icon: '💰' }
 ];
 
+const PRESS_VIBES = {
+  professional: { label: 'PROFESSIONAL', icon: '👔', color: 'text-[#3b82f6]', bg: 'bg-[#3b82f6]/10', border: 'border-[#3b82f6]/30' },
+  passionate:   { label: 'PASSIONATE',   icon: '🔥', color: 'text-[#ef4444]', bg: 'bg-[#ef4444]/10', border: 'border-[#ef4444]/30' },
+  humble:       { label: 'HUMBLE',       icon: '🙏', color: 'text-[#22E748]', bg: 'bg-[#22E748]/10', border: 'border-[#22E748]/30' },
+  cocky:        { label: 'COCKY',        icon: '😎', color: 'text-[#F59E0B]', bg: 'bg-[#F59E0B]/10', border: 'border-[#F59E0B]/30' }
+};
+
+const PRESS_JOURNALISTS = [
+  { id: 'professional', name: 'The Veteran Beat Writer', desc: 'Old-school and institutional. They want MEASURED and FORMAL answers.' },
+  { id: 'passionate',   name: 'The Local Fanatic', desc: 'Wears their heart on their sleeve. They want to see FIRE and PASSION for the city.' },
+  { id: 'humble',       name: 'The Character Analyst', desc: 'Values team culture above all. They look for TEAM-FIRST, HUMBLE responses.' },
+  { id: 'cocky',        name: 'The Tabloid Stirrer', desc: 'Looking for a controversial headline. They thrive on CONFIDENCE and ARROGANCE.' }
+];
+
+const PRESS_QUESTIONS = [
+  { q: "You've been getting a lot of attention lately. How are you handling the pressure?", answers: { professional: "I just focus on my job and trust the process.", passionate: "I feed off the energy of this city, it drives me!", humble: "It's easy when you have great teammates supporting you.", cocky: "Pressure? I was born for this spotlight." } },
+  { q: "Tough loss tonight. What went wrong out there on the ice?", answers: { professional: "We need to review the tape and execute our system better.", passionate: "We didn't battle hard enough. That's unacceptable for our fans.", humble: "I need to be better. This one is on my shoulders.", cocky: "A lucky bounce for them. We're still the better team." } },
+  { q: "Rumors are swirling about a divide in the locker room. Any comments?", answers: { professional: "We handle our business internally. No comment.", passionate: "We're a family! Anyone saying otherwise is a liar.", humble: "We're just focused on working hard for each other every day.", cocky: "Let them talk. Winning cures everything, and we win." } },
+  { q: "How do you feel about your upcoming matchup against your rivals?", answers: { professional: "They are a well-coached team. We need to be prepared.", passionate: "It's war. We know what this game means to the city.", humble: "It'll be a tough test. We respect them a lot.", cocky: "We're going to completely dismantle them." } },
+  { q: "The coach benched you in the 3rd period last game. Your thoughts?", answers: { professional: "Coach makes the decisions. I just play.", passionate: "I was furious! I want to be out there helping the team win.", humble: "He made the right call. I wasn't playing my best hockey.", cocky: "It was a mistake taking me off the ice. I'm the game changer." } }
+];
+
 const TeamLogo = ({ teamId, league, isAHL }) => {
   const team = getTeamData(teamId, league);
   const [imgError, setImgError] = useState(false);
@@ -117,11 +139,15 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
         {player.pos === 'G' ? (
           <>
             <div className="stat-box py-4 px-2 flex flex-col justify-center items-center">
-              <p className="text-4xl font-black text-[#22E748] sports-font leading-none mb-1">{player.stats[lgKey]?.shots > 0 ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000'}</p>
+              <p className="text-4xl font-black text-[#22E748] sports-font leading-none mb-1">
+                {(player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000'}
+              </p>
               <p className="text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">SV%</p>
             </div>
             <div className="stat-box py-4 px-2 flex flex-col justify-center items-center">
-              <p className="text-4xl font-black text-white sports-font leading-none mb-1">{player.stats[lgKey]?.games > 0 ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00'}</p>
+              <p className="text-4xl font-black text-white sports-font leading-none mb-1">
+                {(player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00'}
+              </p>
               <p className="text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">GAA</p>
             </div>
             <div className="stat-box py-4 px-2 flex flex-col justify-center items-center">
@@ -205,6 +231,7 @@ function App() {
   const [activeTrainings, setActiveTrainings] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
   const [activeMinigame, setActiveMinigame] = useState(null);
+  const [activePress, setActivePress] = useState({ journalist: null, questions: [], currentQ: 0, answers: [] });
   const [minigameContext, setMinigameContext] = useState('season');
 
   const [eventFeedback, setEventFeedback] = useState('');
@@ -312,9 +339,12 @@ function App() {
       }
     }
 
+    // Set the state once to lock in the buffs and team changes
     setPlayer(p => ({ ...p, team: currentTeam, league: currentLeague, buffs: newBuffs }));
 
-    if (player.age === 18 && isJunior) {
+    // IMPORTANT: Checking 'isJunior' based on the CURRENT league state before it updates,
+    // so we correctly route them to the draft if they just finished junior hockey at 18.
+    if (player.age === 18 && juniorLeagues.includes(currentLeague)) {
       handleDraftDay();
       return;
     }
@@ -327,7 +357,7 @@ function App() {
       }
       generateTraining(player.pos);
       setScreen('preseason');
-    } else if (!isJunior && player.contract.years <= 0) {
+    } else if (!juniorLeagues.includes(currentLeague) && player.contract.years <= 0) {
       generateOffers(false, currentTeam);
     } else {
       generateTraining(player.pos);
@@ -362,7 +392,7 @@ function App() {
     const draftedBy = nhlTeams[Math.floor(Math.random() * nhlTeams.length)];
 
     setPlayer(p => ({
-      ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: [...p.teamsPlayedFor, draftedBy.id], idolatry: capIdol(p.idolatry + idolBoost),
+      ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: [...(p.teamsPlayedFor || []), draftedBy.id], idolatry: capIdol(p.idolatry + idolBoost),
       contract: { salary: 925000, years: 3 }
     }));
 
@@ -435,7 +465,14 @@ function App() {
 
     if (Math.random() < 0.65) {
       setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
-      if (Math.random() < 0.55) {
+      
+      const eventRoll = Math.random();
+      if (eventRoll < 0.33) {
+        const shuffledQ = [...PRESS_QUESTIONS].sort(() => 0.5 - Math.random()).slice(0, 3);
+        const randomJournalist = PRESS_JOURNALISTS[Math.floor(Math.random() * PRESS_JOURNALISTS.length)];
+        setActivePress({ journalist: randomJournalist, questions: shuffledQ, currentQ: 0, answers: [] });
+        setScreen('press');
+      } else if (eventRoll < 0.66) {
         triggerMinigame('season');
       } else {
         setMinigameContext('season');
@@ -448,6 +485,40 @@ function App() {
 
     if (madePlayoffs) checkPlayoffs(currentLg, currentTeam, standings);
     else setScreen('recap');
+  };
+
+  const handlePressAnswer = (vibeId) => {
+    const newAnswers = [...activePress.answers, vibeId];
+    if (newAnswers.length === 3) {
+      setActivePress({ ...activePress, answers: newAnswers });
+      setScreen('press-result');
+    } else {
+      setActivePress({ ...activePress, answers: newAnswers, currentQ: activePress.currentQ + 1 });
+    }
+  };
+
+  const handleEndPress = () => {
+    const hits = activePress.answers.filter(a => a === activePress.journalist.id).length;
+    
+    setPlayer(prev => {
+      let idolDelta = 0;
+      let ovrDelta = 0;
+      if (hits === 3) { idolDelta = 15; ovrDelta = 1; }
+      else if (hits === 2) { idolDelta = 5; }
+      else if (hits === 1) { idolDelta = -5; }
+      else { idolDelta = -15; ovrDelta = -1; }
+      
+      const withOvr = applyOvrDelta(prev, ovrDelta);
+      return { ...withOvr, idolatry: capIdol(withOvr.idolatry + idolDelta), ovr: recomputeOvr(withOvr) };
+    });
+    
+    if (pendingPlayoffs) {
+      const pp = pendingPlayoffs;
+      setPendingPlayoffs(null);
+      checkPlayoffs(pp.lg, pp.team, pp.standings);
+    } else {
+      setScreen('recap');
+    }
   };
 
   const triggerMinigame = (context = 'season') => {
@@ -601,11 +672,16 @@ function App() {
     const actingTeam = overrideTeam || player.team;
     const multi = player.inventory.includes('agent') ? 1.15 : 1.0;
     
-    let baseSalary = 775000;
+    let leagueMinimum = 850000;
+    if (currentYear === 2027) leagueMinimum = 900000;
+    else if (currentYear === 2028) leagueMinimum = 950000;
+    else if (currentYear >= 2029) leagueMinimum = 1000000;
+
+    let baseSalary = leagueMinimum;
     let maxYears = 2;
 
     if (player.league === 'AHL' || isJunior) {
-      baseSalary = (775000 + (Math.random() * 150000)) * multi;
+      baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
       maxYears = 2;
     } else if (player.league === 'NHL') {
       if (player.ovr >= 85) {
@@ -618,11 +694,11 @@ function App() {
         baseSalary = (2000000 + ((player.ovr - 75) * 500000)) * multi;
         maxYears = 3;
       } else {
-        baseSalary = (900000 + ((player.ovr - 70) * 100000)) * multi;
+        baseSalary = (leagueMinimum + 150000 + ((player.ovr - 70) * 100000)) * multi;
         maxYears = 2;
       }
     } else {
-      baseSalary = 1000000 * multi;
+      baseSalary = Math.max(leagueMinimum, 1000000) * multi;
       maxYears = 2;
     }
 
@@ -656,7 +732,7 @@ function App() {
         offers.push({
           team: t,
           type: isRFA ? 'OFFER SHEET' : (isTradeRequest ? 'TRADE' : 'FREE AGENCY'),
-          salary: Math.max(775000, offerSalary),
+          salary: Math.max(leagueMinimum, offerSalary),
           years: Math.floor(Math.random() * maxYears) + 1,
           idolHit: getTransferImpact(actingTeam, t)
         });
@@ -738,7 +814,7 @@ function App() {
 
   if (screen === 'creation') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#040505] text-white">
+      <div className="min-h-screen flex items-center justify-center p-6 text-white">
         <div className="w-full max-w-xl game-panel p-10 text-center border-t-2 border-t-[#22E748]">
           <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font">CAREER MODE</h2>
           <h1 className="text-6xl font-black mb-10 text-white italic sports-font uppercase tracking-tighter">BLUE CHIP PROSPECT</h1>
@@ -807,7 +883,7 @@ function App() {
   if (screen === 'retirement') {
     const isLegend = player.idolatry >= 1000;
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#040505] text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-white">
         <div className="w-full max-w-4xl game-panel p-12 border-t-2 border-t-[#22E748]">
           <p className="text-[#22E748] font-bold tracking-widest uppercase mb-3 text-center sports-font">END OF CAREER</p>
           <h1 className="text-6xl font-black italic mb-12 text-center sports-font tracking-tighter uppercase">{isLegend ? 'THEY BUILT YOU A STATUE' : 'YOU HUNG UP THE SKATES'}</h1>
@@ -817,7 +893,7 @@ function App() {
               <div className="flex justify-between pb-2"><span className="text-slate-400">Games Played</span> <span className="font-bold text-white sports-font">{player.stats.nhl?.games || 0}</span></div>
               {player.pos === 'G' ? (
                 <>
-                  <div className="flex justify-between pb-2"><span className="text-slate-400">Career SV%</span> <span className="font-bold text-white sports-font">{player.stats.nhl?.shots > 0 ? (player.stats.nhl.saves / player.stats.nhl.shots).toFixed(3).replace('0.', '.') : '.000'}</span></div>
+                  <div className="flex justify-between pb-2"><span className="text-slate-400">Career SV%</span> <span className="font-bold text-white sports-font">{(player.stats.nhl?.shots > 0 && player.stats.nhl?.saves !== undefined) ? (player.stats.nhl.saves / player.stats.nhl.shots).toFixed(3).replace('0.', '.') : '.000'}</span></div>
                   <div className="flex justify-between pb-2"><span className="text-slate-400">Shutouts</span> <span className="font-bold text-white sports-font">{player.stats.nhl?.shutouts || 0}</span></div>
                 </>
               ) : (
@@ -841,7 +917,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen p-3 md:p-6 flex flex-col font-sans bg-[#040505] text-white">
+    <div className="min-h-screen p-3 md:p-6 flex flex-col font-sans text-white">
       {isShopOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md game-panel h-full flex flex-col border border-[#22E748]">
@@ -900,6 +976,108 @@ function App() {
 
       <div className="w-full max-w-5xl mx-auto pb-10">
 
+        {screen === 'press' && (() => {
+          const q = activePress.questions[activePress.currentQ];
+          const answerKeys = Object.keys(q?.answers || {}).sort(() => 0.5 - Math.random());
+          
+          return (
+            <div className="game-panel p-8 mt-2 border-t-2 border-t-[#3b82f6] text-left">
+              <div className="mb-6 border-b border-[rgba(255,255,255,0.065)] pb-4">
+                 <h3 className="text-sm font-bold text-slate-400 tracking-widest uppercase mb-1 font-sans">SALA DE PRENSA</h3>
+                 <h2 className="text-4xl font-black text-white sports-font uppercase tracking-wide">LA RUEDA DE PRENSA</h2>
+              </div>
+              
+              <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-4 mb-6">
+                <p className="text-sm font-bold text-white mb-1 flex items-center gap-2">🎧 Read the room.</p>
+                <p className="text-xs text-slate-400">You won't know what they're looking for until the end. Your tone matters just as much as your words.</p>
+              </div>
+
+              <p className="text-[10px] font-bold text-[#3b82f6] tracking-widest uppercase mb-2">QUESTION {activePress.currentQ + 1} OF 3</p>
+              <h3 className="text-2xl font-bold text-white mb-6 leading-snug">"{q?.q}"</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                {answerKeys.map((vibeKey) => {
+                  const vibe = PRESS_VIBES[vibeKey];
+                  return (
+                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-5 rounded-xl transition-colors group flex flex-col gap-3 cursor-pointer">
+                       <div className="flex items-center gap-2">
+                         <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${vibe.bg} ${vibe.color} border ${vibe.border}`}>{vibe.icon} {vibe.label}</span>
+                       </div>
+                       <p className="text-slate-300 font-medium group-hover:text-white transition-colors">"{q.answers[vibeKey]}"</p>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex gap-2 w-full h-1 mt-auto">
+                 {[0,1,2].map(step => (
+                    <div key={step} className={`flex-1 rounded-full ${step <= activePress.currentQ ? 'bg-[#3b82f6]' : 'bg-[#232d3f]'}`}></div>
+                 ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {screen === 'press-result' && (() => {
+           const journalist = activePress.journalist;
+           const hits = activePress.answers.filter(a => a === journalist?.id).length;
+           
+           let resultTitle, resultColor, resultText;
+           if (hits === 3) { resultTitle = 'FLAWLESS CONFERENCE'; resultColor = 'text-[#22E748]'; resultText = 'Read them like a book. +15 Fan Status, +1 OVR'; }
+           else if (hits === 2) { resultTitle = 'GOOD CONFERENCE'; resultColor = 'text-[#3b82f6]'; resultText = 'Solid, measured answers. +5 Fan Status'; }
+           else if (hits === 1) { resultTitle = 'MIXED RECEPTION'; resultColor = 'text-[#F59E0B]'; resultText = 'They twisted your words. -5 Fan Status'; }
+           else { resultTitle = 'PR DISASTER'; resultColor = 'text-[#ef4444]'; resultText = 'You alienated everyone. -15 Fan Status, -1 OVR'; }
+
+           return (
+            <div className="game-panel p-8 mt-2 border-t-2 border-t-[#3b82f6] text-left">
+              <div className="mb-6 border-b border-[rgba(255,255,255,0.065)] pb-4">
+                 <h3 className="text-sm font-bold text-slate-400 tracking-widest uppercase mb-1 font-sans">SALA DE PRENSA</h3>
+                 <h2 className="text-4xl font-black text-white sports-font uppercase tracking-wide">LA RUEDA DE PRENSA</h2>
+              </div>
+
+              <div className="border border-[rgba(255,255,255,0.065)] rounded-xl mb-6 overflow-hidden">
+                 <div className="bg-[#101410] px-4 py-2 border-b border-[rgba(255,255,255,0.065)]">
+                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">WHAT THEY WANTED</span>
+                 </div>
+                 <div className="p-4 bg-[#1a2230]">
+                    <p className="text-sm text-white"><span className="font-bold text-[#3b82f6]">🎙️ {journalist?.name}:</span> {journalist?.desc}</p>
+                 </div>
+              </div>
+
+              <div className="border border-[rgba(255,255,255,0.065)] rounded-xl mb-6 overflow-hidden">
+                 <div className="bg-[#101410] px-4 py-2 border-b border-[rgba(255,255,255,0.065)]">
+                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">THE TRANSCRIPT</span>
+                 </div>
+                 <div className="p-4 bg-[#1a2230] flex flex-col gap-3">
+                   {activePress.answers.map((ans, i) => {
+                     const isHit = ans === journalist?.id;
+                     const vibe = PRESS_VIBES[ans];
+                     return (
+                       <div key={i} className="flex justify-between items-center bg-[#101410] p-3 rounded-lg border border-[rgba(255,255,255,0.03)]">
+                          <div className="flex items-center gap-3">
+                             <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${vibe?.bg} ${vibe?.color} border ${vibe?.border}`}>{vibe?.icon} {vibe?.label}</span>
+                             {!isHit && <span className="text-slate-500 text-xs italic hidden sm:inline">(Missed the mark)</span>}
+                          </div>
+                          <span className={isHit ? 'text-[#22E748]' : 'text-[#ef4444]'}>{isHit ? '✔' : '✖'}</span>
+                       </div>
+                     )
+                   })}
+                 </div>
+              </div>
+
+              <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-6 text-center mb-8 flex flex-col items-center">
+                 <span className="text-3xl mb-2">🎤</span>
+                 <h3 className={`text-2xl font-black sports-font uppercase tracking-wide ${resultColor} mb-1`}>{resultTitle}</h3>
+                 <p className="text-slate-400 text-sm">{resultText}</p>
+              </div>
+
+              <button onClick={handleEndPress} className="w-full btn-primary py-4 rounded-xl text-xl cursor-pointer sports-font tracking-widest">
+                CONTINUE CAREER ➔
+              </button>
+            </div>
+           )
+        })()}
+
         {screen === 'draft' && (
           <div className="game-panel p-10 mt-2 text-center border-t-2 border-t-[#22E748]">
             <h2 className="text-4xl font-black text-white uppercase mb-6 sports-font tracking-tighter">DRAFT DAY</h2>
@@ -925,7 +1103,9 @@ function App() {
                         {t.rarity !== 'Common' ? (
                           <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest font-sans ${t.rarity === 'Epic' ? 'bg-[#F59E0B] text-black' : 'bg-[#3b82f6] text-white'}`}>{t.rarity}</span>
                         ) : <span></span>}
-                        <span className="text-4xl font-black text-slate-700 uppercase sports-font tracking-tighter">{t.tag}</span>
+                        <span className="text-4xl font-black text-slate-700 uppercase sports-font tracking-tighter">
+                          {{ 'SHT': 'SHOOTING', 'SKT': 'SKATING', 'PHY': 'PHYSICAL', 'IQ': 'HOCKEY IQ', 'STA': 'STAMINA', 'REF': 'REFLEXES', 'AGI': 'AGILITY' }[t.tag] || t.tag}
+                        </span>
                       </div>
                       <h3 className="text-2xl font-black text-white uppercase leading-tight mb-3 text-left sports-font mt-2">{t.name}</h3>
                       <p className="text-sm text-slate-400 leading-relaxed italic text-left font-sans mb-4">{t.flavor}</p>
@@ -1080,14 +1260,14 @@ function App() {
 
         {screen === 'minigame' && (() => {
           const mg = findMinigame(activeMinigame, player.pos);
-          const accent = ACCENT[mg.accent] || ACCENT.blue;
+          const accent = ACCENT[mg?.accent] || ACCENT.blue;
 
           return (
             <div className={`game-panel p-12 mt-2 border-t-2 ${accent.border} text-center`}>
-              <h2 className={`text-5xl font-black mb-4 ${accent.heading} sports-font tracking-tighter uppercase`}>{mg.title}</h2>
-              <p className="text-xl text-slate-300 mb-12 max-w-2xl mx-auto text-left">{mg.desc}</p>
+              <h2 className={`text-5xl font-black mb-4 ${accent.heading} sports-font tracking-tighter uppercase`}>{mg?.title}</h2>
+              <p className="text-xl text-slate-300 mb-12 max-w-2xl mx-auto text-left">{mg?.desc}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                {mg.choices.map((c, i) => {
+                {mg?.choices.map((c, i) => {
                   const chance = choiceChance(player, c);
                   const pill = ARCH_PILL[c.archetype] || ARCH_PILL.safe;
                   return (
@@ -1106,9 +1286,33 @@ function App() {
 
         {screen === 'event-result' && (
           <div className="game-panel p-10 mt-2 text-center border-t-2 border-t-[#22E748]">
-            <h2 className="text-2xl font-black text-white uppercase mb-6 sports-font">THE AFTERMATH</h2>
-            <p className="text-xl italic text-slate-300 mb-8 max-w-2xl mx-auto text-left">"{eventFeedback}"</p>
-            <button onClick={handleContinueEvent} className="btn-primary py-4 px-12 rounded-xl text-xl cursor-pointer sports-font tracking-widest">CONTINUE CAREER ➔</button>
+            <h2 className="text-4xl font-black text-white uppercase mb-6 sports-font tracking-tighter">THE AFTERMATH</h2>
+            <p className="text-xl italic text-slate-300 mb-8 max-w-2xl mx-auto font-sans">"{eventFeedback}"</p>
+
+            <div className="flex flex-wrap justify-center gap-4 mb-10">
+              {eventImpacts.idol !== undefined && eventImpacts.idol !== 0 && (
+                <div className={`min-w-[140px] px-6 py-4 rounded-xl border ${eventImpacts.idol > 0 ? 'bg-[#22E748]/10 border-[#22E748]/30 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-slate-400">FAN STATUS</p>
+                  <p className="text-4xl font-black sports-font">{eventImpacts.idol > 0 ? '+' : ''}{eventImpacts.idol}</p>
+                </div>
+              )}
+              {eventImpacts.ovr !== undefined && eventImpacts.ovr !== 0 && (
+                <div className={`min-w-[140px] px-6 py-4 rounded-xl border ${eventImpacts.ovr > 0 ? 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-slate-400">OVR IMPACT</p>
+                  <p className="text-4xl font-black sports-font">{eventImpacts.ovr > 0 ? '+' : ''}{eventImpacts.ovr}</p>
+                </div>
+              )}
+              {eventImpacts.money !== undefined && eventImpacts.money !== 0 && (
+                <div className="min-w-[140px] px-6 py-4 rounded-xl border bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#F59E0B]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-slate-400">EARNINGS</p>
+                  <p className="text-4xl font-black sports-font">+{formatMoney(eventImpacts.money)}</p>
+                </div>
+              )}
+            </div>
+
+            <button onClick={handleContinueEvent} className="btn-primary py-4 px-12 rounded-xl text-xl cursor-pointer sports-font tracking-widest">
+              CONTINUE CAREER ➔
+            </button>
           </div>
         )}
 
@@ -1137,6 +1341,38 @@ function App() {
             </div>
             {playoffs.status === 'won' && <button onClick={proceedFromPlayoffs} className="btn-primary py-4 px-12 rounded-xl cursor-pointer sports-font tracking-widest">CONTINUE</button>}
             {playoffs.status === 'lost' && <button onClick={handleEndPlayoffs} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white py-4 px-12 rounded-xl cursor-pointer sports-font tracking-widest">CONTINUE</button>}
+          </div>
+        )}
+
+        {screen === 'memorial-cup' && (
+          <div className="game-panel p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
+            <h2 className="text-5xl font-black mb-4 text-[#F59E0B] sports-font tracking-tighter uppercase">THE MEMORIAL CUP</h2>
+            <p className="text-xl text-slate-300 mb-12 max-w-2xl mx-auto leading-relaxed text-center">The ultimate prize in Junior Hockey. Win two games to cement your legacy.</p>
+
+            {memCup.status === 'playing' && (
+              <div className="relative z-10 flex flex-col items-center">
+                <h3 className="text-3xl font-bold mb-8 sports-font text-white text-center">{memCup.round === 0 ? 'SEMI-FINAL MATCHUP' : 'CHAMPIONSHIP FINAL'}</h3>
+                <button onClick={() => triggerMinigame('memcup')} className="btn-primary py-4 px-10 rounded-xl font-black text-xl text-white transition-all hover:scale-105 cursor-pointer shadow-lg sports-font uppercase tracking-widest">
+                  PLAY MATCH
+                </button>
+              </div>
+            )}
+
+            {memCup.status === 'won' && (
+              <div className="relative z-10">
+                <h2 className="text-4xl font-black text-[#F59E0B] mb-6 sports-font">🏆 MEMORIAL CUP CHAMPIONS! 🏆</h2>
+                <p className="text-slate-300 mb-8 font-bold">Your draft stock has skyrocketed.</p>
+                <button onClick={handleEndMemCup} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white font-black py-3 px-10 rounded-full shadow-xl cursor-pointer sports-font tracking-widest uppercase">Continue to Recap</button>
+              </div>
+            )}
+
+            {memCup.status === 'lost' && (
+              <div className="relative z-10 mt-4">
+                <h2 className="text-3xl font-black text-slate-500 mb-6 sports-font">💀 ELIMINATED. 💀</h2>
+                <p className="text-slate-400 mb-8 font-bold">Your season ends in heartbreak.</p>
+                <button onClick={handleEndMemCup} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white font-bold py-3 px-10 rounded-full cursor-pointer sports-font tracking-widest uppercase">Continue to Recap</button>
+              </div>
+            )}
           </div>
         )}
 
