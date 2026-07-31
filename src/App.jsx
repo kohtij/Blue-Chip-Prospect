@@ -99,15 +99,15 @@ const TeamLogo = ({ teamId, league, isAHL }) => {
     return (
       <div className="relative w-12 h-12 rounded-full flex items-center justify-center font-black text-sm border-2 bg-[#101410] text-white border-[rgba(255,255,255,0.14)] sports-font shrink-0">
         {teamId}
-        {isAHL && <span className="absolute -bottom-2 -right-2 bg-[#F59E0B] text-black text-[9px] px-1 rounded-sm font-black border border-black">AHL</span>}
+        {isAHL && <span className="absolute -bottom-2 -right-2 bg-[#F59E0B] text-black text-[9px] px-1 rounded-sm font-black border border-black z-10">AHL</span>}
       </div>
     );
   }
 
   return (
-    <div className="relative w-12 h-12 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs border-2 sports-font shadow-lg shrink-0 text-center leading-none overflow-hidden" style={{ backgroundColor: team.bg, color: team.color, borderColor: team.color }}>
+    <div className="relative w-12 h-12 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs border-2 sports-font shadow-lg shrink-0 text-center leading-none" style={{ backgroundColor: team.bg, color: team.color, borderColor: team.color }}>
       {team.id}
-      {isAHL && <span className="absolute -bottom-2 -right-2 bg-[#F59E0B] text-black text-[9px] px-1 rounded-sm font-black border border-black z-10">AHL</span>}
+      {isAHL && <span className="absolute -bottom-2 -right-2 bg-[#F59E0B] text-black text-[9px] px-1 rounded-sm font-black border border-black z-10 shadow-sm">AHL</span>}
     </div>
   );
 };
