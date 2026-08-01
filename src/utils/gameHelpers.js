@@ -29,14 +29,19 @@ export const getIdolTier = (pts) => {
 };
 
 export const getTransferImpact = (oldTeamId, newTeamId) => {
-  if (!oldTeamId || juniorLeagues.includes(oldTeamId)) return 0;
-  if (oldTeamId === newTeamId) return 10;
+  if (!oldTeamId || juniorLeagues.includes(oldTeamId) || euroLeagues.includes(oldTeamId) || oldTeamId === 'NCAA') return 0;
+  if (oldTeamId === newTeamId) return 10; // Staying put rewards you
+  
   const oldT = nhlTeams.find(t => t.id === oldTeamId);
   const newT = nhlTeams.find(t => t.id === newTeamId);
+  
   if (!oldT || !newT) return -5;
-  if (oldT.div === newT.div) return -30;
-  if (oldT.conf === newT.conf) return -15;
-  return -5;
+  
+  // Stricter checks so it doesn't flag 'undefined === undefined' as true
+  if (oldT.div && newT.div && oldT.div === newT.div) return -30; // Division Rival
+  if (oldT.conf && newT.conf && oldT.conf === newT.conf) return -15; // Conference Rival
+  
+  return -5; // General departure
 };
 
 export const getActiveStat = (p, stat) => {
@@ -284,10 +289,22 @@ export function simulateSeason(player, trainingEffect = {}) {
 
   const updatedLgKey = isJuniorLg ? 'chl' : currentLg === 'AHL' ? 'ahl' : 'nhl';
 
-  const valIncrease = p.pos === 'G' ? (sho * 500000) + (saves * 1000) : (g * 75000) + (a * 25000) + (pm * 10000);
-  const maxVal = currentLg === 'NHL' ? 20000000 : currentLg === 'AHL' ? 5000000 : 2000000;
-  const newVal = Math.min(maxVal, Math.max(50000, p.stats.value + valIncrease - (declineMod < 1 ? 500000 : 0)));
-
+// -- DYNAMIC MARKET VALUE DECAY --
+  let valIncrease = 0;
+  if (p.pos === 'G') {
+    valIncrease = (sho * 350000) + (saves * 600) + (games * 10000);
+  } else {
+    valIncrease = (g * 110000) + (a * 45000) + (pm * 15000) + (games * 8000);
+  }
+  
+  // Value inherently decays by 35% every season. 
+  // To reach and maintain $20M, you MUST generate ~$7M in pure performance value every year.
+  const maxVal = currentLg === 'NHL' ? 20000000 : currentLg === 'AHL' ? 3000000 : 500000;
+  const decayedValue = Math.floor(p.stats.value * 0.65);
+  let newVal = Math.min(maxVal, Math.max(50000, decayedValue + valIncrease));
+  
+  // Apply a minor age penalty if they are actively declining
+  if (declineMod < 1) newVal = Math.max(50000, newVal - 500000);
   const nextOvr = recomputeOvr({ shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
 
   const updatedPlayer = {
