@@ -97,8 +97,30 @@ export const applyOvrDelta = (player, delta) => {
   };
 };
 
-export const recomputeOvr = (player) =>
-  Math.floor((player.shooting + player.skating + player.physicality + player.hockeyIQ + player.stamina) / 5);
+export const recomputeOvr = (player) => {
+  if (!player) return 50;
+
+  const s1 = player.shooting || 50;    // Reflexes for G
+  const s2 = player.skating || 50;     // Positioning for G
+  const s3 = player.physicality || 50; // Agility for G
+  const s4 = player.hockeyIQ || 50;
+  const s5 = player.stamina || 50;
+
+  let weighted = 50;
+
+  if (player.pos === 'G') {
+    // Goalies: Reflexes (35%) & Positioning (35%) drive core rating
+    weighted = (s1 * 0.35) + (s2 * 0.35) + (s3 * 0.18) + (s4 * 0.07) + (s5 * 0.05);
+  } else if (['LD', 'RD'].includes(player.pos)) {
+    // Defensemen: Physicality (28%), IQ (28%), Skating (22%)
+    weighted = (s3 * 0.28) + (s4 * 0.28) + (s2 * 0.22) + (s1 * 0.11) + (s5 * 0.11);
+  } else {
+    // Forwards: Shooting (30%), Skating (30%), IQ (20%)
+    weighted = (s1 * 0.30) + (s2 * 0.30) + (s4 * 0.20) + (s3 * 0.10) + (s5 * 0.10);
+  }
+
+  return Math.min(99, Math.max(50, Math.round(weighted)));
+};
 
 // Promotion/demotion hysteresis (partial fix for the "yo-yo" issue): a
 // player needs to clear 66 OVR to be promoted, but only drops below 62 to
@@ -136,30 +158,13 @@ export function simulateSeason(player, trainingEffect = {}) {
       currentLg = 'NHL';
     } else if (p.ovr < DEMOTE_OVR) {
       if (currentLg === 'NHL') {
-        const currentNhlTeam = nhlTeams.find(t => t.id === currentTeam);
-
-        if (p.age <= 21) {
-          currentLg = 'AHL';
-          if (currentNhlTeam) currentTeam = currentNhlTeam.ahlId;
-          isDemoted = true;
-        } else if (p.age > 33) {
-          const euroDest = euroTeams[Math.floor(Math.random() * euroTeams.length)];
-          currentLg = euroDest.league;
-          currentTeam = euroDest.id;
-          waiverEvent = 'Your NHL days are over. You have signed a lucrative contract overseas in Europe.';
-        } else {
-          const claimed = Math.random() > 0.5;
-          if (claimed) {
-            const t = nhlTeams[Math.floor(Math.random() * nhlTeams.length)];
-            currentTeam = t.id;
-            currentLg = 'NHL';
-            waiverEvent = `You were placed on waivers and claimed by the ${t.name}!`;
-          } else {
-            currentLg = 'AHL';
-            if (currentNhlTeam) currentTeam = currentNhlTeam.ahlId;
-            waiverEvent = 'You cleared waivers and were assigned to the AHL.';
-          }
-        }
+        // Dropped below the demotion line: send the player down to the
+        // NHL club's AHL affiliate for the season.
+        const parentNhlTeam = nhlTeams.find(t => t.id === currentTeam);
+        if (parentNhlTeam && parentNhlTeam.ahlId) currentTeam = parentNhlTeam.ahlId;
+        currentLg = 'AHL';
+        isDemoted = true;
+        waiverEvent = 'You cleared waivers and were reassigned to the AHL affiliate.';
       }
     }
   }
@@ -175,8 +180,30 @@ export function simulateSeason(player, trainingEffect = {}) {
   if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; simSta += 15; }
   if (isEuroLg) { simSht += 10; simSkt += 10; simIq += 10; simPhy += 10; simSta += 10; }
 
+// --- DYNAMIC CONTRACT ROLE MODIFIERS ---
+  let roleMulti = 1.0;
+  const cRole = p.contract?.role || '';
+
+  if (cRole.includes('Core') || cRole.includes('Sniper') || cRole.includes('Playmaker') || cRole.includes('Offensive') || cRole.includes('Starter')) {
+    roleMulti = 1.25;
+    if (cRole.includes('Sniper')) simSht += 10;
+    if (cRole.includes('Playmaker')) simIq += 10;
+    if (cRole.includes('Power')) simPhy += 10;
+  } else if (cRole.includes('Middle') || cRole.includes('Top 4') || cRole.includes('Two-Way')) {
+    roleMulti = 0.90;
+  } else if (cRole.includes('Grinder') || cRole.includes('Depth') || cRole.includes('Bottom')) { 
+    roleMulti = 0.60; 
+    if (cRole.includes('Grinder') || cRole.includes('Shutdown')) simPhy += 15; 
+  } else if (cRole.includes('Backup')) {
+    roleMulti = 0.40; 
+  }
+
   let games = isJuniorLg ? 68 : 70 + Math.floor(Math.random() * 12);
-  if (p.pos === 'G') games = Math.floor(games * 0.8);
+  if (p.pos === 'G') {
+    games = cRole.includes('Backup') ? Math.floor(20 + Math.random() * 15) : Math.floor(games * 0.8);
+  } else if (cRole.includes('Grinder') || cRole.includes('Depth') || cRole.includes('Bottom')) {
+    games = Math.floor(games * 0.85); // Frequent healthy scratches for depth players
+  }
 
   let g = 0, a = 0, pm = 0, saves = 0, shots = 0, sho = 0;
   let baseImpact = 0;
@@ -205,10 +232,27 @@ export function simulateSeason(player, trainingEffect = {}) {
     baseImpact = (g + a) * 0.25;
   }
 
-  let rating = p.pos === 'G'
+let rating = p.pos === 'G'
     ? Math.min(10, Math.max(1, 5.0 + (saves / shots - 0.900) * 100))
     : Math.min(10, Math.max(1, 5.0 + (g + a + pm * 0.5) / games * 5));
   rating = Number(rating.toFixed(1));
+
+  // --- HARDWARE & AWARDS ---
+  const awards = [];
+  if (currentLg === 'NHL') {
+    if (p.pos === 'G' && (saves/shots) > 0.925 && games > 40) awards.push('Vezina Trophy (Best Goalie)');
+    if (p.pos !== 'G' && g >= 50) awards.push('Maurice Richard Trophy (Most Goals)');
+    if (p.pos !== 'G' && (g+a) >= 100) awards.push('Art Ross Trophy (Most Points)');
+    if (rating >= 9.0) awards.push('Hart Memorial Trophy (League MVP)');
+    if (p.stats.seasonsPlayed === 0 && rating >= 8.0) awards.push('Calder Memorial Trophy (Rookie of the Year)');
+    if (['LD', 'RD'].includes(p.pos) && rating >= 8.5) awards.push('Norris Trophy (Best Defenceman)');
+  } else if (isJuniorLg) {
+    const leagueName = currentLg === 'USHL' ? 'USHL' : 'CHL';
+    if (rating >= 9.0) awards.push(`${leagueName} Player of the Year`);
+    if (g >= 50) awards.push(`${leagueName} Top Scorer`);
+  } else if (currentLg === 'NCAA') {
+     if (rating >= 9.0) awards.push('Hobey Baker Award (NCAA Top Player)');
+  }
 
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
     currentLg = 'NHL';
@@ -307,58 +351,44 @@ export function simulateSeason(player, trainingEffect = {}) {
   if (declineMod < 1) newVal = Math.max(50000, newVal - 500000);
   const nextOvr = recomputeOvr({ shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
 
+  // Sort stats into the correct bucket based on the current league
+  const statBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLg) ? 'chl' : (currentLg === 'AHL' ? 'ahl' : 'nhl');
+
   const updatedPlayer = {
     ...p,
-    age: newAge,
-    team: currentTeam,
-    league: currentLg,
-    shooting: cap(newSht), skating: cap(newSkt), stamina: cap(newSta), hockeyIQ: cap(newIq), physicality: cap(newPhy),
+    age: p.age + 1,
     ovr: nextOvr,
     idolatry: capIdol(p.idolatry + idolGain),
-    contract: { ...p.contract, years: p.contract.years > 0 ? p.contract.years - 1 : 0 },
+    contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
-      [updatedLgKey]: {
-        goals: p.stats[updatedLgKey].goals + g,
-        assists: p.stats[updatedLgKey].assists + a,
-        games: p.stats[updatedLgKey].games + games,
-        plusMinus: p.stats[updatedLgKey].plusMinus + pm,
-        saves: p.stats[updatedLgKey].saves + saves,
-        shots: p.stats[updatedLgKey].shots + shots,
-        shutouts: p.stats[updatedLgKey].shutouts + sho
-      },
-      earnings: p.stats.earnings + salaryEarned,
-      value: newVal,
-      seasonsPlayed: p.stats.seasonsPlayed + 1
+      seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,
+      [statBucket]: {
+        games: (p.stats[statBucket]?.games || 0) + games,
+        goals: (p.stats[statBucket]?.goals || 0) + g,
+        assists: (p.stats[statBucket]?.assists || 0) + a,
+        plusMinus: (p.stats[statBucket]?.plusMinus || 0) + pm,
+        shots: (p.stats[statBucket]?.shots || 0) + shots,
+        saves: (p.stats[statBucket]?.saves || 0) + saves,
+        shutouts: (p.stats[statBucket]?.shutouts || 0) + sho
+      }
     }
   };
 
-  const recap = { g, a, pm, saves, shots, sho, games, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent };
+  const recap = { g, a, pm, saves, shots, sho, games, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs };
 
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
 }
 
-// BUG FIX #5: the playoff bracket used to be a fixed 12-win/4-loss deck no
-// matter how the regular season went, so winning the championship was
-// ~92% likely regardless of team quality. Now the win/loss split scales
-// with how strong the team's seed was.
-export function generatePlayoffDeck(standings, playoffSpots, league, currentTeamId) {
+export function generatePlayoffDeck(standings, playoffSpots, round) {
   const seedStrength = Math.max(0, Math.min(1, 1 - (standings - 1) / Math.max(1, playoffSpots - 1)));
-  const winCount = Math.round(5 + seedStrength * 6); // 5 (worst seed) to 11 (best seed), out of 16
-  const lossCount = 16 - winCount;
+  
+  let winCards = Math.round(3 + (seedStrength * 3)) - (round === 4 ? 1 : 0); 
+  winCards = Math.max(3, Math.min(7, winCards)); 
 
-  const winScores = ['4-0', '4-1', '4-1', '4-2', '4-2', '4-2', '4-3', '4-3', '4-1', '4-2', '4-3', '4-0'];
-  const lossScores = ['0-4', '1-4', '2-4', '3-4', '0-4', '1-4', '2-4', '3-4', '0-4', '1-4', '2-4', '3-4'];
-
-  const wins = shuffleArray(winScores).slice(0, winCount);
-  const losses = shuffleArray(lossScores).slice(0, lossCount);
-
-  const oppPool = getOpponentPool(league);
-  const validOpps = shuffleArray(oppPool.filter(t => t.id !== currentTeamId));
-
-  return shuffleArray([...wins, ...losses]).map((score, idx) => ({
-    score,
-    isWin: !score.endsWith('4'),
-    opp: validOpps[idx % validOpps.length].id
-  }));
+  let cards = [];
+  for (let i = 0; i < winCards; i++) cards.push({ isWin: true });
+  for (let i = 0; i < (9 - winCards); i++) cards.push({ isWin: false });
+  
+  return shuffleArray(cards);
 }
