@@ -1,43 +1,86 @@
-html, body {
-  background-color: #040505 !important;
-  color: #f8fafc !important;
-  min-height: 100vh;
-  margin: 0;
+/* ==========================================
+   BLUE CHIP PROSPECT - CUSTOM UI ASSETS
+========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;500;700;900&display=swap');
+
+body, html, #root {
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Oswald:ital,wght@0,400;0,600;0,700;1,700&display=swap');
-
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
-  color: #0f172a;
-}
-
+/* For Headers, Buttons, and Text */
 .sports-font {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'Bebas Neue', system-ui, sans-serif;
   text-transform: uppercase;
-  letter-spacing: -0.01em;
+  letter-spacing: .03em;
+  font-weight: 400;
 }
 
-.font-sans {
-  font-family: 'Inter', sans-serif;
+/* For OVR, Stats, and Grid Numbers */
+.number-font {
+  font-family: 'Anton', system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+  font-weight: 400;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+/* Shiny Foil Animation for 90+ OVR Gold Tier */
+@keyframes bluechip-foil {
+  0% { transform: translate(-140%) skew(-18deg); }
+  60%, 100% { transform: translate(240%) skew(-18deg); }
 }
 
-button {
-  outline: none;
+.bluechip-foil-overlay {
+  position: absolute;
+  top: -20%; bottom: -20%;
+  width: 34%;
+  left: 0;
+  background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,.12) 50%, transparent 100%);
+  animation: bluechip-foil 3.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
-button:focus-visible {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5);
+/* 3. Card Rarity Borders */
+.bluechip-frame-base { background: linear-gradient(160deg, #3d434b, #21252b 55%, #343a42); }
+.bluechip-frame-bronze { background: linear-gradient(160deg, #a06a35, #5c3a17 45%, #c98a4b 90%); }
+.bluechip-frame-silver  { background: linear-gradient(160deg, #e6edf3, #8a95a1 40%, #cfd9e2 75%, #7f8b97); }
+.bluechip-frame-gold    { background: linear-gradient(160deg, #ffe08a, #b8860b 40%, #ffd766 70%, #8f6a08); }
+
+.bluechip-foil {
+  position: relative;
+  overflow: hidden;
+}
+
+.bluechip-foil:after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 34%;
+  left: 0;
+  background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,.28) 50%, transparent 100%);
+  animation: bluechip-foil 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Apply the Dashboard aesthetic to all Game Panels */
+.game-panel {
+  background: linear-gradient(180deg, #12161c 0%, #0a0d0a 38%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  border-top: none !important; /* Strips old tailwind borders */
+}
+
+/* The neon accent glow at the top of the panels */
+.game-panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+  opacity: 0.8;
 }

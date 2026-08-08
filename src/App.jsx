@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
 import {
   nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, ahlTeams, shlTeams, liigaTeams, ncaaTeams,
   nationalities, juniorLeagues, euroLeagues, LEAGUE_CONFIG,
-  getTeamData, getDeployment, getOpponentPool, getPrimaryRival
+  getTeamData, getDeployment, getOpponentPool, getPrimaryRival,
+  getTeamConference, getTeamDivision, getConferences, getDivisions,
+  getPlayoffFormat, getPlayoffRounds, groupByConference
 } from './data/teams';
 import { shopItems, skaterTrainingPool, goalieTrainingPool, eventDeck } from './data/economy';
 import { getMinigamePool, findMinigame } from './data/minigames';
@@ -11,7 +13,72 @@ import {
   cap, capIdol, formatMoney, getIdolTier, getTransferImpact,
   getActiveStat, applyOvrDelta, recomputeOvr, simulateSeason, generatePlayoffDeck,
   choiceChance
+// Import the new helpers.
 } from './utils/gameHelpers';
+
+// =====================================================================
+// MODULE-LEVEL HELPERS
+// Centralised so screens and handlers can't drift apart.
+// =====================================================================
+
+// Single source of truth for a fresh player state. Used by both the initial
+// useState value and handleNewGame — extracting stops the two literals from
+// drifting apart when new player fields get added.
+const makeInitialPlayer = () => ({
+  name: '', number: 97, pos: 'C', age: 16, ovr: 55, nat: 'CAN',
+  shooting: 55, skating: 55, physicality: 55, hockeyIQ: 55, stamina: 55,
+  team: null, league: null, contract: { salary: 0, years: 0 },
+  stats: {
+    chl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+    ahl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+    nhl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+    titles: 0, earnings: 0, value: 50000, seasonsPlayed: 0, memCupBoost: 0, awards: []
+  },
+  seasonHistory: [],
+  relationships: { coach: 50, teammates: 50, media: 50 },
+  idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: [], rights: null, startLeague: 'OHL',
+  // Storyline & generational trackers
+  isGenerational: false,
+  archRival: null,
+  storylines: { rival: 0, lockerRoom: 0, hometown: 0, injury: 0 }
+});
+
+// Role classifier used by generateOffers. Hoisted from inside the function
+// so the definition isn't reallocated on every offer generation.
+const getRole = (salary, p) => {
+  if (p.pos === 'G') return salary > 3500000 ? 'Starter' : 'Backup';
+
+  const isPhysical = p.physicality > p.skating;
+  const isShooter = p.shooting > p.hockeyIQ && p.shooting > p.skating;
+
+  if (['LD', 'RD'].includes(p.pos)) {
+    if (salary > 6000000) return isPhysical ? 'Shutdown Defenceman' : 'Offensive Defenceman';
+    if (salary > 2500000) return 'Top 4 Defender';
+    return isPhysical ? 'Bottom Pair Grinder' : 'Depth Defender';
+  }
+
+  if (salary > 6000000) {
+    if (isPhysical) return 'Power Forward Core';
+    if (isShooter) return 'Elite Sniper Core';
+    return 'Playmaking Core';
+  }
+  if (salary > 2500000) {
+    if (isPhysical) return 'Middle Six Grinder';
+    return 'Middle Six Two-Way';
+  }
+
+  return isPhysical ? '4th Line Grinder' : 'Depth Skater';
+};
+
+// Playoff format helpers — resolve per-round win threshold and deck length
+// from LEAGUE_CONFIG so the same code drives best-of-7 series and NCAA single-elim.
+const getGamesPerMatchup = (league, roundIndex) => {
+  const rounds = getPlayoffRounds(league) || [];
+  return rounds[roundIndex]?.gamesPerMatchup || 7;
+};
+const getWinsNeeded = (league, roundIndex) => {
+  return Math.ceil(getGamesPerMatchup(league, roundIndex) / 2);
+};
 
 const getDisplayDeployment = (ovr, pos, league) => {
   return getDeployment(ovr, pos, league);
@@ -23,16 +90,6 @@ const getFullTeamName = (teamId, league) => {
   if (!t) return 'UNKNOWN';
   if (t.city && t.name && !t.name.includes(t.city)) return `${t.city} ${t.name}`;
   return t.name || t.id || 'UNKNOWN';
-};
-
-// Deterministic Conference Assigner (Keeps teams strictly in East or West)
-const getTeamConference = (teamId) => {
-  if (!teamId) return 'East';
-  let hash = 0;
-  for (let i = 0; i < teamId.length; i++) {
-    hash = teamId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash) % 2 === 0 ? 'East' : 'West';
 };
 
 // Dynamic Playoff Title Generator
@@ -76,6 +133,7 @@ const MASTER_ACHIEVEMENTS = [
   { id: 'ahl_champ', name: 'Calder Cup', desc: 'Win the AHL Calder Cup Championship', icon: '🏆' },
   { id: 'gold_medal', name: 'National Hero', desc: 'Win International Gold at the WJC or Olympics', icon: '🥇' },
   { id: 'back_to_back', name: 'Dynasty', desc: 'Win consecutive championships back-to-back', icon: '👑' },
+  { id: 'ncaa_champ', name: 'National Champion', desc: 'Win the NCAA National Championship', icon: '🏆' },
 
   // INDIVIDUAL AWARDS
   { id: 'hart', name: 'League MVP', desc: 'Win the Hart Memorial Trophy', icon: '⭐' },
@@ -128,7 +186,6 @@ const MASTER_ACHIEVEMENTS = [
   // CAREER ENDINGS & META
   { id: 'hall_of_fame', name: 'First Ballot', desc: 'Retire with at least 3 Titles and 5 Individual Trophies', icon: '🏛️' },
   { id: 'veteran_retirement', name: 'Hanging Up the Skates', desc: 'Retire after age 38 as an active NHL player', icon: '🏒' },
-  { id: 'hat_trick_hero', name: 'Hat Trick Hero', desc: 'Score 3+ goals in a single game', icon: '🎩' },
   { id: 'the_idol', name: 'The Ultimate Idol', desc: 'Unlock 40 or more total achievements across all career playthroughs', icon: '🏆' }
 ];
 
@@ -154,167 +211,378 @@ const PRESS_QUESTIONS = [
   { q: "The coach benched you in the 3rd period last game. Your thoughts?", answers: { professional: "Coach makes the decisions. I just play.", passionate: "I was furious! I want to be out there helping the team win.", humble: "He made the right call. I wasn't playing my best hockey.", cocky: "It was a mistake taking me off the ice. I'm the game changer." } }
 ];
 
-const TeamLogo = ({ teamId, league, isAHL }) => {
+const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) => {
   const [imgError, setImgError] = useState(false);
   const isNHL = league === 'NHL' && !isAHL && (nhlTeams || []).some(t => t.id === teamId);
 
   let team = getTeamData(teamId, league);
+  const finalLogoUrl = team ? team.logo : null;
+
+  // Standardized container sizing across components
+  const containerSize = size === "small" 
+    ? "w-8 h-8 sm:w-10 sm:h-10" 
+    : size === "large" 
+      ? "w-12 h-12 sm:w-16 sm:h-16" 
+      : "w-10 h-10 sm:w-14 sm:h-14";
 
   if (isNHL && !imgError) {
     return (
-      <div className="relative w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center bg-white rounded-full p-1 border border-[rgba(255,255,255,0.14)] shrink-0">
+      <div className={`relative ${containerSize} flex items-center justify-center shrink-0 overflow-visible ${className}`}>
+        {/* scale-[1.28] counteracts built-in SVG viewBox padding from NHL.com */}
         <img
           src={`https://assets.nhle.com/logos/nhl/svg/${teamId}_light.svg`}
           alt={teamId}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain drop-shadow-lg scale-[1.28] transform-gpu"
           onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
         />
       </div>
     );
   }
 
-  if (!team) {
+  if (finalLogoUrl && !imgError) {
     return (
-      <div className="relative w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-[8px] sm:text-sm border-2 bg-[#101410] text-white border-[rgba(255,255,255,0.14)] sports-font shrink-0">
-        {teamId}
-        {isAHL && <span className="absolute -bottom-1 -right-1 bg-[#F59E0B] text-black text-[7px] sm:text-[9px] px-1 rounded-sm font-black border border-black z-10 shadow-sm leading-tight">AHL</span>}
+      <div className={`relative ${containerSize} flex items-center justify-center shrink-0 ${className}`}>
+        {/* p-0.5 keeps tightly cropped junior logos proportionally balanced */}
+        <img
+          src={finalLogoUrl}
+          alt={teamId}
+          className="w-full h-full object-contain drop-shadow-lg p-0.5"
+          onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
+        />
+        {isAHL && (
+          <span className="absolute -bottom-1 -right-2 translate-x-1/4 bg-[#F59E0B] text-black text-[7px] sm:text-[9px] px-1 rounded-sm font-black border border-black z-10 shadow-sm leading-tight">
+            AHL
+          </span>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="relative w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-[8px] sm:text-xs border-2 sports-font shadow-lg shrink-0 text-center leading-none overflow-hidden" style={{ backgroundColor: team.bg, color: team.color, borderColor: team.color }}>
-      {team.id}
-      {isAHL && <span className="absolute -bottom-1 -right-1 bg-[#F59E0B] text-black text-[7px] sm:text-[9px] px-1 rounded-sm font-black border border-black z-10 shadow-sm leading-tight">AHL</span>}
+    <div 
+      className={`relative ${containerSize} rounded-full flex items-center justify-center font-black text-[8px] sm:text-xs border-2 sports-font shadow-lg shrink-0 text-center leading-none overflow-hidden ${className}`} 
+      style={{ backgroundColor: team?.bg || '#101410', color: team?.color || '#FFF', borderColor: team?.color || '#FFF' }}
+    >
+      {teamId}
+      {isAHL && (
+        <span className="absolute -bottom-1 -right-2 translate-x-1/4 bg-[#F59E0B] text-black text-[7px] sm:text-[9px] px-1 rounded-sm font-black border border-black z-10 shadow-sm leading-tight">
+          AHL
+        </span>
+      )}
     </div>
   );
 };
 
-const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenShop }) => {
-  const safeNationalities = nationalities || [];
+const TrophySVG = ({ league, className = "w-24 h-24 sm:w-32 sm:h-32" }) => {
+  // SVG gradients for metallic and wood finishes
+  const silverGradient = (
+    <linearGradient id="silver" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#e2e8f0" />
+      <stop offset="20%" stopColor="#f8fafc" />
+      <stop offset="50%" stopColor="#94a3b8" />
+      <stop offset="80%" stopColor="#f1f5f9" />
+      <stop offset="100%" stopColor="#cbd5e1" />
+    </linearGradient>
+  );
+
+  const darkSilver = (
+    <linearGradient id="darkSilver" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#94a3b8" />
+      <stop offset="50%" stopColor="#cbd5e1" />
+      <stop offset="100%" stopColor="#64748b" />
+    </linearGradient>
+  );
+
+  const woodGradient = (
+    <linearGradient id="wood" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#451a03" />
+      <stop offset="50%" stopColor="#78350f" />
+      <stop offset="100%" stopColor="#451a03" />
+    </linearGradient>
+  );
+
+  const goldGradient = (
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#d97706" />
+      <stop offset="25%" stopColor="#fcd34d" />
+      <stop offset="50%" stopColor="#b45309" />
+      <stop offset="75%" stopColor="#fde68a" />
+      <stop offset="100%" stopColor="#d97706" />
+    </linearGradient>
+  );
+
+  if (league === 'NHL') {
+    // THE STANLEY CUP
+    return (
+      <svg viewBox="0 0 100 120" className={`drop-shadow-[0_10px_15px_rgba(255,255,255,0.15)] ${className}`}>
+        <defs>{silverGradient}{darkSilver}</defs>
+        {/* Tiered Base */}
+        <path d="M 25 115 L 75 115 L 70 90 L 30 90 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <path d="M 30 90 L 70 90 L 65 70 L 35 70 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <path d="M 35 70 L 65 70 L 60 55 L 40 55 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <path d="M 40 55 L 60 55 L 57 45 L 43 45 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <path d="M 43 45 L 57 45 L 55 35 L 45 35 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        {/* Stem & Collar */}
+        <rect x="46" y="28" width="8" height="7" fill="url(#darkSilver)" stroke="#64748b" strokeWidth="0.5"/>
+        <path d="M 35 28 L 65 28 L 60 22 L 40 22 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        {/* Classic Bowl */}
+        <path d="M 20 10 C 20 30 80 30 80 10 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <ellipse cx="50" cy="10" rx="30" ry="4" fill="url(#darkSilver)" stroke="#cbd5e1" strokeWidth="0.5"/>
+      </svg>
+    );
+  }
+
+  if (league === 'AHL') {
+    // THE CALDER CUP
+    return (
+      <svg viewBox="0 0 100 120" className={`drop-shadow-2xl ${className}`}>
+        <defs>{silverGradient}{woodGradient}{darkSilver}</defs>
+        {/* Wooden Base */}
+        <rect x="25" y="85" width="50" height="30" fill="url(#wood)" rx="2"/>
+        <rect x="35" y="70" width="30" height="15" fill="url(#wood)" />
+        <path d="M 25 85 L 35 70 L 65 70 L 75 85 Z" fill="url(#wood)" opacity="0.8"/>
+        {/* Plaque & Stem */}
+        <rect x="40" y="90" width="20" height="15" fill="url(#silver)" rx="1" />
+        <path d="M 46 70 L 54 70 L 52 45 L 48 45 Z" fill="url(#silver)"/>
+        {/* Shallow Bowl & Lid */}
+        <path d="M 15 35 C 15 60 85 60 85 35 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <ellipse cx="50" cy="35" rx="35" ry="6" fill="url(#darkSilver)"/>
+        <path d="M 15 35 C 30 15 70 15 85 35 Z" fill="url(#silver)"/>
+        <circle cx="50" cy="18" r="3" fill="url(#darkSilver)"/>
+      </svg>
+    );
+  }
+
+  if (['OHL', 'WHL', 'QMJHL'].includes(league)) {
+    // THE MEMORIAL CUP
+    return (
+      <svg viewBox="0 0 100 120" className={`drop-shadow-2xl ${className}`}>
+        <defs>{silverGradient}{darkSilver}{woodGradient}</defs>
+        {/* Tiered Wood Base */}
+        <path d="M 20 115 L 80 115 L 75 95 L 25 95 Z" fill="url(#wood)"/>
+        <path d="M 25 95 L 75 95 L 70 85 L 30 85 Z" fill="url(#wood)" opacity="0.8"/>
+        {/* Stem */}
+        <path d="M 40 85 L 60 85 L 55 55 L 45 55 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        {/* Ornate Handles */}
+        <path d="M 30 30 C 5 30 15 65 35 55" fill="none" stroke="url(#silver)" strokeWidth="4" strokeLinecap="round"/>
+        <path d="M 70 30 C 95 30 85 65 65 55" fill="none" stroke="url(#silver)" strokeWidth="4" strokeLinecap="round"/>
+        {/* Deep Bowl */}
+        <path d="M 25 15 C 25 70 75 70 75 15 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
+        <ellipse cx="50" cy="15" rx="25" ry="5" fill="url(#darkSilver)"/>
+        <path d="M 25 15 C 35 5 65 5 75 15 Z" fill="url(#silver)"/>
+        <circle cx="50" cy="8" r="2.5" fill="url(#darkSilver)"/>
+      </svg>
+    );
+  }
+
+  // GENERIC CHAMPIONSHIP GOLD CUP (NCAA/Europe)
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col gap-3 mb-4 z-10 relative">
-      <div className="game-panel p-4 sm:p-6 relative flex flex-col sm:flex-row justify-between items-start sm:items-center border-t-2 border-t-[#3b82f6] gap-4">
-        
-        <div className="flex items-center gap-3 sm:gap-5 w-full sm:w-auto">
-          <div className="text-center flex flex-col items-center justify-center shrink-0">
-            <p className="text-4xl sm:text-6xl font-black text-white sports-font leading-none tracking-tighter">{player.ovr}</p>
-            <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 tracking-widest mt-1 font-sans">OVR</p>
+    <svg viewBox="0 0 100 120" className={`drop-shadow-[0_0_15px_rgba(245,158,11,0.3)] ${className}`}>
+      <defs>{goldGradient}{woodGradient}</defs>
+      {/* Wood Base */}
+      <rect x="25" y="105" width="50" height="15" fill="url(#wood)" rx="2"/>
+      <path d="M 35 105 L 45 75 L 55 75 L 65 105 Z" fill="url(#gold)"/>
+      {/* Handles */}
+      <path d="M 25 30 C -5 30 10 70 35 65" fill="none" stroke="url(#gold)" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M 75 30 C 105 30 90 70 65 65" fill="none" stroke="url(#gold)" strokeWidth="4" strokeLinecap="round"/>
+      {/* Bowl */}
+      <path d="M 20 20 C 20 80 80 80 80 20 Z" fill="url(#gold)"/>
+      <ellipse cx="50" cy="20" rx="30" ry="8" fill="#b45309"/>
+    </svg>
+  );
+};
+
+const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenShop, hasDemandedTrade, setHasDemandedTrade }) => {
+  const safeNationalities = nationalities || [];
+  const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
+  const nextYear = currentYear + 1;
+
+  const isGoalie = player.pos === 'G';
+  const teamObj = getTeamData(player.team, player.league);
+  
+  const teamBg = player.ovr >= 90 ? '#F59E0B' : (teamObj?.bg || '#101410');
+  
+  let frameColor = '#8a95a1'; 
+  if (player.ovr >= 75) frameColor = '#c98a4b'; 
+  if (player.ovr >= 82) frameColor = '#e2e8f0'; 
+  if (player.ovr >= 90) frameColor = '#F59E0B'; 
+
+  // --- NEW: INTERNATIONAL STATUS LOGIC ---
+  const getIntlStatus = () => {
+    if (player.age <= 19) {
+      if (player.ovr >= 68) return { label: 'U20 STAR', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' };
+      if (player.ovr >= 60) return { label: 'U20 SQUAD', color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' };
+      if (player.ovr >= 55) return { label: 'U20 BUBBLE', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' };
+      return { label: 'U20 RADAR', color: 'text-slate-400 bg-slate-800/50 border-[rgba(255,255,255,0.08)]' };
+    } else {
+      if (player.ovr >= 88) return { label: "NAT'L ICON", color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' };
+      if (player.ovr >= 80) return { label: "NAT'L SQUAD", color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' };
+      if (player.ovr >= 75) return { label: "NAT'L BUBBLE", color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' };
+      return { label: 'DOMESTIC', color: 'text-slate-400 bg-slate-800/50 border-[rgba(255,255,255,0.08)]' };
+    }
+  };
+  const intlStatus = getIntlStatus();
+
+  return (
+    <div className="w-full max-w-[420px] md:max-w-5xl mx-auto mb-2 z-10 relative drop-shadow-2xl">
+      <div 
+        className="border border-[rgba(255,255,255,0.08)] border-t-0 rounded-[14px] overflow-hidden relative p-4 md:p-6"
+        style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${teamBg} 12%, #12161c) 0%, #0a0d0a 38%)` }}
+      >
+        <div className="absolute top-0 left-0 right-0 h-[3px] opacity-90 z-0" style={{ background: `linear-gradient(90deg, transparent, ${frameColor}, transparent)` }}></div>
+        {player.ovr >= 90 && <div className="bluechip-foil-overlay"></div>}
+
+        <div className="relative z-10 flex flex-col lg:flex-row gap-6 lg:gap-8 h-full w-full">
+          
+          {/* ========================================== */}
+          {/* LEFT COLUMN: PLAYER INFO & IDOLATRY (lg:w-5/12) */}
+          {/* ========================================== */}
+          <div className="flex flex-col lg:w-5/12 min-w-0 justify-center">
+            
+            <div className="flex items-start justify-between gap-3">
+              
+              {/* OVR, Logo & Text Cluster */}
+              <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                <div className="flex flex-col items-center shrink-0 mt-1">
+                  <p className="text-5xl md:text-6xl lg:text-7xl font-black text-white number-font leading-none">{player.ovr}</p>
+                  <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1">OVR</p>
+                </div>
+
+                <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center mt-1">
+                  <TeamLogo teamId={player.team} league={player.league} isAHL={isAHL} />
+                </div>
+
+                {/* TEXT CONTAINER (No truncate, full wrap enabled) */}
+                <div className="flex flex-col flex-1 min-w-0 justify-center">
+                  <p className="text-xl md:text-2xl lg:text-3xl font-black sports-font leading-none text-white uppercase flex flex-wrap items-center gap-1.5">
+                    <img src={safeNationalities.find(n => n.id === player.nat)?.img} alt={player.nat} className="h-3.5 md:h-4 w-[21px] md:w-[26px] shrink-0 rounded-[2px] object-cover border border-slate-700 shadow-sm" />
+                    <span>{player.name}</span>
+                  </p>
+                  
+                  <p className="text-[10px] md:text-[11px] font-black uppercase leading-snug tracking-wide text-[#3b82f6] mt-1.5 flex flex-wrap items-center gap-1">
+                    <span>{getFullTeamName(player.team, player.league)}</span>
+                    <span className="text-slate-400 font-sans">· {currentYear} / {nextYear}</span>
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <p className="text-[9px] md:text-[10px] font-bold uppercase leading-none tracking-wide text-slate-500">
+                      {player.age} YRS OLD · {getDisplayDeployment(player.ovr, player.pos, player.league)} · {player.stats[lgKey]?.games || 0} GP
+                    </p>
+                    <span className={`text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest leading-none ${intlStatus.color}`}>
+                      {intlStatus.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ACTION BUTTONS (Pushed safely to the right) */}
+              <div className="flex flex-col items-end gap-1.5 shrink-0 mt-1">
+                {!isJunior && player.league !== 'NCAA' && (
+                  <button type="button" title="Shop" onClick={onOpenShop} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-[#22E748] transition border-[#22E748]/60 bg-[#22E748]/10 shadow-[0_0_0_1px_rgba(34,231,75,0.15)] hover:bg-[#22E748]/20 cursor-pointer">
+                    <span className="text-[10px] leading-none">🛒</span>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest sports-font leading-none mt-0.5">SHOP</span>
+                  </button>
+                )}
+
+                {player.league === 'NHL' && player.stats.seasonsPlayed > 0 && (
+                  <button onClick={() => setHasDemandedTrade(true)} disabled={hasDemandedTrade} title="Request Trade" className={`flex items-center px-2.5 py-1.5 rounded-md border transition-colors cursor-pointer ${hasDemandedTrade ? 'border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444]' : 'border-[rgba(255,255,255,0.15)] bg-[#101410] text-slate-300 hover:border-[#ef4444]/70 hover:bg-[#ef4444]/25 hover:text-[#ef4444]'}`}>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest sports-font leading-none mt-0.5">
+                      {hasDemandedTrade ? 'PENDING' : 'REQ TRADE'}
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* IDOLATRY BAR */}
+            <div className="mt-5 md:mt-7 w-full space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] md:text-xs font-bold uppercase tracking-wide">
+                <span className="text-slate-400">Idolatry</span>
+                <span className="text-slate-400">▫️ {tier.label} · {Math.floor((player.idolatry / 1000) * 100)}/100</span>
+              </div>
+              <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: 'linear-gradient(90deg, color-mix(in srgb, rgb(139, 148, 160) 55%, rgb(27, 31, 38)), rgb(139, 148, 160))' }}></div>
+                <span className="absolute bottom-0 top-0 w-px bg-white/10" style={{ left: '10%' }}></span>
+                <span className="absolute bottom-0 top-0 w-px bg-white/10" style={{ left: '30%' }}></span>
+                <span className="absolute bottom-0 top-0 w-px bg-white/10" style={{ left: '60%' }}></span>
+              </div>
+              <div className="relative h-3.5 md:h-4">
+                <span className={`absolute top-0 -translate-x-1/2 text-[11px] md:text-xs leading-none transition-opacity ${player.idolatry >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[11px] md:text-xs leading-none transition-opacity ${player.idolatry >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[11px] md:text-xs leading-none transition-opacity ${player.idolatry >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[11px] md:text-xs leading-none transition-opacity ${player.idolatry >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
+              </div>
+              <p className="text-[10px] md:text-[11px] font-bold leading-none text-slate-400 mt-1.5 md:mt-2">
+                {tier.req > 0 ? `You're ${tier.req} pts short of ${tier.nextLabel}` : <span className="text-[#F59E0B]">Max Icon Status 🏆</span>}
+              </p>
+            </div>
           </div>
 
-          <div className="w-px h-10 sm:h-12 bg-[rgba(255,255,255,0.065)]"></div>
-
-          <div className="flex flex-col justify-center min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 mb-1">
-              {player.team && <TeamLogo teamId={player.team} league={player.league} isAHL={isAHL} />}
-              <img
-                src={safeNationalities.find(n => n.id === player.nat)?.img}
-                alt={player.nat}
-                className="w-6 h-4 sm:w-8 sm:h-6 object-cover rounded-sm border border-[rgba(255,255,255,0.1)] shadow-sm shrink-0"
-              />
-              <h1 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter sports-font leading-none m-0 p-0 truncate">
-                {player.name}
-              </h1>
+          {/* ========================================== */}
+          {/* RIGHT COLUMN: STAT GRIDS (lg:w-7/12)         */}
+          {/* ========================================== */}
+          <div className="flex flex-col gap-2 md:gap-3 lg:w-7/12 shrink-0 justify-center w-full">
+            
+            {/* 1. STATS ROW */}
+            <div className="grid grid-cols-4 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
+              <div className="px-1 py-1.5 md:py-2 bg-gradient-to-b from-[rgba(255,255,255,0.03)] to-transparent">
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-[#22E748] number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000') : (player.stats[lgKey]?.goals || 0)}</p>
+                <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SV%' : 'Goals'}</p>
+              </div>
+              <div className="px-1 py-1.5 md:py-2">
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-white number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00') : (player.stats[lgKey]?.assists || 0)}</p>
+                <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'GAA' : 'Assists'}</p>
+              </div>
+              <div className="px-1 py-1.5 md:py-2">
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-white number-font leading-none">{isGoalie ? (player.stats[lgKey]?.shutouts || 0) : (player.stats[lgKey]?.plusMinus > 0 ? `+${player.stats[lgKey].plusMinus}` : (player.stats[lgKey]?.plusMinus || 0))}</p>
+                <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SHO' : '+/-'}</p>
+              </div>
+              <div className="px-1 py-1.5 md:py-2">
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-[#F59E0B] number-font leading-none">{player.stats?.titles || 0}</p>
+                <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Trophies</p>
+              </div>
             </div>
-            <p className="text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest font-sans leading-none mt-1 truncate">
-              {player.pos} · {getDisplayDeployment(player.ovr, player.pos, player.league)} · {isJunior ? `${player.league} JUNIORS` : getFullTeamName(player.team, player.league)} · {player.age} YRS OLD · {player.stats[lgKey]?.games || 0} GP
-            </p>
+
+            {/* 2. ATTRIBUTES ROW */}
+            <div className="grid grid-cols-5 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
+              {[
+                { label: isGoalie ? 'Reflexes' : 'Shooting', key: 'shooting', val: getActiveStat(player, 'shooting') },
+                { label: isGoalie ? 'Position' : 'Skating', key: 'skating', val: getActiveStat(player, 'skating') },
+                { label: isGoalie ? 'Agility' : 'Power', key: 'physicality', val: getActiveStat(player, 'physicality') },
+                { label: 'Hockey IQ', key: 'hockeyIQ', val: getActiveStat(player, 'hockeyIQ') },
+                { label: 'Stamina', key: 'stamina', val: getActiveStat(player, 'stamina') }
+              ].map(attr => {
+                const change = statChanges ? statChanges[attr.key] : 0;
+                const isUpgraded = change > 0;
+                const isDowngraded = change < 0;
+                return (
+                  <div key={attr.label} className={`relative px-0.5 py-1.5 md:py-2 transition ${isUpgraded ? 'bg-[#22E748]/10 shadow-[inset_0_0_8px_rgba(34,231,72,0.15)]' : isDowngraded ? 'bg-[#ef4444]/10 shadow-[inset_0_0_8px_rgba(239,68,68,0.15)]' : ''}`}>
+                    {isUpgraded && <span className="absolute top-0.5 right-0.5 text-[#22E748] text-[7px] md:text-[9px] font-black">▲</span>}
+                    {isDowngraded && <span className="absolute top-0.5 right-0.5 text-[#ef4444] text-[7px] md:text-[9px] font-black">▼</span>}
+                    <p className={`text-xl md:text-2xl lg:text-3xl font-black number-font leading-none ${isUpgraded ? 'text-[#22E748]' : isDowngraded ? 'text-[#ef4444]' : 'text-white'}`}>{attr.val}</p>
+                    <p className="truncate px-0.5 mt-0.5 md:mt-1 text-[7px] md:text-[9px] font-black uppercase tracking-normal text-slate-400">{attr.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 3. FINANCIALS ROW */}
+            <div className="grid grid-cols-3 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
+              <div className="flex flex-col justify-center py-1.5 md:py-2">
+                <p className="px-1 text-xl md:text-2xl lg:text-3xl font-black number-font leading-none text-sky-300">{formatMoney(player.stats?.value || 0)}</p>
+                <p className="mt-0.5 md:mt-1 text-[8px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Value</p>
+              </div>
+              <div className="flex flex-col justify-center bg-amber-400/10 py-1.5 md:py-2">
+                <p className="px-1 text-xl md:text-2xl lg:text-3xl font-black number-font leading-none text-amber-300">{formatMoney(player.stats?.earnings || 0)}</p>
+                <p className="mt-0.5 md:mt-1 text-[8px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Earnings</p>
+              </div>
+              <div className="flex flex-col justify-center py-1.5 md:py-2">
+                <p className="px-1 text-xl md:text-2xl lg:text-3xl font-black number-font leading-none text-[#22E748]">{player.relationships?.coach || 50}%</p>
+                <p className="mt-0.5 md:mt-1 text-[8px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Coach Trust</p>
+              </div>
+            </div>
+
           </div>
-        </div>
-
-        <div className="flex w-full sm:w-auto justify-between sm:justify-end items-center gap-4 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-[rgba(255,255,255,0.065)] sm:border-0">
-          {!isJunior && player.league !== 'NCAA' && (
-            <button onClick={onOpenShop} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] rounded-xl px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center gap-2 font-sans text-white cursor-pointer w-full justify-center">
-              🛒 <span className="tracking-wide">SHOP</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
-        {player.pos === 'G' ? (
-          <>
-            <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-              <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-1">
-                {(player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000'}
-              </p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">SV%</p>
-            </div>
-            <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-              <p className="text-2xl sm:text-4xl font-black text-white sports-font leading-none mb-1">
-                {(player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00'}
-              </p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">GAA</p>
-            </div>
-            <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-              <p className="text-2xl sm:text-4xl font-black text-white sports-font leading-none mb-1">{player.stats[lgKey]?.shutouts || 0}</p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">SHO</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-              <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-1">{player.stats[lgKey]?.goals || 0}</p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">GOALS</p>
-            </div>
-            <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-              <p className="text-2xl sm:text-4xl font-black text-white sports-font leading-none mb-1">{player.stats[lgKey]?.assists || 0}</p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">ASSISTS</p>
-            </div>
-            <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-              <p className="text-2xl sm:text-4xl font-black text-white sports-font leading-none mb-1">{player.stats[lgKey]?.plusMinus > 0 ? `+${player.stats[lgKey].plusMinus}` : (player.stats[lgKey]?.plusMinus || 0)}</p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">+/-</p>
-            </div>
-          </>
-        )}
-        <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center">
-          <p className="text-2xl sm:text-4xl font-black text-[#F59E0B] sports-font leading-none mb-1">{player.stats?.titles || 0}</p>
-          <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">TITLES</p>
-        </div>
-        <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center border-[#3b82f6]/30 bg-[#3b82f6]/5">
-          <p className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font leading-none mb-1">{formatMoney(player.stats?.value || 0)}</p>
-          <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">VALUE</p>
-        </div>
-        <div className="stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center border-[#F59E0B]/30 bg-[#F59E0B]/5">
-          <p className="text-2xl sm:text-4xl font-black text-[#F59E0B] sports-font leading-none mb-1">{formatMoney(player.stats?.earnings || 0)}</p>
-          <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase font-sans leading-none">EARNED</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
-        {[
-          { label: player.pos === 'G' ? 'REFLEXES' : 'SHOOTING', key: 'shooting', val: getActiveStat(player, 'shooting') },
-          { label: player.pos === 'G' ? 'POSITIONING' : 'SKATING', key: 'skating', val: getActiveStat(player, 'skating') },
-          { label: player.pos === 'G' ? 'AGILITY' : 'PHYSICALITY', key: 'physicality', val: getActiveStat(player, 'physicality') },
-          { label: 'HOCKEY IQ', key: 'hockeyIQ', val: getActiveStat(player, 'hockeyIQ') },
-          { label: 'STAMINA', key: 'stamina', val: getActiveStat(player, 'stamina') }
-        ].map(attr => {
-          const change = statChanges ? statChanges[attr.key] : 0;
-          const isUpgraded = change > 0;
-          const isDowngraded = change < 0;
-
-          return (
-            <div key={attr.label} className={`stat-box p-2 sm:py-4 sm:px-2 flex flex-col justify-center items-center relative transition-colors duration-500 ${isUpgraded ? 'bg-[#22E748]/10 border-[#22E748]/30' : isDowngraded ? 'bg-[#ef4444]/10 border-[#ef4444]/30' : ''}`}>
-              {isUpgraded && <span className="absolute top-1 right-1 sm:top-2 sm:right-2 text-[#22E748] text-[10px] sm:text-sm font-black tracking-tighter">▲{change}</span>}
-              {isDowngraded && <span className="absolute top-1 right-1 sm:top-2 sm:right-2 text-[#ef4444] text-[10px] sm:text-sm font-black tracking-tighter">▼{Math.abs(change)}</span>}
-              <p className={`text-2xl sm:text-4xl font-black sports-font leading-none mb-1 ${isUpgraded ? 'text-[#22E748]' : isDowngraded ? 'text-[#ef4444]' : 'text-white'}`}>{attr.val}</p>
-              <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase mt-1 font-sans leading-none text-center">{attr.label}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="game-panel p-4 sm:p-5 flex flex-col gap-3">
-        <div className="flex justify-between items-end font-sans">
-          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1 leading-none">FAN STATUS: <span className="text-xs sm:text-sm font-black text-white ml-1 sports-font">{tier.label}</span></p>
-          {tier.req > 0 ? (
-            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 leading-none">Need {tier.req} pts to reach {tier.nextLabel}</p>
-          ) : (
-            <p className="text-[9px] sm:text-[10px] font-bold text-[#F59E0B] leading-none">Max Icon Status 🏆</p>
-          )}
-        </div>
-        <div className="w-full h-3 sm:h-4 bg-[#101410] rounded-full overflow-hidden border border-[rgba(255,255,255,0.065)]">
-          <div className="h-full bg-[#F59E0B] transition-all duration-500" style={{ width: `${(player.idolatry / 1000) * 100}%` }}></div>
         </div>
       </div>
     </div>
@@ -336,7 +604,7 @@ function App() {
 
   const [achievementToast, setAchievementToast] = useState(null);
 
-  const unlockAchievement = (id) => {
+  const unlockAchievement = useCallback((id) => {
     setUnlockedAchievements(prev => {
       if (prev.includes(id)) return prev;
       const updated = [...prev, id];
@@ -352,7 +620,7 @@ function App() {
       }
       return updated;
     });
-  };
+  }, []);
 
   useEffect(() => {
     if (unlockedAchievements.length >= 40) {
@@ -364,7 +632,7 @@ function App() {
   const [activeTrainings, setActiveTrainings] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
   const [activeMinigame, setActiveMinigame] = useState(null);
-  const [activePress, setActivePress] = useState({ journalist: null, questions: [], currentQ: 0, answers: [] });
+  const [activePress, setActivePress] = useState({ journalists: [], questions: [], currentQ: 0, answers: [] });
   const [minigameContext, setMinigameContext] = useState('season');
 
   const [eventFeedback, setEventFeedback] = useState('');
@@ -379,44 +647,44 @@ function App() {
   const [pendingPlayoffs, setPendingPlayoffs] = useState(null);
   const [pendingSeasonResult, setPendingSeasonResult] = useState(null);
 
-  const [player, setPlayer] = useState({
-    name: '', number: 97, pos: 'C', age: 16, ovr: 55, nat: 'CAN',
-    shooting: 55, skating: 55, physicality: 55, hockeyIQ: 55, stamina: 55,
-    team: null, league: null, contract: { salary: 0, years: 0 },
-    stats: {
-      chl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-      ahl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-      nhl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-      titles: 0, earnings: 0, value: 50000, seasonsPlayed: 0, memCupBoost: 0, awards: []
-    },
-    seasonHistory: [],
-    idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: [], rights: null, startLeague: 'OHL'
-  });
+  const [player, setPlayer] = useState(makeInitialPlayer);
 
-  // Continuous milestone, wealth, loyalty and longevity achievements.
+  // Idolatry-tier achievements. Fires only when idolatry changes.
   useEffect(() => {
     if (player.idolatry >= 1000) unlockAchievement('franchise_legend');
-    if (player.idolatry >= 400) unlockAchievement('local_hero');
-    if ((player.stats?.earnings || 0) >= 50000000) unlockAchievement('fifty_mil');
-    if ((player.stats?.earnings || 0) >= 100000000) unlockAchievement('hundred_mil');
-    if (player.ovr >= 75 && !player.draftTeam && !player.rights && (player.stats?.seasonsPlayed || 0) >= 1) {
+    if (player.idolatry >= 400)  unlockAchievement('local_hero');
+  }, [player.idolatry, unlockAchievement]);
+
+  // Career-earnings achievements. Fires only when earnings change.
+  useEffect(() => {
+    const e = player.stats?.earnings || 0;
+    if (e >= 100000000) unlockAchievement('hundred_mil');
+    if (e >= 50000000)  unlockAchievement('fifty_mil');
+  }, [player.stats?.earnings, unlockAchievement]);
+
+  // Season-history-driven achievements: undrafted star, iron man, one-club-man,
+  // back-to-back titles. Fires only when the season history array changes.
+  useEffect(() => {
+    const hist = player.seasonHistory || [];
+    const seasonsPlayed = player.stats?.seasonsPlayed || 0;
+
+    if (player.ovr >= 75 && !player.draftTeam && !player.rights && seasonsPlayed >= 1) {
       unlockAchievement('undrafted_star');
     }
-    if ((player.stats?.seasonsPlayed || 0) >= 15) unlockAchievement('iron_man');
+    if (seasonsPlayed >= 15) unlockAchievement('iron_man');
 
     // Loyalty: 10+ seasons logged for a single franchise.
     const teamCounts = {};
-    (player.seasonHistory || []).forEach(s => {
+    hist.forEach(s => {
       if (s.team) teamCounts[s.team] = (teamCounts[s.team] || 0) + 1;
     });
     if (Object.values(teamCounts).some(c => c >= 10)) unlockAchievement('one_club_man');
 
     // Dynasty: two consecutive title-winning seasons.
-    const hist = player.seasonHistory || [];
     for (let i = 1; i < hist.length; i++) {
       if (hist[i]?.titleWon && hist[i - 1]?.titleWon) { unlockAchievement('back_to_back'); break; }
     }
-  }, [player]);
+  }, [player.seasonHistory, unlockAchievement]);
 
   // Retirement-triggered career achievements.
   useEffect(() => {
@@ -428,19 +696,7 @@ function App() {
   }, [screen]);
 
   const handleNewGame = () => {
-    setPlayer({
-      name: '', number: 97, pos: 'C', age: 16, ovr: 55, nat: 'CAN',
-      shooting: 55, skating: 55, physicality: 55, hockeyIQ: 55, stamina: 55,
-      team: null, league: null, contract: { salary: 0, years: 0 },
-      stats: { 
-        chl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-        ahl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-        nhl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-        titles: 0, earnings: 0, value: 50000, seasonsPlayed: 0, memCupBoost: 0, 
-        awards: []
-      },
-      idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: [], rights: null, startLeague: 'OHL'
-    });
+    setPlayer(makeInitialPlayer());
     setSeasonRecap(null);
     setActiveEvent(null);
     setPendingPlayoffs(null);
@@ -457,6 +713,14 @@ function App() {
   const isAHL = player.league === 'AHL';
   const lgKey = isAmateur ? 'chl' : isAHL ? 'ahl' : 'nhl';
 
+  // Memoised display name for the player's current club — used in multiple render
+  // spots (dashboard, recap, transfer, contract copy). Recomputes only when the
+  // team ID or league actually changes.
+  const playerTeamDisplayName = useMemo(
+    () => getFullTeamName(player.team, player.league),
+    [player.team, player.league]
+  );
+
   const handleStart = () => {
     const lg = player.startLeague;
     let pool = ohlTeams || [];
@@ -468,20 +732,53 @@ function App() {
     
     const startTeam = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : { id: 'UNK' };
 
+    // THE 2% GENERATIONAL ROLL
+    const isGen = Math.random() <= 0.02; // 1-in-50 chance
+    
     let bSht = 55, bSkt = 55, bPhy = 55, bIq = 55, bSta = 55;
-    if (player.pos === 'C') { bIq = 65; bSkt = 60; bSht = 50; bPhy = 50; bSta = 50; }
-    if (['LW', 'RW'].includes(player.pos)) { bSht = 65; bSkt = 60; bPhy = 50; bIq = 50; bSta = 50; }
-    if (['LD', 'RD'].includes(player.pos)) { bPhy = 65; bSta = 60; bIq = 60; bSkt = 50; bSht = 40; }
-    if (player.pos === 'G') { bSht = 65; bSkt = 65; bPhy = 60; bIq = 50; bSta = 35; }
+    
+    // If generational, immediately juice base stats before positional modifiers
+    if (isGen) {
+       bSht += 15; bSkt += 15; bPhy += 10; bIq += 20; bSta += 12;
+    }
+
+    if (player.pos === 'C') { bIq += 10; bSkt += 5; bSht -= 5; bPhy -= 5; bSta -= 5; }
+    if (['LW', 'RW'].includes(player.pos)) { bSht += 10; bSkt += 5; bPhy -= 5; bIq -= 5; bSta -= 5; }
+    if (['LD', 'RD'].includes(player.pos)) { bPhy += 10; bSta += 5; bIq += 5; bSkt -= 5; bSht -= 15; }
+    if (player.pos === 'G') { bSht += 10; bSkt += 10; bPhy += 5; bIq -= 5; bSta -= 20; }
 
     const startOvr = Math.floor((bSht + bSkt + bPhy + bIq + bSta) / 5);
 
     setPlayer(p => ({
       ...p, team: startTeam.id, league: lg, teamsPlayedFor: [startTeam.id],
-      shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta, ovr: startOvr
+      shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta, ovr: startOvr,
+      isGenerational: isGen,
+      // If Generational, kickstart the Rival storyline immediately
+      storylines: { ...p.storylines, rival: isGen ? 1 : 0 },
+      archRival: isGen ? { name: 'Your Draft Class Rival', ovr: startOvr + 1 } : null
     }));
+    
     generateTraining(player.pos);
-    setScreen('preseason');
+
+    if (isGen) {
+       setActiveEvent({
+         title: '🌟 THE CHOSEN ONE',
+         desc: `The hockey world has never seen a prospect quite like you. At just 16 years old, scouts are already calling you the greatest generational talent since Crosby, McDavid, or Bedard. The pressure is on.`,
+         choices: [
+           { 
+             label: 'Embrace the Expectations', 
+             isRisky: false, 
+             feedback: 'You are ready to change a franchise forever. Let the hype begin.', 
+             effect: { idol: 200, ovr: 0, money: 50000 }, // Start with massive hype & endorsement cash
+             action: 'GEN_REVEAL' 
+           }
+         ],
+         isOffseasonEvent: true // This perfectly routes to the Pre-Season screen next!
+       });
+       setScreen('event');
+    } else {
+       setScreen('preseason');
+    }
   };
 
   const advanceToOffseason = () => {
@@ -710,14 +1007,29 @@ function App() {
     let round = 1;
     let idolBoost = 0;
 
-    const isElite = player.ovr >= 66 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 180);
-    const isGreat = player.ovr >= 63 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 120);
+    // 1. DRAFT TIERS WITH POSITIONAL BIAS
+    // Goalies require a generational 72+ OVR to go 1st overall. Skaters need 66+.
+    const isFirstOverall = (player.pos !== 'G' && player.ovr >= 66) || (player.pos === 'G' && player.ovr >= 72) || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 180);
+    const isElite = player.ovr >= 64 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 140);
+    const isGreat = player.ovr >= 61 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 100);
 
-    if (isElite) {
-      overallPick = 1; round = 1; idolBoost = 25;
+    // 2. ASSIGN PICKS
+    if (isFirstOverall) {
+      overallPick = 1; 
+      round = 1; 
+      idolBoost = 25;
+    } else if (isElite) {
+      // Elite goalies usually slide to the 5-14 range, Elite skaters go 2-10
+      overallPick = player.pos === 'G' ? Math.floor(Math.random() * 10) + 5 : Math.floor(Math.random() * 9) + 2; 
+      round = 1; 
+      idolBoost = 20;
     } else if (isGreat) {
-      overallPick = Math.floor(Math.random() * 31) + 2; round = 1; idolBoost = 15;
+      // Late 1st rounders (Picks 11-32)
+      overallPick = Math.floor(Math.random() * 22) + 11; 
+      round = 1; 
+      idolBoost = 15;
     } else {
+      // 2nd to 7th round
       round = Math.floor(Math.random() * 6) + 2;
       overallPick = ((round - 1) * 32) + Math.floor(Math.random() * 32) + 1;
       idolBoost = 5;
@@ -798,6 +1110,18 @@ function App() {
     const result = simulateSeason(player, t?.effect);
 
     if (!result) return;
+
+// --- NEW: GENERATIONAL FRANCHISE AURA ---
+    if (player.isGenerational && result.recap) {
+       // A Generational player drags a bottom-feeder up the standings by 4 to 8 spots automatically.
+       if (result.recap.standings > 10) {
+           result.recap.standings = Math.max(1, result.recap.standings - (Math.floor(Math.random() * 5) + 4));
+       }
+       // Ensure they make the playoffs if they were dragged into the threshold
+       const playoffSpots = LEAGUE_CONFIG[result.currentLg]?.playoffSpots || 16;
+       result.madePlayoffs = result.recap.standings <= playoffSpots;
+       result.recap.madePlayoffs = result.madePlayoffs;
+    }
 
     let finalPlayer = { ...(result.updatedPlayer || player) };
     
@@ -896,7 +1220,7 @@ function App() {
         ...finalPlayer.stats,
         earnings: updatedEarnings,
         value: computedValue,
-        seasonsPlayed: (finalPlayer.stats?.seasonsPlayed || 0) + 1,
+        seasonsPlayed: player.stats.seasonsPlayed + 1,
         awards: updatedCareerAwards
       }
     };
@@ -942,14 +1266,295 @@ function App() {
          setSeasonRecap(result.recap);
          runPostSeasonFlow(finalPlayer.age, finalPlayer.ovr, result.currentLg, result.currentTeam, result.madePlayoffs, activeYear + 1, result.recap?.standings || 16);
       } else {
-         setPendingSeasonResult(result);
-         setScreen('trade-deadline');
+          // SURPRISE TRADE LOGIC (ALL LEAGUES EXCEPT NCAA)
+         const currentLg = result.currentLg;
+         const isExpiring = finalPlayer.contract?.years === 1 || ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg); // Junior players are almost always treated as expiring/rental assets.
+         
+         const teamStandings = result.recap?.standings || 16;
+         const totalTeamsInLeague = getOpponentPool(currentLg)?.length || 20;
+         const isRebuilding = teamStandings > (totalTeamsInLeague * 0.6); // Bottom 40% of the league
+         
+         // Dynamically define what "Elite" means based on the league level
+         let eliteThreshold = 82;
+         if (['AHL', 'SHL', 'LIIGA'].includes(currentLg)) eliteThreshold = 72;
+         if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
+         
+         const isElite = finalPlayer.ovr >= eliteThreshold;
+
+         // 40% chance to be traded if elite/expiring on a bad team. 5% random hockey trade otherwise.
+         const tradeChance = (isExpiring && isRebuilding && isElite) ? 0.40 : 0.05;
+
+         if (Math.random() < tradeChance) {
+            // Dynamically pull from the exact league the player is in!
+            let pool = (getOpponentPool(currentLg) || []).filter(t => t.id !== result.currentTeam);
+            if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+            
+            const destTeam = pool[Math.floor(Math.random() * pool.length)];
+            const playoffSpots = LEAGUE_CONFIG[currentLg]?.playoffSpots || 16;
+            const destStandings = Math.floor(Math.random() * (playoffSpots - 2)) + 1; // Usually dealt to a top playoff contender
+            
+            setPendingSeasonResult(result);
+            setActiveEvent({
+               title: 'BLOCKBUSTER TRADE!',
+               desc: `Your GM called you into the office... you've been traded! The team decided to move in a different direction and shipped you to the ${destTeam.name} (${currentLg}).`,
+               choices: [
+                  { label: 'Embrace the fresh start', isRisky: false, feedback: 'You packed your bags and joined your new squad.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                  { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+               ],
+               isTradeDeadlineEvent: true
+            });
+            setScreen('event');
+         } else {
+            setPendingSeasonResult(result);
+            setScreen('trade-deadline');
+         }
       }
     }
   };
 
   const runPostSeasonFlow = (pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) => {
     setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
+
+    // ==========================================
+    // STORYLINE 1: THE GENERATIONAL RIVALRY
+    // ==========================================
+    const rivalStage = player.storylines?.rival || 0;
+    
+    // Organic Rivalry Trigger: 10% chance for normal players to develop a rival in their first 3 years
+    if (rivalStage === 0 && player.stats?.seasonsPlayed <= 3 && Math.random() < 0.10) {
+        setPlayer(p => ({ 
+            ...p, 
+            storylines: { ...p.storylines, rival: 1 },
+            archRival: { name: 'A highly touted prospect from your draft class', ovr: p.ovr + 2 }
+        }));
+    }
+
+    // STAGE 1: THE CALL OUT (Early Career)
+    if (rivalStage === 1 && Math.random() < 0.6) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, rival: 2 } }));
+        setActiveEvent({
+            title: '🔥 THE "ANTI-YOU" EMERGES',
+            desc: `The media has officially linked your legacy to ${player.archRival?.name || 'your biggest draft rival'}. They play a completely opposite style to you, and just publicly told the press they are going to win more hardware than you. How do you respond?`,
+            choices: [
+                { label: 'Brush it off (Humble)', isRisky: false, feedback: 'You took the high road. Your coach praised your maturity, but the fans wanted a quote.', effect: { idol: -5, ovr: 1, rel: { coach: 15 } } },
+                { label: 'Return Fire (Cocky)', isRisky: true, successChance: 0.5, successFeedback: 'The fans eat it up! You just ignited the greatest rivalry in modern hockey.', successEffect: { idol: 35, ovr: 1, money: 15000 }, failFeedback: 'You sounded arrogant and then immediately went on a scoring slump.', failEffect: { idol: -20, ovr: -1, rel: { coach: -10 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 2: HEAD-TO-HEAD SHOWDOWN (Mid Career)
+    if (rivalStage === 2 && Math.random() < 0.4) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, rival: 3 } }));
+        setActiveEvent({
+            title: '⚔️ RIVALRY SHOWDOWN',
+            desc: `Your team is facing off against your arch-rival on national television. The cameras are isolated on the two of you, and they've been chirping you since the warmups.`,
+            choices: [
+                { label: 'Play the Team Game', isRisky: false, feedback: 'You ignored the noise and played a flawless, fundamental game to secure the win.', effect: { idol: 15, ovr: 1, rel: { coach: 10 } } },
+                { label: 'Try to Embarrass Them', isRisky: true, successChance: (pOvr >= 80 ? 0.65 : 0.40), successFeedback: 'You completely undressed them on a 1-on-1 and scored! The highlight reel is everywhere.', successEffect: { idol: 50, ovr: 1, money: 30000 }, failFeedback: 'You tried to do too much, turned the puck over, and they scored the game-winner on the counter-attack.', failEffect: { idol: -30, ovr: -1, rel: { coach: -15 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 3: THE AWARD RACE (NHL Prime)
+    if (rivalStage === 3 && currentLg === 'NHL' && Math.random() < 0.35) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, rival: 2 } })); // Loops back to Stage 2 so the rivalry continues!
+        
+        const winChance = pOvr >= 90 ? 0.7 : (pOvr >= 80 ? 0.4 : 0.15);
+        setActiveEvent({
+            title: '🏆 THE AWARD RACE',
+            desc: `The NHL Awards are tonight. It's down to you and your arch-rival for a major individual trophy. The hockey world is holding its breath.`,
+            choices: [
+                { 
+                  label: 'Attend the Ceremony', 
+                  isRisky: true, 
+                  successChance: winChance, 
+                  successFeedback: 'You won the award right in front of them! The ultimate bragging rights.', 
+                  successEffect: { idol: 60, ovr: 2, money: 75000 }, 
+                  failFeedback: 'They won the award and smirked at you from the stage. You are absolutely furious (but highly motivated).', 
+                  failEffect: { idol: 0, ovr: 3 } // Big OVR boost because you are motivated by the snub!
+                }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // ==========================================
+    // STORYLINE 2: LOCKER ROOM POLITICS
+    // ==========================================
+    const lockerStage = player.storylines?.lockerRoom || 0;
+    const coachTrust = player.relationships?.coach || 50;
+
+    // STAGE 1: THE CLASH (Triggered organically early in an NHL career)
+    if (lockerStage === 0 && currentLg === 'NHL' && player.stats?.seasonsPlayed < 5 && Math.random() < 0.15) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, lockerRoom: 1 } }));
+        setActiveEvent({
+            title: '👴 THE OLD GUARD',
+            desc: `You just walked into a locker room run by a grizzled veteran captain and an old-school coach who hates flashy rookies. They demand you put your head down and play a grinding, dump-and-chase style.`,
+            choices: [
+                { label: 'Buy In (Grind it out)', isRisky: false, feedback: 'You dumped the puck and threw hits. The coach nodded approvingly, but the fans were bored to tears.', effect: { idol: -15, ovr: 0, rel: { coach: 25, teammates: 10 } } },
+                { label: 'Play Your Game (Flashy)', isRisky: true, successChance: 0.5, successFeedback: 'You pulled off a nasty toe-drag and scored! The fans went wild, forcing the coach to bite his tongue.', successEffect: { idol: 30, ovr: 1, money: 0, rel: { coach: -10 } }, failFeedback: 'You turned the puck over at the blue line. The coach stapled you to the bench for the rest of the period.', failEffect: { idol: -15, ovr: -1, rel: { coach: -25, teammates: -10 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 2 / 3: THE RESOLUTION
+    if (lockerStage === 1 && currentLg === 'NHL') {
+        if (coachTrust <= 30 && pOvr >= 80) {
+            // RESOLUTION A: THE ULTIMATUM (You are too good, but the coach hates you)
+            setPlayer(p => ({ ...p, storylines: { ...p.storylines, lockerRoom: 2 } })); // Ends arc
+            
+            let pool = (getOpponentPool('NHL') || []).filter(t => t.id !== currentTeam);
+            if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+            const destTeam = pool[Math.floor(Math.random() * pool.length)];
+
+            setActiveEvent({
+                title: '⚡ LOCKER ROOM MUTINY',
+                desc: `Your relationship with the old-school coach is completely broken, but your elite stats are undeniable. The GM calls you in to resolve this incredibly toxic situation.`,
+                choices: [
+                    { label: 'Demand the Coach is Fired', isRisky: true, successChance: 0.6, successFeedback: 'The GM sided with his superstar. The coach was fired the next morning, and the locker room is officially yours.', successEffect: { idol: 20, ovr: 1, rel: { coach: 50, teammates: 20 } }, failFeedback: 'The GM refused to let a player run the team. You were immediately suspended for insubordination.', failEffect: { idol: -25, ovr: -1, money: -50000, rel: { coach: -20, teammates: -20 } } },
+                    { label: 'Demand a Trade', isRisky: false, feedback: `You told the GM you want out. Within 24 hours, you were quietly shipped off to ${destTeam.name}.`, effect: { idol: -15, ovr: 0, rel: { coach: 10 } }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: 12, madePlayoffs: true } }
+                ],
+                madePlayoffs
+            });
+            setScreen('event');
+            return;
+        } else if (coachTrust >= 80 && pAge >= 21) {
+            // RESOLUTION B: PASSING THE TORCH (You earned their respect)
+            setPlayer(p => ({ ...p, storylines: { ...p.storylines, lockerRoom: 2 } })); // Ends arc
+            setActiveEvent({
+                title: '👑 PASSING THE TORCH',
+                desc: `You bought into the system, played the right way, and earned the ultimate respect of the old guard. The veteran captain just announced his retirement and publicly handed you the "C".`,
+                choices: [
+                    { label: 'Accept the Captaincy', isRisky: false, feedback: 'You are now the Captain of the franchise. Your leadership elevates everyone on the ice.', effect: { idol: 100, ovr: 2, rel: { coach: 20, teammates: 20 } } }
+                ],
+                madePlayoffs
+            });
+            setScreen('event');
+            return;
+        }
+    }
+
+    // ==========================================
+    // STORYLINE 3: THE HOMETOWN SAVIOR BURDEN
+    // ==========================================
+    const hometownStage = player.storylines?.hometown || 0;
+
+    // STAGE 1: THE HONEYMOON (Drafted or developed into a highly-rated savior)
+    if (hometownStage === 0 && currentLg === 'NHL' && pOvr >= 78 && Math.random() < 0.12) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 1 } }));
+        setActiveEvent({
+            title: '🏙️ THE SAVIOR ARRIVES',
+            desc: `The city has suffered a 50-year championship drought. The media and fans have immediately crowned you as their hometown savior. The expectations are astronomical, but the love is real.`,
+            choices: [
+                { label: 'Embrace the Pressure', isRisky: false, feedback: 'You told the press you are here to win a Cup. The city is ready to run through a brick wall for you.', effect: { idol: 50, ovr: 1, money: 0 } },
+                { label: 'Downplay the Hype', isRisky: true, successChance: 0.5, successFeedback: 'You successfully managed expectations, keeping the media calm while still impressing the fans.', successEffect: { idol: 20, ovr: 0, rel: { media: 20 } }, failFeedback: 'The media accused you of lacking confidence. Not the heroic quote they wanted.', failEffect: { idol: -15, ovr: 0, rel: { media: -20 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 2: THE SLUMP (Failing to deliver a deep run)
+    if (hometownStage === 1 && currentLg === 'NHL' && !madePlayoffs && Math.random() < 0.5) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 2 } }));
+        setActiveEvent({
+            title: '📉 THE HONEYMOON IS OVER',
+            desc: `Another season ends without a parade. The local media has turned toxic, and talk-radio is questioning if you actually have what it takes to carry this franchise. The pressure is suffocating.`,
+            choices: [
+                { label: 'Ignore the Noise', isRisky: false, feedback: 'You stayed off social media and hit the gym. The fans are still mad, but you kept your focus.', effect: { idol: -30, ovr: 1, rel: { media: -10 } } },
+                { label: 'Call Out the Critics', isRisky: true, successChance: 0.4, successFeedback: 'You passionately defended your team. A risky move, but the diehard fans respected your fire!', successEffect: { idol: 25, ovr: 0, rel: { teammates: 15 } }, failFeedback: 'It completely backfired. The media crucified you for making excuses.', failEffect: { idol: -50, ovr: -1, rel: { media: -30 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 3: THE BREAKING POINT
+    if (hometownStage === 2 && currentLg === 'NHL' && Math.random() < 0.4) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 3 } })); // End arc
+        
+        let pool = (getOpponentPool('NHL') || []).filter(t => t.id !== currentTeam);
+        if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+        const destTeam = pool[Math.floor(Math.random() * pool.length)];
+
+        setActiveEvent({
+            title: '🧳 THE BREAKING POINT',
+            desc: `The offseason has arrived. You just received a massive, under-the-table guarantee from a sunny, low-pressure market. They will force a trade to get you and pay you a fortune to escape this toxic media environment.`,
+            choices: [
+                { label: 'Stay and Fight (Loyalty)', isRisky: true, successChance: 0.5, successFeedback: 'You pledged your loyalty to the city! The fans are weeping tears of joy. You are a local legend.', successEffect: { idol: 150, ovr: 2, rel: { teammates: 20 } }, failFeedback: 'You stayed, but the toxic environment is mentally draining your love for the game.', failEffect: { idol: 10, ovr: -2, rel: { media: -10 } } },
+                { label: 'Take the Money & Escape', isRisky: false, feedback: `You packed your bags for ${destTeam.name}. You are rich and stress-free, but your hometown jerseys are burning in the streets.`, effect: { idol: -150, ovr: 0, money: 2500000 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: 8, madePlayoffs: true } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // ==========================================
+    // STORYLINE 4: THE DEVASTATING INJURY
+    // ==========================================
+    const injuryStage = player.storylines?.injury || 0;
+
+    // STAGE 1: THE HIT (Random 4% chance anytime after junior hockey)
+    if (injuryStage === 0 && currentLg !== 'NCAA' && pAge > 18 && Math.random() < 0.04) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 1 } }));
+        setActiveEvent({
+            title: '🚑 DEVASTATING INJURY',
+            desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over, and doctors are questioning if you'll ever have the same speed again.`,
+            choices: [
+                { label: 'Begin Recovery', isRisky: false, feedback: 'The surgery was successful, but the road back is going to be incredibly difficult. You lost a significant step (-3 OVR).', effect: { idol: 15, ovr: -3, money: 0 } }
+            ],
+            madePlayoffs: false // Forces you to miss the playoffs regardless of team standings!
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 2: THE REHAB (Triggers the immediate next offseason)
+    if (injuryStage === 1) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 2 } }));
+        setActiveEvent({
+            title: '🏥 THE REHABILITATION',
+            desc: `It's been a grueling offseason of rehab. Your physical therapists have presented you with two options: a standard team-covered recovery plan, or flying to Germany for cutting-edge, experimental treatments out of your own pocket.`,
+            choices: [
+                { label: 'Experimental Rehab ($100k)', isRisky: true, successChance: 0.75, successFeedback: 'The treatment worked miracles! You actually feel faster and stronger than you did before the injury (+4 OVR).', successEffect: { idol: 20, ovr: 4, money: -100000 }, failFeedback: 'The experimental treatment was a bust. You lost the money and still feel a step slow.', failEffect: { idol: 0, ovr: 1, money: -100000 } },
+                { label: 'Standard Rehab (Free)', isRisky: false, feedback: 'You played it safe. You are medically cleared to play, but you definitely lost a step physically (+1 OVR recovery).', effect: { idol: 0, ovr: 1, money: 0 } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 3: THE COMEBACK / REVENGE
+    if (injuryStage === 2 && Math.random() < 0.5) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 3 } })); // Ends arc
+        setActiveEvent({
+            title: '🩸 BAD BLOOD',
+            desc: `It's your first game back against the exact enforcer that tore your ACL last year. The crowd is buzzing. Everyone on the ice knows exactly what is about to happen.`,
+            choices: [
+                { label: 'Drop the Gloves (Revenge)', isRisky: true, successChance: (pOvr >= 75 ? 0.6 : 0.3), successFeedback: 'You beat the absolute brakes off him! The crowd went berserk. Justice served.', successEffect: { idol: 75, ovr: 1, rel: { teammates: 30, coach: -10 } }, failFeedback: 'He got the better of you again. You left the ice with a black eye and a bruised ego.', failEffect: { idol: -15, ovr: 0, rel: { teammates: -10, coach: -15 } } },
+                { label: 'Scoreboard Revenge', isRisky: true, successChance: (player.hockeyIQ >= 70 ? 0.7 : 0.4), successFeedback: 'You burned him on a 1-on-1 and scored the game-winner! The ultimate flex.', successEffect: { idol: 40, ovr: 1, rel: { coach: 20 } }, failFeedback: 'You tried to force a play on him and turned it over. The coach wasn\'t happy.', failEffect: { idol: -10, ovr: -1, rel: { coach: -15 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+    // ==========================================
 
     if (pAge <= 19 && Math.random() > 0.4) {
       setMinigameContext('wjc');
@@ -1159,8 +1764,8 @@ function App() {
       const eventRoll = Math.random();
       if (eventRoll < 0.33) {
         const shuffledQ = [...PRESS_QUESTIONS].sort(() => 0.5 - Math.random()).slice(0, 3);
-        const randomJournalist = PRESS_JOURNALISTS[Math.floor(Math.random() * PRESS_JOURNALISTS.length)];
-        setActivePress({ journalist: randomJournalist, questions: shuffledQ, currentQ: 0, answers: [] });
+        const shuffledJ = [...PRESS_JOURNALISTS].sort(() => 0.5 - Math.random()).slice(0, 3);
+        setActivePress({ journalists: shuffledJ, questions: shuffledQ, currentQ: 0, answers: [] });
         setScreen('press');
       } else if (eventRoll < 0.66) {
         triggerMinigame('season');
@@ -1194,20 +1799,36 @@ function App() {
   };
 
   const handleEndPress = () => {
-    const hits = activePress.answers.filter(a => a === activePress.journalist?.id).length;
+    // Per-question journalist scoring: each answer is compared against the
+    // journalist assigned to that specific question.
+    const journalists = activePress.journalists || [];
+    const hits = activePress.answers.filter((ans, i) => ans === journalists[i]?.id).length;
+    
     if (hits === 3) unlockAchievement('press_master');
     if (hits === 0) unlockAchievement('press_disaster');
     
     setPlayer(prev => {
       let idolDelta = 0;
       let ovrDelta = 0;
-      if (hits === 3) { idolDelta = 15; ovrDelta = 1; }
-      else if (hits === 2) { idolDelta = 5; }
-      else if (hits === 1) { idolDelta = -5; }
-      else { idolDelta = -15; ovrDelta = -1; }
+      let mediaDelta = 0;
+      let coachDelta = 0;
+
+      if (hits === 3) { idolDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; }
+      else if (hits === 2) { idolDelta = 5; mediaDelta = 5; }
+      else if (hits === 1) { idolDelta = -5; mediaDelta = -5; }
+      else { idolDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10; }
       
       const withOvr = applyOvrDelta(prev, ovrDelta);
-      return { ...withOvr, idolatry: capIdol(withOvr.idolatry + idolDelta), ovr: recomputeOvr(withOvr) };
+      return { 
+        ...withOvr, 
+        idolatry: capIdol(withOvr.idolatry + idolDelta), 
+        ovr: recomputeOvr(withOvr),
+        relationships: {
+          ...withOvr.relationships,
+          media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + mediaDelta)),
+          coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + coachDelta))
+        }
+      };
     });
     
     if (pendingPlayoffs) {
@@ -1282,7 +1903,12 @@ function App() {
         ...withOvr,
         idolatry: capIdol(withOvr.idolatry + (outcome.idol || 0)),
         ovr: recomputeOvr(withOvr),
-        stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcome.money || 0) }
+        stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcome.money || 0) },
+        relationships: {
+          coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (outcome.rel?.coach || 0))),
+          teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (outcome.rel?.teammates || 0))),
+          media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (outcome.rel?.media || 0)))
+        }
       };
     });
     setEventImpacts({ idol: outcome.idol || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 });
@@ -1329,7 +1955,6 @@ function App() {
       } else if (choice.action === 'SIGN_ELC') {
         updated.team = p.rights;
         updated.league = 'NHL';
-        // 👇 FIX: Added role here too
         updated.contract = { salary: 925000, years: 3, role: 'Rookie' };
       } else if (choice.action === 'DEMOTE') {
         updated.team = choice.actionData.team;
@@ -1355,7 +1980,12 @@ function App() {
         ...withOvr,
         idolatry: capIdol(withOvr.idolatry + (outcomeEffect?.idol || 0)),
         ovr: recomputeOvr(withOvr),
-        stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) }
+        stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) },
+        relationships: {
+          coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (outcomeEffect?.rel?.coach || 0))),
+          teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (outcomeEffect?.rel?.teammates || 0))),
+          media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (outcomeEffect?.rel?.media || 0)))
+        }
       };
     });
 
@@ -1373,58 +2003,95 @@ function App() {
 
   const checkPlayoffs = (currentLg, currentTeamId, standings) => {
     const spots = LEAGUE_CONFIG[currentLg]?.playoffSpots || 16;
-    const totalRounds = Math.log2(spots);
-    
-    let oppPool = getOpponentPool(currentLg)?.filter(t => t.id !== currentTeamId) || [];
-    oppPool = [...oppPool].sort(() => 0.5 - Math.random()); 
+    const rounds = getPlayoffRounds(currentLg);
+    const totalRounds = rounds.length;
+    const conferences = getConferences(currentLg);
+    const hasConfs = conferences.length === 2;
+    const divs = getDivisions(currentLg);
 
     const playerTeamObj = getTeamData(currentTeamId, currentLg) || { id: currentTeamId, name: currentTeamId };
+    const playerConf = getTeamConference(currentTeamId, currentLg);
 
-    const getSafeDeck = (roundNum) => {
-      const generated = generatePlayoffDeck ? generatePlayoffDeck(standings || 1, spots, roundNum) : null;
+    // Build opponent pools. If the league has conferences, split into West / East so the
+    // bracket genuinely respects them; otherwise a single shuffled pool feeds every matchup.
+    const allOpponents = (getOpponentPool(currentLg) || []).filter(t => t.id !== currentTeamId);
+    const shuffled = [...allOpponents].sort(() => 0.5 - Math.random());
+    let westPool = [], eastPool = [], singlePool = [];
+    if (hasConfs) {
+      westPool = shuffled.filter(t => t.conf === 'West');
+      eastPool = shuffled.filter(t => t.conf === 'East');
+    } else {
+      singlePool = shuffled;
+    }
+
+    const getDeckForRound = (roundNum) => {
+      const gpm = rounds[roundNum - 1]?.gamesPerMatchup || 7;
+      const generated = generatePlayoffDeck ? generatePlayoffDeck(standings || 1, spots, roundNum, gpm) : null;
       if (generated && Array.isArray(generated) && generated.length > 0) return generated;
-      return Array(9).fill(null).map(() => ({ isWin: Math.random() > 0.45 }));
+      const size = gpm === 1 ? 1 : gpm + 2;
+      return Array(size).fill(null).map(() => ({ isWin: Math.random() > 0.45 }));
     };
 
-    const playerConf = getTeamConference(currentTeamId);
+    const getDivLabel = (m, totalMatchups) => {
+      if (divs.length === 0) return '';
+      const matchupsPerDiv = Math.max(1, Math.floor(totalMatchups / divs.length));
+      const divIdx = Math.min(divs.length - 1, Math.floor(m / matchupsPerDiv));
+      return `${divs[divIdx].toUpperCase()} DIV`;
+    };
+
+    // Decide which R1 matchup index the player occupies. West indices come first (0..halfSize-1)
+    // so West sits on the LEFT of the bracket per user preference, East on the right.
+    const firstRoundMatchups = rounds[0].teams / 2;
+    let playerMatchIdx;
+    if (hasConfs) {
+      const halfSize = Math.floor(firstRoundMatchups / 2);
+      if (playerConf === 'West') {
+        playerMatchIdx = Math.floor(Math.random() * halfSize);
+      } else {
+        playerMatchIdx = halfSize + Math.floor(Math.random() * (firstRoundMatchups - halfSize));
+      }
+    } else {
+      playerMatchIdx = Math.floor(Math.random() * firstRoundMatchups);
+    }
 
     const bracket = [];
-    const firstRoundMatchups = spots / 2;
-    const playerMatchIdx = Math.floor(Math.random() * firstRoundMatchups);
-
     for (let r = 0; r < totalRounds; r++) {
+      const numMatchups = rounds[r].teams / 2;
+      const halfSize = Math.floor(numMatchups / 2);
       const roundMatchups = [];
-      const numMatchups = spots / Math.pow(2, r + 1);
 
       for (let m = 0; m < numMatchups; m++) {
+        // Assign each matchup a conference tag (used by the bracket render to split L/R).
+        // The League Final round crosses conferences, so its matchup carries no conf tag.
+        let matchConf = null;
+        if (hasConfs && r < totalRounds - 1) {
+          matchConf = m < halfSize ? 'West' : 'East';
+        }
+
         if (r === 0) {
-          const isPlayer = m === playerMatchIdx; 
-          const t1 = isPlayer ? playerTeamObj : (oppPool.pop() || { name: 'TBD', id: 'TBD' });
-          const t2 = oppPool.pop() || { name: 'TBD', id: 'TBD' };
-
-          let divisionLabel = '';
-          if (m < 2) divisionLabel = 'ATLANTIC DIV';
-          else if (m < 4) divisionLabel = 'METRO DIV';
-          else if (m < 6) divisionLabel = 'CENTRAL DIV';
-          else divisionLabel = 'PACIFIC DIV';
-
+          const isPlayer = m === playerMatchIdx;
+          const pool = hasConfs ? (matchConf === 'West' ? westPool : eastPool) : singlePool;
+          const t1 = isPlayer ? playerTeamObj : (pool.pop() || { name: 'TBD', id: 'TBD' });
+          const t2 = pool.pop() || { name: 'TBD', id: 'TBD' };
           roundMatchups.push({
             id: `r${r}-m${m}`,
             team1: t1,
             team2: t2,
+            conf: matchConf,
             isPlayerSeries: isPlayer,
             wins1: 0,
             wins2: 0,
             status: 'playing',
-            deck: isPlayer ? getSafeDeck(1) : null,
+            deck: isPlayer ? getDeckForRound(1) : null,
             revealed: [],
-            divisionLabel
+            divisionLabel: getDivLabel(m, numMatchups)
           });
         } else {
           roundMatchups.push({
             id: `r${r}-m${m}`,
             team1: { name: 'TBD', id: 'TBD' },
             team2: { name: 'TBD', id: 'TBD' },
+            conf: matchConf,
             isPlayerSeries: false,
             wins1: 0,
             wins2: 0,
@@ -1445,7 +2112,8 @@ function App() {
       currentTeamId,
       standings,
       spots,
-      playerConf
+      playerConf,
+      hasConfs
     });
     setScreen('playoffs');
   };
@@ -1461,6 +2129,10 @@ function App() {
     if (match.revealed && match.revealed.includes(cIndex)) return;
     if (!match.deck || !match.deck[cIndex]) return;
 
+    // Wins needed depends on the format: 4 for best-of-7, 3 for best-of-5, 1 for single-elim.
+    const winsNeeded = getWinsNeeded(playoffs.currentLg, rIndex);
+    const isFrozenFour = getGamesPerMatchup(playoffs.currentLg, rIndex) === 1;
+
     const card = match.deck[cIndex];
     const isWin = card.isWin || card.win;
     const newWins = isWin ? match.wins1 + 1 : match.wins1;
@@ -1469,18 +2141,19 @@ function App() {
     let matchStatus = 'playing';
     let overallStatus = 'playing';
 
-    if (newWins >= 4) matchStatus = 'won';
-    else if (newLosses >= 4) {
+    if (newWins >= winsNeeded) matchStatus = 'won';
+    else if (newLosses >= winsNeeded) {
       matchStatus = 'lost';
       overallStatus = 'eliminated';
     }
 
     const totalRounds = playoffs.bracket.length;
 
-    if (matchStatus === 'won') {
+    // Series-specific achievements only make sense for best-of-7.
+    if (matchStatus === 'won' && winsNeeded === 4) {
       if (newWins === 4 && newLosses === 0) unlockAchievement('sweep');
       if (newWins === 4 && newLosses === 3) unlockAchievement('game_seven_hero');
-    } else if (matchStatus === 'lost') {
+    } else if (matchStatus === 'lost' && winsNeeded === 4) {
       if (newLosses === 4 && newWins === 0 && rIndex === 0) unlockAchievement('swept_exit');
     }
 
@@ -1500,101 +2173,114 @@ function App() {
     let nextActiveIndex = rIndex;
     let playerUpdates = null;
 
+    // Conference title still fires at rIndex === 2 for 4-round leagues; skip if NCAA/short bracket.
     let confTitleWonThisRound = false;
-    if (matchStatus === 'won' && rIndex === 2) {
+    if (matchStatus === 'won' && rIndex === totalRounds - 2 && playoffs.hasConfs && !isFrozenFour) {
       confTitleWonThisRound = true;
       unlockAchievement('conf_champ');
     }
 
     if (matchStatus !== 'playing') {
-       newRound.forEach((m, i) => {
-          if (!m.isPlayerSeries && m.status === 'playing') {
-             const t1W = Math.random() > 0.5;
-             const lw = Math.floor(Math.random() * 4);
-             newRound[i] = { ...m, status: 'simulated', wins1: t1W ? 4 : lw, wins2: t1W ? lw : 4 };
+      // Auto-simulate remaining unplayed series in the current round.
+      newRound.forEach((m, i) => {
+        if (!m.isPlayerSeries && m.status === 'playing') {
+          const t1W = Math.random() > 0.5;
+          const lw = isFrozenFour ? 0 : Math.floor(Math.random() * winsNeeded);
+          newRound[i] = { ...m, status: 'simulated', wins1: t1W ? winsNeeded : lw, wins2: t1W ? lw : winsNeeded };
+        }
+      });
+      newBracket[rIndex] = newRound;
+
+      if (overallStatus === 'eliminated') {
+        // Simulate the rest of the bracket after elimination so the recap has a champion.
+        for (let r = rIndex; r < totalRounds - 1; r++) {
+          const currR = newBracket[r];
+          const nextR = [...newBracket[r + 1]];
+          const currWN = getWinsNeeded(playoffs.currentLg, r);
+          const nextWN = getWinsNeeded(playoffs.currentLg, r + 1);
+          const nextIsFF = getGamesPerMatchup(playoffs.currentLg, r + 1) === 1;
+
+          for (let i = 0; i < currR.length; i += 2) {
+            const m1 = currR[i];
+            const m2 = currR[i + 1];
+            const adv1 = m1.wins1 >= currWN ? m1.team1 : m1.team2;
+            const adv2 = m2.wins1 >= currWN ? m2.team1 : m2.team2;
+
+            const t1W = Math.random() > 0.5;
+            const lw = nextIsFF ? 0 : Math.floor(Math.random() * nextWN);
+
+            if (nextR[Math.floor(i / 2)]) {
+              nextR[Math.floor(i / 2)] = {
+                ...nextR[Math.floor(i / 2)],
+                team1: adv1,
+                team2: adv2,
+                status: 'simulated',
+                wins1: t1W ? nextWN : lw,
+                wins2: t1W ? lw : nextWN
+              };
+            }
           }
-       });
-       newBracket[rIndex] = newRound;
+          newBracket[r + 1] = nextR;
+        }
+      } else if (matchStatus === 'won') {
+        if (rIndex + 1 < totalRounds) {
+          const nextR = [...newBracket[rIndex + 1]];
+          const currWN = winsNeeded;
+          const nextRoundIdx = rIndex + 1;
 
-       if (overallStatus === 'eliminated') {
-           for (let r = rIndex; r < totalRounds - 1; r++) {
-              const currR = newBracket[r];
-              const nextR = [...newBracket[r + 1]];
+          for (let i = 0; i < newRound.length; i += 2) {
+            const m1 = newRound[i];
+            const m2 = newRound[i + 1];
+            const adv1 = m1.wins1 >= currWN ? m1.team1 : m1.team2;
+            const adv2 = m2.wins1 >= currWN ? m2.team1 : m2.team2;
 
-              for (let i = 0; i < currR.length; i += 2) {
-                 const m1 = currR[i];
-                 const m2 = currR[i + 1];
-                 const adv1 = m1.wins1 >= 4 ? m1.team1 : m1.team2;
-                 const adv2 = m2.wins1 >= 4 ? m2.team1 : m2.team2;
+            const isPlayerMatch = adv1.id === playoffs.currentTeamId || adv2.id === playoffs.currentTeamId;
+            let t1 = adv1;
+            let t2 = adv2;
+            if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
 
-                 const t1W = Math.random() > 0.5;
-                 const lw = Math.floor(Math.random() * 4);
+            const nextGpm = getGamesPerMatchup(playoffs.currentLg, nextRoundIdx);
+            const nextDeckSize = nextGpm === 1 ? 1 : nextGpm + 2;
+            const nextDeck = isPlayerMatch
+              ? (generatePlayoffDeck
+                  ? generatePlayoffDeck(playoffs.standings || 1, playoffs.spots, nextRoundIdx + 1, nextGpm)
+                  : Array(nextDeckSize).fill(null).map(() => ({ isWin: Math.random() > 0.45 })))
+              : null;
 
-                 if (nextR[Math.floor(i / 2)]) {
-                    nextR[Math.floor(i / 2)] = {
-                        ...nextR[Math.floor(i / 2)],
-                        team1: adv1,
-                        team2: adv2,
-                        status: 'simulated',
-                        wins1: t1W ? 4 : lw,
-                        wins2: t1W ? lw : 4
-                    };
-                 }
-              }
-              newBracket[r + 1] = nextR;
-           }
-       } else if (matchStatus === 'won') {
-           if (rIndex + 1 < totalRounds) {
-               const nextR = [...newBracket[rIndex + 1]];
+            nextR[Math.floor(i / 2)] = {
+              ...nextR[Math.floor(i / 2)],
+              team1: t1,
+              team2: t2,
+              isPlayerSeries: isPlayerMatch,
+              status: 'playing',
+              deck: nextDeck,
+              wins1: 0,
+              wins2: 0,
+              revealed: []
+            };
+          }
+          newBracket[rIndex + 1] = nextR;
 
-               for (let i = 0; i < newRound.length; i += 2) {
-                   const m1 = newRound[i];
-                   const m2 = newRound[i + 1];
-                   const adv1 = m1.wins1 >= 4 ? m1.team1 : m1.team2;
-                   const adv2 = m2.wins1 >= 4 ? m2.team1 : m2.team2;
-
-                   const isPlayerMatch = adv1.id === playoffs.currentTeamId || adv2.id === playoffs.currentTeamId;
-                   let t1 = adv1; 
-                   let t2 = adv2;
-                   if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
-
-                   const nextDeck = isPlayerMatch 
-                     ? (generatePlayoffDeck ? generatePlayoffDeck(playoffs.standings || 1, playoffs.spots, rIndex + 2) : Array(9).fill(null).map(() => ({ isWin: Math.random() > 0.45 })))
-                     : null;
-
-                   nextR[Math.floor(i / 2)] = {
-                       ...nextR[Math.floor(i / 2)],
-                       team1: t1,
-                       team2: t2,
-                       isPlayerSeries: isPlayerMatch,
-                       status: 'playing',
-                       deck: nextDeck,
-                       wins1: 0,
-                       wins2: 0,
-                       revealed: []
-                   };
-               }
-               newBracket[rIndex + 1] = nextR;
-               
-               // Keep index at rIndex so current screen renders all 4 'W' cards!
-               nextActiveIndex = rIndex; 
-           } else {
-               overallStatus = 'won_cup';
-               playerUpdates = p => ({
-                 ...p,
-                 idolatry: capIdol(p.idolatry + 30),
-                 stats: { ...p.stats, titles: (p.stats.titles || 0) + 1 }
-               });
-               if (player.league === 'NHL') unlockAchievement('stanley_cup');
-               if (player.league === 'AHL') unlockAchievement('ahl_champ');
-           }
-       }
+          // Keep the current round on screen so the player sees all their reveal cards.
+          nextActiveIndex = rIndex;
+        } else {
+          overallStatus = 'won_cup';
+          playerUpdates = p => ({
+            ...p,
+            idolatry: capIdol(p.idolatry + 30),
+            stats: { ...p.stats, titles: (p.stats.titles || 0) + 1 }
+          });
+          if (player.league === 'NHL') unlockAchievement('stanley_cup');
+          if (player.league === 'AHL') unlockAchievement('ahl_champ');
+          if (player.league === 'NCAA') unlockAchievement('ncaa_champ');
+        }
+      }
     }
 
-    setPlayoffs({ 
-      ...playoffs, 
-      bracket: newBracket, 
-      activeRoundIndex: nextActiveIndex, 
+    setPlayoffs({
+      ...playoffs,
+      bracket: newBracket,
+      activeRoundIndex: nextActiveIndex,
       overallStatus,
       confTitleWon: playoffs.confTitleWon || confTitleWonThisRound
     });
@@ -1610,10 +2296,11 @@ function App() {
 
     const finalRound = playoffs.bracket ? playoffs.bracket[playoffs.bracket.length - 1] : null;
     const finalMatch = finalRound ? finalRound[0] : null;
-    let champion = null;
+let champion = null;
     if (finalMatch) {
-      if (finalMatch.wins1 >= 4) champion = finalMatch.team1;
-      else if (finalMatch.wins2 >= 4) champion = finalMatch.team2;
+      const finalWN = getWinsNeeded(playoffs.currentLg, playoffs.bracket.length - 1);
+      if (finalMatch.wins1 >= finalWN) champion = finalMatch.team1;
+      else if (finalMatch.wins2 >= finalWN) champion = finalMatch.team2;
     }
 
     setSeasonRecap(r => ({
@@ -1640,36 +2327,13 @@ function App() {
 
   const generateOffers = (isTradeRequest = false, overrideTeam = null) => {
     const actingTeam = overrideTeam || player.team;
-    const multi = (player.inventory || []).includes('agent') ? 1.15 : 1.0;
+    const agentItem = shopItems.find(i => i.id === 'agent');
+    const agentModifier = agentItem?.effect?.salaryModifier ?? 1.15;
+    const multi = (player.inventory || []).includes('agent') ? agentModifier : 1.0;
     
     let leagueMinimum = 850000;
     if (currentYear === 2027) leagueMinimum = 900000;
     else if (currentYear >= 2029) leagueMinimum = 1000000;
-
-    const getRole = (salary, p) => {
-      if (p.pos === 'G') return salary > 3500000 ? 'Starter' : 'Backup';
-
-      const isPhysical = p.physicality > p.skating;
-      const isShooter = p.shooting > p.hockeyIQ && p.shooting > p.skating;
-
-      if (['LD', 'RD'].includes(p.pos)) {
-        if (salary > 6000000) return isPhysical ? 'Shutdown Defenceman' : 'Offensive Defenceman';
-        if (salary > 2500000) return 'Top 4 Defender';
-        return isPhysical ? 'Bottom Pair Grinder' : 'Depth Defender';
-      }
-
-      if (salary > 6000000) {
-        if (isPhysical) return 'Power Forward Core';
-        if (isShooter) return 'Elite Sniper Core';
-        return 'Playmaking Core';
-      }
-      if (salary > 2500000) {
-        if (isPhysical) return 'Middle Six Grinder';
-        return 'Middle Six Two-Way';
-      }
-      
-      return isPhysical ? '4th Line Grinder' : 'Depth Skater';
-    };
 
     let baseSalary = leagueMinimum;
     let maxYears = 2;
@@ -1678,6 +2342,9 @@ function App() {
       baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
       maxYears = 2;
     } else if (player.league === 'NHL') {
+      const recentAwards = seasonRecap?.awards || [];
+      const isSuperstar = recentAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
+
       if (player.ovr >= 85) {
         baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi;
         maxYears = 7;
@@ -1690,6 +2357,12 @@ function App() {
       } else {
         baseSalary = (leagueMinimum + 150000 + ((player.ovr - 70) * 100000)) * multi;
         maxYears = 2;
+      }
+
+      // 🏆 MVP CONTRACT OVERRIDE: If you won a major award, you get PAID regardless of OVR.
+      if (isSuperstar) {
+         baseSalary = Math.max(baseSalary, 10500000 * multi);
+         maxYears = Math.max(maxYears, 5);
       }
 
       if (player.age >= 38) {
@@ -1724,7 +2397,8 @@ function App() {
            salary: baseSalary,
            years: Math.min(3, maxYears),
            role: getRole(baseSalary, player),
-           idolHit: 10
+           idolHit: 10,
+           state: 'Current Club' // Explicitly marking your current team
          });
       }
     }
@@ -1738,7 +2412,8 @@ function App() {
               const osSalary = Math.min(13500000, Math.round((baseSalary * 1.3) / 25000) * 25000);
               offers.push({
                 team: t, league: 'NHL', type: 'OFFER SHEET', salary: osSalary, years: Math.min(5, maxYears),
-                role: getRole(osSalary, player), idolHit: getTransferImpact(actingTeam, t)
+                role: getRole(osSalary, player), idolHit: getTransferImpact(actingTeam, t),
+                state: 'Offer Sheet'
               });
            }
          }
@@ -1764,6 +2439,19 @@ function App() {
           if (t !== actingTeam && !offers.find(o => o.team === t)) {
             let offerSalary = Math.round((baseSalary * (0.85 + (Math.random() * 0.35))) / 25000) * 25000; 
             
+            // DYNAMIC TEAM STATES (Money vs. Winning)
+            const stateRoll = Math.random();
+            let teamState = 'Middle of the Pack';
+            if (targetLg === 'NHL') {
+                if (stateRoll > 0.66) {
+                    teamState = 'Contender';
+                    offerSalary = Math.round((offerSalary * 0.85) / 25000) * 25000; // Cup discount
+                } else if (stateRoll < 0.33) {
+                    teamState = 'Rebuilding';
+                    offerSalary = Math.round((offerSalary * 1.20) / 25000) * 25000; // Overpay tax
+                }
+            }
+
             if (targetLg !== 'NHL') {
                 offerSalary = Math.max(85000, Math.floor(offerSalary * 0.15));
             } else {
@@ -1777,7 +2465,8 @@ function App() {
               salary: offerSalary,
               years: Math.floor(Math.random() * maxYears) + 1,
               role: targetLg === 'NHL' ? getRole(offerSalary, player) : 'Pro Roster',
-              idolHit: getTransferImpact(actingTeam, t)
+              idolHit: getTransferImpact(actingTeam, t),
+              state: teamState
             });
           }
         }
@@ -1908,15 +2597,15 @@ function App() {
       {/* 🏆 REAL-TIME ACHIEVEMENT TOAST POPUP */}
       {achievementToast && (
         <div 
-          className="fixed top-12 right-4 sm:top-16 sm:right-6 z-50 max-w-[260px] sm:max-w-xs bg-[#101410] border-2 border-[#F59E0B] p-4 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-4 transition-all duration-300 pointer-events-none"
-          style={{
-            animation: 'slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-          }}
+          className="fixed top-12 right-4 sm:top-16 sm:right-6 z-50 max-w-[260px] sm:max-w-xs bg-[#101410] border-2 border-[#F59E0B] p-4 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-4 pointer-events-none"
+          style={{ animation: 'toastLifecycle 4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
         >
           <style>{`
-            @keyframes slideInRight {
-              from { transform: translateX(120%); opacity: 0; }
-              to { transform: translateX(0); opacity: 1; }
+            @keyframes toastLifecycle {
+              0% { transform: translateX(120%); opacity: 0; }
+              10% { transform: translateX(0); opacity: 1; }
+              85% { transform: translateX(0); opacity: 1; }
+              100% { transform: translateX(120%); opacity: 0; }
             }
           `}</style>
           <span className="text-3xl sm:text-4xl shrink-0">{achievementToast.icon}</span>
@@ -1985,6 +2674,8 @@ function App() {
           player={player} tier={tier} statChanges={statChanges} 
           lgKey={lgKey} isJunior={isJunior} isAHL={isAHL} 
           onOpenShop={() => setIsShopOpen(true)} 
+          hasDemandedTrade={hasDemandedTrade} 
+          setHasDemandedTrade={setHasDemandedTrade} 
         />
       )}
 
@@ -1994,7 +2685,7 @@ function App() {
         {screen === 'creation' && (
           <div className="min-h-screen flex items-center justify-center p-6 bg-[#040505] text-white">
             <div className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748]">
-              <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font text-sm sm:text-base">CAREER MODE</h2>
+              <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font text-sm sm:text-base">A HOCKEY GAME</h2>
               <h1 className="text-5xl sm:text-6xl font-black mb-10 text-white italic sports-font uppercase tracking-tighter">BLUE CHIP PROSPECT</h1>
 
               <input
@@ -2038,7 +2729,7 @@ function App() {
                     onClick={() => setPlayer({ ...player, startLeague: lg.id })}
                     className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
                   >
-                    <h3 className="text-[10px] sm:text-xs font-black text-white sports-font tracking-wide">{lg.label}</h3>
+                    <h3 className="text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</h3>
                   </button>
                 ))}
               </div>
@@ -2055,7 +2746,16 @@ function App() {
                 ))}
               </div>
 
-              <button onClick={handleStart} disabled={!player.name} className="w-full btn-primary py-4 rounded-lg text-lg sm:text-xl disabled:opacity-50 mb-8 cursor-pointer sports-font tracking-widest">
+             {/* START GAME BUTTON */}
+              <button 
+                onClick={handleStart} 
+                disabled={!player.name} 
+                className={`w-full py-4 rounded-xl text-xl sm:text-2xl font-black sports-font tracking-widest transition-all mb-2 ${
+                  !player.name 
+                    ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
+                    : 'bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02]'
+                }`}
+              >
                 LACE UP THE SKATES
               </button>
 
@@ -2138,7 +2838,9 @@ function App() {
           const totalGoals = (player.stats?.nhl?.goals || 0) + (player.stats?.chl?.goals || 0) + (player.stats?.ahl?.goals || 0);
           const totalAssists = (player.stats?.nhl?.assists || 0) + (player.stats?.chl?.assists || 0) + (player.stats?.ahl?.assists || 0);
           const totalSaves = (player.stats?.nhl?.saves || 0) + (player.stats?.chl?.saves || 0) + (player.stats?.ahl?.saves || 0);
-
+          const totalShutouts = (player.stats?.nhl?.shutouts || 0) + (player.stats?.chl?.shutouts || 0) + (player.stats?.ahl?.shutouts || 0);
+          const totalShots = (player.stats?.nhl?.shots || 0) + (player.stats?.chl?.shots || 0) + (player.stats?.ahl?.shots || 0);
+          
           const stints = [];
           (player.seasonHistory || []).forEach(s => {
             const lastStint = stints[stints.length - 1];
@@ -2221,13 +2923,17 @@ function App() {
                   </div>
 
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)]">
-                      <p className="text-2xl sm:text-3xl font-black text-white sports-font">{isGoalie ? totalSaves : totalGoals}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">{isGoalie ? 'SAVES' : 'GOALS'}</p>
+                   <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)]">
+                      <p className="text-2xl sm:text-3xl font-black text-[#22E748] sports-font">
+                        {isGoalie ? (totalShots > 0 ? (totalSaves / totalShots).toFixed(3).replace('0.', '.') : '.000') : totalGoals}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">{isGoalie ? 'SV%' : 'GOALS'}</p>
                     </div>
                     <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)]">
-                      <p className="text-2xl sm:text-3xl font-black text-white sports-font">{totalAssists}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">ASSISTS</p>
+                      <p className="text-2xl sm:text-3xl font-black text-white sports-font">
+                        {isGoalie ? (totalGames > 0 ? ((totalShots - totalSaves) / totalGames).toFixed(2) : '0.00') : totalAssists}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
                     </div>
                     <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)]">
                       <p className="text-2xl sm:text-3xl font-black text-white sports-font">{totalGames}</p>
@@ -2337,6 +3043,7 @@ function App() {
 
         {screen === 'press' && (() => {
           const q = activePress.questions[activePress.currentQ];
+          const journalist = activePress.journalists[activePress.currentQ];
           const answerKeys = ['professional', 'passionate', 'humble', 'cocky'].filter(k => q?.answers[k]);
           
           return (
@@ -2346,17 +3053,35 @@ function App() {
                  <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase tracking-wide">THE PRESS CONFERENCE</h2>
               </div>
               
-              <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-                <p className="text-xs sm:text-sm font-bold text-white mb-1 flex items-center gap-2">🎧 Read the room.</p>
-                <p className="text-[10px] sm:text-xs text-slate-400">You won't know what they're looking for until the end. Your tone matters just as much as your words.</p>
+              {/* VISIBLE JOURNALIST PROFILE (Scales based on Hockey IQ) */}
+              <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 flex flex-col justify-center min-h-[100px]">
+                <p className="text-[10px] sm:text-xs font-bold text-[#F59E0B] tracking-widest uppercase mb-1 font-sans">QUESTION {activePress.currentQ + 1} FROM:</p>
+                
+                {player.hockeyIQ >= 75 ? (
+                  <>
+                    <p className="text-sm sm:text-base font-black text-white mb-1">🎙️ {journalist?.name}</p>
+                    <p className="text-xs sm:text-sm text-slate-400 italic">"{journalist?.desc}"</p>
+                  </>
+                ) : player.hockeyIQ >= 60 ? (
+                  <>
+                    <p className="text-sm sm:text-base font-black text-white mb-1">🎙️ {journalist?.name}</p>
+                    <p className="text-xs sm:text-sm text-slate-500 italic">You aren't quite sure what angle they are going for...</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm sm:text-base font-black text-white mb-1">🎙️ Unfamiliar Reporter</p>
+                    <p className="text-xs sm:text-sm text-slate-500 italic">You have no idea who this is or what they want to hear.</p>
+                  </>
+                )}
               </div>
 
+              {/* HIGH IQ CHEAT CODE */}
               {player.hockeyIQ >= 75 && (
-                <div className="bg-[#22E748]/10 border border-[#22E748]/30 p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 flex items-center gap-3">
+                <div className="bg-[#22E748]/10 border border-[#22E748]/30 p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 flex items-center gap-3 shadow-[0_0_15px_rgba(34,231,75,0.1)]">
                   <span className="text-xl sm:text-3xl">🧠</span>
                   <div>
                     <p className="text-[#22E748] text-[9px] sm:text-[10px] font-black tracking-widest uppercase mb-1">HIGH IQ INSIGHT</p>
-                    <p className="text-slate-300 text-[10px] sm:text-sm font-medium">You read the room perfectly. They are looking for a <span className="font-bold text-white uppercase">{activePress.journalist?.id}</span> answer.</p>
+                    <p className="text-slate-300 text-[10px] sm:text-sm font-medium">Give this reporter a <span className="font-bold text-white uppercase">{journalist?.id}</span> answer.</p>
                   </div>
                 </div>
               )}
@@ -2388,14 +3113,16 @@ function App() {
         })()}
 
         {screen === 'press-result' && (() => {
-           const journalist = activePress.journalist;
-           const hits = activePress.answers.filter(a => a === journalist?.id).length;
+           const journalistsList = activePress.journalists || (activePress.journalist ? [activePress.journalist] : []);
+           const hits = activePress.answers.filter((ans, i) => ans === (journalistsList[i]?.id || activePress.journalist?.id)).length;
            
            let resultTitle, resultColor, resultText;
-           if (hits === 3) { resultTitle = 'FLAWLESS CONFERENCE'; resultColor = 'text-[#22E748]'; resultText = 'Read them like a book. +15 Fan Status, +1 OVR'; }
+           if (hits === 3) { resultTitle = 'FLAWLESS CONFERENCE'; resultColor = 'text-[#22E748]'; resultText = 'Read them all like a book. +15 Fan Status, +1 OVR'; }
            else if (hits === 2) { resultTitle = 'GOOD CONFERENCE'; resultColor = 'text-[#3b82f6]'; resultText = 'Solid, measured answers. +5 Fan Status'; }
            else if (hits === 1) { resultTitle = 'MIXED RECEPTION'; resultColor = 'text-[#F59E0B]'; resultText = 'They twisted your words. -5 Fan Status'; }
            else { resultTitle = 'PR DISASTER'; resultColor = 'text-[#ef4444]'; resultText = 'You alienated everyone. -15 Fan Status, -1 OVR'; }
+
+           const primaryJournalist = journalistsList[0] || { name: 'The Media', desc: 'Post-game interview.' };
 
            return (
             <div className="game-panel p-4 sm:p-8 mt-2 border-t-2 border-t-[#3b82f6] text-left">
@@ -2406,10 +3133,10 @@ function App() {
 
               <div className="border border-[rgba(255,255,255,0.065)] rounded-xl mb-4 sm:mb-6 overflow-hidden">
                  <div className="bg-[#101410] px-3 py-2 border-b border-[rgba(255,255,255,0.065)]">
-                   <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">WHAT THEY WANTED</span>
+                   <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">INTERVIEWEE BREAKDOWN</span>
                  </div>
                  <div className="p-3 sm:p-4 bg-[#1a2230]">
-                    <p className="text-xs sm:text-sm text-white"><span className="font-bold text-[#3b82f6]">🎙️ {journalist?.name}:</span> {journalist?.desc}</p>
+                    <p className="text-xs sm:text-sm text-white"><span className="font-bold text-[#3b82f6]">🎙️ {primaryJournalist.name}:</span> {primaryJournalist.desc}</p>
                  </div>
               </div>
 
@@ -2419,11 +3146,13 @@ function App() {
                  </div>
                  <div className="p-2 sm:p-4 bg-[#1a2230] flex flex-col gap-2 sm:gap-3">
                    {activePress.answers.map((ans, i) => {
+                     const journalist = journalistsList[i] || primaryJournalist;
                      const isHit = ans === journalist?.id;
                      const vibe = PRESS_VIBES[ans];
                      return (
                        <div key={i} className="flex justify-between items-center bg-[#101410] p-2 sm:p-3 rounded-lg border border-[rgba(255,255,255,0.03)]">
                           <div className="flex items-center gap-2 sm:gap-3">
+                             <span className="text-[10px] font-bold text-slate-500 mr-2 hidden sm:inline">Q{i+1}: {journalist?.name}</span>
                              <span className={`text-[8px] sm:text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${vibe?.bg} ${vibe?.color} border ${vibe?.border}`}>{vibe?.icon} {vibe?.label}</span>
                              {!isHit && <span className="text-slate-500 text-[9px] sm:text-xs italic hidden sm:inline">(Missed the mark)</span>}
                           </div>
@@ -2453,23 +3182,28 @@ function App() {
             <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#22E748]">
               <p className="text-[#22E748] font-bold tracking-widest uppercase text-xs sm:text-sm mb-2">THE NHL DRAFT</p>
               
-              <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-10 rounded-2xl mb-10 max-w-2xl mx-auto hover:scale-105 transition-transform shadow-2xl relative overflow-hidden flex flex-col items-center">
-                <div className="absolute top-0 right-0 bg-[#3b82f6] text-white font-black text-[10px] sm:text-xs px-3 py-1 rounded-bl-lg tracking-widest">
+              <div className="bg-[#101410] border border-[#3b82f6]/30 p-8 sm:p-12 rounded-2xl mb-10 max-w-2xl mx-auto shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden flex flex-col items-center">
+                <div className="absolute top-0 w-full bg-[#3b82f6] text-white font-black text-xs sm:text-sm py-1.5 text-center tracking-widest">
                   ROUND {seasonRecap?.draftRound} • PICK {seasonRecap?.draftPick}
                 </div>
                 
-                <TeamLogo teamId={seasonRecap?.draftedBy?.id} league="NHL" />
+                <div className="mt-4">
+                   <TeamLogo teamId={seasonRecap?.draftedBy?.id} league="NHL" />
+                </div>
                 
-                <h3 className="text-lg sm:text-2xl font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight">
-                  THE {seasonRecap?.draftedBy?.name || 'UNKNOWN'} ARE PROUD TO SELECT, FROM {getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()} OF THE {seasonRecap?.juniorLeague}...
+                <h3 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight">
+                  THE {seasonRecap?.draftedBy?.name || 'UNKNOWN'} ARE PROUD TO SELECT, FROM {getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
                 </h3>
                 
-                <h2 className="text-5xl sm:text-6xl font-black text-[#3b82f6] sports-font uppercase mt-4 mb-2">{player.name}</h2>
+                <h2 className="text-5xl sm:text-6xl font-black text-[#3b82f6] sports-font uppercase mt-2">{player.name}</h2>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 {(isFirstRound || player.ovr >= 65) ? (
-                  <button onClick={() => handleDraftChoice('ELC')} className="btn-primary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
+                  <button 
+                    onClick={() => handleDraftChoice('ELC')} 
+                    className="w-full sm:w-auto py-4 px-6 rounded-xl text-sm sm:text-base font-black sports-font tracking-widest transition-all cursor-pointer bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] hover:scale-[1.02]"
+                  >
                     SIGN ELC (TURN PRO)
                   </button>
                 ) : (
@@ -2482,8 +3216,8 @@ function App() {
                   {player.league === 'NCAA' ? 'RETURN TO NCAA' : ['SHL', 'LIIGA'].includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
                 </button>
                 
-                {player.league !== 'NCAA' && !(player.teamsPlayedFor || []).some(t => (ohlTeams || []).find(o=>o.id===t) || (whlTeams || []).find(w=>w.id===t) || (qmjhlTeams || []).find(q=>q.id===t)) && (
-                   <button onClick={() => handleDraftChoice('NCAA')} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-[#3b82f6] py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest transition-colors w-full sm:w-auto border-[#3b82f6]/30">
+                {player.league === 'USHL' && (
+                   <button onClick={() => handleDraftChoice('NCAA')} className="bg-[#101410] hover:bg-[#1a2230] ...">
                      COMMIT TO NCAA
                    </button>
                 )}
@@ -2497,7 +3231,7 @@ function App() {
             <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mb-2 text-center sports-font tracking-tighter">PRE-SEASON {currentYear}</h2>
             <p className="text-slate-400 text-center mb-10 font-medium text-sm sm:text-lg font-sans">The dice rolled three upgrades. Pick one focus.</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full">
               {activeTrainings.map(t => (
                 <button
                   type="button"
@@ -2507,23 +3241,32 @@ function App() {
                     e.stopPropagation();
                     handleTrain(t);
                   }}
-                  className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[14rem] sm:min-h-[16rem] text-left w-full relative z-30 ${t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
+                  className={`shrink-0 w-[85vw] sm:w-auto snap-center bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[14rem] sm:min-h-[16rem] text-left relative z-30 ${t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
                 >
                   <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between w-full pointer-events-none">
                     <div>
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="flex justify-between items-start gap-2 mb-4 w-full min-w-0">
                         {t.rarity !== 'Common' ? (
-                          <span className={`text-[9px] sm:text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest font-sans ${t.rarity === 'Epic' ? 'bg-[#F59E0B] text-black' : 'bg-[#3b82f6] text-white'}`}>{t.rarity}</span>
-                        ) : <span></span>}
-                        <span className="text-3xl sm:text-4xl font-black text-slate-700 uppercase sports-font tracking-tighter">
+                          <span className={`shrink-0 text-[9px] sm:text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest font-sans ${t.rarity === 'Epic' ? 'bg-[#F59E0B] text-black' : 'bg-[#3b82f6] text-white'}`}>{t.rarity}</span>
+                        ) : <span className="shrink-0"></span>}
+                        <span className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-black text-slate-700 uppercase sports-font tracking-tighter text-right leading-none break-words min-w-0">
                           {{ 'SHT': 'SHOOTING', 'SKT': 'SKATING', 'PHY': 'PHYSICAL', 'IQ': 'HOCKEY IQ', 'STA': 'STAMINA', 'REF': 'REFLEXES', 'AGI': 'AGILITY' }[t.tag] || t.tag}
                         </span>
                       </div>
                       <h3 className="text-xl sm:text-2xl font-black text-white uppercase leading-tight mb-3 text-left sports-font mt-2">{t.name}</h3>
                       <p className="text-xs sm:text-sm text-slate-400 leading-relaxed italic text-left font-sans mb-4">{t.flavor}</p>
                     </div>
-                    <div className="mt-auto text-left pt-4 border-t border-[rgba(255,255,255,0.065)] w-full">
-                      <span className="inline-block text-[#22E748] font-bold text-xs sm:text-sm font-sans mt-2">{t.desc}</span>
+
+                    {/* BUBBLE BADGES FOR STAT BOOSTS */}
+                    <div className="mt-auto text-left pt-4 border-t border-[rgba(255,255,255,0.065)] w-full flex flex-wrap gap-1.5">
+                      {(t.desc || '').split(',').map((boost, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black sports-font tracking-wider bg-[#22E748]/15 border border-[#22E748]/40 text-[#22E748]"
+                        >
+                          {boost.trim()}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </button>
@@ -2612,50 +3355,68 @@ function App() {
           };
 
           return (
-             <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#ef4444] text-center">
-                <h2 className="text-3xl sm:text-4xl font-black tracking-widest mb-2 text-[#ef4444] sports-font uppercase">TRADE DEADLINE</h2>
-                <p className="text-slate-400 mb-8 text-sm sm:text-base">The trade deadline is 24 hours away. The media is swarming.</p>
+  <div className="w-full max-w-[420px] md:max-w-4xl lg:max-w-5xl mx-auto game-panel p-5 sm:p-8 mt-2 text-center">
+    
+    {/* TITLE & HEADER */}
+    <h2 className="text-3xl sm:text-4xl font-black tracking-wide mb-1 text-white sports-font uppercase">
+      TRADE DEADLINE
+    </h2>
+    <p className="text-slate-400 mb-6 text-sm sm:text-base font-medium">
+      The trade deadline is 24 hours away. The media is swarming.
+    </p>
 
-                <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 rounded-xl mb-8 max-w-lg mx-auto text-left flex items-center justify-between">
-                   <div>
-                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">TEAM OUTLOOK</p>
-                       <p className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-1">
-                          {isContender ? 'BUYING / CONTENDING' : 'SELLING / REBUILDING'}
-                       </p>
-                       <p className={`text-xs sm:text-sm font-bold uppercase flex items-center gap-2 ${isContender ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-                          Currently #{standings} in the {res.currentLg}
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider font-sans border ${isContender ? 'bg-[#22E748]/10 border-[#22E748]/30 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
-                             {isContender ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS'}
-                          </span>
-                       </p>
-                   </div>
-                   <div className="hidden sm:block text-5xl">
-                       {isContender ? '📈' : '📉'}
-                   </div>
-                </div>
+    {/* TEAM OUTLOOK PANEL */}
+    <div className="bg-[#101410] border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 rounded-xl mb-6 max-w-lg mx-auto text-left flex items-center justify-between shadow-lg">
+      <div>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+          TEAM OUTLOOK
+        </p>
+        <p className="text-xl sm:text-2xl font-black text-white sports-font uppercase leading-tight mb-1">
+          {isContender ? 'BUYING / CONTENDING' : 'SELLING / REBUILDING'}
+        </p>
+        <p className={`text-xs sm:text-sm font-bold uppercase flex items-center gap-2 ${isContender ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+          Currently #{standings} in the {res.currentLg}
+          <span className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider font-sans border ${isContender ? 'bg-[#22E748]/10 border-[#22E748]/30 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
+            {isContender ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS'}
+          </span>
+        </p>
+      </div>
+      <div className="hidden sm:block text-4xl sm:text-5xl shrink-0">
+        {isContender ? '📈' : '📉'}
+      </div>
+    </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                   <button onClick={handleSkip} className="btn-primary py-4 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest text-base sm:text-lg w-full sm:w-auto">
-                      {isContender ? 'STAY THE COURSE' : 'RIDE IT OUT'}
-                   </button>
-                   {isPro && (
-                       <button 
-                         onClick={handleTradeRequest} 
-                         disabled={hasDemandedTrade}
-                         className={`py-4 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest text-base sm:text-lg transition-colors w-full sm:w-auto ${
-                           hasDemandedTrade 
-                             ? 'bg-[#101410] border border-slate-700 text-slate-500 cursor-not-allowed opacity-50' 
-                             : 'bg-[#101410] hover:bg-[#1a2230] border border-[#ef4444]/30 text-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.15)] cursor-pointer'
-                         }`}
-                       >
-                          {hasDemandedTrade ? 'REQUEST SUBMITTED' : 'DEMAND TRADE'}
-                          {!hasDemandedTrade && <span className="block text-[10px] font-sans mt-1 text-slate-400">⚡ RISKY GAMBLE</span>}
-                       </button>
-                   )}
-                </div>
-             </div>
-          );
-        })()}
+    {/* ACTION BUTTONS */}
+    <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md sm:max-w-lg mx-auto">
+      <button 
+        onClick={handleSkip} 
+        className="py-3.5 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest text-lg transition-all hover:scale-[1.02] w-full sm:w-auto flex-1 cursor-pointer bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)]"
+      >
+        {isContender ? 'STAY THE COURSE' : 'RIDE IT OUT'}
+      </button>
+
+      {isPro && (
+        <button 
+          onClick={handleTradeRequest} 
+          disabled={hasDemandedTrade}
+          className={`py-3 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest transition-all w-full sm:w-auto flex-1 flex flex-col items-center justify-center gap-1.5 ${
+            hasDemandedTrade 
+              ? 'bg-[#101410] border border-slate-800 text-slate-500 cursor-not-allowed opacity-50' 
+              : 'bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.15)] cursor-pointer hover:scale-[1.02]'
+          }`}
+        >
+          <span className="text-lg leading-none">{hasDemandedTrade ? 'REQUEST SUBMITTED' : 'DEMAND TRADE'}</span>
+          {!hasDemandedTrade && (
+            <span className="text-[10px] sm:text-xs font-sans font-bold tracking-widest text-[#ef4444] uppercase leading-none opacity-80">
+              ⚡ RISKY GAMBLE
+            </span>
+          )}
+        </button>
+      )}
+    </div>
+  </div>
+);
+})()}
 
         {screen === 'intl-minigame' && (() => {
           const nat = safeNationalities.find(n => n.id === player.nat);
@@ -2663,14 +3424,68 @@ function App() {
 
           const choices = player.pos === 'G'
             ? [
-                { label: 'Swallow Rebound',  tag: 'AGI',       hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.4 + player.physicality / 200,                    win: 'You smothered the rebound!',      fail: 'You gave up a juicy rebound.' },
-                { label: 'Direct Traffic',   tag: 'IQ',        hover: 'hover:border-[#22E748]', pill: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', chance: 0.4 + player.hockeyIQ / 200,                       win: 'You perfectly directed traffic!', fail: 'You were out of position.' },
-                { label: 'Desperation Save', tag: 'REF + AGI', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.4 + (player.shooting + player.physicality) / 400, win: 'You made an unbelievable save!',   fail: "Couldn't get there in time." },
+                { 
+                  label: 'Swallow Rebound',  
+                  tag: 'AGI',       
+                  desc: 'Absorb the initial shot cleanly into your chest to deny any second-chance opportunities.',
+                  hover: 'hover:border-[#F59E0B]', 
+                  pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', 
+                  chance: 0.4 + player.physicality / 200,                    
+                  win: 'You smothered the rebound!',      
+                  fail: 'You gave up a juicy rebound.' 
+                },
+                { 
+                  label: 'Direct Traffic',   
+                  tag: 'IQ',        
+                  desc: 'Completely control crease positioning and shout out defensive assignments during the rush.',
+                  hover: 'hover:border-[#22E748]', 
+                  pill: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', 
+                  chance: 0.4 + player.hockeyIQ / 200,                       
+                  win: 'You perfectly directed traffic!', 
+                  fail: 'You were out of position.' 
+                },
+                { 
+                  label: 'Desperation Save', 
+                  tag: 'REF + AGI', 
+                  desc: 'Make an acrobatic wind-mill glove save on a late backdoor cross-crease pass.',
+                  hover: 'hover:border-[#3b82f6]', 
+                  pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', 
+                  chance: 0.4 + (player.shooting + player.physicality) / 400, 
+                  win: 'You made an unbelievable save!',   
+                  fail: "Couldn't get there in time." 
+                },
               ]
             : [
-                { label: 'Big Hit',       tag: 'PHY',       hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.4 + player.physicality / 200,                 win: 'You laid a massive hit!',  fail: 'You missed the hit.' },
-                { label: 'Find Open Ice', tag: 'IQ',        hover: 'hover:border-[#22E748]', pill: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', chance: 0.4 + player.hockeyIQ / 200,                    win: 'You found the soft spot!', fail: 'Skated into coverage.' },
-                { label: 'Rush the Net',  tag: 'SKT + SHT', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.4 + (player.skating + player.shooting) / 400, win: 'You ripped it top shelf!', fail: 'Fumbled the puck.' },
+                { 
+                  label: 'Big Hit',       
+                  tag: 'PHY',       
+                  desc: 'Step into their star forward along the boards to set an aggressive physical tone.',
+                  hover: 'hover:border-[#F59E0B]', 
+                  pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', 
+                  chance: 0.4 + player.physicality / 200,                 
+                  win: 'You laid a massive hit!',  
+                  fail: 'You missed the hit.' 
+                },
+                { 
+                  label: 'Find Open Ice', 
+                  tag: 'IQ',        
+                  desc: 'Read the defensive coverage to slip into the high slot for a clean, unguarded shot.',
+                  hover: 'hover:border-[#22E748]', 
+                  pill: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', 
+                  chance: 0.4 + player.hockeyIQ / 200,                    
+                  win: 'You found the soft spot!', 
+                  fail: 'Skated into coverage.' 
+                },
+                { 
+                  label: 'Rush the Net',  
+                  tag: 'SKT + SHT', 
+                  desc: 'Burn past their defenseman down the wing and drive hard toward the net for a goal.',
+                  hover: 'hover:border-[#3b82f6]', 
+                  pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', 
+                  chance: 0.4 + (player.skating + player.shooting) / 400, 
+                  win: 'You ripped it top shelf!', 
+                  fail: 'Fumbled the puck.' 
+                },
               ];
 
           return (
@@ -2685,10 +3500,50 @@ function App() {
                   <button
                     key={i}
                     onClick={() => handleMinigameChoice(c.chance, c.win, c.fail)}
-                    className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] ${c.hover} py-6 sm:py-8 px-4 rounded-xl font-bold text-xl sm:text-2xl text-white transition-all cursor-pointer flex flex-col items-center sports-font`}
+                    className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] ${c.hover} p-5 sm:p-6 rounded-xl transition-all cursor-pointer flex flex-col justify-between items-center text-left group shadow-lg min-h-[200px]`}
                   >
-                    {c.label}
-                    <span className={`text-xs sm:text-sm font-normal mt-3 px-3 py-1 rounded-full uppercase tracking-widest font-sans border ${c.pill}`}>{c.tag}</span>
+                    <div className="w-full">
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-black text-xl sm:text-2xl text-white sports-font leading-tight group-hover:scale-105 transition-transform">
+                          {c.label}
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-400 font-sans leading-relaxed mb-4">
+                        {c.desc}
+                      </p>
+                    </div>
+
+                    {/* ODDS & REWARD BADGES */}
+                    <div className="w-full bg-black/40 rounded-lg p-3 border border-[rgba(255,255,255,0.04)] flex flex-col gap-1 sm:gap-1.5 font-sans mt-auto">
+                      
+                      {/* ROW 1: ODDS */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">SUCCESS ODDS</span>
+                        <span className={`text-xs sm:text-sm font-black sports-font ${c.chance >= 0.65 ? 'text-[#22E748]' : c.chance >= 0.50 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>
+                          {Math.round(c.chance * 100)}%
+                        </span>
+                      </div>
+
+                      {/* ROW 2: INDEPENDENT STAT PILLS (Side-by-side) */}
+                      <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                        {String(c.tag).split('+').map((statLabel, idx) => {
+                          const s = statLabel.trim();
+                          let colorCls = 'text-white bg-white/10 border-white/30'; // Default fallback
+                          if (['PHY'].includes(s)) colorCls = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'; // Orange
+                          if (['SKT', 'AGI'].includes(s)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; // Green
+                          if (['SHT', 'REF'].includes(s)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'; // Blue
+                          if (['IQ'].includes(s)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; // Purple
+                          if (['STA'].includes(s)) colorCls = 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'; // Red
+                          
+                          return (
+                            <span key={idx} className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border ${colorCls}`}>
+                              {s}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      
+                    </div>
                   </button>
                 ))}
               </div>
@@ -2717,11 +3572,20 @@ function App() {
           const rivalWonTitle = rivalObj && seasonRecap?.leagueChampion?.id === rivalObj.id;
 
           if (seasonRecap?.titleWon === 1) {
-             narrativeTitle = 'CHAMPIONS';
-             narrative = `Absolute glory. You climbed the mountain and won the ${titles.cupName}!`;
-             if (isJunior && seasonRecap?.memCupStatus === 'won') {
-                 narrativeTitle = 'MEMORIAL CUP CHAMPIONS';
-                 narrative = 'You conquered junior hockey and cemented your legacy.';
+             if (isJunior) {
+                 if (seasonRecap?.memCupStatus === 'won') {
+                     narrativeTitle = 'MEMORIAL CUP CHAMPIONS';
+                     narrative = `Absolute glory. You conquered the ${player.league} and lifted the Memorial Cup, cementing your legacy as a junior hockey legend.`;
+                 } else if (seasonRecap?.memCupStatus === 'lost') {
+                     narrativeTitle = 'REGIONAL CHAMPIONS';
+                     narrative = `You dominated your league and lifted the ${titles.cupName}, but fell agonizingly short in the Memorial Cup against the nation's best. A bittersweet, but incredible season.`;
+                 } else {
+                     narrativeTitle = `${player.league} CHAMPIONS`;
+                     narrative = `You climbed the mountain and won the ${titles.cupName}!`;
+                 }
+             } else {
+                 narrativeTitle = 'CHAMPIONS';
+                 narrative = `Absolute glory. You climbed the mountain and won the ${titles.cupName}!`;
              }
           } else if (madePlayoffsForNarrative) {
               if (pw === maxWins - 1) {
@@ -2806,10 +3670,10 @@ function App() {
                         ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles.final}.`
                         : seasonRecap?.playoffWins === 0 
                           ? '🧹 Swept in the first round.' 
-                          : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff wins.`}
+                          : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
                   </li>
                 ) : (
-                  <li className="border-l-4 border-slate-600 pl-4 py-1">... Missed the playoffs.</li>
+                  <li className="border-l-4 border-slate-600 pl-4 py-1">⛳ Missed the playoffs.</li>
                 )}
                 {seasonRecap?.awards && seasonRecap.awards.length > 0 && (
                   <li className="border-l-4 border-[#F59E0B] pl-4 py-2 mt-4 bg-[#F59E0B]/10 rounded-r-lg">
@@ -2819,33 +3683,83 @@ function App() {
                 )}
               </ul>
 
-              <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                <button onClick={advanceToOffseason} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest">
+              {/* STICKY FOOTER ACTION BUTTONS */}
+              <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#040505] via-[#040505] to-transparent z-40 mt-8 flex flex-col sm:flex-row gap-4">
+                <button onClick={advanceToOffseason} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-2xl">
                   PROCEED TO OFFSEASON
                 </button>
                 
                 {player.league === 'NCAA' && (
                    <button onClick={() => {
-                       let pool = ncaaTeams?.filter(t => t.id !== player.team) || [];
-                       if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
-                       const newTeam = pool[Math.floor(Math.random() * pool.length)];
-
-                       unlockAchievement('transfer_portal');
+                       // 1. Unlock the achievement
+                       unlockAchievement('transfer_portal'); 
+                       
+                       // 2. Take the immediate PR hit for leaving
                        setPlayer(p => ({
                            ...p,
-                           team: newTeam.id,
-                           teamsPlayedFor: [...(p.teamsPlayedFor || []), newTeam.id],
                            idolatry: capIdol(p.idolatry - 15)
                        }));
-                       
+
+                       // 3. Generate 3 random programs
+                       let pool = ncaaTeams?.filter(t => t.id !== player.team) || [];
+                       pool = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
+                       if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Program' }];
+
+                       // 4. Build dynamic offers with perks/flaws
+                       const offeredTeams = pool.map(t => {
+                           const possiblePerks = [
+                               { text: '📈 Elite Coaching (+2 OVR)', ovr: 2, idol: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
+                               { text: '🏟️ National Spotlight (+25 Fans)', ovr: 0, idol: 25, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' },
+                               { text: '💰 Massive NIL Deal ($100k)', ovr: 0, idol: 0, money: 100000, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' },
+                               { text: '⚡ Run & Gun System (+1 OVR, +10 Fans)', ovr: 1, idol: 10, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }
+                           ];
+
+                           const possibleFlaws = [
+                               { text: '⚠️ Crowded Depth Chart (-1 OVR)', ovr: -1, idol: 0, money: 0 },
+                               { text: '⚠️ Rebuilding Phase (-10 Fans)', ovr: 0, idol: -10, money: 0 },
+                               { text: '⚠️ Strict System (-5 Fans)', ovr: 0, idol: -5, money: 0 }
+                           ];
+
+                           const perkCount = Math.floor(Math.random() * 2) + 1; // 1 to 2 perks
+                           const flawCount = Math.floor(Math.random() * 2);     // 0 to 1 flaw
+
+                           const selectedPerks = [...possiblePerks].sort(() => 0.5 - Math.random()).slice(0, perkCount);
+                           const selectedFlaws = [...possibleFlaws].sort(() => 0.5 - Math.random()).slice(0, flawCount);
+
+                           let totalOvr = 0, totalIdol = 0, totalMoney = 0;
+                           selectedPerks.forEach(p => { totalOvr += p.ovr; totalIdol += p.idol; totalMoney += p.money; });
+                           selectedFlaws.forEach(f => { totalOvr += f.ovr; totalIdol += f.idol; totalMoney += f.money; });
+
+                           return {
+                               ...t,
+                               finalOvr: Math.max(0, totalOvr),
+                               finalIdol: totalIdol,
+                               finalMoney: totalMoney,
+                               perks: selectedPerks,
+                               flaws: selectedFlaws
+                           };
+                       });
+
+                       const choices = offeredTeams.map(t => ({
+                           label: `Commit to ${t.name}`, 
+                           perks: t.perks,
+                           flaws: t.flaws,
+                           isRisky: false, 
+                           feedback: `You signed your transfer paperwork and are officially a member of ${t.name}!`, 
+                           effect: { idol: t.finalIdol, ovr: t.finalOvr, money: t.finalMoney }, 
+                           action: 'JOIN_NCAA', 
+                           actionData: t.id
+                       }));
+
                        setActiveEvent({
-                           title: 'TRANSFER PORTAL',
-                           desc: `You entered the transfer portal and committed to play for ${newTeam.name} next season!`,
-                           choices: [{ label: 'Proceed to Offseason', isRisky: false, feedback: `You are now officially a member of ${newTeam.name}.`, effect: { idol: 0, ovr: 0, money: 0 }, action: 'PORTAL_ADVANCE' }],
+                           title: 'TRANSFER PORTAL OFFERS',
+                           desc: `You officially entered the transfer portal. Your former fans are furious (Fan Status -15), but several top programs have immediately reached out with scholarship and NIL offers. Weigh your options carefully.`,
+                           choices: choices,
                            isPortalEvent: true
                        });
+                       
                        setScreen('event');
-                   }} className="bg-[#101410] hover:bg-[#1a2230] border border-[#ef4444]/30 text-[#ef4444] flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest transition-colors shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                   }} className="bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest transition-all shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.25)] hover:scale-[1.02]">
                      ENTER TRANSFER PORTAL
                    </button>
                 )}
@@ -2897,18 +3811,37 @@ function App() {
 
           return (
             <div className={`game-panel p-6 sm:p-12 mt-2 border-t-2 ${accent.border} text-center`}>
-              <h2 className={`text-3xl sm:text-5xl font-black mb-4 ${accent.heading} sports-font tracking-tighter uppercase leading-tight`}>{mg?.title}</h2>
-              <p className="text-base sm:text-xl text-slate-300 mb-8 sm:mb-12 max-w-2xl mx-auto text-left">{mg?.desc}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 max-w-4xl mx-auto">
+              <h2 className={`text-3xl sm:text-5xl font-black mb-4 ${accent.heading} sports-font tracking-tighter uppercase leading-tight text-balance sm:whitespace-nowrap`}>{mg?.title}</h2>
+              <p className="text-base sm:text-xl text-slate-300 mb-8 sm:mb-12 max-w-2xl mx-auto text-left sm:text-center">{mg?.desc}</p>
+             <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full max-w-4xl mx-auto">
                 {(mg?.choices || []).map((c, i) => {
                   const chance = choiceChance(player, c);
                   const pill = ARCH_PILL[c.archetype] || ARCH_PILL.safe;
                   return (
-                    <button key={i} onClick={() => handleMinigameChoice(chance, c.success, c.fail, c.reward)} className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] ${pill.hover} py-4 sm:py-7 px-4 rounded-xl font-bold text-lg sm:text-2xl text-white transition-all cursor-pointer flex flex-col items-center sports-font`}>
-                      {c.label}
-                      <span className={`text-[10px] sm:text-xs font-black mt-3 px-3 py-1 rounded-full uppercase tracking-widest font-sans border ${pill.cls}`}>
-                        {pill.label} · {Math.round(chance * 100)}%
-                      </span>
+                    <button 
+                      key={i} 
+                      onClick={() => handleMinigameChoice(chance, c.success, c.fail, c.reward)} 
+                      className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] ${pill.hover} p-5 sm:p-6 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-between group shadow-lg min-h-[160px]`}
+                    >
+                      <h3 className="font-black text-xl sm:text-2xl text-white sports-font text-balance leading-tight mb-4 group-hover:scale-105 transition-transform text-center w-full">
+                        {c.label}
+                      </h3>
+                      
+                      {/* STAT BREAKDOWN BOX */}
+                      <div className="w-full bg-black/40 rounded-lg p-3 border border-[rgba(255,255,255,0.04)] flex flex-col gap-2 font-sans mt-auto">
+                         <div className="flex justify-between items-center">
+                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">SUCCESS ODDS</span>
+                             <span className={`text-xs sm:text-sm font-black ${chance >= 0.65 ? 'text-[#22E748]' : chance >= 0.45 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>
+                               {Math.round(chance * 100)}%
+                             </span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">RISK LEVEL</span>
+                             <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${pill.cls}`}>
+                                {pill.label}
+                             </span>
+                         </div>
+                      </div>
                     </button>
                   );
                 })}
@@ -2943,9 +3876,11 @@ function App() {
               )}
             </div>
 
-            <button onClick={handleContinueEvent} className="btn-primary py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest w-full sm:w-auto">
-              CONTINUE CAREER ➔
-            </button>
+            <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#040505] via-[#040505] to-transparent z-40 mt-4">
+               <button onClick={handleContinueEvent} className="btn-primary py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest w-full sm:w-auto shadow-2xl">
+                 CONTINUE CAREER ➔
+               </button>
+            </div>
           </div>
         )}
 
@@ -2957,7 +3892,7 @@ function App() {
 
           const getTeamLabel = (team) => {
             if (!team || team.id === 'TBD' || team.name === 'TBD' || team.id?.startsWith('TBD')) return 'TBD';
-            return team.id || team.name;
+            return team.id; // Forces 3-letter abbreviation to fit the bracket
           };
 
           return (
@@ -2965,144 +3900,191 @@ function App() {
               
               {/* DYNAMIC LEAGUE PLAYOFF HEADER */}
               
-              {/* CONFERENCE HEADERS */}
-              <div className="flex justify-between w-full max-w-5xl px-4 mb-2 text-xs font-black sports-font uppercase tracking-wider">
-                 <span className="text-[#3b82f6]">EASTERN CONFERENCE</span>
-                 <span className="text-[#F59E0B]">{titles.final}</span>
-                 <span className="text-[#ef4444]">WESTERN CONFERENCE</span>
+             {/* CONFERENCE HEADERS — only shown for leagues that actually have 2 confs */}
+              <div className="flex justify-between w-full max-w-5xl px-2 mb-4 text-xs sm:text-sm md:text-base font-black sports-font uppercase tracking-wider">
+                {playoffs.hasConfs ? (
+                  <>
+                    <span className="text-[#ef4444]">WESTERN</span>
+                    <span className="text-[#F59E0B]">{titles.final}</span>
+                    <span className="text-[#3b82f6]">EASTERN</span>
+                  </>
+                ) : (
+                  <span className="w-full text-center text-[#F59E0B]">{titles.final}</span>
+                )}
               </div>
-              
-              {/* CONDENSED CONFERENCE BRACKET VIEW */}
-              <div className="flex justify-center items-stretch gap-1.5 sm:gap-2.5 overflow-x-auto w-full pb-3 mb-4 border-b border-[rgba(255,255,255,0.065)] min-h-[250px]">
-                 
-                 {/* EASTERN CONFERENCE (LEFT) */}
-                 <div className="flex gap-1.5 sm:gap-2.5">
-                    {playoffs.bracket.slice(0, playoffs.bracket.length - 1).map((round, rIdx) => (
-                       <div key={`left-${rIdx}`} className="flex flex-col justify-around gap-1 min-w-[95px] sm:min-w-[110px]">
+
+              {/* BRACKET VIEW */}
+              <div className="w-full overflow-x-auto pb-6 mb-4 border-b border-[rgba(255,255,255,0.065)]">
+                <div className="flex items-stretch gap-2 sm:gap-3 w-max mx-auto px-4 min-h-[250px]">
+                  {playoffs.hasConfs ? (
+                    <>
+                      {/* WESTERN CONFERENCE (LEFT) */}
+                      <div className="flex gap-1.5 sm:gap-2.5">
+                        {playoffs.bracket.slice(0, playoffs.bracket.length - 1).map((round, rIdx) => (
+                          <div key={`left-${rIdx}`} className="flex flex-col justify-around gap-1 min-w-[95px] sm:min-w-[110px]">
+                            <p className="text-center text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                              {(getPlayoffRounds(playoffs.currentLg)[rIdx]?.name || `ROUND ${rIdx + 1}`).toUpperCase()}
+                            </p>
+                            {round.map((match, mIdx) => {
+                              if (match.conf !== 'West') return null;
+                              const isLocked = match.status === 'locked';
+                              const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
+                              return (
+                                <div key={mIdx} className={`rounded p-1 sm:p-1.5 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
+                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins1 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                    <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team1)}</span>
+                                    <span className="font-black sports-font ml-1">{match.wins1}</span>
+                                  </div>
+                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins2 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                    <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team2)}</span>
+                                    <span className="font-black sports-font ml-1">{match.wins2}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* CHAMPIONSHIP FINAL (CENTER) */}
+                      <div className="flex flex-col justify-center gap-2 min-w-[115px] sm:min-w-[145px] shrink-0 relative px-1">
+                        <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none mix-blend-screen">
+                        <TrophySVG league={playoffs.currentLg} className="w-24 h-24 sm:w-28 sm:h-28 mt-4" />
+                      </div>
+                        <p className="text-center text-[8px] sm:text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider">
+                          {(getPlayoffRounds(playoffs.currentLg)[playoffs.bracket.length - 1]?.name || 'FINAL').toUpperCase()}
+                        </p>
+                        {playoffs.bracket[playoffs.bracket.length - 1].map((match, mIdx) => {
+                          const isLocked = match.status === 'locked';
+                          const rWN = getWinsNeeded(playoffs.currentLg, playoffs.bracket.length - 1);
+                          return (
+                            <div key={mIdx} className={`relative z-10 rounded-lg p-2 border flex flex-col gap-1 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale border-[#F59E0B]/20 bg-[#101410]' : match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'border-[#F59E0B]/50 bg-[#101410]'}`}>
+                              <div className={`flex justify-between items-center text-xs sm:text-sm ${match.wins1 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                <span className="font-bold truncate max-w-[75px] sm:max-w-[95px]">{getTeamLabel(match.team1)}</span>
+                                <span className="font-black sports-font text-base ml-1">{match.wins1}</span>
+                              </div>
+                              <div className={`flex justify-between items-center text-xs sm:text-sm ${match.wins2 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                <span className="font-bold truncate max-w-[75px] sm:max-w-[95px]">{getTeamLabel(match.team2)}</span>
+                                <span className="font-black sports-font text-base ml-1">{match.wins2}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* EASTERN CONFERENCE (RIGHT REVERSED) */}
+                      <div className="flex flex-row-reverse gap-1.5 sm:gap-2.5">
+                        {playoffs.bracket.slice(0, playoffs.bracket.length - 1).map((round, rIdx) => (
+                          <div key={`right-${rIdx}`} className="flex flex-col justify-around gap-1 min-w-[95px] sm:min-w-[110px]">
+                            <p className="text-center text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                              {(getPlayoffRounds(playoffs.currentLg)[rIdx]?.name || `ROUND ${rIdx + 1}`).toUpperCase()}
+                            </p>
+                            {round.map((match, mIdx) => {
+                              if (match.conf !== 'East') return null;
+                              const isLocked = match.status === 'locked';
+                              const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
+                              return (
+                                <div key={mIdx} className={`rounded p-1 sm:p-1.5 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
+                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins1 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                    <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team1)}</span>
+                                    <span className="font-black sports-font ml-1">{match.wins1}</span>
+                                  </div>
+                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins2 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                    <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team2)}</span>
+                                    <span className="font-black sports-font ml-1">{match.wins2}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    /* SINGLE-BRACKET LAYOUT (QMJHL, NCAA Frozen Four, SHL, Liiga) */
+                    <div className="flex gap-1.5 sm:gap-2.5">
+                      {playoffs.bracket.map((round, rIdx) => (
+                        <div key={`single-${rIdx}`} className="flex flex-col justify-around gap-1 min-w-[95px] sm:min-w-[110px]">
                           <p className="text-center text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                             {rIdx === 0 ? 'R1 (DIV)' : rIdx === 1 ? 'R2 (DIV)' : 'CONF FINAL'}
+                            {(getPlayoffRounds(playoffs.currentLg)[rIdx]?.name || `ROUND ${rIdx + 1}`).toUpperCase()}
                           </p>
                           {round.map((match, mIdx) => {
-                             if (mIdx >= round.length / 2) return null; 
-                             const isLocked = match.status === 'locked';
-                             return (
-                               <div key={mIdx} className={`rounded p-1 sm:p-1.5 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
-                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins1 === 4 ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                                     <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team1)}</span>
-                                     <span className="font-black sports-font ml-1">{match.wins1}</span>
-                                  </div>
-                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins2 === 4 ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                                     <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team2)}</span>
-                                     <span className="font-black sports-font ml-1">{match.wins2}</span>
-                                  </div>
-                               </div>
-                             );
+                            const isLocked = match.status === 'locked';
+                            const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
+                            const isFinal = rIdx === playoffs.bracket.length - 1;
+                            return (
+                              <div key={mIdx} className={`rounded p-1 sm:p-1.5 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : isFinal ? 'border-[#F59E0B]/50 bg-[#101410]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
+                                <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins1 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                  <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team1)}</span>
+                                  <span className="font-black sports-font ml-1">{match.wins1}</span>
+                                </div>
+                                <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins2 >= rWN ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                                  <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team2)}</span>
+                                  <span className="font-black sports-font ml-1">{match.wins2}</span>
+                                </div>
+                              </div>
+                            );
                           })}
-                       </div>
-                    ))}
-                 </div>
-
-                 {/* CHAMPIONSHIP FINAL (CENTER) */}
-                 <div className="flex flex-col justify-center gap-2 min-w-[115px] sm:min-w-[145px] shrink-0 relative px-1">
-                    <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-                       <span className="text-[65px]">{titles.trophy}</span>
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-center text-[8px] sm:text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider">
-                       FINAL
-                    </p>
-                    {playoffs.bracket[playoffs.bracket.length - 1].map((match, mIdx) => {
-                       const isLocked = match.status === 'locked';
-                       return (
-                         <div key={mIdx} className={`relative z-10 rounded-lg p-2 border flex flex-col gap-1 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale border-[#F59E0B]/20 bg-[#101410]' : match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'border-[#F59E0B]/50 bg-[#101410]'}`}>
-                            <div className={`flex justify-between items-center text-xs sm:text-sm ${match.wins1 === 4 ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                               <span className="font-bold truncate max-w-[75px] sm:max-w-[95px]">{getTeamLabel(match.team1)}</span>
-                               <span className="font-black sports-font text-base ml-1">{match.wins1}</span>
-                            </div>
-                            <div className={`flex justify-between items-center text-xs sm:text-sm ${match.wins2 === 4 ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                               <span className="font-bold truncate max-w-[75px] sm:max-w-[95px]">{getTeamLabel(match.team2)}</span>
-                               <span className="font-black sports-font text-base ml-1">{match.wins2}</span>
-                            </div>
-                         </div>
-                       );
-                    })}
-                 </div>
-
-                 {/* WESTERN CONFERENCE (RIGHT REVERSED) */}
-                 <div className="flex flex-row-reverse gap-1.5 sm:gap-2.5">
-                    {playoffs.bracket.slice(0, playoffs.bracket.length - 1).map((round, rIdx) => (
-                       <div key={`right-${rIdx}`} className="flex flex-col justify-around gap-1 min-w-[95px] sm:min-w-[110px]">
-                          <p className="text-center text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                             {rIdx === 0 ? 'R1 (DIV)' : rIdx === 1 ? 'R2 (DIV)' : 'CONF FINAL'}
-                          </p>
-                          {round.map((match, mIdx) => {
-                             if (mIdx < round.length / 2) return null; 
-                             const isLocked = match.status === 'locked';
-                             return (
-                               <div key={mIdx} className={`rounded p-1 sm:p-1.5 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
-                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins1 === 4 ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                                     <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team1)}</span>
-                                     <span className="font-black sports-font ml-1">{match.wins1}</span>
-                                  </div>
-                                  <div className={`flex justify-between items-center text-[10px] sm:text-xs ${match.wins2 === 4 ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                                     <span className="font-bold truncate max-w-[65px] sm:max-w-[75px]">{getTeamLabel(match.team2)}</span>
-                                     <span className="font-black sports-font ml-1">{match.wins2}</span>
-                                  </div>
-                               </div>
-                             );
-                          })}
-                       </div>
-                    ))}
-                 </div>
-
+                  )}
+                </div>
               </div>
 
               {/* CARD MINIGAME GRID & NEXT ROUND PROCEED BUTTON */}
               {activeMatch && (
-                 <div className="max-w-xs sm:max-w-sm w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl text-center shadow-lg">
+                 <div className="max-w-sm sm:max-w-md w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-5 sm:p-6 rounded-xl text-center shadow-lg mx-auto mb-4">
 
                     {/* TOP STATUS LINE — always occupies the same slot so the grid below never shifts */}
-                    <div className="mb-4">
+                    <div className="mb-6 flex flex-col items-center">
+                      
                       {activeMatch.status === 'playing' && (
                         <>
-                          <p className="text-[9px] sm:text-[10px] font-black text-[#3b82f6] uppercase tracking-widest mb-1 font-sans">
+                          <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest mb-3 font-sans">
                              ROUND {playoffs.activeRoundIndex + 1} MATCHUP
                           </p>
-                          <p className="text-base sm:text-lg text-white font-black uppercase sports-font">
-                             VS. {getTeamLabel(activeMatch.team2)}
+                          <TeamLogo teamId={activeMatch.team2?.id} league={playoffs.currentLg} size="large" />
+                          <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
+                             VS. {getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
                           </p>
                         </>
                       )}
+                      
                       {activeMatch.status === 'won' && (
                         <>
-                          <p className="text-[9px] sm:text-[10px] font-black text-[#22E748] uppercase tracking-widest mb-1 font-sans">
+                          <p className="text-[11px] sm:text-xs font-black text-[#22E748] uppercase tracking-widest mb-3 font-sans">
                              ⚡ SERIES VICTORY! ({activeMatch.wins1}-{activeMatch.wins2})
                           </p>
-                          <p className="text-base sm:text-lg text-white font-black uppercase sports-font">
-                             DEFEATED {getTeamLabel(activeMatch.team2)}
+                          <TeamLogo teamId={activeMatch.team2?.id} league={playoffs.currentLg} size="large" />
+                          <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
+                             DEFEATED {getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
                           </p>
                         </>
                       )}
+                      
                       {activeMatch.status === 'lost' && (
                         <>
-                          <p className="text-[9px] sm:text-[10px] font-black text-[#ef4444] uppercase tracking-widest mb-1 font-sans">
+                          <p className="text-[11px] sm:text-xs font-black text-[#ef4444] uppercase tracking-widest mb-3 font-sans">
                              💔 ELIMINATED ({activeMatch.wins1}-{activeMatch.wins2})
                           </p>
-                          <p className="text-base sm:text-lg text-white font-black uppercase sports-font">
-                             DEFEATED BY {getTeamLabel(activeMatch.team2)}
+                          <TeamLogo teamId={activeMatch.team2?.id} league={playoffs.currentLg} size="large" />
+                          <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
+                             DEFEATED BY {getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
                           </p>
                         </>
                       )}
                     </div>
 
                     {/* 9-CARD GRID — stays in the same place whether the series is playing, won, or lost */}
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
                       {(activeMatch.deck || []).map((item, cIndex) => {
                         const isRevealed = (activeMatch.revealed || []).includes(cIndex);
                         const isOver = ['won', 'lost'].includes(activeMatch.status);
                         const showForcefully = isOver && !isRevealed;
                         const isWinCard = item && (item.isWin || item.win);
                         
-                        let btnClass = 'h-16 sm:h-20 text-xl sm:text-2xl font-black rounded-lg border transition-all duration-200 flex items-center justify-center sports-font ';
+                        let btnClass = 'h-20 sm:h-24 text-3xl sm:text-4xl font-black rounded-lg border transition-all duration-200 flex items-center justify-center sports-font ';
                         
                         if (isRevealed || showForcefully) {
                           btnClass += isWinCard 
@@ -3127,12 +4109,12 @@ function App() {
 
                     {/* BOTTOM AREA — hint while playing, advance button once the series is won. Below the grid, so winning never shifts the cards. */}
                     {activeMatch.status === 'playing' && (
-                      <p className="text-[9px] sm:text-[10px] text-slate-500 font-sans">Select a card to play the next game (Best-of-7)</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-sans mt-2">Select a card to play the next game (Best-of-7)</p>
                     )}
                     {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
                       <button
                         onClick={advancePlayoffRound}
-                        className="btn-primary w-full py-2.5 rounded-lg font-black sports-font text-xs uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer"
+                        className="btn-primary w-full py-3.5 mt-2 rounded-lg font-black sports-font text-sm sm:text-base uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
                       >
                         ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
                       </button>
@@ -3194,57 +4176,31 @@ function App() {
           const finalOpponent = player.league === 'OHL' ? whlChamp : (player.league === 'WHL' ? qmjhlChamp : ohlChamp);
           const currentOpponent = !isFinal ? semiOpponent : finalOpponent;
 
-          const choices = player.pos === 'G' ? [
-            { 
-              label: 'Stand on Your Head in OT', 
-              tag: 'AGI + REFLEXES', 
-              chance: 0.50 + (player.physicality + player.shooting) / 400,
-              desc: 'High risk, massive draft stock surge.',
-              successMsg: 'You pulled off a miraculous desperation glove save in OT! Scouts are calling it the save of the tournament.',
-              failMsg: 'A trickling puck got past your pad in double overtime. Heartbreak on national television.'
-            },
-            { 
-              label: 'Command the Defense & Direct Traffic', 
-              tag: 'HOCKEY IQ', 
-              chance: 0.55 + player.hockeyIQ / 200,
-              desc: 'Controlled, tactical play between the pipes.',
-              successMsg: 'Your vocal leadership locked down the crease. The defense shut down every high-danger chance.',
-              failMsg: 'A breakdown in communication led to a turnover right in your slot.'
-            },
-            { 
-              label: 'Aggressive Crease Control & Smother Puck', 
-              tag: 'STAMINA', 
-              chance: 0.60 + player.stamina / 200,
-              desc: 'Relentless effort to freeze the puck under pressure.',
-              successMsg: 'You absorbed heavy traffic and froze every puck to kill all momentum.',
-              failMsg: 'You spilled a dangerous rebound into traffic for an easy putback goal.'
-            }
-          ] : [
-            { 
-              label: 'Take Over the 3rd Period', 
-              tag: 'SHOOTING + SKATING', 
-              chance: 0.50 + (player.shooting + player.skating) / 400,
-              desc: 'Hero ball. Drive the lane and demand the puck.',
-              successMsg: 'You put the team on your back! A 3rd period multi-point effort blew the game wide open.',
-              failMsg: 'You got double-teamed along the boards and coughed up the game-winning turnover.'
-            },
-            { 
-              label: 'Powerplay Quarterback', 
-              tag: 'HOCKEY IQ', 
-              chance: 0.55 + player.hockeyIQ / 200,
-              desc: 'Set up your linemates with precision passing.',
-              successMsg: 'Your pinpoint cross-seam passes carved up their penalty kill for two quick PP goals!',
-              failMsg: 'Their penalty kill anticipated your passes, breaking up the play for a shorthanded breakaway.'
-            },
-            { 
-              label: 'Sacrifice Body for the Win', 
-              tag: 'PHYSICALITY + STAMINA', 
-              chance: 0.60 + (player.physicality + player.stamina) / 400,
-              desc: 'Crushing hits, board battles, and shot blocking.',
-              successMsg: 'Your relentless physicality rattled their top line and fired up the entire bench!',
-              failMsg: 'You took an undisciplined double-minor penalty late in the final frame.'
-            }
-          ];
+          // DYNAMIC MEMORIAL CUP CHOICES (SEMI-FINAL VS FINAL)
+          let choices = [];
+          if (!isFinal) {
+             // SEMI-FINAL: Tactical, survival, securing the spot
+             choices = player.pos === 'G' ? [
+                { label: 'Play the Percentages', tag: 'POSITIONING', chance: 0.65 + player.skating / 200, desc: 'Safe & steady. Rely on your positioning to absorb shots without risky rebounds.', successMsg: 'You played a flawless, quiet game. No rebounds, no mistakes.', failMsg: 'You played too deep in your crease and got beat clean on a screen.' },
+                { label: 'Bait the Cross-Ice Pass', tag: 'HOCKEY IQ + REFLEXES', chance: 0.50 + (player.hockeyIQ + player.shooting) / 400, desc: 'High risk. Leave a lane open to force a pass, then snap it up.', successMsg: 'You read the play perfectly and made a sliding toe save that broke their spirit!', failMsg: 'You misjudged the speed of the pass and got burned on the backdoor tap-in.' },
+                { label: 'Aggressive Puck Tracking', tag: 'AGILITY', chance: 0.55 + player.physicality / 200, desc: 'Moderate risk. Challenge shooters aggressively at the top of the crease.', successMsg: 'You made yourself massive, suffocating all their shooting angles.', failMsg: 'You overcommitted and got deked out of your skates.' }
+             ] : [
+                { label: 'Cycle & Control the Clock', tag: 'HOCKEY IQ', chance: 0.65 + player.hockeyIQ / 200, desc: 'Safe. Keep the puck deep, grind down their defense, and limit turnovers.', successMsg: 'A masterclass in puck possession. You drained the clock and secured the win.', failMsg: 'A miscommunication on the cycle led to a lethal counter-attack.' },
+                { label: 'Pinch Hard on the Blue Line', tag: 'SKATING + PHY', chance: 0.50 + (player.skating + player.physicality) / 400, desc: 'High risk. Step up to keep the play alive, risking an odd-man rush.', successMsg: 'Your aggressive pinch trapped them in their zone and led to the game-winning goal!', failMsg: 'You missed the pinch, giving up a 2-on-1 that ended your season.' },
+                { label: 'Crash the Crease', tag: 'PHYSICALITY', chance: 0.55 + player.physicality / 200, desc: 'Moderate risk. Drive the net hard looking for ugly rebound goals.', successMsg: 'You battled through cross-checks and slammed home a gritty rebound!', failMsg: 'You took a goalie interference penalty at the worst possible time.' }
+             ];
+          } else {
+             // CHAMPIONSHIP FINAL: Heroics, legacy, leaving it all on the line
+             choices = player.pos === 'G' ? [
+                { label: 'Sacrifice the Body', tag: 'STAMINA', chance: 0.65 + player.stamina / 200, desc: 'Safe. Fight through screens and take heavy shots off the collarbone.', successMsg: 'You battled through pure exhaustion to shut the door in the 3rd period!', failMsg: 'Your legs gave out late in the game, letting a soft one squeak through.' },
+                { label: 'Desperation Heroics', tag: 'REFLEXES + AGI', chance: 0.45 + (player.shooting + player.physicality) / 400, desc: 'High risk. Unorthodox, acrobatic saves to steal a game you have no business winning.', successMsg: 'A WINDMILL GLOVE SAVE IN THE DYING SECONDS! YOU ARE A LEGEND!', failMsg: 'You flopped trying to make a highlight reel save and left the net wide open.' },
+                { label: 'Command the Defense', tag: 'HOCKEY IQ', chance: 0.55 + player.hockeyIQ / 200, desc: 'Moderate risk. Vocal leadership to lock down the neutral zone.', successMsg: 'Your communication was elite. They couldn\'t get a single high-danger chance.', failMsg: 'A breakdown in communication resulted in a friendly-fire deflection.' }
+             ] : [
+                { label: 'Sacrifice for the Crest', tag: 'STAMINA + PHY', chance: 0.65 + (player.stamina + player.physicality) / 400, desc: 'Safe. Block shots, take hits to make plays, empty the tank.', successMsg: 'You blocked three shots in the final minute! A warrior performance!', failMsg: 'You got injured blocking a shot and had to watch the final period from the bench.' },
+                { label: 'Put the Team on Your Back', tag: 'SHOOTING + SKATING', chance: 0.45 + (player.shooting + player.skating) / 400, desc: 'High risk. Demand the puck, attempt highlight-reel moves to break the tie.', successMsg: 'YOU WENT END-TO-END! A HEROIC GAME-WINNING GOAL FOR THE CUP!', failMsg: 'You tried to do too much, turned it over, and cost your team the championship.' },
+                { label: 'Thread the Needle', tag: 'HOCKEY IQ', chance: 0.55 + player.hockeyIQ / 200, desc: 'Moderate risk. Look for high-danger cross-ice passes to your snipers.', successMsg: 'A beautiful no-look pass set up the championship-winning one-timer!', failMsg: 'Your pass was telegraphed and intercepted for a breakaway.' }
+             ];
+          }
 
           const handleChoice = (c) => {
             const success = Math.random() < c.chance;
@@ -3417,14 +4373,14 @@ function App() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 text-left">
                     <div className="bg-[#101410]/80 p-3.5 rounded-xl border border-[rgba(255,255,255,0.065)] flex flex-col justify-start min-h-[72px]">
                       <p className="text-[9px] font-bold text-slate-500 uppercase font-sans tracking-wider mb-1">
-                        NHL DRAFT IMPACT
+                        {player.rights ? 'FRONT OFFICE IMPRESSION' : 'NHL DRAFT IMPACT'}
                       </p>
                       <p className={`text-sm sm:text-base font-black sports-font leading-tight ${
                         memCup.status === 'won' ? 'text-[#22E748]' : 'text-slate-300'
                       }`}>
                         {memCup.status === 'won' 
-                          ? (player.ovr >= 65 ? '🚀 LOCK FOR TOP 10 PICK' : '🚀 RISES TO 1ST ROUND')
-                          : '➡️ STABLE DRAFT POSITION'}
+                          ? (player.rights ? '🚀 EXCEEDED EXPECTATIONS' : (player.ovr >= 65 ? '🚀 LOCK FOR TOP 10 PICK' : '🚀 RISES TO 1ST ROUND'))
+                          : '➡️ STABLE DEVELOPMENT'}
                       </p>
                     </div>
 
@@ -3471,14 +4427,13 @@ function App() {
             <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mb-4 text-center sports-font tracking-tighter">FREE AGENCY</h2>
             <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10 font-medium text-center">The market speaks. Glory, loyalty, or money?</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full">
               {(freeAgencyOffers || []).map((o, i) => {
                 // 1. Arch-Rival Check
                 const rivalObj = getPrimaryRival ? getPrimaryRival(player.team, player.league) : null;
                 const isRival = rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team);
 
                 // 2. Returning Home Check
-                // Drafted by this team, currently playing elsewhere, previously played for them, and reached Loved/Icon status (400+ Idolatry)
                 const isDraftTeam = (player.draftTeam || player.rights) === o.team;
                 const hasPlayedFor = (player.teamsPlayedFor || []).includes(o.team);
                 const isLovedStatus = player.idolatry >= 400; // Loved / Local Hero or higher
@@ -3487,7 +4442,7 @@ function App() {
                 return (
                   <div 
                     key={i} 
-                    className={`bg-[#101410] border p-5 sm:p-6 rounded-xl flex flex-col text-left relative overflow-hidden transition-all ${
+                    className={`bg-[#101410] border p-5 sm:p-6 rounded-xl flex flex-col text-left relative overflow-hidden transition-all shrink-0 w-[85vw] sm:w-auto snap-center ${
                       isRival 
                         ? 'border-[#ef4444] shadow-[0_0_20px_rgba(239,68,68,0.2)]' 
                         : isReturnHome 
@@ -3510,9 +4465,12 @@ function App() {
                     )}
 
                     <div className="flex items-center gap-3 mb-4">
-                      <TeamLogo teamId={o.team} league="NHL" />
+                      <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} />
                       <div>
-                        <h3 className="text-xl sm:text-2xl font-black text-white sports-font">{o.team}</h3>
+                        <h3 className="text-xl sm:text-2xl font-black text-white sports-font">{getFullTeamName(o.team, o.league)}</h3>
+                        {o.league && o.league !== 'NHL' && (
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-sans">{o.league}</span>
+                        )}
                         {isReturnHome && <span className="text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider font-sans">Your Draft Team</span>}
                       </div>
                     </div>
@@ -3520,11 +4478,23 @@ function App() {
                     <p className="text-2xl sm:text-3xl font-black text-[#22E748] mb-1 sports-font">{formatMoney(o.salary)}<span className="text-xs sm:text-sm text-slate-400 font-sans"> /yr</span></p>
                     <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase mb-2">{o.years}-year contract</p>
                     
-                    <p className="text-[10px] sm:text-xs font-black text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30 rounded px-2 py-1 uppercase mb-4 text-center">
+                    <p className="text-[10px] sm:text-xs font-black text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30 rounded px-2 py-1 uppercase mb-2 text-center">
                       ROLE: {o.role || 'Depth'}
                     </p>
 
-                    <p className={`text-[10px] sm:text-xs font-bold uppercase mb-6 flex items-center gap-1 ${o.idolHit >= 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                    {/* DYNAMIC PITCH TAG */}
+                    {o.state && o.state !== 'Current Club' && (
+                        <p className={`text-[9px] sm:text-[10px] font-black uppercase mb-4 text-center tracking-widest ${o.state === 'Contender' ? 'text-[#F59E0B]' : o.state === 'Rebuilding' ? 'text-[#ef4444]' : 'text-slate-400'}`}>
+                           {o.state === 'Contender' ? '🏆 CUP CONTENDER' : o.state === 'Rebuilding' ? '🏗️ REBUILDING' : '⚖️ MIDDLE OF THE PACK'}
+                        </p>
+                    )}
+                    {(!o.state || o.state === 'Current Club') && (
+                        <p className="text-[9px] sm:text-[10px] font-black uppercase mb-4 text-center tracking-widest text-slate-400">
+                           🤝 STAY LOYAL
+                        </p>
+                    )}
+
+                    <p className={`text-[10px] sm:text-xs font-bold uppercase mb-6 flex items-center justify-center gap-1 ${o.idolHit >= 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
                       {o.idolHit >= 0 ? '📈' : '📉'} FAN IMPACT: {o.idolHit > 0 ? '+' : ''}{o.idolHit}
                     </p>
 

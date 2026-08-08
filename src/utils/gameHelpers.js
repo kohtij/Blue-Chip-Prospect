@@ -2,6 +2,7 @@ import {
   nhlTeams, ahlTeams, euroTeams, juniorLeagues, euroLeagues,
   LEAGUE_CONFIG, getTeamData, getOpponentPool
 } from '../data/teams';
+import { shopItems } from '../data/economy';
 
 export const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5);
 
@@ -54,22 +55,22 @@ export const getActiveStat = (p, stat) => {
 // Turns a minigame choice's archetype into a success probability. This is
 // what makes the three buttons feel like genuinely different bets instead
 // of three reskins of the same coin flip:
-//   safe   -> flat, reliable
-//   skill  -> scales off the driving stat(s), so specialists get real value
-//   gamble -> low base, tops out around a coin flip even when maxed
+//   🛡️ SAFE: High base success (75%+). Uses basic stats. Low reward (+5 Fans), zero penalty for failing.
+//   ⚡ SKILL: Medium base success (55%+). Relies heavily on high-end stats (IQ, Skating). Good reward (+15 Fans), mild penalty (-5 Fans).
+//   🔥 GAMBLE: Low base success (30%+). Requires elite stats to pull off. Massive reward (+30 Fans, +1 OVR, Cash), but devastating penalties if you fail (-20 Fans, -1 OVR).
 export const choiceChance = (player, choice) => {
-  if (choice.archetype === 'safe') return choice.baseChance ?? 0.82;
-
-  const stats = choice.stats || (choice.stat ? [choice.stat] : []);
-  const avg = stats.length
-    ? stats.reduce((sum, k) => sum + getActiveStat(player, k), 0) / stats.length
-    : 55;
-
-  if (choice.archetype === 'gamble') {
-    return Math.min(0.55, Math.max(0.12, 0.10 + avg / 350));
-  }
-  // skill
-  return Math.min(0.92, Math.max(0.30, 0.30 + avg / 170));
+  if (!choice || !choice.stats || choice.stats.length === 0) return 0.50;
+  
+  // 1. Calculate the average of the required stats for this specific choice
+  const statTotal = choice.stats.reduce((acc, stat) => acc + (player[stat] || 50), 0);
+  const avgStat = statTotal / choice.stats.length;
+  
+  // 2. The formula: Base Chance + Bonus for having stats over 50
+  // Every 1 point above 50 OVR in the required stat gives a +0.5% boost to success
+  let chance = choice.baseChance + ((avgStat - 50) * 0.005);
+  
+  // 3. Cap the odds between 5% and 95% so nothing is ever fully guaranteed
+  return Math.min(0.95, Math.max(0.05, chance));
 };
 
 // Default payouts per archetype (fan status = idol). Individual choices can
@@ -239,19 +240,53 @@ let rating = p.pos === 'G'
 
   // --- HARDWARE & AWARDS ---
   const awards = [];
-  if (currentLg === 'NHL') {
-    if (p.pos === 'G' && (saves/shots) > 0.925 && games > 40) awards.push('Vezina Trophy (Best Goalie)');
-    if (p.pos !== 'G' && g >= 50) awards.push('Maurice Richard Trophy (Most Goals)');
-    if (p.pos !== 'G' && (g+a) >= 100) awards.push('Art Ross Trophy (Most Points)');
-    if (rating >= 9.0) awards.push('Hart Memorial Trophy (League MVP)');
-    if (p.stats.seasonsPlayed === 0 && rating >= 8.0) awards.push('Calder Memorial Trophy (Rookie of the Year)');
-    if (['LD', 'RD'].includes(p.pos) && rating >= 8.5) awards.push('Norris Trophy (Best Defenceman)');
-  } else if (isJuniorLg) {
-    const leagueName = currentLg === 'USHL' ? 'USHL' : 'CHL';
-    if (rating >= 9.0) awards.push(`${leagueName} Player of the Year`);
-    if (g >= 50) awards.push(`${leagueName} Top Scorer`);
-  } else if (currentLg === 'NCAA') {
-     if (rating >= 9.0) awards.push('Hobey Baker Award (NCAA Top Player)');
+  const playerOvr = p.ovr;
+  const stats = { goals: g, assists: a, saves: saves, shots: shots };
+
+  // LEAGUE-SPECIFIC TROPHY ASSIGNMENT
+  const isGoalie = player.pos === 'G';
+  const isDefense = ['LD', 'RD'].includes(player.pos);
+  const isForward = ['C', 'LW', 'RW'].includes(player.pos);
+
+  // 1. OHL TROPHIES
+  if (player.league === 'OHL') {
+    if (playerOvr >= 75 && Math.random() < 0.35) awards.push('Red Tilson Trophy (OHL Most Outstanding Player)');
+    if (isForward && (stats.goals || 0) >= 40 && Math.random() < 0.40) awards.push('Eddie Powers Memorial Trophy (OHL Scoring Champion)');
+    if (isDefense && playerOvr >= 70 && Math.random() < 0.35) awards.push('Max Kaminsky Trophy (OHL Most Outstanding Defenceman)');
+    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.915 && Math.random() < 0.40) awards.push('FW "Dinty" Moore Trophy (OHL Best Goaltender)');
+    if (player.age === 16 && Math.random() < 0.50) awards.push('Emms Family Award (OHL Rookie of the Year)');
+  }
+  // 2. WHL TROPHIES
+  else if (player.league === 'WHL') {
+    if (playerOvr >= 75 && Math.random() < 0.35) awards.push('Four Broncos Memorial Trophy (WHL Player of the Year)');
+    if (isForward && (stats.goals || 0) >= 40 && Math.random() < 0.40) awards.push('Bob Clarke Trophy (WHL Top Scorer)');
+    if (isDefense && playerOvr >= 70 && Math.random() < 0.35) awards.push('Bill Hunter Memorial Trophy (WHL Top Defenceman)');
+    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.915 && Math.random() < 0.40) awards.push('Del Wilson Trophy (WHL Top Goaltender)');
+    if (player.age === 16 && Math.random() < 0.50) awards.push('Jim Piggott Memorial Trophy (WHL Rookie of the Year)');
+  }
+  // 3. QMJHL TROPHIES
+  else if (player.league === 'QMJHL') {
+    if (playerOvr >= 75 && Math.random() < 0.35) awards.push('Michel Brière Memorial Trophy (QMJHL Most Valuable Player)');
+    if (isForward && (stats.goals || 0) >= 40 && Math.random() < 0.40) awards.push('Jean Béliveau Trophy (QMJHL Top Scorer)');
+    if (isDefense && playerOvr >= 70 && Math.random() < 0.35) awards.push('Émile Bouchard Trophy (QMJHL Defenceman of the Year)');
+    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.915 && Math.random() < 0.40) awards.push('Jacques Plante Trophy (QMJHL Best GAA)');
+    if (player.age === 16 && Math.random() < 0.50) awards.push('RDS Cup (QMJHL Rookie of the Year)');
+  }
+  // 4. USHL TROPHIES
+  else if (player.league === 'USHL') {
+    if (playerOvr >= 72 && Math.random() < 0.35) awards.push('USHL Player of the Year');
+    if (isForward && (stats.goals || 0) >= 35 && Math.random() < 0.40) awards.push('USHL Forward of the Year');
+    if (isDefense && playerOvr >= 68 && Math.random() < 0.35) awards.push('USHL Defenceman of the Year');
+    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.910 && Math.random() < 0.40) awards.push('USHL Goaltender of the Year');
+  }
+  // 5. NHL TROPHIES (STANDARD)
+  else if (player.league === 'NHL') {
+    if (playerOvr >= 88 && Math.random() < 0.40) awards.push('Hart Trophy');
+    if (isForward && (stats.goals || 0) >= 45 && Math.random() < 0.45) awards.push('Maurice Richard Trophy');
+    if (isForward && (stats.goals + stats.assists || 0) >= 95 && Math.random() < 0.40) awards.push('Art Ross Trophy');
+    if (isDefense && playerOvr >= 85 && Math.random() < 0.40) awards.push('Norris Trophy');
+    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.920 && Math.random() < 0.45) awards.push('Vezina Trophy');
+    if (player.stats?.seasonsPlayed === 1 && Math.random() < 0.50) awards.push('Calder Trophy');
   }
 
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
@@ -266,14 +301,9 @@ let rating = p.pos === 'G'
     a = Math.floor(a * 0.7);
   }
 
-  // BUG FIX #4/#5: standings used to be a flat 1-16 roll for every
-  // non-NHL league regardless of team count, which meant junior and AHL
-  // teams made the playoffs 100% of the time. Now it scales off OVR and
-  // the league's real team count, and Europe (a career-winddown league,
-  // not one the game actually simulates playoffs for) never triggers
-  // the playoff bracket.
   const config = LEAGUE_CONFIG[currentLg];
-  const teamCount = config ? config.teams : 32;
+  const teamPool = getOpponentPool(currentLg);
+  const teamCount = teamPool ? teamPool.length : 32;
   const playoffSpots = config ? config.playoffSpots : 16;
   let standings;
 
@@ -291,7 +321,11 @@ let rating = p.pos === 'G'
   const offPercent = p.pos === 'G' ? 0 : Math.min(100, Math.round(((g + a) / ((g * 2) + 40)) * 100));
 
   const newAge = p.age + 1;
-  const declineMod = p.inventory.includes('coach') ? 0.5 : 1;
+  // Coach's declineModifier is looked up from economy.js so tweaking the
+  // shop item's effect value actually changes coach effectiveness.
+  const coachItem = shopItems.find(i => i.id === 'coach');
+  const coachModifier = coachItem?.effect?.declineModifier ?? 0.5;
+  const declineMod = p.inventory.includes('coach') ? coachModifier : 1;
 
   // st = the TOTAL stat delta for the season: training + natural
   // development/decline. This is what feeds both persisted stats and the
@@ -380,15 +414,33 @@ let rating = p.pos === 'G'
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
 }
 
-export function generatePlayoffDeck(standings, playoffSpots, round) {
+export function generatePlayoffDeck(standings, playoffSpots, round, gamesPerMatchup = 7) {
   const seedStrength = Math.max(0, Math.min(1, 1 - (standings - 1) / Math.max(1, playoffSpots - 1)));
+
+  // Single-game elimination (NCAA Frozen Four format).
+  if (gamesPerMatchup === 1) {
+    const roundTightening = Math.max(0, (round - 1)) * 0.03;
+    const winChance = Math.max(0.30, Math.min(0.80, 0.40 + seedStrength * 0.35 - roundTightening));
+    return [{ isWin: Math.random() < winChance }];
+  }
+
+  // Best-of-N series. 
+  const winsNeeded = Math.ceil(gamesPerMatchup / 2); // 4 required to win/lose
+  const deckSize = 9; // Fixed 3x3 grid
   
-  let winCards = Math.round(3 + (seedStrength * 3)) - (round === 4 ? 1 : 0); 
-  winCards = Math.max(3, Math.min(7, winCards)); 
+  // CRITICAL FIX: The deck MUST contain at least 4 Losses and 4 Wins, 
+  // otherwise it is mathematically impossible to win or lose the series.
+  // This guarantees a 4 W / 5 L split (Hard) OR 5 W / 4 L split (Easy).
+  let winCards = winsNeeded; // Default 4 Wins
+  
+  // If you are a high seed and it's early in the playoffs, give 5 Wins (easier)
+  if (seedStrength > 0.5 && round < 4) {
+     winCards = winsNeeded + 1; 
+  }
 
   let cards = [];
   for (let i = 0; i < winCards; i++) cards.push({ isWin: true });
-  for (let i = 0; i < (9 - winCards); i++) cards.push({ isWin: false });
+  for (let i = 0; i < (deckSize - winCards); i++) cards.push({ isWin: false });
   
   return shuffleArray(cards);
 }
