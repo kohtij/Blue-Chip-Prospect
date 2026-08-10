@@ -123,12 +123,6 @@ export const recomputeOvr = (player) => {
   return Math.min(99, Math.max(50, Math.round(weighted)));
 };
 
-// Promotion/demotion hysteresis (partial fix for the "yo-yo" issue): a
-// player needs to clear 66 OVR to be promoted, but only drops below 62 to
-// be demoted, so borderline players don't flip every single year.
-const PROMOTE_OVR = 66;
-const DEMOTE_OVR = 62;
-
 /**
  * Pure-ish season simulation. Takes the player BEFORE any training bonus is
  * applied, and the training card's effect exactly once (BUG FIX #2: the
@@ -150,9 +144,20 @@ export function simulateSeason(player, trainingEffect = {}) {
   const isEuroLg = euroLeagues.includes(currentLg);
   const isNCAA = currentLg === 'NCAA';
 
+  // Dynamic Thresholds: Goalies take years to develop and need a much higher OVR to stick in the NHL.
+  const promoteThresh = p.pos === 'G' ? 75 : 68;
+  const demoteThresh = p.pos === 'G' ? 71 : 64;
+
   // Prevent auto-promotion/demotion for NCAA players
   if (!isJuniorLg && !isEuroLg && !isNCAA) {
-    if (p.ovr >= PROMOTE_OVR) {
+    if (p.ovr >= promoteThresh) {
+      if (currentLg === 'AHL') {
+        waiverEvent = 'You had a great camp and earned a call-up to the NHL roster!';
+        const parentNhlTeam = nhlTeams.find(t => t.ahlId === currentTeam);
+        if (parentNhlTeam) currentTeam = parentNhlTeam.id;
+      }
+      currentLg = 'NHL';
+    } else if (p.ovr < demoteThresh) {
       if (currentLg === 'AHL') {
         waiverEvent = 'You had a great camp and earned a call-up to the NHL roster!';
         const parentNhlTeam = nhlTeams.find(t => t.ahlId === currentTeam);
@@ -172,42 +177,49 @@ export function simulateSeason(player, trainingEffect = {}) {
     }
   }
 
-  // Training is applied exactly once here, on top of buff-adjusted stats.
+ // Training is applied exactly once here, on top of buff-adjusted stats.
   let simSht = getActiveStat(p, 'shooting') + (trainingEffect.shooting || 0);
   let simSkt = getActiveStat(p, 'skating') + (trainingEffect.skating || 0);
   let simPhy = getActiveStat(p, 'physicality') + (trainingEffect.physicality || 0);
   let simIq = getActiveStat(p, 'hockeyIQ') + (trainingEffect.hockeyIQ || 0);
   let simSta = getActiveStat(p, 'stamina') + (trainingEffect.stamina || 0);
 
-  // Give NCAA players the same simulation stat bump as CHL players
+  // Give amateur players a simulation bump so they can score against amateur competition
   if (isJuniorLg || isNCAA) { simSht += 25; simSkt += 25; simIq += 25; simPhy += 25; simSta += 25; }
-  if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; simSta += 15; }
-  if (isJuniorLg) { simSht += 25; simSkt += 25; simIq += 25; simPhy += 25; simSta += 25; }
-  if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; simSta += 15; }
-  if (isEuroLg) { simSht += 10; simSkt += 10; simIq += 10; simPhy += 10; simSta += 10; }
+  else if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; simSta += 15; }
+  else if (isEuroLg) { simSht += 10; simSkt += 10; simIq += 10; simPhy += 10; simSta += 10; }
 
-// --- DYNAMIC CONTRACT ROLE MODIFIERS ---
+  // --- DYNAMIC CONTRACT ROLE MODIFIERS ---
   let roleMulti = 1.0;
   const cRole = p.contract?.role || '';
 
-  if (cRole.includes('Core') || cRole.includes('Sniper') || cRole.includes('Playmaker') || cRole.includes('Offensive') || cRole.includes('Starter')) {
-    roleMulti = 1.25;
-    if (cRole.includes('Sniper')) simSht += 10;
-    if (cRole.includes('Playmaker')) simIq += 10;
-    if (cRole.includes('Power')) simPhy += 10;
-  } else if (cRole.includes('Middle') || cRole.includes('Top 4') || cRole.includes('Two-Way')) {
-    roleMulti = 0.90;
-  } else if (cRole.includes('Grinder') || cRole.includes('Depth') || cRole.includes('Bottom')) { 
-    roleMulti = 0.60; 
-    if (cRole.includes('Grinder') || cRole.includes('Shutdown')) simPhy += 15; 
-  } else if (cRole.includes('Backup')) {
-    roleMulti = 0.40; 
+  // If pro, use the contract role. If amateur, dynamically assign a role multiplier based on OVR
+  if (cRole) {
+    if (cRole.includes('Core') || cRole.includes('Sniper') || cRole.includes('Playmaker') || cRole.includes('Offensive') || cRole.includes('Starter')) {
+      roleMulti = 1.25;
+      if (cRole.includes('Sniper')) simSht += 10;
+      if (cRole.includes('Playmaker')) simIq += 10;
+      if (cRole.includes('Power')) simPhy += 10;
+    } else if (cRole.includes('Middle') || cRole.includes('Top 4') || cRole.includes('Two-Way')) {
+      roleMulti = 0.90;
+    } else if (cRole.includes('Grinder') || cRole.includes('Depth') || cRole.includes('Bottom')) { 
+      roleMulti = 0.60; 
+      if (cRole.includes('Grinder') || cRole.includes('Shutdown')) simPhy += 15; 
+    } else if (cRole.includes('Backup')) {
+      roleMulti = 0.40; 
+    }
+  } else {
+    // Amateur Ice Time scaling
+    if (p.ovr >= 70) roleMulti = 1.30;       // 1st Line / Star
+    else if (p.ovr >= 62) roleMulti = 1.00;  // 2nd Line
+    else if (p.ovr >= 56) roleMulti = 0.65;  // 3rd Line
+    else roleMulti = 0.35;                   // 4th Line Depth
   }
 
   let games = isJuniorLg ? 68 : 70 + Math.floor(Math.random() * 12);
   if (p.pos === 'G') {
-    games = cRole.includes('Backup') ? Math.floor(20 + Math.random() * 15) : Math.floor(games * 0.8);
-  } else if (cRole.includes('Grinder') || cRole.includes('Depth') || cRole.includes('Bottom')) {
+    games = (cRole.includes('Backup') || roleMulti <= 0.4) ? Math.floor(20 + Math.random() * 15) : Math.floor(games * 0.8);
+  } else if (roleMulti <= 0.65) {
     games = Math.floor(games * 0.85); // Frequent healthy scratches for depth players
   }
 
@@ -222,20 +234,19 @@ export function simulateSeason(player, trainingEffect = {}) {
     sho = Math.max(0, Math.floor((actualSavePct - 0.890) * 150) + Math.floor(Math.random() * 3));
     baseImpact = (actualSavePct - 0.900) * 100;
   } else if (['LD', 'RD'].includes(p.pos)) {
-    g = Math.floor(Math.max(0, (simSht - 70) * 0.5)) + Math.floor(Math.random() * 5);
-    a = Math.floor(Math.max(0, (simIq - 60) * 0.8 + (simSkt - 65) * 0.4)) + Math.floor(Math.random() * 10);
-    pm = Math.floor((simPhy + simIq + simSta - 180) * 0.4) + Math.floor(Math.random() * 20 - 10);
+    g = Math.floor((Math.max(0, (simSht - 70) * 0.5) + Math.floor(Math.random() * 5)) * roleMulti);
+    a = Math.floor((Math.max(0, (simIq - 60) * 0.8 + (simSkt - 65) * 0.4) + Math.floor(Math.random() * 10)) * roleMulti);
+    pm = Math.floor((Math.floor((simPhy + simIq + simSta - 180) * 0.4) + Math.floor(Math.random() * 20 - 10)) * roleMulti);
     baseImpact = pm * 0.5;
   } else if (p.pos === 'C') {
-    // FIX: Centers can snipe now. Lowered the threshold and raised the multiplier.
-    g = Math.floor(Math.max(0, (simSht - 60) * 1.5)) + Math.floor(Math.random() * 12);
-    a = Math.floor(Math.max(0, (simIq - 63) * 1.2 + (simSkt - 63) * 0.6)) + Math.floor(Math.random() * 12);
-    pm = Math.floor((simPhy + simIq + simSta - 165) * 0.4) + Math.floor(Math.random() * 15 - 5);
+    g = Math.floor((Math.max(0, (simSht - 60) * 1.5) + Math.floor(Math.random() * 12)) * roleMulti);
+    a = Math.floor((Math.max(0, (simIq - 63) * 1.2 + (simSkt - 63) * 0.6) + Math.floor(Math.random() * 12)) * roleMulti);
+    pm = Math.floor((Math.floor((simPhy + simIq + simSta - 165) * 0.4) + Math.floor(Math.random() * 15 - 5)) * roleMulti);
     baseImpact = (g + a + pm * 1.5) * 0.2;
   } else {
-    g = Math.floor(Math.max(0, (simSht - 60) * 1.6 + (simSkt - 65) * 0.4)) + Math.floor(Math.random() * 12);
-    a = Math.floor(Math.max(0, (simIq - 65) * 0.8 + (simSkt - 65) * 0.6)) + Math.floor(Math.random() * 8);
-    pm = Math.floor((simSkt + simSht - 140) * 0.2) + Math.floor(Math.random() * 10 - 5);
+    g = Math.floor((Math.max(0, (simSht - 60) * 1.6 + (simSkt - 65) * 0.4) + Math.floor(Math.random() * 12)) * roleMulti);
+    a = Math.floor((Math.max(0, (simIq - 65) * 0.8 + (simSkt - 65) * 0.6) + Math.floor(Math.random() * 8)) * roleMulti);
+    pm = Math.floor((Math.floor((simSkt + simSht - 140) * 0.2) + Math.floor(Math.random() * 10 - 5)) * roleMulti);
     baseImpact = (g + a) * 0.25;
   }
 
@@ -247,52 +258,53 @@ export function simulateSeason(player, trainingEffect = {}) {
   // --- HARDWARE & AWARDS ---
   const awards = [];
   const playerOvr = p.ovr;
-  const stats = { goals: g, assists: a, saves: saves, shots: shots };
+  const stats = { goals: g, assists: a, saves: saves, shots: shots, games: games };
+  const pts = g + a;
 
-  // LEAGUE-SPECIFIC TROPHY ASSIGNMENT
   const isGoalie = player.pos === 'G';
   const isDefense = ['LD', 'RD'].includes(player.pos);
   const isForward = ['C', 'LW', 'RW'].includes(player.pos);
 
+  // DETERMINISTIC HARDWARE ASSIGNMENT (If you earn the stats, you win the trophy)
   // 1. OHL TROPHIES
   if (player.league === 'OHL') {
-    if (playerOvr >= 75 && Math.random() < 0.35) awards.push('Red Tilson Trophy (OHL Most Outstanding Player)');
-    if (isForward && (stats.goals || 0) >= 40 && Math.random() < 0.40) awards.push('Eddie Powers Memorial Trophy (OHL Scoring Champion)');
-    if (isDefense && playerOvr >= 70 && Math.random() < 0.35) awards.push('Max Kaminsky Trophy (OHL Most Outstanding Defenceman)');
-    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.915 && Math.random() < 0.40) awards.push('FW "Dinty" Moore Trophy (OHL Best Goaltender)');
-    if (player.age === 16 && Math.random() < 0.50) awards.push('Emms Family Award (OHL Rookie of the Year)');
+    if (pts >= 110 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('Red Tilson Trophy (OHL Most Outstanding Player)');
+    if (pts >= 100) awards.push('Eddie Powers Memorial Trophy (OHL Scoring Champion)');
+    if (isDefense && pts >= 65) awards.push('Max Kaminsky Trophy (OHL Most Outstanding Defenceman)');
+    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 35) awards.push('FW "Dinty" Moore Trophy (OHL Best Goaltender)');
+    if (player.age === 16 && pts >= 60) awards.push('Emms Family Award (OHL Rookie of the Year)');
   }
   // 2. WHL TROPHIES
   else if (player.league === 'WHL') {
-    if (playerOvr >= 75 && Math.random() < 0.35) awards.push('Four Broncos Memorial Trophy (WHL Player of the Year)');
-    if (isForward && (stats.goals || 0) >= 40 && Math.random() < 0.40) awards.push('Bob Clarke Trophy (WHL Top Scorer)');
-    if (isDefense && playerOvr >= 70 && Math.random() < 0.35) awards.push('Bill Hunter Memorial Trophy (WHL Top Defenceman)');
-    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.915 && Math.random() < 0.40) awards.push('Del Wilson Trophy (WHL Top Goaltender)');
-    if (player.age === 16 && Math.random() < 0.50) awards.push('Jim Piggott Memorial Trophy (WHL Rookie of the Year)');
+    if (pts >= 110 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('Four Broncos Memorial Trophy (WHL Player of the Year)');
+    if (pts >= 100) awards.push('Bob Clarke Trophy (WHL Top Scorer)');
+    if (isDefense && pts >= 65) awards.push('Bill Hunter Memorial Trophy (WHL Top Defenceman)');
+    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 35) awards.push('Del Wilson Trophy (WHL Top Goaltender)');
+    if (player.age === 16 && pts >= 60) awards.push('Jim Piggott Memorial Trophy (WHL Rookie of the Year)');
   }
   // 3. QMJHL TROPHIES
   else if (player.league === 'QMJHL') {
-    if (playerOvr >= 75 && Math.random() < 0.35) awards.push('Michel Brière Memorial Trophy (QMJHL Most Valuable Player)');
-    if (isForward && (stats.goals || 0) >= 40 && Math.random() < 0.40) awards.push('Jean Béliveau Trophy (QMJHL Top Scorer)');
-    if (isDefense && playerOvr >= 70 && Math.random() < 0.35) awards.push('Émile Bouchard Trophy (QMJHL Defenceman of the Year)');
-    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.915 && Math.random() < 0.40) awards.push('Jacques Plante Trophy (QMJHL Best GAA)');
-    if (player.age === 16 && Math.random() < 0.50) awards.push('RDS Cup (QMJHL Rookie of the Year)');
+    if (pts >= 110 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('Michel Brière Memorial Trophy (QMJHL Most Valuable Player)');
+    if (pts >= 100) awards.push('Jean Béliveau Trophy (QMJHL Top Scorer)');
+    if (isDefense && pts >= 65) awards.push('Émile Bouchard Trophy (QMJHL Defenceman of the Year)');
+    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 35) awards.push('Jacques Plante Trophy (QMJHL Best GAA)');
+    if (player.age === 16 && pts >= 60) awards.push('RDS Cup (QMJHL Rookie of the Year)');
   }
   // 4. USHL TROPHIES
   else if (player.league === 'USHL') {
-    if (playerOvr >= 72 && Math.random() < 0.35) awards.push('USHL Player of the Year');
-    if (isForward && (stats.goals || 0) >= 35 && Math.random() < 0.40) awards.push('USHL Forward of the Year');
-    if (isDefense && playerOvr >= 68 && Math.random() < 0.35) awards.push('USHL Defenceman of the Year');
-    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.910 && Math.random() < 0.40) awards.push('USHL Goaltender of the Year');
+    if (pts >= 85 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('USHL Player of the Year');
+    if (pts >= 75) awards.push('USHL Forward of the Year');
+    if (isDefense && pts >= 50) awards.push('USHL Defenceman of the Year');
+    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 30) awards.push('USHL Goaltender of the Year');
   }
   // 5. NHL TROPHIES (STANDARD)
   else if (player.league === 'NHL') {
-    if (playerOvr >= 88 && Math.random() < 0.40) awards.push('Hart Trophy');
-    if (isForward && (stats.goals || 0) >= 45 && Math.random() < 0.45) awards.push('Maurice Richard Trophy');
-    if (isForward && (stats.goals + stats.assists || 0) >= 95 && Math.random() < 0.40) awards.push('Art Ross Trophy');
-    if (isDefense && playerOvr >= 85 && Math.random() < 0.40) awards.push('Norris Trophy');
-    if (isGoalie && (stats.saves / (stats.shots || 1)) >= 0.920 && Math.random() < 0.45) awards.push('Vezina Trophy');
-    if (player.stats?.seasonsPlayed === 1 && Math.random() < 0.50) awards.push('Calder Trophy');
+    if (pts >= 105 || (isGoalie && (saves/(shots||1)) >= 0.925 && games >= 50)) awards.push('Hart Trophy');
+    if (g >= 55) awards.push('Maurice Richard Trophy');
+    if (pts >= 105) awards.push('Art Ross Trophy');
+    if (isDefense && pts >= 75) awards.push('Norris Trophy');
+    if (isGoalie && (saves / (shots || 1)) >= 0.920 && games >= 40) awards.push('Vezina Trophy');
+    if (player.stats?.seasonsPlayed === 1 && pts >= 65) awards.push('Calder Trophy');
   }
 
   // FIX: ALL-STAR SELECTIONS

@@ -1,21 +1,20 @@
 /* Google Fonts must load BEFORE @import "tailwindcss" — Tailwind inlines
    thousands of rules at that spot, and any @import that appears after
    real rules is silently ignored by the browser per the CSS spec. */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700;900&family=Kanit:ital,wght@0,700;0,900;1,700;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700;1,900&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
-   BLUE CHIP PROSPECT — DESIGN SYSTEM (El Idolo–inspired)
+   BLUE CHIP PROSPECT — DESIGN SYSTEM 
 
-   Everything in App.css was empty; this is the single source of
-   truth for styles. Class names you already use in App.jsx
-   (.sports-font, .number-font, .game-panel, .btn-primary,
-    .stat-box, .bluechip-foil, .bluechip-frame-*) are all
-   preserved — several have been visually amped up.
+   This is the single source of truth for styles. Class names you 
+   already use in App.jsx (.sports-font, .number-font, .game-panel, 
+   .btn-primary, .stat-box, .bluechip-foil, .bluechip-frame-*) are 
+   all preserved and visually amped up.
 
-   The new atmosphere comes from four things:
-     1. Kanit on .sports-font, Bebas Neue on .number-font —
-        blockier, more magazine-cover than plain sans
+   The atmosphere comes from four things:
+     1. Inter (Black 900, ExtraBold 800, Bold 700) exclusively for 
+        a hyper-clean, modern, premium UI.
      2. Radial ambient background on <body> — "stadium under
         lights" glow behind every screen
      3. Entry animation on .game-panel — panels drop in instead
@@ -27,10 +26,6 @@
    Everything animates, but all animation defers to
    prefers-reduced-motion at the bottom of the file.
    ============================================================ */
-
-/* Fonts. Kanit is the display font (aggressive, clean, wide).
-   Bebas Neue is only used for .number-font (numeric displays).
-   Inter is the body font. Nothing else is loaded. */
 
 :root {
   /* Base palette */
@@ -69,25 +64,29 @@
    TYPOGRAPHY
    ============================================================ */
 
-/* Titles, Headers, and Labels */
+/* Titles, Headers, and Labels - Uses Inter Black (900) */
 .sports-font {
-  font-family: 'Kanit', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.02em; 
-  font-weight: 800; 
+  font-weight: 900; 
   line-height: 0.95; /* Keeps multi-line titles packed tight */
 }
 
-/* OVR, Stats, Money, and Numeric Displays */
+/* OVR, Stats, Money, and Numeric Displays - Uses Inter ExtraBold (800) */
 .number-font {
-  font-family: 'Bebas Neue', system-ui, sans-serif !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 400;
+  letter-spacing: 0.02em;
+  font-weight: 800;
   line-height: 0.95;
+  font-variant-numeric: tabular-nums; /* Keeps numbers aligned in grids */
 }
 
-.font-sans { font-family: 'Inter', sans-serif; }
+/* Base Body Text */
+.font-sans { 
+  font-family: 'Inter', system-ui, sans-serif; 
+}
 
 .display-skew { display: inline-block; transform: skew(-6deg); }
 
@@ -176,11 +175,11 @@ body::after {
 }
 
 .btn-primary {
-  font-family: 'Bebas Neue', system-ui, sans-serif !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
   background-color: var(--accent-green);
   color: #000000;
-  font-weight: 400;
-  letter-spacing: 0.06em;
+  font-weight: 800; /* ExtraBold replaces the old Bebas weight */
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   transition: transform 0.2s ease, filter 0.2s ease;
 }
@@ -197,13 +196,10 @@ button:focus-visible {
 
 /* ============================================================
    TRADING-CARD SYSTEM — polygon corners, rarity frames, foil,
-   stamps, watermarks. Directly ported from El Idolo.
+   stamps, watermarks. 
    ============================================================ */
 
-/* Angled trading-card silhouette — cuts 14px corners top-left,
-   top-right, bottom-left, bottom-right. Drop this on any panel
-   you want to feel like a physical card (the OVR badge, event
-   verdicts, memcup trophy, etc). */
+/* Angled trading-card silhouette */
 .card {
   position: relative;
   padding: 3px;
@@ -227,17 +223,14 @@ button:focus-visible {
     var(--card-bg) 38%);
 }
 
-/* Rarity frames — used as the padding wrapper on .card silhouettes,
-   or directly as backgrounds on any element. */
+/* Rarity frames */
 .bluechip-frame-base   { background: linear-gradient(160deg, #3d434b, #21252b 55%, #343a42); }
 .bluechip-frame-bronze { background: linear-gradient(160deg, #a06a35, #5c3a17 45%, #c98a4b 90%); }
 .bluechip-frame-silver { background: linear-gradient(160deg, #e6edf3, #8a95a1 40%, #cfd9e2 75%, #7f8b97); }
 .bluechip-frame-gold   { background: linear-gradient(160deg, #ffe08a, #b8860b 40%, #ffd766 70%, #8f6a08); }
 .bluechip-frame-icon   { background: linear-gradient(160deg, #ffd766, #101010 30%, #2b2b2b 55%, #ffd766 110%); }
 
-/* Foil shimmer — same as before. .bluechip-foil positions a
-   sweeping highlight via ::after; .bluechip-foil-overlay is a
-   free-standing absolute element you can drop anywhere. */
+/* Foil shimmer */
 @keyframes bluechip-foil {
   0%   { transform: translate(-150%) skew(-18deg); }
   100% { transform: translate(300%)  skew(-18deg); }
@@ -256,7 +249,6 @@ button:focus-visible {
   width: 50%;
   left: 0;
   background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,.28) 50%, transparent 100%);
-  /* Changed from ease-in-out to linear, and extended the duration slightly for a premium feel */
   animation: bluechip-foil 2.8s linear infinite;
   pointer-events: none;
 }
@@ -272,26 +264,25 @@ button:focus-visible {
   z-index: 0;
 }
 
-/* Magazine masthead — double-line top border. Drop on any section
-   header for that hockey-newspaper aesthetic. */
+/* Magazine masthead */
 .masthead {
   border-top: 3px double rgba(255,255,255,.45);
   border-bottom: 1px solid rgba(255,255,255,.2);
 }
 
-/* Accent-bordered side — "breaking news" outline */
+/* Accent-bordered side */
 .outline {
   border-left: 3px solid color-mix(in srgb, var(--club1) 70%, #ffffff);
 }
 
-/* Corner stamp — small rotated badge for special cards. Use for
-   'ROOKIE', 'DRAFTED', 'CHAMPION' overlays. */
+/* Corner stamp */
 .stamp {
   position: absolute;
   top: 10px;
   right: -6px;
   transform: rotate(8deg);
-  font-family: 'Kanit', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 900;
   text-transform: uppercase;
   font-size: .8rem;
   letter-spacing: .12em;
@@ -302,12 +293,13 @@ button:focus-visible {
   pointer-events: none;
 }
 
-/* Big faded background text — put team name behind stats etc */
+/* Big faded background text */
 .watermark {
   position: absolute;
   right: -6px;
   bottom: -18px;
-  font-family: 'Kanit', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 900;
   font-size: 5.2rem;
   line-height: 1;
   color: rgba(255,255,255,0.06);
@@ -315,7 +307,7 @@ button:focus-visible {
   user-select: none;
 }
 
-/* Crest ghost — huge team logo bleeding off the right edge */
+/* Crest ghost */
 .crest-watermark {
   position: absolute;
   right: -14px;
@@ -344,16 +336,14 @@ button:focus-visible {
 }
 .pop-in { animation: bcp-pop-in var(--motion-med) cubic-bezier(.22,1,.36,1) both; }
 
-/* Ambient heartbeat pulse — glows in club color, use for the
-   OVR badge on the dashboard or any highlighted card */
+/* Ambient heartbeat pulse */
 @keyframes bcp-heartbeat {
   0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--club1) 0%, transparent); }
   50%      { box-shadow: 0 0 24px 4px color-mix(in srgb, var(--club1) 30%, transparent); }
 }
 .heartbeat { animation: bcp-heartbeat 1.6s ease-in-out infinite; }
 
-/* Level-up bounce — big trigger animation. Slap on a stat that
-   just changed to draw the eye. */
+/* Level-up bounce */
 @keyframes bcp-levelup-bounce {
   0%   { opacity: 0; transform: scale(.4); }
   60%  { opacity: 1; transform: scale(1.15); }
@@ -361,7 +351,7 @@ button:focus-visible {
 }
 .level-up { animation: bcp-levelup-bounce .5s cubic-bezier(.22,1,.36,1) .2s backwards; }
 
-/* Ceremony drop — for trophy/award reveals */
+/* Ceremony drop */
 @keyframes bcp-ceremony-drop {
   0%   { opacity: 0; transform: translateY(-40px) scale(.6); }
   60%  { opacity: 1; transform: translateY(6px)   scale(1.08); }
@@ -369,9 +359,7 @@ button:focus-visible {
 }
 .ceremony-drop { animation: bcp-ceremony-drop .9s cubic-bezier(.22,1,.36,1); }
 
-/* Stat-change flash — apply as a one-shot class when a number
-   goes up or down. React example:
-     className={`number-font ${delta > 0 ? 'stat-up' : delta < 0 ? 'stat-down' : ''}`} */
+/* Stat-change flash */
 @keyframes bcp-stat-up {
   0%   { transform: translateY(0); }
   35%  {
@@ -394,15 +382,14 @@ button:focus-visible {
 }
 .stat-down { animation: bcp-stat-down var(--motion-slow) cubic-bezier(.22,1,.36,1); }
 
-/* Breaking-news flash — for time-sensitive events (trade deadline,
-   contract expiring, etc). Use sparingly. */
+/* Breaking-news flash */
 @keyframes bcp-flash {
   0%, 100% { opacity: 1; }
   50%      { opacity: .55; }
 }
 .breaking-news { animation: bcp-flash 1.4s ease-in-out infinite; }
 
-/* Progress-bar fill — for idolatry meter and season progress */
+/* Progress-bar fill */
 @keyframes bcp-bar-fill {
   0%   { transform: scaleX(0); }
   100% { transform: scaleX(1); }
@@ -412,7 +399,7 @@ button:focus-visible {
   animation: bcp-bar-fill .8s cubic-bezier(.22,1,.36,1) both;
 }
 
-/* Gold-tier ambient glow — for 90+ OVR cards / championship trophies */
+/* Gold-tier ambient glow */
 @keyframes bcp-gold-pulse {
   0%, 100% { box-shadow: 0 0 12px rgba(245,158,11,.25); }
   50%      { box-shadow: 0 0 22px rgba(245,158,11,.5); }
@@ -425,8 +412,7 @@ button:focus-visible {
 }
 .card-icon { animation: bcp-pop-in .4s cubic-bezier(.22,1,.36,1) both, bcp-icon-pulse 1.4s ease-in-out infinite; }
 
-/* Dice-roll bounce for the "PRE-SEASON — the dice rolled three
-   upgrades" flavor moment shown in your screenshot */
+/* Dice-roll bounce */
 @keyframes bcp-dice-roll {
   0%   { transform: rotate(0)     scale(1); }
   25%  { transform: rotate(-18deg) scale(1.15); }

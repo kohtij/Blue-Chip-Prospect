@@ -521,12 +521,12 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
                   
                   <p className="text-[10px] md:text-[11px] font-black uppercase leading-snug tracking-wide text-[#3b82f6] mt-1.5 flex flex-wrap items-center gap-1">
                     <span>{getFullTeamName(player.team, player.league)}</span>
-                    <span className="text-slate-400 font-sans">· {currentYear} / {nextYear}</span>
+                    <span className="text-slate-400 font-sans">{currentYear} / {nextYear}</span>
                   </p>
                   
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <p className="text-[9px] md:text-[10px] font-bold uppercase leading-none tracking-wide text-slate-500">
-                      {player.age} YRS OLD · {getDisplayDeployment(player.ovr, player.pos, player.league)} · {player.stats[lgKey]?.games || 0} GP
+                    <p className="text-[9px] md:text-[10px] font-bold uppercase leading-none tracking-wide text-slate-500 whitespace-nowrap">
+                      {player.age} YRS OLD · {player.pos} · {getDisplayDeployment(player.ovr, player.pos, player.league)} · {player.stats[lgKey]?.games || 0} GP
                     </p>
                     <span className={`text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest leading-none ${intlStatus.color}`}>
                       {intlStatus.label}
@@ -558,7 +558,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
             <div className="mt-5 md:mt-7 w-full space-y-1.5">
               <div className="flex items-center justify-between text-[11px] md:text-xs font-bold uppercase tracking-wide">
                 <span className="text-slate-400">Idolatry</span>
-                <span className="text-slate-400">▫️ {tier.label} · {Math.floor((player.idolatry / 1000) * 100)}/100</span>
+                <span className="text-slate-400"> {tier.label} · {Math.floor((player.idolatry / 1000) * 100)}/100</span>
               </div>
               <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: getBarColor(player.idolatry) }}></div>
@@ -586,19 +586,19 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
             {/* 1. STATS ROW */}
             <div className="grid grid-cols-4 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
               <div className="px-1 py-1.5 md:py-2 bg-gradient-to-b from-[rgba(255,255,255,0.03)] to-transparent">
-                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-[#22E748] number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000') : (player.stats[lgKey]?.goals || 0)}</p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-[#22E748] number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000') : (player.stats[lgKey]?.goals || 0)}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SV%' : 'Goals'}</p>
               </div>
               <div className="px-1 py-1.5 md:py-2">
-                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-white number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00') : (player.stats[lgKey]?.assists || 0)}</p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-white number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00') : (player.stats[lgKey]?.assists || 0)}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'GAA' : 'Assists'}</p>
               </div>
               <div className="px-1 py-1.5 md:py-2">
-                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-white number-font leading-none">{isGoalie ? (player.stats[lgKey]?.shutouts || 0) : (player.stats[lgKey]?.plusMinus > 0 ? `+${player.stats[lgKey].plusMinus}` : (player.stats[lgKey]?.plusMinus || 0))}</p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-white number-font leading-none">{isGoalie ? (player.stats[lgKey]?.shutouts || 0) : (player.stats[lgKey]?.plusMinus > 0 ? `+${player.stats[lgKey].plusMinus}` : (player.stats[lgKey]?.plusMinus || 0))}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SHO' : '+/-'}</p>
               </div>
               <div className="px-1 py-1.5 md:py-2">
-                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-[#F59E0B] number-font leading-none">{player.stats?.titles || 0}</p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-[#F59E0B] number-font leading-none">{player.stats?.titles || 0}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Trophies</p>
               </div>
             </div>
@@ -719,11 +719,13 @@ const FaceoffGame = ({ player, onComplete }) => {
    const [status, setStatus] = useState('waiting');
    const [msg, setMsg] = useState('WAIT FOR GREEN...');
    const doneRef = useRef(false);
+   const startTimeRef = useRef(null);
 
-   const finish = useCallback((win) => {
+   // Added a delay so the player can actually read their reaction time before the screen advances!
+   const finish = useCallback((win, delay = 1500) => {
      if (doneRef.current) return;
      doneRef.current = true;
-     onComplete(win);
+     setTimeout(() => onComplete(win), delay);
    }, [onComplete]);
 
    useEffect(() => {
@@ -732,13 +734,15 @@ const FaceoffGame = ({ player, onComplete }) => {
       const to = setTimeout(() => {
          setStatus('ready');
          setMsg('CLICK NOW!');
+         startTimeRef.current = Date.now(); // Start the timer exactly when it turns green
 
          // Higher IQ gives you a much larger reaction window before AI wins
          const aiTime = Math.max(250, 600 - (player.hockeyIQ * 2));
          innerTo = setTimeout(() => {
            setStatus(prev => {
              if (prev === 'ready') {
-               finish(false); // AI beat you to the draw
+               setMsg(`LOST! AI: ${aiTime}ms`); // Tell the player how fast the AI was
+               finish(false); 
                return 'done';
              }
              return prev;
@@ -755,8 +759,9 @@ const FaceoffGame = ({ player, onComplete }) => {
        setMsg('JUMPED EARLY!');
        finish(false);
      } else if (status === 'ready') {
+       const reactionTime = Date.now() - startTimeRef.current;
        setStatus('done');
-       setMsg('YOU WON IT!');
+       setMsg(`WON: ${reactionTime}ms!`);
        finish(true);
      }
    };
@@ -766,13 +771,14 @@ const FaceoffGame = ({ player, onComplete }) => {
        <div className="absolute inset-4 rounded-full border-4 border-[#3b82f6] opacity-30"></div>
        <button 
          onClick={handleClick}
-         className={`w-3/5 h-3/5 rounded-full flex items-center justify-center font-black sports-font text-2xl sm:text-3xl transition-colors border-8 shadow-2xl ${
+         className={`w-3/5 h-3/5 rounded-full flex flex-col items-center justify-center font-black sports-font text-2xl sm:text-3xl transition-colors border-8 shadow-2xl ${
            status === 'waiting' ? 'bg-[#ef4444] border-[#b91c1c] text-white cursor-pointer' : 
            status === 'ready' ? 'bg-[#22E748] border-[#16a34a] text-white cursor-pointer scale-105' :
+           status === 'done' && msg.includes('WON') ? 'bg-[#22E748] border-[#16a34a] text-white' :
            'bg-slate-700 border-slate-900 text-slate-400 pointer-events-none'
          }`}
        >
-         {msg}
+         <span className="text-center">{msg}</span>
        </button>
      </div>
    );
@@ -1178,7 +1184,7 @@ const OneTimerGame = ({ player, onComplete }) => {
     if (status !== 'playing') return;
     
     // Higher shooting/hockey IQ makes the puck travel at a slightly more manageable speed
-    const speed = Math.max(2.5, 6 - (player.shooting * 0.03));
+    const speed = Math.max(1.8, 4.5 - (player.shooting * 0.025));
     const ticker = setInterval(() => {
       setPosition(prev => {
         const next = prev + speed;
@@ -1284,6 +1290,7 @@ function App() {
   const [memCup, setMemCup] = useState({ round: 0, status: 'playing' });
   const [pendingPlayoffs, setPendingPlayoffs] = useState(null);
   const [pendingSeasonResult, setPendingSeasonResult] = useState(null);
+  const [arbState, setArbState] = useState(null);
 
   const [player, setPlayer] = useState(makeInitialPlayer);
 
@@ -1709,7 +1716,7 @@ function App() {
          ...p, team: draftedBy.id, league: 'NHL',
          teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])),
          // 👇 FIX: Added role so simulator doesn't crash
-         contract: { salary: 925000, years: 3, role: 'Rookie' } 
+         contract: { salary: 925000, years: 3, role: getRole(925000, p) } 
        }));
        setEventFeedback("You signed your ELC and are heading to your first NHL training camp.");
      } else if (choice === 'NCAA') {
@@ -2687,9 +2694,19 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     
     // Advance the Memorial Cup if we just finished a minigame during it
     if (minigameContext === 'memcup') {
+        if (isWin && memCup.round === 1) {
+            // They won the Championship Final!
+            setPlayer(p => ({
+                ...p,
+                idolatry: capIdol(p.idolatry + 50),
+                stats: { ...p.stats, memCupBoost: 50, titles: (p.stats.titles || 0) + 1 }
+            }));
+            unlockAchievement('mem_cup');
+        }
+        
         setMemCup(prev => ({ 
            ...prev, 
-           status: isWin ? 'semi_won' : 'lost', 
+           status: isWin ? (prev.round === 0 ? 'semi_won' : 'won') : 'lost', 
            lastFeedback: isWin ? successMsg : failMsg 
         }));
     }
@@ -2738,7 +2755,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       } else if (choice.action === 'SIGN_ELC') {
         updated.team = p.rights;
         updated.league = 'NHL';
-        updated.contract = { salary: 925000, years: 3, role: 'Rookie' };
+        updated.contract = { salary: 925000, years: 3, role: getRole(925000, p) };
       } else if (choice.action === 'DEMOTE') {
         updated.team = choice.actionData.team;
         updated.league = choice.actionData.lg;
@@ -3147,9 +3164,9 @@ let champion = null;
     let baseSalary = leagueMinimum;
     let maxYears = 2;
 
-    if (player.league === 'AHL' || isAmateur) {
+   if (player.league === 'AHL' || isAmateur) {
       baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
-      maxYears = 2;
+      maxYears = 3; 
     } else if (player.league === 'NHL') {
       // Look at entire career history for major awards, not just last season
       const careerAwards = player.stats?.awards || [];
@@ -3296,71 +3313,86 @@ let champion = null;
   };
 
   const handleArbitration = (offer) => {
-      // Calculate a fair arbitration award based purely on current OVR
-      let arbSalary = 1000000;
-      if (player.ovr >= 85) arbSalary = 6500000;
-      else if (player.ovr >= 80) arbSalary = 4000000;
-      else if (player.ovr >= 75) arbSalary = 2250000;
-      else arbSalary = 1100000;
+  // Calculate a fair baseline based purely on current OVR
+  let baseline = 1000000;
+  if (player.ovr >= 85) baseline = 6500000;
+  else if (player.ovr >= 80) baseline = 4000000;
+  else if (player.ovr >= 75) baseline = 2250000;
+  else baseline = 1100000;
 
-      arbSalary = Math.round(arbSalary / 25000) * 25000;
+  // Create the arbitration bounds
+  const teamOffer = Math.round((baseline * 0.75) / 25000) * 25000;
+  const playerAsk = Math.round((baseline * 1.30) / 25000) * 25000;
+  const startingRuling = Math.round(baseline / 25000) * 25000;
 
-      setActiveEvent({
-          title: '⚖️ SALARY ARBITRATION',
-          desc: `You filed for salary arbitration. To drive your price down, your team's lawyers spent four grueling hours in a boardroom brutally tearing apart your game, highlighting every mistake and flaw from last season. It's a harsh business.\n\nThe independent arbitrator has ruled: You are awarded a 1-year, ${formatMoney(arbSalary)} contract.`,
-          choices: [
-              {
-                  label: 'Accept Arbitrator\'s Ruling',
-                  isRisky: false,
-                  feedback: `You are locked in for 1 year at ${formatMoney(arbSalary)}. The relationship with the front office is definitely bruised.`,
-                  effect: { idol: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
-                  action: 'ACCEPT_ARBITRATION',
-                  actionData: { team: offer.team, salary: arbSalary, years: 1, role: getRole(arbSalary, player) }
-              }
-          ],
-          isOffseasonEvent: true
-      });
-      setScreen('event');
-  };
+  setArbState({
+    teamOffer,
+    playerAsk,
+    currentRuling: startingRuling,
+    rounds: 3,
+    offerData: offer,
+    log: ["The arbitrator calls the hearing to order. The team's lawyers glare at you from across the mahogany table. Present your case."]
+  });
+
+  setScreen('arbitration_minigame');
+};
 
   const startNegotiation = (offer) => {
     setNegotiation({
       originalOffer: offer,
       currentSalary: offer.salary,
-      currentCard: Math.floor(Math.random() * 13) + 1, // 1 to 13 (Ace to King)
+      gmPatience: 100,
+      rounds: 0,
+      maxRounds: 5,
+      history: [],
       status: 'playing',
-      msg: "Read the GM's mood. Guess if the next card is Higher or Lower to raise your salary. One wrong guess and the offer drops!"
+      msg: "You are at the bargaining table. Push for a higher salary, but don't snap the GM's patience!"
     });
     setScreen('negotiation');
   };
 
-  const handleNegotiateGuess = (guess) => {
-    let nextCard = Math.floor(Math.random() * 13) + 1;
-    while (nextCard === negotiation.currentCard) {
-      nextCard = Math.floor(Math.random() * 13) + 1; // Prevent ties for simplicity
+  const handleNegotiatePush = (type) => {
+    let damage = 0;
+    let bump = 0;
+    let label = "";
+
+    // Safe Ask: Low risk to patience, small bump
+    if (type === 'safe') {
+      damage = Math.floor(Math.random() * 15) + 5; // 5% to 20% patience loss
+      bump = Math.round(negotiation.originalOffer.salary * 0.03 / 25000) * 25000;
+      label = "Safe Ask";
+    } 
+    // Hardball: High risk to patience, massive bump
+    else if (type === 'hardball') {
+      damage = Math.floor(Math.random() * 30) + 15; // 15% to 45% patience loss
+      bump = Math.round(negotiation.originalOffer.salary * 0.08 / 25000) * 25000;
+      label = "Hardball";
     }
-    
-    const isHigher = nextCard > negotiation.currentCard;
-    const isCorrect = (guess === 'higher' && isHigher) || (guess === 'lower' && !isHigher);
-    
-    if (isCorrect) {
-       // +5% bump per correct guess
-       const bump = Math.round(negotiation.originalOffer.salary * 0.05 / 25000) * 25000;
+
+    const newPatience = negotiation.gmPatience - damage;
+    const newRound = negotiation.rounds + 1;
+
+    if (newPatience <= 0) {
+       // Busted - GM gets mad and slashes the offer
+       const penalty = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
        setNegotiation(prev => ({
          ...prev,
-         currentCard: nextCard,
-         currentSalary: prev.currentSalary + bump,
-         msg: "✅ Great counter-argument! The GM bumped your salary."
-       }));
-    } else {
-       // -10% penalty for pushing your luck
-       const penalty = Math.round(negotiation.originalOffer.salary * 0.10 / 25000) * 25000;
-       setNegotiation(prev => ({
-         ...prev,
-         currentCard: nextCard,
+         gmPatience: 0,
          currentSalary: Math.max(850000, prev.currentSalary - penalty),
          status: 'busted',
-         msg: "❌ You pushed too hard! The GM got offended and slashed the offer."
+         history: [...prev.history, { label, success: false }],
+         msg: "❌ You pushed too hard! The GM slammed the table and slashed the offer."
+       }));
+    } else {
+       // Success
+       setNegotiation(prev => ({
+         ...prev,
+         gmPatience: newPatience,
+         currentSalary: prev.currentSalary + bump,
+         rounds: newRound,
+         history: [...prev.history, { label, success: true }],
+         status: newRound >= prev.maxRounds ? 'maxed' : 'playing',
+         msg: newRound >= prev.maxRounds ? "Final offer reached. The GM won't negotiate further." : `✅ GM agreed to the ${label}. Their patience is dropping...`
        }));
     }
   };
@@ -4121,18 +4153,15 @@ let champion = null;
 
         {screen === 'preseason' && (
           <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#22E748] relative z-20">
-            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
-              <div>
-                <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest font-sans border border-[#3b82f6]/30 px-2.5 py-1 rounded bg-[#3b82f6]/10">
-                  OFF-SEASON DEVELOPMENT
-                </span>
-                <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mt-2 text-center sports-font tracking-tighter">PRE-SEASON {currentYear}</h2>
-                <p className="text-center text-slate-400 text-sm sm:text-base font-sans mb-4">The dice rolled three upgrades. Pick one focus.</p>
-              </div>
-              <div className="text-3xl sm:text-4xl dice-roll">🎲</div>
+           <div className="flex flex-col items-start border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
+              <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest font-sans border border-[#3b82f6]/30 px-2.5 py-1 rounded bg-[#3b82f6]/10 mb-2">
+                OFF-SEASON DEVELOPMENT
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase sports-font tracking-tighter">PRE-SEASON {currentYear}</h2>
+              <p className="text-slate-400 text-sm sm:text-base font-sans mt-1">The coaching staff has prepared three training programs. Pick your focus.</p>
             </div>
 
-           <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full">
+           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full pb-6 pt-2">
               {activeTrainings.map(t => (
                 <button
                   type="button"
@@ -4142,7 +4171,7 @@ let champion = null;
                     e.stopPropagation();
                     handleTrain(t);
                   }}
-                  className={`shrink-0 w-[85vw] sm:w-auto snap-center bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[14rem] sm:min-h-[16rem] text-left relative z-30 ${t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
+                  className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[12rem] sm:min-h-[16rem] text-left relative z-30 ${t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
                 >
                   <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between w-full pointer-events-none">
                     <div>
@@ -4177,7 +4206,7 @@ let champion = null;
                         if (['SKT', 'AGI', 'POS'].includes(stat)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30';
                         if (['SHT', 'REF'].includes(stat)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
                         if (['IQ', 'MIND'].includes(stat)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30';
-                        if (['STA', 'STM'].includes(stat)) colorCls = 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30';
+                        if (['STA', 'STM'].includes(stat)) colorCls = 'text-[#06b6d4] bg-[#06b6d4]/10 border-[#06b6d4]/30';
                         return (
                           <span
                             key={idx}
@@ -4191,6 +4220,139 @@ let champion = null;
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {screen === 'arbitration_minigame' && arbState && (
+          <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-[#040505]">
+            <div className="w-full max-w-2xl space-y-6">
+              <div className="game-panel p-6 sm:p-8 border border-[rgba(255,255,255,0.08)] bg-[#0a0d0a] shadow-2xl relative">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
+                  <div>
+                    <span className="text-[10px] sm:text-xs font-bold text-[#ef4444] uppercase tracking-widest font-sans border border-[#ef4444]/30 px-2.5 py-1 rounded bg-[#ef4444]/10">
+                      BINDING ARBITRATION
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-black text-white sports-font uppercase mt-2">
+                      THE HEARING
+                    </h2>
+                  </div>
+                  <div className="text-3xl sm:text-4xl text-white opacity-50">⚖️</div>
+                </div>
+
+                {/* Negotiation Scale */}
+                <div className="mb-8 bg-[#101410] p-4 rounded-xl border border-white/5">
+                  <div className="flex justify-between text-xs text-slate-400 font-bold mb-2 uppercase sports-font">
+                    <span>Team Lowball: {formatMoney(arbState.teamOffer)}</span>
+                    <span>Your Ask: {formatMoney(arbState.playerAsk)}</span>
+                  </div>
+                  
+                  <div className="relative h-4 bg-gray-800 rounded-full overflow-hidden">
+                    <div 
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-red-600 via-amber-500 to-green-500 transition-all duration-500 ease-out"
+                      style={{ width: `${Math.max(5, Math.min(100, ((arbState.currentRuling - arbState.teamOffer) / (arbState.playerAsk - arbState.teamOffer)) * 100))}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="mt-3 text-center">
+                    <span className="text-sm text-slate-500 sports-font">Current Arbitrator Lean:</span>
+                    <div className="number-font text-3xl text-white">{formatMoney(arbState.currentRuling)}</div>
+                  </div>
+                </div>
+
+                {/* Action Log */}
+                <div className="mb-6 h-32 overflow-y-auto bg-black/40 border border-white/5 rounded-lg p-3 space-y-2">
+                  {arbState.log.map((msg, i) => (
+                    <p key={i} className={`text-sm font-sans ${i === 0 ? 'text-slate-400' : 'text-white border-l-2 pl-2 border-[#3b82f6]'}`}>
+                      {msg}
+                    </p>
+                  ))}
+                </div>
+
+                {/* Arguments / Resolution */}
+                {arbState.rounds > 0 ? (
+                  <div className="space-y-4">
+                    <h4 className="sports-font text-white text-lg text-center">Rounds Remaining: <span className="number-font text-[#3b82f6]">{arbState.rounds}</span></h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        onClick={() => {
+                          const success = Math.random() < 0.85;
+                          const swing = Math.round(((arbState.playerAsk - arbState.teamOffer) * 0.1) / 25000) * 25000;
+                          const newRuling = success ? arbState.currentRuling + swing : arbState.currentRuling;
+                          
+                          setArbState(prev => ({
+                            ...prev,
+                            currentRuling: Math.min(prev.playerAsk, newRuling),
+                            rounds: prev.rounds - 1,
+                            log: [
+                              success 
+                                ? "🟢 You highlight your reliable two-way play. The arbitrator nods, ticking the price up slightly." 
+                                : "🔴 The team counters your stats with advanced analytics. The arbitrator is unmoved.",
+                              ...prev.log
+                            ]
+                          }));
+                        }}
+                        className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.08)] hover:border-[#22E748] p-4 rounded-xl text-left transition-all"
+                      >
+                        <div className="sports-font text-white mb-1">SAFE ARGUMENT</div>
+                        <div className="text-xs text-slate-400">85% chance of minor gain. Focus on fundamentals.</div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const success = Math.random() < 0.40;
+                          const swing = Math.round(((arbState.playerAsk - arbState.teamOffer) * 0.25) / 25000) * 25000;
+                          const newRuling = success ? arbState.currentRuling + swing : arbState.currentRuling - swing;
+
+                          setArbState(prev => ({
+                            ...prev,
+                            currentRuling: Math.max(prev.teamOffer, Math.min(prev.playerAsk, newRuling)),
+                            rounds: prev.rounds - 1,
+                            log: [
+                              success 
+                                ? "🟢 MASSIVE SUCCESS. You passionately compare yourself to league superstars. The arbitrator aggressively raises your value!" 
+                                : "🔴 DISASTER. You demand superstar money, but the team's lawyer brutally exposes your flaws. The arbitrator deducts value.",
+                              ...prev.log
+                            ]
+                          }));
+                        }}
+                        className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.08)] hover:border-[#ef4444] p-4 rounded-xl text-left transition-all"
+                      >
+                        <div className="sports-font text-white mb-1">RISKY ARGUMENT</div>
+                        <div className="text-xs text-slate-400">40% chance of massive gain. High risk of backfiring.</div>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      // Re-use your exact original logic to apply the contract and relationship hits
+                      const finalSalary = Math.round(arbState.currentRuling / 25000) * 25000;
+                      setActiveEvent({
+                        title: '⚖️ ARBITRATION CONCLUDED',
+                        desc: `The hearing is over. The independent arbitrator has slammed the gavel and made a binding ruling.\n\nYou are awarded a 1-year, ${formatMoney(finalSalary)} contract.`,
+                        choices: [
+                          {
+                            label: 'Sign Binding Contract',
+                            isRisky: false,
+                            feedback: `You are locked in for 1 year at ${formatMoney(finalSalary)}. The relationship with the front office is definitely bruised.`,
+                            effect: { idol: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
+                            action: 'ACCEPT_ARBITRATION',
+                            actionData: { team: arbState.offerData.team, salary: finalSalary, years: 1, role: getRole(finalSalary, player) }
+                          }
+                        ],
+                        isOffseasonEvent: true
+                      });
+                      setScreen('event');
+                    }}
+                    className="w-full btn-primary py-4 rounded-xl text-lg mt-4"
+                  >
+                    AWAIT FINAL VERDICT
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -4480,7 +4642,7 @@ let champion = null;
                           if (['SKT', 'AGI'].includes(s)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; 
                           if (['SHT', 'REF'].includes(s)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'; 
                           if (['IQ'].includes(s)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; 
-                          if (['STA'].includes(s)) colorCls = 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'; 
+                          if (['STA'].includes(s)) colorCls = 'text-[#06b6d4] bg-[#06b6d4]/10 border-[#06b6d4]/30';
                           
                           return (
                             <span key={idx} className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border ${colorCls}`}>
@@ -4630,7 +4792,7 @@ let champion = null;
                 )}
               </ul>
 
-{/* REPUTATION & WORLD BUILDING */}
+            {/* REPUTATION & WORLD BUILDING */}
               <div className="mt-8 mb-10 border border-[rgba(255,255,255,0.065)] rounded-xl overflow-hidden text-left bg-[#0a0d0a] shadow-lg">
                 <div className="bg-[#101410] px-4 py-3 border-b border-[rgba(255,255,255,0.065)] flex items-center justify-between">
                   <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest font-sans">REPUTATION REPORT</span>
@@ -5099,9 +5261,13 @@ let champion = null;
                     </div>
 
                     {/* BOTTOM AREA — hint while playing, advance button once the series is won. Below the grid, so winning never shifts the cards. */}
-                    {activeMatch.status === 'playing' && (
-                      <p className="text-xs sm:text-sm text-slate-400 font-sans mt-2">Select a card to play the next game (Best-of-7)</p>
-                    )}
+                    {activeMatch.status === 'playing' && (() => {
+                      const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
+                      const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
+                      return (
+                        <p className="text-xs sm:text-sm text-slate-400 font-sans mt-2">Select a card to play the next game ({formatText})</p>
+                      );
+                    })()}
                     {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
                       <button
                         onClick={advancePlayoffRound}
@@ -5166,51 +5332,6 @@ let champion = null;
           const semiOpponent = hostTeam.name !== playerTeamName ? hostTeam.name : (player.league === 'OHL' ? whlChamp : ohlChamp);
           const finalOpponent = player.league === 'OHL' ? whlChamp : (player.league === 'WHL' ? qmjhlChamp : ohlChamp);
           const currentOpponent = !isFinal ? semiOpponent : finalOpponent;
-
-          // DYNAMIC MEMORIAL CUP CHOICES (SEMI-FINAL VS FINAL)
-          let choices = [];
-          if (!isFinal) {
-             // SEMI-FINAL: Tactical, survival, securing the spot
-             choices = player.pos === 'G' ? [
-                { label: 'Play the Percentages', tag: 'POSITIONING', chance: 0.65 + player.skating / 200, desc: 'Safe & steady. Rely on your positioning to absorb shots without risky rebounds.', successMsg: 'You played a flawless, quiet game. No rebounds, no mistakes.', failMsg: 'You played too deep in your crease and got beat clean on a screen.' },
-                { label: 'Bait the Cross-Ice Pass', tag: 'HOCKEY IQ + REFLEXES', chance: 0.50 + (player.hockeyIQ + player.shooting) / 400, desc: 'High risk. Leave a lane open to force a pass, then snap it up.', successMsg: 'You read the play perfectly and made a sliding toe save that broke their spirit!', failMsg: 'You misjudged the speed of the pass and got burned on the backdoor tap-in.' },
-                { label: 'Aggressive Puck Tracking', tag: 'AGILITY', chance: 0.55 + player.physicality / 200, desc: 'Moderate risk. Challenge shooters aggressively at the top of the crease.', successMsg: 'You made yourself massive, suffocating all their shooting angles.', failMsg: 'You overcommitted and got deked out of your skates.' }
-             ] : [
-                { label: 'Cycle & Control the Clock', tag: 'HOCKEY IQ', chance: 0.65 + player.hockeyIQ / 200, desc: 'Safe. Keep the puck deep, grind down their defense, and limit turnovers.', successMsg: 'A masterclass in puck possession. You drained the clock and secured the win.', failMsg: 'A miscommunication on the cycle led to a lethal counter-attack.' },
-                { label: 'Pinch Hard on the Blue Line', tag: 'SKATING + PHY', chance: 0.50 + (player.skating + player.physicality) / 400, desc: 'High risk. Step up to keep the play alive, risking an odd-man rush.', successMsg: 'Your aggressive pinch trapped them in their zone and led to the game-winning goal!', failMsg: 'You missed the pinch, giving up a 2-on-1 that ended your season.' },
-                { label: 'Crash the Crease', tag: 'PHYSICALITY', chance: 0.55 + player.physicality / 200, desc: 'Moderate risk. Drive the net hard looking for ugly rebound goals.', successMsg: 'You battled through cross-checks and slammed home a gritty rebound!', failMsg: 'You took a goalie interference penalty at the worst possible time.' }
-             ];
-          } else {
-             // CHAMPIONSHIP FINAL: Heroics, legacy, leaving it all on the line
-             choices = player.pos === 'G' ? [
-                { label: 'Sacrifice the Body', tag: 'STAMINA', chance: 0.65 + player.stamina / 200, desc: 'Safe. Fight through screens and take heavy shots off the collarbone.', successMsg: 'You battled through pure exhaustion to shut the door in the 3rd period!', failMsg: 'Your legs gave out late in the game, letting a soft one squeak through.' },
-                { label: 'Desperation Heroics', tag: 'REFLEXES + AGI', chance: 0.45 + (player.shooting + player.physicality) / 400, desc: 'High risk. Unorthodox, acrobatic saves to steal a game you have no business winning.', successMsg: 'A WINDMILL GLOVE SAVE IN THE DYING SECONDS! YOU ARE A LEGEND!', failMsg: 'You flopped trying to make a highlight reel save and left the net wide open.' },
-                { label: 'Command the Defense', tag: 'HOCKEY IQ', chance: 0.55 + player.hockeyIQ / 200, desc: 'Moderate risk. Vocal leadership to lock down the neutral zone.', successMsg: 'Your communication was elite. They couldn\'t get a single high-danger chance.', failMsg: 'A breakdown in communication resulted in a friendly-fire deflection.' }
-             ] : [
-                { label: 'Sacrifice for the Crest', tag: 'STAMINA + PHY', chance: 0.65 + (player.stamina + player.physicality) / 400, desc: 'Safe. Block shots, take hits to make plays, empty the tank.', successMsg: 'You blocked three shots in the final minute! A warrior performance!', failMsg: 'You got injured blocking a shot and had to watch the final period from the bench.' },
-                { label: 'Put the Team on Your Back', tag: 'SHOOTING + SKATING', chance: 0.45 + (player.shooting + player.skating) / 400, desc: 'High risk. Demand the puck, attempt highlight-reel moves to break the tie.', successMsg: 'YOU WENT END-TO-END! A HEROIC GAME-WINNING GOAL FOR THE CUP!', failMsg: 'You tried to do too much, turned it over, and cost your team the championship.' },
-                { label: 'Thread the Needle', tag: 'HOCKEY IQ', chance: 0.55 + player.hockeyIQ / 200, desc: 'Moderate risk. Look for high-danger cross-ice passes to your snipers.', successMsg: 'A beautiful no-look pass set up the championship-winning one-timer!', failMsg: 'Your pass was telegraphed and intercepted for a breakaway.' }
-             ];
-          }
-
-          const handleChoice = (c) => {
-            const success = Math.random() < c.chance;
-            if (success) {
-              if (!isFinal) {
-                setMemCup({ round: 0, status: 'semi_won', lastFeedback: c.successMsg });
-              } else {
-                setMemCup({ round: 1, status: 'won', lastFeedback: c.successMsg });
-                setPlayer(p => ({
-                  ...p,
-                  idolatry: capIdol(p.idolatry + 50),
-                  stats: { ...p.stats, memCupBoost: 50, titles: (p.stats.titles || 0) + 1 }
-                }));
-                unlockAchievement('mem_cup');
-              }
-            } else {
-              setMemCup({ ...memCup, status: 'lost', lastFeedback: c.failMsg });
-            }
-          };
 
           return (
             <div className="game-panel p-4 sm:p-10 mt-2 border-t-2 border-t-[#F59E0B] flex flex-col items-center">
@@ -5307,43 +5428,18 @@ let champion = null;
                     </h3>
                   </div>
 
-                  {isFinal ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {choices.map((c, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleChoice(c)}
-                          className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] hover:border-[#F59E0B] p-4 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-between group"
-                        >
-                          <div>
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider font-sans border border-[#F59E0B]/30 px-2 py-0.5 rounded bg-[#F59E0B]/10">
-                                {c.tag}
-                              </span>
-                              <span className="text-xs font-black text-slate-400 sports-font">
-                                {Math.round(c.chance * 100)}%
-                              </span>
-                            </div>
-                            <h4 className="text-sm font-black text-white sports-font uppercase group-hover:text-[#F59E0B] transition-colors mb-1">
-                              {c.label}
-                            </h4>
-                            <p className="text-[10px] text-slate-400 font-sans leading-tight">
-                              {c.desc}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-[#1a2230] border border-[#3b82f6]/30 rounded-xl p-6 sm:p-8 text-center shadow-lg">
-                       <div className="text-4xl mb-4 animate-bounce">🏒</div>
-                       <h4 className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-3">LIVE MINIGAME SCENARIO</h4>
-                       <p className="text-sm sm:text-base text-slate-300 font-sans mb-8 max-w-lg mx-auto">The Semi-Final is a do-or-die elimination game. Step onto the ice and complete a live interactive minigame to secure your spot in the Championship Final!</p>
-                       <button onClick={() => triggerMinigame('memcup')} className="btn-primary py-4 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest shadow-[0_0_15px_rgba(34,231,75,0.3)] hover:scale-105 transition-transform cursor-pointer">
-                          ENTER SEMI-FINAL SCENARIO
-                       </button>
-                    </div>
-                  )}
+                  <div className={`bg-[#1a2230] border ${isFinal ? 'border-[#F59E0B]/50 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-[#3b82f6]/30 shadow-lg'} rounded-xl p-6 sm:p-8 text-center`}>
+                     <div className="text-4xl mb-4 animate-bounce">{isFinal ? '🏆' : '🏒'}</div>
+                     <h4 className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-3">LIVE MINIGAME SCENARIO</h4>
+                     <p className="text-sm sm:text-base text-slate-300 font-sans mb-8 max-w-lg mx-auto">
+                       {isFinal 
+                         ? "This is for all the glory. Step onto the ice and complete a live interactive scenario to win the Memorial Cup!" 
+                         : "The Semi-Final is a do-or-die elimination game. Step onto the ice and complete a live interactive scenario to secure your spot in the Championship Final!"}
+                     </p>
+                     <button onClick={() => triggerMinigame('memcup')} className={`py-4 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer ${isFinal ? 'shadow-[0_0_15px_rgba(245,158,11,0.3)] bg-[#F59E0B] text-black hover:bg-[#d97706]' : 'btn-primary shadow-[0_0_15px_rgba(34,231,75,0.3)]'}`}>
+                        {isFinal ? 'ENTER CHAMPIONSHIP SCENARIO' : 'ENTER SEMI-FINAL SCENARIO'}
+                     </button>
+                  </div>
                 </div>
               )}
 
@@ -5538,44 +5634,62 @@ let champion = null;
             </div>
           </div>
         )}
-{screen === 'negotiation' && (() => {
-          const getCardName = (val) => {
-             if (val === 11) return 'J';
-             if (val === 12) return 'Q';
-             if (val === 13) return 'K';
-             if (val === 1) return 'A';
-             return val;
-          };
-
+        
+        {screen === 'negotiation' && (() => {
           return (
             <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#F59E0B] text-center max-w-xl mx-auto">
               <h2 className="text-3xl sm:text-4xl font-black text-white uppercase mb-2 sports-font tracking-wide">CONTRACT NEGOTIATION</h2>
               <p className="text-sm sm:text-base text-slate-400 font-sans mb-8">{negotiation.msg}</p>
 
               <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-2xl p-6 sm:p-8 mb-8 shadow-inner flex flex-col items-center">
-                 <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">CURRENT OFFER</p>
-                 <p className={`text-4xl sm:text-5xl font-black sports-font mb-6 transition-colors ${negotiation.currentSalary > negotiation.originalOffer.salary ? 'text-[#22E748]' : negotiation.currentSalary < negotiation.originalOffer.salary ? 'text-[#ef4444]' : 'text-white'}`}>
+                 <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">ON THE TABLE</p>
+                 <p className={`text-4xl sm:text-5xl font-black number-font mb-6 transition-colors ${negotiation.currentSalary > negotiation.originalOffer.salary ? 'text-[#22E748]' : negotiation.currentSalary < negotiation.originalOffer.salary ? 'text-[#ef4444]' : 'text-white'}`}>
                    {formatMoney(negotiation.currentSalary)}
                  </p>
                  
-                 <div className="w-24 h-36 sm:w-32 sm:h-48 bg-white rounded-xl border-4 border-slate-300 shadow-[0_10px_25px_rgba(0,0,0,0.5)] flex items-center justify-center relative overflow-hidden mb-6">
-                    <span className="absolute top-2 left-3 text-xl sm:text-2xl font-black text-slate-800">{getCardName(negotiation.currentCard)}</span>
-                    <span className="text-5xl sm:text-7xl font-black text-slate-800">{getCardName(negotiation.currentCard)}</span>
-                    <span className="absolute bottom-2 right-3 text-xl sm:text-2xl font-black text-slate-800 rotate-180">{getCardName(negotiation.currentCard)}</span>
+                 {/* GM Patience Meter */}
+                 <div className="w-full mb-6 text-left">
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 font-sans">
+                       <span>GM Patience</span>
+                       <span>{Math.max(0, negotiation.gmPatience)}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
+                       <div 
+                         className={`h-full transition-all duration-300 ${negotiation.gmPatience > 50 ? 'bg-[#22E748]' : negotiation.gmPatience > 20 ? 'bg-[#F59E0B]' : 'bg-[#ef4444]'}`}
+                         style={{ width: `${Math.max(0, negotiation.gmPatience)}%` }}
+                       ></div>
+                    </div>
                  </div>
 
+                 {/* 5-Round Negotiation History Track */}
+                 <div className="flex justify-between gap-2 w-full mb-8">
+                    {[0, 1, 2, 3, 4].map(slot => {
+                       const pastMove = negotiation.history[slot];
+                       return (
+                          <div key={slot} className={`flex-1 h-12 rounded-lg border-2 flex items-center justify-center text-lg transition-all ${
+                             pastMove 
+                               ? (pastMove.success ? 'bg-[#22E748]/10 border-[#22E748]/50 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/50 text-[#ef4444]') 
+                               : 'bg-slate-800 border-slate-700 text-slate-600'
+                          }`}>
+                             {pastMove ? (pastMove.success ? '📈' : '❌') : '-'}
+                          </div>
+                       );
+                    })}
+                 </div>
+
+                 {/* Action Buttons */}
                  {negotiation.status === 'playing' ? (
                    <div className="flex gap-4 w-full">
-                     <button onClick={() => handleNegotiateGuess('lower')} className="flex-1 bg-[#ef4444]/10 border-2 border-[#ef4444]/40 hover:bg-[#ef4444]/20 text-[#ef4444] py-4 rounded-xl font-black sports-font text-xl transition-transform active:scale-95 cursor-pointer">
-                       ⬇ LOWER
+                     <button onClick={() => handleNegotiatePush('safe')} className="flex-1 bg-[#3b82f6]/10 border-2 border-[#3b82f6]/40 hover:bg-[#3b82f6]/20 text-[#3b82f6] py-3 rounded-xl font-black sports-font text-lg transition-transform active:scale-95 cursor-pointer">
+                       SAFE ASK (+3%)
                      </button>
-                     <button onClick={() => handleNegotiateGuess('higher')} className="flex-1 bg-[#22E748]/10 border-2 border-[#22E748]/40 hover:bg-[#22E748]/20 text-[#22E748] py-4 rounded-xl font-black sports-font text-xl transition-transform active:scale-95 cursor-pointer">
-                       ⬆ HIGHER
+                     <button onClick={() => handleNegotiatePush('hardball')} className="flex-1 bg-[#ef4444]/10 border-2 border-[#ef4444]/40 hover:bg-[#ef4444]/20 text-[#ef4444] py-3 rounded-xl font-black sports-font text-lg transition-transform active:scale-95 cursor-pointer">
+                       HARDBALL (+8%)
                      </button>
                    </div>
                  ) : (
-                   <div className="bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font text-xl py-3 px-6 rounded-lg uppercase tracking-widest animate-pulse">
-                     NEGOTIATION FAILED
+                   <div className={`w-full py-3 rounded-lg font-black sports-font text-xl uppercase tracking-widest animate-pulse ${negotiation.status === 'maxed' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/40'}`}>
+                     {negotiation.status === 'maxed' ? 'FINAL OFFER REACHED' : 'GM WALKED AWAY'}
                    </div>
                  )}
               </div>

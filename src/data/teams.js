@@ -394,15 +394,20 @@ export const getOpponentPool = (league) => {
 
 export const getDeployment = (ovr, pos, league) => {
   if (pos === 'G') return ovr >= 82 ? 'Starter' : 'Backup';
+  
+  const isDef = pos === 'LD' || pos === 'RD';
+  
   if (league === 'NHL') {
-    if (ovr >= 86) return '1st Line Core';
-    if (ovr >= 81) return '2nd Line Top-Six';
-    if (ovr >= 76) return '3rd Line Depth';
-    return '4th Line Fringe';
+    if (ovr >= 86) return isDef ? '1st Pair Core' : '1st Line Core';
+    if (ovr >= 81) return isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
+    if (ovr >= 76) return isDef ? '3rd Pair Depth' : '3rd Line Depth';
+    return isDef ? '7th D Fringe' : '4th Line Fringe';
   }
-  if (ovr >= 72) return '1st Line Core';
-  if (ovr >= 65) return '2nd Line Top-Six';
-  return '3rd Line Depth';
+  
+  // Amateur / Minor Leagues
+  if (ovr >= 72) return isDef ? '1st Pair Core' : '1st Line Core';
+  if (ovr >= 65) return isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
+  return isDef ? '3rd Pair Depth' : '3rd Line Depth';
 };
 
 export const getPrimaryRival = (teamId, league) => {
