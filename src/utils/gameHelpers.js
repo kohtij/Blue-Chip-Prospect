@@ -51,6 +51,9 @@ export const getActiveStat = (p, stat) => {
   return cap(val);
 };
 
+export const PROMOTE_OVR = 68;
+export const DEMOTE_OVR = 64;
+
 // --- MINIGAME CHOICE MATH ---
 // Turns a minigame choice's archetype into a success probability. This is
 // what makes the three buttons feel like genuinely different bets instead

@@ -1340,6 +1340,29 @@ function App() {
     if (player.age > 38 && player.league === 'NHL') unlockAchievement('veteran_retirement');
   }, [screen]);
 
+  // Set favicon on mount. Runs once.
+  useEffect(() => {
+    let link = document.querySelector("link[rel*='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    link.type = 'image/png';
+    link.href = '/favicon.png';
+  }, []);
+
+  // Keep the browser tab title in sync with what screen the player is on.
+  useEffect(() => {
+    if (screen === 'playoffs') {
+      document.title = "Blue Chip Prospect | Playoffs";
+    } else if (screen === 'transfer') {
+      document.title = "Blue Chip Prospect | Free Agency";
+    } else {
+      document.title = "Blue Chip Prospect";
+    }
+  }, [screen]);
+
   const handleNewGame = () => {
     setPlayer(makeInitialPlayer());
     setSeasonRecap(null);
