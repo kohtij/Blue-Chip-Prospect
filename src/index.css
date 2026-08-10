@@ -1,56 +1,186 @@
+/* Google Fonts must load BEFORE @import "tailwindcss" — Tailwind inlines
+   thousands of rules at that spot, and any @import that appears after
+   real rules is silently ignored by the browser per the CSS spec. */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700;900&family=Kanit:ital,wght@0,700;0,900;1,700;1,900&display=swap');
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Oswald:ital,wght@0,400;0,600;0,700;1,700&display=swap');
+
+/* ============================================================
+   BLUE CHIP PROSPECT — DESIGN SYSTEM (El Idolo–inspired)
+
+   Everything in App.css was empty; this is the single source of
+   truth for styles. Class names you already use in App.jsx
+   (.sports-font, .number-font, .game-panel, .btn-primary,
+    .stat-box, .bluechip-foil, .bluechip-frame-*) are all
+   preserved — several have been visually amped up.
+
+   The new atmosphere comes from four things:
+     1. Kanit on .sports-font, Bebas Neue on .number-font —
+        blockier, more magazine-cover than plain sans
+     2. Radial ambient background on <body> — "stadium under
+        lights" glow behind every screen
+     3. Entry animation on .game-panel — panels drop in instead
+        of just appearing
+     4. Optional utility classes (below) you can layer in for
+        trading-card stamps, mastheads, stat-change flashes,
+        card-drop ceremonies, breaking-news flashes, etc.
+
+   Everything animates, but all animation defers to
+   prefers-reduced-motion at the bottom of the file.
+   ============================================================ */
+
+/* Fonts. Kanit is the display font (aggressive, clean, wide).
+   Bebas Neue is only used for .number-font (numeric displays).
+   Inter is the body font. Nothing else is loaded. */
 
 :root {
+  /* Base palette */
   --page-bg: #040505;
   --header-bg: #050706;
   --card-bg: #090B0A;
+  --card-bg-elevated: #101410;
   --card-border: rgba(255, 255, 255, .065);
-  --green-main: #22E748;
-  --potrero-green: #39FF14;
-  --bg-elevated: #101410;
+
+  /* Accents */
+  --accent-green: #22E748;
+  --accent-green-bright: #39FF14;
   --accent-amber: #F59E0B;
+  --accent-blue: #3b82f6;
+  --accent-red: #ef4444;
+  --accent-gold: #FFD766;
+
+  /* Club colors — populate these from JS per team to tint the
+     ambient background and card frames dynamically. Defaults
+     are your generic green + dark navy so nothing looks broken
+     when they're unset. */
+  --club1: #22E748;
+  --club2: #0d1117;
+
+  /* Score panel & scrollbar */
   --score-panel-bg: rgba(255, 255, 255, .08);
   --score-panel-border: rgba(255, 255, 255, .14);
+
+  /* Motion */
+  --motion-fast: .28s;
+  --motion-med: .42s;
+  --motion-slow: .65s;
 }
 
-body {
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+
+/* Titles, Headers, and Labels */
+.sports-font {
+  font-family: 'Kanit', system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em; 
+  font-weight: 800; 
+  line-height: 0.95; /* Keeps multi-line titles packed tight */
+}
+
+/* OVR, Stats, Money, and Numeric Displays */
+.number-font {
+  font-family: 'Bebas Neue', system-ui, sans-serif !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+.font-sans { font-family: 'Inter', sans-serif; }
+
+.display-skew { display: inline-block; transform: skew(-6deg); }
+
+
+/* ============================================================
+   BASE — body + stadium-glow atmosphere
+   ============================================================ */
+
+html, body, #root {
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--page-bg);
   color: #f8fafc;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(34,231,72,0.055) 0%, transparent 34%),
+    linear-gradient(180deg, #050706 0%, var(--page-bg) 52%, #020303 100%);
 }
 
-.sports-font {
-  font-family: 'Oswald', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
+/* Ambient stage — pinned to viewport, sits behind everything else,
+   picks up club colors when they're populated. This is the biggest
+   single visual upgrade: the game stops being flat black and starts
+   feeling like a stadium under lights. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(120% 70% at 50% -10%,
+      color-mix(in srgb, var(--club1) 22%, transparent) 0%,
+      transparent 60%),
+    radial-gradient(90% 50% at 50% 110%,
+      color-mix(in srgb, var(--club2) 22%, transparent) 0%,
+      transparent 55%);
+  transition: background .8s ease;
+  pointer-events: none;
 }
 
-.font-sans {
-  font-family: 'Inter', sans-serif;
+/* Subtle crowd-noise texture: only visible if you drop a crowd image
+   at /crowd.webp. Won't error if the file is missing. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: url('/crowd.webp');
+  background-size: cover;
+  background-position: center top;
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* Replaces your old glass-card with their exact dark styling */
+
+/* ============================================================
+   PANELS + CORE COMPONENTS
+   ============================================================ */
+
 .game-panel {
-  background-color: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, var(--card-bg-elevated) 0%, var(--card-bg) 38%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  /* Panels drop in on mount — small but big impact on feel */
+  animation: bcp-fade-up .32s ease-out both;
+}
+
+/* The neon-accent bar across the top of every panel */
+.game-panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+  opacity: 0.8;
+  pointer-events: none;
 }
 
 .stat-box {
-  background-color: var(--bg-elevated);
+  background-color: var(--card-bg-elevated);
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }
 
 .btn-primary {
-  background-color: var(--green-main);
+  font-family: 'Bebas Neue', system-ui, sans-serif !important;
+  background-color: var(--accent-green);
   color: #000000;
-  font-weight: 900;
+  font-weight: 400;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   transition: transform 0.2s ease, filter 0.2s ease;
 }
@@ -60,19 +190,294 @@ body {
   transform: scale(1.02);
 }
 
-button {
-  outline: none;
+button { outline: none; }
+button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(34, 231, 72, 0.5);
 }
 
-/* Their exact subtle green scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+/* ============================================================
+   TRADING-CARD SYSTEM — polygon corners, rarity frames, foil,
+   stamps, watermarks. Directly ported from El Idolo.
+   ============================================================ */
+
+/* Angled trading-card silhouette — cuts 14px corners top-left,
+   top-right, bottom-left, bottom-right. Drop this on any panel
+   you want to feel like a physical card (the OVR badge, event
+   verdicts, memcup trophy, etc). */
+.card {
+  position: relative;
+  padding: 3px;
+  clip-path: polygon(
+    14px 0, calc(100% - 14px) 0,
+    100% 14px, 100% calc(100% - 14px),
+    calc(100% - 14px) 100%, 14px 100%,
+    0 calc(100% - 14px), 0 14px
+  );
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(34, 231, 75, 0.14);
-  border-radius: 99px;
+
+.card-inner {
+  clip-path: polygon(
+    12px 0, calc(100% - 12px) 0,
+    100% 12px, 100% calc(100% - 12px),
+    calc(100% - 12px) 100%, 12px 100%,
+    0 calc(100% - 12px), 0 12px
+  );
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--club1) 20%, #10141a),
+    var(--card-bg) 38%);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* Rarity frames — used as the padding wrapper on .card silhouettes,
+   or directly as backgrounds on any element. */
+.bluechip-frame-base   { background: linear-gradient(160deg, #3d434b, #21252b 55%, #343a42); }
+.bluechip-frame-bronze { background: linear-gradient(160deg, #a06a35, #5c3a17 45%, #c98a4b 90%); }
+.bluechip-frame-silver { background: linear-gradient(160deg, #e6edf3, #8a95a1 40%, #cfd9e2 75%, #7f8b97); }
+.bluechip-frame-gold   { background: linear-gradient(160deg, #ffe08a, #b8860b 40%, #ffd766 70%, #8f6a08); }
+.bluechip-frame-icon   { background: linear-gradient(160deg, #ffd766, #101010 30%, #2b2b2b 55%, #ffd766 110%); }
+
+/* Foil shimmer — same as before. .bluechip-foil positions a
+   sweeping highlight via ::after; .bluechip-foil-overlay is a
+   free-standing absolute element you can drop anywhere. */
+@keyframes bluechip-foil {
+  0%   { transform: translate(-150%) skew(-18deg); }
+  100% { transform: translate(300%)  skew(-18deg); }
+}
+
+.bluechip-foil {
+  position: relative;
+  overflow: hidden;
+}
+
+.bluechip-foil:after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 50%;
+  left: 0;
+  background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,.28) 50%, transparent 100%);
+  /* Changed from ease-in-out to linear, and extended the duration slightly for a premium feel */
+  animation: bluechip-foil 2.8s linear infinite;
+  pointer-events: none;
+}
+
+.bluechip-foil-overlay {
+  position: absolute;
+  top: -20%; bottom: -20%;
+  width: 50%;
+  left: 0;
+  background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,.12) 50%, transparent 100%);
+  animation: bluechip-foil 2.8s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Magazine masthead — double-line top border. Drop on any section
+   header for that hockey-newspaper aesthetic. */
+.masthead {
+  border-top: 3px double rgba(255,255,255,.45);
+  border-bottom: 1px solid rgba(255,255,255,.2);
+}
+
+/* Accent-bordered side — "breaking news" outline */
+.outline {
+  border-left: 3px solid color-mix(in srgb, var(--club1) 70%, #ffffff);
+}
+
+/* Corner stamp — small rotated badge for special cards. Use for
+   'ROOKIE', 'DRAFTED', 'CHAMPION' overlays. */
+.stamp {
+  position: absolute;
+  top: 10px;
+  right: -6px;
+  transform: rotate(8deg);
+  font-family: 'Kanit', system-ui, sans-serif;
+  text-transform: uppercase;
+  font-size: .8rem;
+  letter-spacing: .12em;
+  padding: 2px 10px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  opacity: .9;
+  pointer-events: none;
+}
+
+/* Big faded background text — put team name behind stats etc */
+.watermark {
+  position: absolute;
+  right: -6px;
+  bottom: -18px;
+  font-family: 'Kanit', system-ui, sans-serif;
+  font-size: 5.2rem;
+  line-height: 1;
+  color: rgba(255,255,255,0.06);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Crest ghost — huge team logo bleeding off the right edge */
+.crest-watermark {
+  position: absolute;
+  right: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 120%;
+  opacity: .08;
+  pointer-events: none;
+}
+
+/* ============================================================
+   ANIMATION UTILITIES — opt-in, class-based, motion-safe
+   ============================================================ */
+
+/* Entry animations */
+@keyframes bcp-fade-up {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: bcp-fade-up var(--motion-fast) ease-out both; }
+
+@keyframes bcp-pop-in {
+  0%   { opacity: 0; transform: translateY(14px) scale(.97); }
+  70%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pop-in { animation: bcp-pop-in var(--motion-med) cubic-bezier(.22,1,.36,1) both; }
+
+/* Ambient heartbeat pulse — glows in club color, use for the
+   OVR badge on the dashboard or any highlighted card */
+@keyframes bcp-heartbeat {
+  0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--club1) 0%, transparent); }
+  50%      { box-shadow: 0 0 24px 4px color-mix(in srgb, var(--club1) 30%, transparent); }
+}
+.heartbeat { animation: bcp-heartbeat 1.6s ease-in-out infinite; }
+
+/* Level-up bounce — big trigger animation. Slap on a stat that
+   just changed to draw the eye. */
+@keyframes bcp-levelup-bounce {
+  0%   { opacity: 0; transform: scale(.4); }
+  60%  { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.level-up { animation: bcp-levelup-bounce .5s cubic-bezier(.22,1,.36,1) .2s backwards; }
+
+/* Ceremony drop — for trophy/award reveals */
+@keyframes bcp-ceremony-drop {
+  0%   { opacity: 0; transform: translateY(-40px) scale(.6); }
+  60%  { opacity: 1; transform: translateY(6px)   scale(1.08); }
+  100% { opacity: 1; transform: translateY(0)     scale(1); }
+}
+.ceremony-drop { animation: bcp-ceremony-drop .9s cubic-bezier(.22,1,.36,1); }
+
+/* Stat-change flash — apply as a one-shot class when a number
+   goes up or down. React example:
+     className={`number-font ${delta > 0 ? 'stat-up' : delta < 0 ? 'stat-down' : ''}`} */
+@keyframes bcp-stat-up {
+  0%   { transform: translateY(0); }
+  35%  {
+    transform: translateY(-4px);
+    color: var(--accent-green);
+    text-shadow: 0 0 12px rgba(34,231,72,.7);
+  }
+  100% { transform: translateY(0); }
+}
+.stat-up { animation: bcp-stat-up var(--motion-slow) cubic-bezier(.22,1,.36,1); }
+
+@keyframes bcp-stat-down {
+  0%   { transform: translateY(0); }
+  35%  {
+    transform: translateY(4px);
+    color: var(--accent-red);
+    text-shadow: 0 0 12px rgba(248,113,113,.6);
+  }
+  100% { transform: translateY(0); }
+}
+.stat-down { animation: bcp-stat-down var(--motion-slow) cubic-bezier(.22,1,.36,1); }
+
+/* Breaking-news flash — for time-sensitive events (trade deadline,
+   contract expiring, etc). Use sparingly. */
+@keyframes bcp-flash {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+.breaking-news { animation: bcp-flash 1.4s ease-in-out infinite; }
+
+/* Progress-bar fill — for idolatry meter and season progress */
+@keyframes bcp-bar-fill {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+.bar-fill {
+  transform-origin: left center;
+  animation: bcp-bar-fill .8s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Gold-tier ambient glow — for 90+ OVR cards / championship trophies */
+@keyframes bcp-gold-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(245,158,11,.25); }
+  50%      { box-shadow: 0 0 22px rgba(245,158,11,.5); }
+}
+.card-golden { animation: bcp-pop-in .4s cubic-bezier(.22,1,.36,1) both, bcp-gold-pulse 1.6s ease-in-out infinite; }
+
+@keyframes bcp-icon-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(255,215,102,.35); }
+  50%      { box-shadow: 0 0 34px 6px rgba(255,215,102,.65); }
+}
+.card-icon { animation: bcp-pop-in .4s cubic-bezier(.22,1,.36,1) both, bcp-icon-pulse 1.4s ease-in-out infinite; }
+
+/* Dice-roll bounce for the "PRE-SEASON — the dice rolled three
+   upgrades" flavor moment shown in your screenshot */
+@keyframes bcp-dice-roll {
+  0%   { transform: rotate(0)     scale(1); }
+  25%  { transform: rotate(-18deg) scale(1.15); }
+  50%  { transform: rotate(14deg)  scale(1.05); }
+  75%  { transform: rotate(-10deg) scale(1.12); }
+  100% { transform: rotate(0)     scale(1); }
+}
+.dice-roll {
+  display: inline-block;
+  animation: bcp-dice-roll .45s ease-in-out infinite;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));
+}
+
+/* ============================================================
+   CARD-FLIP + SCROLL
+   ============================================================ */
+
+.card-flip { perspective: 1400px; }
+.card-flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform .55s cubic-bezier(.22,.61,.36,1);
+}
+.card-flip-inner.is-flipped { transform: rotateY(180deg); }
+.card-flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.card-flip-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+
+/* Slim scrollbar */
+::-webkit-scrollbar          { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb    { background: rgba(34, 231, 75, 0.14); border-radius: 99px; }
+::-webkit-scrollbar-track    { background: transparent; }
+
+/* ============================================================
+   REDUCED MOTION — honor user preference across the whole system
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .game-panel,
+  .fade-up, .pop-in, .heartbeat, .level-up, .ceremony-drop,
+  .stat-up, .stat-down, .breaking-news, .bar-fill,
+  .card-golden, .card-icon, .dice-roll {
+    animation: none;
+  }
+  .bluechip-foil:after,
+  .bluechip-foil-overlay {
+    display: none;
+  }
+  .card-flip-inner {
+    transition: none;
+  }
+  .btn-primary:hover {
+    transform: none;
+  }
 }

@@ -148,8 +148,10 @@ export function simulateSeason(player, trainingEffect = {}) {
 
   const isJuniorLg = juniorLeagues.includes(currentLg);
   const isEuroLg = euroLeagues.includes(currentLg);
+  const isNCAA = currentLg === 'NCAA';
 
-  if (!isJuniorLg && !isEuroLg) {
+  // Prevent auto-promotion/demotion for NCAA players
+  if (!isJuniorLg && !isEuroLg && !isNCAA) {
     if (p.ovr >= PROMOTE_OVR) {
       if (currentLg === 'AHL') {
         waiverEvent = 'You had a great camp and earned a call-up to the NHL roster!';
@@ -177,6 +179,9 @@ export function simulateSeason(player, trainingEffect = {}) {
   let simIq = getActiveStat(p, 'hockeyIQ') + (trainingEffect.hockeyIQ || 0);
   let simSta = getActiveStat(p, 'stamina') + (trainingEffect.stamina || 0);
 
+  // Give NCAA players the same simulation stat bump as CHL players
+  if (isJuniorLg || isNCAA) { simSht += 25; simSkt += 25; simIq += 25; simPhy += 25; simSta += 25; }
+  if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; simSta += 15; }
   if (isJuniorLg) { simSht += 25; simSkt += 25; simIq += 25; simPhy += 25; simSta += 25; }
   if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; simSta += 15; }
   if (isEuroLg) { simSht += 10; simSkt += 10; simIq += 10; simPhy += 10; simSta += 10; }
@@ -222,7 +227,8 @@ export function simulateSeason(player, trainingEffect = {}) {
     pm = Math.floor((simPhy + simIq + simSta - 180) * 0.4) + Math.floor(Math.random() * 20 - 10);
     baseImpact = pm * 0.5;
   } else if (p.pos === 'C') {
-    g = Math.floor(Math.max(0, (simSht - 63) * 1.4)) + Math.floor(Math.random() * 10);
+    // FIX: Centers can snipe now. Lowered the threshold and raised the multiplier.
+    g = Math.floor(Math.max(0, (simSht - 60) * 1.5)) + Math.floor(Math.random() * 12);
     a = Math.floor(Math.max(0, (simIq - 63) * 1.2 + (simSkt - 63) * 0.6)) + Math.floor(Math.random() * 12);
     pm = Math.floor((simPhy + simIq + simSta - 165) * 0.4) + Math.floor(Math.random() * 15 - 5);
     baseImpact = (g + a + pm * 1.5) * 0.2;
@@ -233,7 +239,7 @@ export function simulateSeason(player, trainingEffect = {}) {
     baseImpact = (g + a) * 0.25;
   }
 
-let rating = p.pos === 'G'
+  let rating = p.pos === 'G'
     ? Math.min(10, Math.max(1, 5.0 + (saves / shots - 0.900) * 100))
     : Math.min(10, Math.max(1, 5.0 + (g + a + pm * 0.5) / games * 5));
   rating = Number(rating.toFixed(1));
@@ -289,6 +295,20 @@ let rating = p.pos === 'G'
     if (player.stats?.seasonsPlayed === 1 && Math.random() < 0.50) awards.push('Calder Trophy');
   }
 
+  // FIX: ALL-STAR SELECTIONS
+  if (rating >= 8.5) {
+    if (player.league === 'NHL') {
+      awards.push('NHL All-Star');
+      if (rating >= 9.2) awards.push('1st Team All-Star');
+    } else if (['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
+      awards.push(`${player.league} 1st All-Star Team`);
+    } else if (player.league === 'NCAA') {
+      awards.push('1st Team All-American');
+    } else {
+      awards.push(`${player.league} All-Star`);
+    }
+  }
+
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
     currentLg = 'NHL';
     const currentAhlTeam = ahlTeams.find(t => t.id === currentTeam);
@@ -313,7 +333,10 @@ let rating = p.pos === 'G'
     const baseStanding = teamCount - Math.floor((p.ovr - 60) * 0.4 + baseImpact);
     standings = Math.max(1, Math.min(teamCount, baseStanding - Math.floor(Math.random() * 8)));
   } else {
-    const baseStanding = teamCount - Math.floor((p.ovr - 55) * 0.5 + baseImpact);
+    // FIX: NCAA has a massive team pool (60+). We increase your player's impact multiplier 
+    // heavily so you can actually drag your college program into the top 16.
+    const impactMultiplier = currentLg === 'NCAA' ? 1.0 : 0.5;
+    const baseStanding = teamCount - Math.floor((p.ovr - 55) * impactMultiplier + baseImpact);
     standings = Math.max(1, Math.min(teamCount, baseStanding - Math.floor(Math.random() * 6)));
   }
   const madePlayoffs = !isEuroLg && standings <= playoffSpots;
@@ -384,6 +407,7 @@ let rating = p.pos === 'G'
   // Apply a minor age penalty if they are actively declining
   if (declineMod < 1) newVal = Math.max(50000, newVal - 500000);
   const nextOvr = recomputeOvr({ shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
+  const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 
   // Sort stats into the correct bucket based on the current league
   const statBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLg) ? 'chl' : (currentLg === 'AHL' ? 'ahl' : 'nhl');
@@ -396,6 +420,7 @@ let rating = p.pos === 'G'
     contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
+      peakOvr: newPeakOvr,
       seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,
       [statBucket]: {
         games: (p.stats[statBucket]?.games || 0) + games,

@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import './App.css';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, ahlTeams, shlTeams, liigaTeams, ncaaTeams,
   nationalities, juniorLeagues, euroLeagues, LEAGUE_CONFIG,
@@ -39,14 +38,20 @@ const makeInitialPlayer = () => ({
   idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: [], rights: null, startLeague: 'OHL',
   // Storyline & generational trackers
   isGenerational: false,
-  archRival: null,
-  storylines: { rival: 0, lockerRoom: 0, hometown: 0, injury: 0 }
+  nemesisName: null,
+  duoName: null,
+  storylines: { mediaNemesis: 0, franchiseDuo: 0, lockerRoom: 0, hometown: 0, injury: 0 }
 });
 
 // Role classifier used by generateOffers. Hoisted from inside the function
 // so the definition isn't reallocated on every offer generation.
 const getRole = (salary, p) => {
-  if (p.pos === 'G') return salary > 3500000 ? 'Starter' : 'Backup';
+  if (p.pos === 'G') {
+     if (p.ovr >= 85 || salary > 5000000) return 'Franchise Starter';
+     if (p.ovr >= 80 || salary > 3500000) return 'Starter';
+     if (p.ovr >= 75) return '1B / Tandem';
+     return 'Backup';
+  }
 
   const isPhysical = p.physicality > p.skating;
   const isShooter = p.shooting > p.hockeyIQ && p.shooting > p.skating;
@@ -197,10 +202,22 @@ const PRESS_VIBES = {
 };
 
 const PRESS_JOURNALISTS = [
-  { id: 'professional', name: 'The Veteran Beat Writer', desc: 'Old-school and institutional. They want MEASURED and FORMAL answers.' },
-  { id: 'passionate',   name: 'The Local Fanatic', desc: 'Wears their heart on their sleeve. They want to see FIRE and PASSION for the city.' },
-  { id: 'humble',       name: 'The Character Analyst', desc: 'Values team culture above all. They look for TEAM-FIRST, HUMBLE responses.' },
-  { id: 'cocky',        name: 'The Tabloid Stirrer', desc: 'Looking for a controversial headline. They thrive on CONFIDENCE and ARROGANCE.' }
+  // THE PROFESSIONALS
+  { id: 'professional', name: 'Pierre LeBrun', outlet: 'The Athletic', desc: 'Old-school and institutional. Wants MEASURED and FORMAL answers.' },
+  { id: 'professional', name: 'Darren Dreger', outlet: 'TSN', desc: 'Mainstream and neutral. Looks for SAFE, MEASURED answers.' },
+  { id: 'professional', name: 'Emily Kaplan', outlet: 'ESPN', desc: 'Highly respected national reporter. Prefers THOUGHTFUL, PROFESSIONAL answers.' },
+
+  // THE PASSIONATE
+  { id: 'passionate', name: 'Steve Dangle', outlet: 'SDPN', desc: 'Wears his heart on his sleeve. Wants FIRE and PASSION for the city.' },
+  { id: 'passionate', name: 'Garnet Thorne', outlet: 'Local Beat', desc: 'Fiercely protective of the home team. Wants to see EMOTION and DRIVE.' },
+  
+  // THE HUMBLE
+  { id: 'humble', name: 'Sarah Lindqvist', outlet: 'EuroHockey Weekly', desc: 'Values team culture and locker room harmony. Looks for TEAM-FIRST, HUMBLE responses.' },
+  { id: 'humble', name: 'Dom Luszczyszyn', outlet: 'The Athletic', desc: 'Analytics heavy and realistic. Appreciates SELF-AWARENESS and HUMILITY.' },
+  
+  // THE COCKY
+  { id: 'cocky', name: 'Larry Brooks', outlet: 'NY Post', desc: 'Looking for a controversial headline. Thrives on CONFIDENCE and ARROGANCE.' },
+  { id: 'cocky', name: 'Marcus Vance', outlet: 'Puck Digest', desc: 'Hot-take radio host. Wants BOLD PREDICTIONS and COCKY soundbites.' }
 ];
 
 const PRESS_QUESTIONS = [
@@ -208,13 +225,28 @@ const PRESS_QUESTIONS = [
   { q: "Tough loss tonight. What went wrong out there on the ice?", answers: { professional: "We need to review the tape and execute our system better.", passionate: "We didn't battle hard enough. That's unacceptable for our fans.", humble: "I need to be better. This one is on my shoulders.", cocky: "A lucky bounce for them. We're still the better team." } },
   { q: "Rumors are swirling about a divide in the locker room. Any comments?", answers: { professional: "We handle our business internally. No comment.", passionate: "We're a family! Anyone saying otherwise is a liar.", humble: "We're just focused on working hard for each other every day.", cocky: "Let them talk. Winning cures everything, and we win." } },
   { q: "How do you feel about your upcoming matchup against your rivals?", answers: { professional: "They are a well-coached team. We need to be prepared.", passionate: "It's war. We know what this game means to the city.", humble: "It'll be a tough test. We respect them a lot.", cocky: "We're going to completely dismantle them." } },
-  { q: "The coach benched you in the 3rd period last game. Your thoughts?", answers: { professional: "Coach makes the decisions. I just play.", passionate: "I was furious! I want to be out there helping the team win.", humble: "He made the right call. I wasn't playing my best hockey.", cocky: "It was a mistake taking me off the ice. I'm the game changer." } }
+  { q: "The coach benched you in the 3rd period last game. Your thoughts?", answers: { professional: "Coach makes the decisions. I just play.", passionate: "I was furious! I want to be out there helping the team win.", humble: "He made the right call. I wasn't playing my best hockey.", cocky: "It was a mistake taking me off the ice. I'm the game changer." } },
+  { q: "You've been on a cold streak offensively. Is it time to change your approach?", answers: { professional: "I'll keep working with the coaching staff and making adjustments.", passionate: "I'm incredibly frustrated. I need to battle harder in the corners.", humble: "My linemates are playing well, I just need to start finishing their passes.", cocky: "A cold streak? Please. The floodgates are going to open any second now." } },
+  { q: "The fans were booing the team as you left the ice. Is that fair?", answers: { professional: "They pay good money for tickets. We need to deliver a better product.", passionate: "They have every right to be angry! We share that exact same anger.", humble: "We let them down tonight. We have to earn their support back.", cocky: "They can boo all they want. Real ones know what we're building here." } },
+  { q: "Your name has been floating around in trade rumors recently. Does that affect you?", answers: { professional: "I don't control the roster. I just show up to work every day.", passionate: "I love this city! I'll fight tooth and nail to stay in this uniform.", humble: "It's a business, but I'm incredibly grateful for my time in this locker room.", cocky: "If they trade me, it'll be the biggest mistake this franchise ever makes." } },
+  { q: "The league is cracking down on physical play. Do you need to change your game?", answers: { professional: "We will adapt to the standard the referees set on the ice.", passionate: "Hockey is a physical, violent game. We can't lose that edge!", humble: "I'll try to play smarter and ensure I'm not putting my team on the penalty kill.", cocky: "I play my game, my way. Let the refs try and slow me down." } },
+  { q: "A young rookie is debuting for your team tonight. What advice did you give him?", answers: { professional: "Keep your shifts short, execute the system, and stay focused.", passionate: "Leave it all on the ice! You only get one first game!", humble: "We told him to just breathe. The whole locker room has his back tonight.", cocky: "I told him to just watch me and try to keep up." } },
+  { q: "You took a bad penalty late in the game that cost the team. What happened?", answers: { professional: "It was a misplay on my part. I have to be more disciplined.", passionate: "I was just trying to defend my goalie! I'll never apologize for that.", humble: "I completely let the guys down. I owe the penalty kill unit an apology.", cocky: "It was a terrible call by the ref. That's a phantom penalty." } },
+  { q: "Your team is riding a massive winning streak. How do you keep it going?", answers: { professional: "We take it one game at a time and don't look ahead of the schedule.", passionate: "The vibes are immaculate right now! We feel completely unstoppable!", humble: "Everyone is just buying into their roles and playing for the logo on the front.", cocky: "We're simply better than everyone else in this division right now." } },
+  { q: "You're entering the final year of your contract. Are you thinking about an extension?", answers: { professional: "I leave all contract talks to my agent so I can focus on hockey.", passionate: "I want to be here for the rest of my career! Let's get it done!", humble: "I'm just blessed to be playing in this league. The rest will sort itself out.", cocky: "I'm focused on having a career year. The price is going up every game." } },
+  { q: "The opposing coach called your team's style 'dirty'. Do you have a response?", answers: { professional: "We play a heavy, structured game. I don't agree with his assessment.", passionate: "If they don't like getting hit, they should go play a different sport!", humble: "We respect their team, but we're going to play hard between the whistles.", cocky: "Sounds like an excuse from a coach who knows he's about to get swept." } },
+  { q: "You just broke a franchise record tonight. How does it feel?", answers: { professional: "It's an honor, but individual stats don't mean much without a win.", passionate: "This is the greatest night of my life! I love this city!", humble: "I couldn't have done it without the incredible players I've shared the ice with.", cocky: "It was only a matter of time. I plan on breaking a few more before I'm done." } }
 ];
 
 const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) => {
   const [imgError, setImgError] = useState(false);
-  const isNHL = league === 'NHL' && !isAHL && (nhlTeams || []).some(t => t.id === teamId);
 
+  // RESET ERROR STATE WHEN CHANGING TEAMS
+  useEffect(() => {
+    setImgError(false);
+  }, [teamId]);
+
+  const isNHL = league === 'NHL' && !isAHL && (nhlTeams || []).some(t => t.id === teamId);  
   let team = getTeamData(teamId, league);
   const finalLogoUrl = team ? team.logo : null;
 
@@ -274,121 +306,142 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
 };
 
 const TrophySVG = ({ league, className = "w-24 h-24 sm:w-32 sm:h-32" }) => {
-  // SVG gradients for metallic and wood finishes
-  const silverGradient = (
-    <linearGradient id="silver" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stopColor="#e2e8f0" />
-      <stop offset="20%" stopColor="#f8fafc" />
-      <stop offset="50%" stopColor="#94a3b8" />
-      <stop offset="80%" stopColor="#f1f5f9" />
-      <stop offset="100%" stopColor="#cbd5e1" />
-    </linearGradient>
-  );
+  // Generate a unique ID prefix so SVG gradients don't collide and turn black!
+  const uid = useMemo(() => Math.random().toString(36).substring(2, 9), []);
 
-  const darkSilver = (
-    <linearGradient id="darkSilver" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stopColor="#94a3b8" />
-      <stop offset="50%" stopColor="#cbd5e1" />
-      <stop offset="100%" stopColor="#64748b" />
-    </linearGradient>
-  );
+  const silver = `url(#silver-${uid})`;
+  const darkSilver = `url(#darkSilver-${uid})`;
+  const wood = `url(#wood-${uid})`;
+  const gold = `url(#gold-${uid})`;
 
-  const woodGradient = (
-    <linearGradient id="wood" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stopColor="#451a03" />
-      <stop offset="50%" stopColor="#78350f" />
-      <stop offset="100%" stopColor="#451a03" />
-    </linearGradient>
-  );
-
-  const goldGradient = (
-    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stopColor="#d97706" />
-      <stop offset="25%" stopColor="#fcd34d" />
-      <stop offset="50%" stopColor="#b45309" />
-      <stop offset="75%" stopColor="#fde68a" />
-      <stop offset="100%" stopColor="#d97706" />
-    </linearGradient>
-  );
-
-  if (league === 'NHL') {
-    // THE STANLEY CUP
-    return (
-      <svg viewBox="0 0 100 120" className={`drop-shadow-[0_10px_15px_rgba(255,255,255,0.15)] ${className}`}>
-        <defs>{silverGradient}{darkSilver}</defs>
-        {/* Tiered Base */}
-        <path d="M 25 115 L 75 115 L 70 90 L 30 90 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <path d="M 30 90 L 70 90 L 65 70 L 35 70 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <path d="M 35 70 L 65 70 L 60 55 L 40 55 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <path d="M 40 55 L 60 55 L 57 45 L 43 45 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <path d="M 43 45 L 57 45 L 55 35 L 45 35 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        {/* Stem & Collar */}
-        <rect x="46" y="28" width="8" height="7" fill="url(#darkSilver)" stroke="#64748b" strokeWidth="0.5"/>
-        <path d="M 35 28 L 65 28 L 60 22 L 40 22 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        {/* Classic Bowl */}
-        <path d="M 20 10 C 20 30 80 30 80 10 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <ellipse cx="50" cy="10" rx="30" ry="4" fill="url(#darkSilver)" stroke="#cbd5e1" strokeWidth="0.5"/>
-      </svg>
-    );
-  }
-
-  if (league === 'AHL') {
-    // THE CALDER CUP
-    return (
-      <svg viewBox="0 0 100 120" className={`drop-shadow-2xl ${className}`}>
-        <defs>{silverGradient}{woodGradient}{darkSilver}</defs>
-        {/* Wooden Base */}
-        <rect x="25" y="85" width="50" height="30" fill="url(#wood)" rx="2"/>
-        <rect x="35" y="70" width="30" height="15" fill="url(#wood)" />
-        <path d="M 25 85 L 35 70 L 65 70 L 75 85 Z" fill="url(#wood)" opacity="0.8"/>
-        {/* Plaque & Stem */}
-        <rect x="40" y="90" width="20" height="15" fill="url(#silver)" rx="1" />
-        <path d="M 46 70 L 54 70 L 52 45 L 48 45 Z" fill="url(#silver)"/>
-        {/* Shallow Bowl & Lid */}
-        <path d="M 15 35 C 15 60 85 60 85 35 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <ellipse cx="50" cy="35" rx="35" ry="6" fill="url(#darkSilver)"/>
-        <path d="M 15 35 C 30 15 70 15 85 35 Z" fill="url(#silver)"/>
-        <circle cx="50" cy="18" r="3" fill="url(#darkSilver)"/>
-      </svg>
-    );
-  }
-
-  if (['OHL', 'WHL', 'QMJHL'].includes(league)) {
-    // THE MEMORIAL CUP
-    return (
-      <svg viewBox="0 0 100 120" className={`drop-shadow-2xl ${className}`}>
-        <defs>{silverGradient}{darkSilver}{woodGradient}</defs>
-        {/* Tiered Wood Base */}
-        <path d="M 20 115 L 80 115 L 75 95 L 25 95 Z" fill="url(#wood)"/>
-        <path d="M 25 95 L 75 95 L 70 85 L 30 85 Z" fill="url(#wood)" opacity="0.8"/>
-        {/* Stem */}
-        <path d="M 40 85 L 60 85 L 55 55 L 45 55 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        {/* Ornate Handles */}
-        <path d="M 30 30 C 5 30 15 65 35 55" fill="none" stroke="url(#silver)" strokeWidth="4" strokeLinecap="round"/>
-        <path d="M 70 30 C 95 30 85 65 65 55" fill="none" stroke="url(#silver)" strokeWidth="4" strokeLinecap="round"/>
-        {/* Deep Bowl */}
-        <path d="M 25 15 C 25 70 75 70 75 15 Z" fill="url(#silver)" stroke="#64748b" strokeWidth="0.5"/>
-        <ellipse cx="50" cy="15" rx="25" ry="5" fill="url(#darkSilver)"/>
-        <path d="M 25 15 C 35 5 65 5 75 15 Z" fill="url(#silver)"/>
-        <circle cx="50" cy="8" r="2.5" fill="url(#darkSilver)"/>
-      </svg>
-    );
-  }
-
-  // GENERIC CHAMPIONSHIP GOLD CUP (NCAA/Europe)
   return (
-    <svg viewBox="0 0 100 120" className={`drop-shadow-[0_0_15px_rgba(245,158,11,0.3)] ${className}`}>
-      <defs>{goldGradient}{woodGradient}</defs>
-      {/* Wood Base */}
-      <rect x="25" y="105" width="50" height="15" fill="url(#wood)" rx="2"/>
-      <path d="M 35 105 L 45 75 L 55 75 L 65 105 Z" fill="url(#gold)"/>
-      {/* Handles */}
-      <path d="M 25 30 C -5 30 10 70 35 65" fill="none" stroke="url(#gold)" strokeWidth="4" strokeLinecap="round"/>
-      <path d="M 75 30 C 105 30 90 70 65 65" fill="none" stroke="url(#gold)" strokeWidth="4" strokeLinecap="round"/>
-      {/* Bowl */}
-      <path d="M 20 20 C 20 80 80 80 80 20 Z" fill="url(#gold)"/>
-      <ellipse cx="50" cy="20" rx="30" ry="8" fill="#b45309"/>
+    <svg viewBox="0 0 100 120" className={`transform-gpu ${className}`}>
+      <defs>
+        <linearGradient id={`silver-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#cbd5e1" />
+          <stop offset="25%" stopColor="#f8fafc" />
+          <stop offset="50%" stopColor="#94a3b8" />
+          <stop offset="75%" stopColor="#f1f5f9" />
+          <stop offset="100%" stopColor="#64748b" />
+        </linearGradient>
+        <linearGradient id={`darkSilver-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#64748b" />
+          <stop offset="50%" stopColor="#94a3b8" />
+          <stop offset="100%" stopColor="#475569" />
+        </linearGradient>
+        <linearGradient id={`wood-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#271001" />
+          <stop offset="50%" stopColor="#5c2b07" />
+          <stop offset="100%" stopColor="#271001" />
+        </linearGradient>
+        <linearGradient id={`gold-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#b45309" />
+          <stop offset="25%" stopColor="#fde68a" />
+          <stop offset="50%" stopColor="#d97706" />
+          <stop offset="75%" stopColor="#fcd34d" />
+          <stop offset="100%" stopColor="#92400e" />
+        </linearGradient>
+      </defs>
+
+      {league === 'NHL' && (
+        <g className="drop-shadow-[0_10px_20px_rgba(255,255,255,0.25)]">
+          {/* THE STANLEY CUP - Iconic 5 Tiers */}
+          <path d="M 22 115 L 78 115 L 75 95 L 25 95 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          <path d="M 25 95 L 75 95 L 72 75 L 28 75 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          <path d="M 28 75 L 72 75 L 67 55 L 33 55 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          {/* Neck */}
+          <path d="M 42 55 L 58 55 L 56 35 L 44 35 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          {/* Main Bowl */}
+          <path d="M 15 15 C 15 45 85 45 85 15 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          <ellipse cx="50" cy="15" rx="35" ry="6" fill={darkSilver} />
+          <path d="M 15 15 C 30 5 70 5 85 15 Z" fill={silver} />
+        </g>
+      )}
+
+      {league === 'AHL' && (
+        <g className="drop-shadow-2xl">
+          {/* THE CALDER CUP - Wide wood base, shallow bowl */}
+          <path d="M 20 115 L 80 115 L 75 75 L 25 75 Z" fill={wood} stroke="#1a0a00" strokeWidth="0.5"/>
+          <path d="M 35 75 L 65 75 L 60 50 L 40 50 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          {/* Shallow Bowl */}
+          <path d="M 10 30 C 10 60 90 60 90 30 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          <ellipse cx="50" cy="30" rx="40" ry="7" fill={darkSilver} />
+          <path d="M 10 30 C 30 20 70 20 90 30 Z" fill={silver} />
+        </g>
+      )}
+
+      {['OHL', 'WHL', 'QMJHL'].includes(league) && (
+        <g className="drop-shadow-2xl">
+          {/* THE MEMORIAL CUP - Large distinct handles */}
+          <path d="M 25 115 L 75 115 L 70 85 L 30 85 Z" fill={wood} stroke="#1a0a00" strokeWidth="0.5"/>
+          <path d="M 40 85 L 60 85 L 55 50 L 45 50 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          {/* Handles */}
+          <path d="M 35 30 C 0 30 5 70 30 65" fill="none" stroke={silver} strokeWidth="4" strokeLinecap="round"/>
+          <path d="M 65 30 C 100 30 95 70 70 65" fill="none" stroke={silver} strokeWidth="4" strokeLinecap="round"/>
+          {/* Deep Bowl */}
+          <path d="M 30 20 C 30 65 70 65 70 20 Z" fill={silver} stroke="#475569" strokeWidth="0.5"/>
+          <ellipse cx="50" cy="20" rx="20" ry="5" fill={darkSilver} />
+          <path d="M 30 20 C 40 10 60 10 70 20 Z" fill={silver} />
+        </g>
+      )}
+
+      {!['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL'].includes(league) && (
+        <g className="drop-shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+          {/* GENERIC GOLD CUP (NCAA, Europe) */}
+          <path d="M 25 115 L 75 115 L 70 95 L 30 95 Z" fill={wood} stroke="#1a0a00" strokeWidth="0.5"/>
+          <path d="M 42 95 L 58 95 L 54 60 L 46 60 Z" fill={gold} stroke="#78350f" strokeWidth="0.5"/>
+          {/* Handles */}
+          <path d="M 25 35 C -5 35 10 75 40 70" fill="none" stroke={gold} strokeWidth="4" strokeLinecap="round"/>
+          <path d="M 75 35 C 105 35 90 75 60 70" fill="none" stroke={gold} strokeWidth="4" strokeLinecap="round"/>
+          {/* Bowl */}
+          <path d="M 20 25 C 20 80 80 80 80 25 Z" fill={gold} stroke="#78350f" strokeWidth="0.5"/>
+          <ellipse cx="50" cy="25" rx="30" ry="7" fill="#78350f" />
+          <path d="M 20 25 C 30 15 70 15 80 25 Z" fill={gold} />
+        </g>
+      )}
     </svg>
+  );
+};const TrophyImage = ({ league, className = "w-24 h-24 sm:w-32 sm:h-32" }) => {
+  const [imgError, setImgError] = useState(false);
+
+  let src = '';
+  switch (league) {
+    case 'NHL':
+      // The Stanley Cup
+      src = 'https://upload.wikimedia.org/wikipedia/commons/e/e4/Stanley_Cup_no_background.png';
+      break;
+    case 'AHL':
+      // The Calder Cup
+      src = 'https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Calder_Cup.png/220px-Calder_Cup.png'; 
+      break;
+    case 'OHL':
+    case 'WHL':
+    case 'QMJHL':
+      // The Memorial Cup
+      src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Memorial_Cup_Trophy.svg/250px-Memorial_Cup_Trophy.svg.png';
+      break;
+    default:
+      // Generic Championship Cup (NCAA, Europe)
+      src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Golden_Cup_with_star.svg/250px-Golden_Cup_with_star.svg.png';
+      break;
+  }
+
+  // If the image link ever breaks, fallback to a native emoji so the game doesn't crash
+  if (imgError) {
+    return (
+      <div className={`flex items-center justify-center text-6xl sm:text-7xl drop-shadow-2xl ${className}`}>
+        🏆
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={src} 
+      alt={`${league} Championship Trophy`} 
+      className={`object-contain drop-shadow-[0_10px_20px_rgba(255,255,255,0.25)] ${className}`}
+      onError={() => setImgError(true)}
+    />
   );
 };
 
@@ -423,6 +476,13 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
   };
   const intlStatus = getIntlStatus();
 
+  const getBarColor = (idol) => {
+    if (idol < 300) return 'linear-gradient(90deg, color-mix(in srgb, #64748b 55%, #1e293b), #94a3b8)'; // Slate
+    if (idol < 600) return 'linear-gradient(90deg, color-mix(in srgb, #3b82f6 55%, #1e3a8a), #60a5fa)'; // Blue
+    if (idol < 1000) return 'linear-gradient(90deg, color-mix(in srgb, #F59E0B 55%, #78350f), #fbbf24)'; // Amber
+    return 'linear-gradient(90deg, color-mix(in srgb, #22E748 55%, #14532d), #4ade80)'; // Green
+  };
+
   return (
     <div className="w-full max-w-[420px] md:max-w-5xl mx-auto mb-2 z-10 relative drop-shadow-2xl">
       <div 
@@ -444,7 +504,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
               {/* OVR, Logo & Text Cluster */}
               <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                 <div className="flex flex-col items-center shrink-0 mt-1">
-                  <p className="text-5xl md:text-6xl lg:text-7xl font-black text-white number-font leading-none">{player.ovr}</p>
+                 <span className="number-font text-6xl sm:text-7xl text-white">{player.ovr}</span>
                   <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1">OVR</p>
                 </div>
 
@@ -501,7 +561,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
                 <span className="text-slate-400">▫️ {tier.label} · {Math.floor((player.idolatry / 1000) * 100)}/100</span>
               </div>
               <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: 'linear-gradient(90deg, color-mix(in srgb, rgb(139, 148, 160) 55%, rgb(27, 31, 38)), rgb(139, 148, 160))' }}></div>
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: getBarColor(player.idolatry) }}></div>
                 <span className="absolute bottom-0 top-0 w-px bg-white/10" style={{ left: '10%' }}></span>
                 <span className="absolute bottom-0 top-0 w-px bg-white/10" style={{ left: '30%' }}></span>
                 <span className="absolute bottom-0 top-0 w-px bg-white/10" style={{ left: '60%' }}></span>
@@ -526,19 +586,19 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
             {/* 1. STATS ROW */}
             <div className="grid grid-cols-4 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
               <div className="px-1 py-1.5 md:py-2 bg-gradient-to-b from-[rgba(255,255,255,0.03)] to-transparent">
-                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-[#22E748] number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000') : (player.stats[lgKey]?.goals || 0)}</p>
+                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-[#22E748] number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.shots > 0 && player.stats[lgKey]?.saves !== undefined) ? (player.stats[lgKey].saves / player.stats[lgKey].shots).toFixed(3).replace('0.', '.') : '.000') : (player.stats[lgKey]?.goals || 0)}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SV%' : 'Goals'}</p>
               </div>
               <div className="px-1 py-1.5 md:py-2">
-                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-white number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00') : (player.stats[lgKey]?.assists || 0)}</p>
+                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-white number-font leading-none">{isGoalie ? ((player.stats[lgKey]?.games > 0 && player.stats[lgKey]?.shots !== undefined) ? ((player.stats[lgKey].shots - player.stats[lgKey].saves) / player.stats[lgKey].games).toFixed(2) : '0.00') : (player.stats[lgKey]?.assists || 0)}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'GAA' : 'Assists'}</p>
               </div>
               <div className="px-1 py-1.5 md:py-2">
-                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-white number-font leading-none">{isGoalie ? (player.stats[lgKey]?.shutouts || 0) : (player.stats[lgKey]?.plusMinus > 0 ? `+${player.stats[lgKey].plusMinus}` : (player.stats[lgKey]?.plusMinus || 0))}</p>
+                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-white number-font leading-none">{isGoalie ? (player.stats[lgKey]?.shutouts || 0) : (player.stats[lgKey]?.plusMinus > 0 ? `+${player.stats[lgKey].plusMinus}` : (player.stats[lgKey]?.plusMinus || 0))}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SHO' : '+/-'}</p>
               </div>
               <div className="px-1 py-1.5 md:py-2">
-                <p className="text-2xl md:text-3xl lg:text-4xl font-black text-[#F59E0B] number-font leading-none">{player.stats?.titles || 0}</p>
+                <p className="text-3xl md:text-4xl lg:text-5xl font-black text-[#F59E0B] number-font leading-none">{player.stats?.titles || 0}</p>
                 <p className="mt-0.5 md:mt-1 truncate text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Trophies</p>
               </div>
             </div>
@@ -559,7 +619,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
                   <div key={attr.label} className={`relative px-0.5 py-1.5 md:py-2 transition ${isUpgraded ? 'bg-[#22E748]/10 shadow-[inset_0_0_8px_rgba(34,231,72,0.15)]' : isDowngraded ? 'bg-[#ef4444]/10 shadow-[inset_0_0_8px_rgba(239,68,68,0.15)]' : ''}`}>
                     {isUpgraded && <span className="absolute top-0.5 right-0.5 text-[#22E748] text-[7px] md:text-[9px] font-black">▲</span>}
                     {isDowngraded && <span className="absolute top-0.5 right-0.5 text-[#ef4444] text-[7px] md:text-[9px] font-black">▼</span>}
-                    <p className={`text-xl md:text-2xl lg:text-3xl font-black number-font leading-none ${isUpgraded ? 'text-[#22E748]' : isDowngraded ? 'text-[#ef4444]' : 'text-white'}`}>{attr.val}</p>
+                    <p className={`text-2xl md:text-3xl lg:text-4xl font-black number-font leading-none ${isUpgraded ? 'text-[#22E748]' : isDowngraded ? 'text-[#ef4444]' : 'text-white'}`}>{attr.val}</p>
                     <p className="truncate px-0.5 mt-0.5 md:mt-1 text-[7px] md:text-[9px] font-black uppercase tracking-normal text-slate-400">{attr.label}</p>
                   </div>
                 );
@@ -569,15 +629,15 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
             {/* 3. FINANCIALS ROW */}
             <div className="grid grid-cols-3 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
               <div className="flex flex-col justify-center py-1.5 md:py-2">
-                <p className="px-1 text-xl md:text-2xl lg:text-3xl font-black number-font leading-none text-sky-300">{formatMoney(player.stats?.value || 0)}</p>
+                <p className="px-1 text-2xl md:text-3xl lg:text-4xl font-black number-font leading-none text-sky-300">{formatMoney(player.stats?.value || 0)}</p>
                 <p className="mt-0.5 md:mt-1 text-[8px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Value</p>
               </div>
               <div className="flex flex-col justify-center bg-amber-400/10 py-1.5 md:py-2">
-                <p className="px-1 text-xl md:text-2xl lg:text-3xl font-black number-font leading-none text-amber-300">{formatMoney(player.stats?.earnings || 0)}</p>
+                <p className="px-1 text-2xl md:text-3xl lg:text-4xl font-black number-font leading-none text-amber-300">{formatMoney(player.stats?.earnings || 0)}</p>
                 <p className="mt-0.5 md:mt-1 text-[8px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Earnings</p>
               </div>
               <div className="flex flex-col justify-center py-1.5 md:py-2">
-                <p className="px-1 text-xl md:text-2xl lg:text-3xl font-black number-font leading-none text-[#22E748]">{player.relationships?.coach || 50}%</p>
+                <p className="px-1 text-2xl md:text-3xl lg:text-4xl font-black number-font leading-none text-[#22E748]">{player.relationships?.coach || 50}%</p>
                 <p className="mt-0.5 md:mt-1 text-[8px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">Coach Trust</p>
               </div>
             </div>
@@ -585,6 +645,582 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// =====================================================================
+// INTERACTIVE MINIGAME COMPONENTS
+// =====================================================================
+
+const ShootoutGame = ({ player, onComplete }) => {
+  const [activeZone, setActiveZone] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(5000);
+
+  useEffect(() => {
+    // Higher shooting stat = weak spot stays open longer. 
+    const speed = Math.max(400, 1000 - (player.shooting * 4)); 
+    const zoneInterval = setInterval(() => {
+      setActiveZone(Math.floor(Math.random() * 5));
+    }, speed);
+
+    const timer = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 100) {
+          clearInterval(zoneInterval);
+          clearInterval(timer);
+          onComplete(false); // Time ran out
+          return 0;
+        }
+        return t - 100;
+      });
+    }, 100);
+
+    return () => { clearInterval(zoneInterval); clearInterval(timer); };
+  }, [player, onComplete]);
+
+  const zones = [
+    { id: 0, label: 'TOP LEFT', cls: 'top-4 left-4 w-16 h-16 sm:w-20 sm:h-20' },
+    { id: 1, label: 'TOP RIGHT', cls: 'top-4 right-4 w-16 h-16 sm:w-20 sm:h-20' },
+    { id: 2, label: 'FIVE HOLE', cls: 'bottom-4 left-1/2 -translate-x-1/2 w-16 h-16 sm:w-20 sm:h-20' },
+    { id: 3, label: 'LOW GLOVE', cls: 'bottom-16 left-4 w-16 h-16 sm:w-20 sm:h-20' },
+    { id: 4, label: 'LOW BLOCKER', cls: 'bottom-16 right-4 w-16 h-16 sm:w-20 sm:h-20' }
+  ];
+
+  return (
+    <div className="w-full max-w-md mx-auto aspect-[4/3] bg-[#e2e8f0] border-4 border-[#ef4444] rounded-lg relative overflow-hidden flex items-center justify-center shadow-inner">
+      <div className="absolute inset-0 border-8 border-[#ef4444] rounded opacity-50 pointer-events-none"></div>
+      {/* Goalie Graphic Placeholder */}
+      <div className="w-3/5 h-4/5 bg-slate-800 rounded-t-[40%] absolute bottom-0 opacity-80 flex flex-col items-center justify-center">
+         <span className="text-5xl">🥅</span>
+      </div>
+      
+      {zones.map(z => (
+        <button
+          key={z.id}
+          onClick={() => { if (activeZone === z.id) onComplete(true); }}
+          className={`absolute rounded-full border-4 transition-colors font-black sports-font text-[10px] sm:text-xs leading-none z-10 ${
+            activeZone === z.id 
+              ? 'bg-[#22E748]/90 border-[#22E748] text-white shadow-[0_0_20px_#22E748] scale-110 cursor-pointer animate-pulse' 
+              : 'bg-transparent border-[rgba(0,0,0,0.1)] text-transparent pointer-events-none'
+          } ${z.cls}`}
+        >
+          {activeZone === z.id ? 'SHOOT' : ''}
+        </button>
+      ))}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-1 rounded-full font-black number-font text-xl shadow-lg border border-slate-700">
+         {(timeLeft / 1000).toFixed(1)}s
+      </div>
+    </div>
+  );
+};
+
+const FaceoffGame = ({ player, onComplete }) => {
+   const [status, setStatus] = useState('waiting');
+   const [msg, setMsg] = useState('WAIT FOR GREEN...');
+   const doneRef = useRef(false);
+
+   const finish = useCallback((win) => {
+     if (doneRef.current) return;
+     doneRef.current = true;
+     onComplete(win);
+   }, [onComplete]);
+
+   useEffect(() => {
+      const delay = 2000 + Math.random() * 3000; // Random drop between 2-5 seconds
+      let innerTo = null;
+      const to = setTimeout(() => {
+         setStatus('ready');
+         setMsg('CLICK NOW!');
+
+         // Higher IQ gives you a much larger reaction window before AI wins
+         const aiTime = Math.max(250, 600 - (player.hockeyIQ * 2));
+         innerTo = setTimeout(() => {
+           setStatus(prev => {
+             if (prev === 'ready') {
+               finish(false); // AI beat you to the draw
+               return 'done';
+             }
+             return prev;
+           })
+         }, aiTime);
+      }, delay);
+
+      return () => { clearTimeout(to); if (innerTo) clearTimeout(innerTo); };
+   }, [player, finish]);
+
+   const handleClick = () => {
+     if (status === 'waiting') {
+       setStatus('done');
+       setMsg('JUMPED EARLY!');
+       finish(false);
+     } else if (status === 'ready') {
+       setStatus('done');
+       setMsg('YOU WON IT!');
+       finish(true);
+     }
+   };
+
+   return (
+     <div className="w-full max-w-sm mx-auto aspect-square bg-[#e2e8f0] rounded-full relative flex items-center justify-center border-4 border-[#3b82f6] shadow-xl">
+       <div className="absolute inset-4 rounded-full border-4 border-[#3b82f6] opacity-30"></div>
+       <button 
+         onClick={handleClick}
+         className={`w-3/5 h-3/5 rounded-full flex items-center justify-center font-black sports-font text-2xl sm:text-3xl transition-colors border-8 shadow-2xl ${
+           status === 'waiting' ? 'bg-[#ef4444] border-[#b91c1c] text-white cursor-pointer' : 
+           status === 'ready' ? 'bg-[#22E748] border-[#16a34a] text-white cursor-pointer scale-105' :
+           'bg-slate-700 border-slate-900 text-slate-400 pointer-events-none'
+         }`}
+       >
+         {msg}
+       </button>
+     </div>
+   );
+};
+
+const CreaseGame = ({ player, onComplete }) => {
+   const [moles, setMoles] = useState([]);
+   const [score, setScore] = useState(0);
+   const [misses, setMisses] = useState(0);
+   const doneRef = useRef(false);
+   const timeoutsRef = useRef(new Set());
+
+   const finish = useCallback((win) => {
+     if (doneRef.current) return;
+     doneRef.current = true;
+     onComplete(win);
+   }, [onComplete]);
+
+   useEffect(() => {
+     if (score >= 5) { finish(true); return; }
+     if (misses >= 3) { finish(false); return; }
+
+     // Higher IQ = Pucks spawn slightly slower
+     const spawnRate = Math.max(450, 1000 - (player.hockeyIQ * 4));
+     // Higher Agility/Reflexes = Pucks stay on screen longer
+     const lifetime = Math.max(600, 1300 - (player.physicality * 3));
+
+     const timeouts = timeoutsRef.current;
+     const interval = setInterval(() => {
+        if (doneRef.current) return;
+        const id = Math.random().toString();
+        const pos = Math.floor(Math.random() * 9);
+        setMoles(m => [...m, { id, pos }]);
+
+        const to = setTimeout(() => {
+           timeouts.delete(to);
+           if (doneRef.current) return;
+           setMoles(currentMoles => {
+              const moleStillThere = currentMoles.find(x => x.id === id);
+              if (moleStillThere) {
+                 setMisses(prev => prev + 1);
+                 return currentMoles.filter(x => x.id !== id);
+              }
+              return currentMoles;
+           });
+        }, lifetime);
+        timeouts.add(to);
+     }, spawnRate);
+
+     return () => {
+       clearInterval(interval);
+       timeouts.forEach(clearTimeout);
+       timeouts.clear();
+     };
+   }, [score, misses, player, finish]);
+
+   return (
+     <div className="w-full max-w-sm mx-auto">
+       <div className="flex justify-between mb-4 font-black sports-font text-xl sm:text-2xl px-2">
+         <span className="text-[#22E748]">SAVES: {score}/5</span>
+         <span className="text-[#ef4444]">GOALS: {misses}/3</span>
+       </div>
+       <div className="grid grid-cols-3 gap-2 sm:gap-3 bg-slate-800 p-3 sm:p-4 rounded-xl border border-slate-700 aspect-square shadow-xl">
+         {[0,1,2,3,4,5,6,7,8].map(i => {
+           const mole = moles.find(m => m.pos === i);
+           return (
+             <div key={i} className="bg-slate-900 rounded-lg flex items-center justify-center relative overflow-hidden border border-slate-800">
+               {mole && (
+                 <button onClick={() => { setMoles(m => m.filter(x => x.id !== mole.id)); setScore(s => s + 1); }}
+                   className="absolute inset-2 bg-black border-4 border-[#ef4444] rounded-full animate-ping cursor-pointer hover:bg-[#ef4444]"
+                 ></button>
+               )}
+             </div>
+           );
+         })}
+       </div>
+     </div>
+   );
+};
+
+const FilmRoomGame = ({ player, onComplete }) => {
+   const [phase, setPhase] = useState('memorize');
+   const [target, setTarget] = useState([]);
+   const [options, setOptions] = useState([]);
+
+   useEffect(() => {
+      const generatePattern = () => {
+         const p = [];
+         while(p.length < 4) {
+           const r = Math.floor(Math.random() * 9);
+           if(!p.includes(r)) p.push(r);
+         }
+         return p.sort();
+      };
+
+      const correct = generatePattern();
+      setTarget(correct);
+
+      const opts = [correct];
+      while(opts.length < 4) {
+        const wrong = generatePattern();
+        if (!opts.find(o => o.join(',') === wrong.join(','))) opts.push(wrong);
+      }
+      setOptions(opts.sort(() => 0.5 - Math.random()));
+
+      // Higher IQ = more time to memorize the board
+      const showTime = Math.min(5000, 1500 + (player.hockeyIQ * 30));
+      const t = setTimeout(() => { setPhase('recall'); }, showTime);
+
+      return () => clearTimeout(t);
+   }, [player]);
+
+   const Grid = ({ pattern, onClick, small }) => (
+     <div onClick={onClick} className={`grid grid-cols-3 gap-1 p-2 bg-[#166534] border-4 border-[#14532d] rounded-lg aspect-square shadow-inner ${onClick ? 'cursor-pointer hover:border-[#F59E0B] transition-colors' : ''}`}>
+       {[0,1,2,3,4,5,6,7,8].map(i => (
+         <div key={i} className={`flex items-center justify-center ${small ? 'text-xl' : 'text-3xl'} font-black ${pattern.includes(i) ? 'text-white' : 'text-transparent'}`}>
+           {pattern.includes(i) ? 'X' : '.'}
+         </div>
+       ))}
+     </div>
+   );
+
+   if (phase === 'memorize') {
+     return (
+       <div className="w-full max-w-sm mx-auto text-center">
+         <p className="text-[#F59E0B] font-black sports-font text-2xl sm:text-3xl mb-6 animate-pulse">MEMORIZE THE PLAY!</p>
+         <div className="w-48 h-48 sm:w-64 sm:h-64 mx-auto shadow-2xl">
+           <Grid pattern={target} />
+         </div>
+       </div>
+     );
+   }
+
+   return (
+     <div className="w-full max-w-lg mx-auto text-center">
+       <p className="text-[#3b82f6] font-black sports-font text-xl sm:text-3xl mb-6 uppercase">Which play was it?</p>
+       <div className="grid grid-cols-2 gap-4 sm:gap-6">
+         {options.map((opt, i) => (
+           <Grid key={i} pattern={opt} small onClick={() => onComplete(opt.join(',') === target.join(','))} />
+         ))}
+       </div>
+     </div>
+   );
+};
+
+const DeflectionGame = ({ player, onComplete }) => {
+  const [position, setPosition] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const [status, setStatus] = useState('playing'); // playing, won, lost
+  const doneRef = useRef(false);
+  const resultToRef = useRef(null);
+
+  const finish = useCallback((win) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onComplete(win);
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (status !== 'playing') return;
+    // Higher Hand-Eye/Shooting slows the bar down slightly to make it easier
+    const speed = Math.max(2, 6 - (player.shooting * 0.05));
+
+    const ticker = setInterval(() => {
+      setPosition(prev => {
+        let next = prev + (direction * speed);
+        if (next >= 100) { next = 100; setDirection(-1); }
+        if (next <= 0) { next = 0; setDirection(1); }
+        return next;
+      });
+    }, 20);
+    return () => clearInterval(ticker);
+  }, [direction, status, player]);
+
+  // Clean up the pending result-delay on unmount
+  useEffect(() => () => { if (resultToRef.current) clearTimeout(resultToRef.current); }, []);
+
+  const handleDeflect = () => {
+    if (status !== 'playing') return;
+    // Sweet spot is between 40% and 60%
+    if (position >= 40 && position <= 60) {
+      setStatus('won');
+      resultToRef.current = setTimeout(() => finish(true), 1000);
+    } else {
+      setStatus('lost');
+      resultToRef.current = setTimeout(() => finish(false), 1000);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-sm mx-auto text-center">
+      <div className="h-12 w-full bg-slate-800 rounded-full border-2 border-slate-600 relative overflow-hidden mb-8 shadow-inner">
+        {/* The Sweet Spot */}
+        <div className="absolute top-0 bottom-0 left-[40%] right-[40%] bg-[#22E748]/30 border-x-2 border-[#22E748]"></div>
+        {/* The Puck */}
+        <div 
+          className={`absolute top-1 bottom-1 w-10 bg-black rounded-full shadow-lg border-2 transition-colors ${status === 'won' ? 'border-[#22E748] bg-[#22E748]' : status === 'lost' ? 'border-[#ef4444] bg-[#ef4444]' : 'border-slate-400'}`}
+          style={{ left: `calc(${position}% - 20px)` }}
+        ></div>
+      </div>
+      <button 
+        onClick={handleDeflect}
+        className={`w-full py-4 rounded-xl font-black sports-font text-2xl uppercase tracking-widest transition-transform active:scale-95 ${status === 'playing' ? 'bg-[#3b82f6] text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : status === 'won' ? 'bg-[#22E748] text-white' : 'bg-[#ef4444] text-white'}`}
+      >
+        {status === 'playing' ? 'TIP IT!' : status === 'won' ? 'GOAL!' : 'MISSED!'}
+      </button>
+    </div>
+  );
+};
+
+const ShotBlockGame = ({ player, onComplete }) => {
+  const [activeLane, setActiveLane] = useState(null);
+  const [blocks, setBlocks] = useState(0);
+
+  useEffect(() => {
+    if (blocks >= 3) {
+      onComplete(true);
+      return;
+    }
+    
+    // Pick a random lane after a short delay
+    const delay = setTimeout(() => {
+      setActiveLane(Math.floor(Math.random() * 3));
+      
+      // If they don't click the lane in time, they fail
+      // Higher Physicality gives them more time to react
+      const reactionWindow = Math.min(1500, 800 + (player.physicality * 10));
+      const failTimer = setTimeout(() => {
+        onComplete(false);
+      }, reactionWindow);
+      
+      // Cleanup inner timer if they click in time
+      return () => clearTimeout(failTimer);
+    }, 1000);
+
+    return () => clearTimeout(delay);
+  }, [blocks, player, onComplete]);
+
+  const handleBlock = (lane) => {
+    if (lane === activeLane) {
+      setActiveLane(null); // Reset lane
+      setBlocks(b => b + 1);
+    } else {
+      onComplete(false); // Dived into the wrong lane!
+    }
+  };
+
+  return (
+    <div className="w-full max-w-sm mx-auto">
+      <p className="text-center font-black sports-font text-xl text-[#F59E0B] mb-4">BLOCKS: {blocks} / 3</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 h-64">
+        {[0, 1, 2].map(lane => (
+          <button 
+            key={lane}
+            onClick={() => handleBlock(lane)}
+            className="relative bg-slate-800 rounded-lg border-2 border-slate-700 flex flex-col items-center justify-end pb-4 hover:bg-slate-700 transition-colors"
+          >
+            {activeLane === lane && (
+              <div className="absolute top-4 w-12 h-12 bg-[#ef4444] rounded-full animate-pulse shadow-[0_0_20px_#ef4444] flex items-center justify-center">
+                <span className="text-white text-xs font-bold">SHOT!</span>
+              </div>
+            )}
+            <span className="text-4xl">🧍</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const BreakawayGame = ({ player, onComplete }) => {
+  const [phase, setPhase] = useState('setup'); // setup, waiting, deking, result
+  const [direction, setDirection] = useState(null);
+  const [strategy, setStrategy] = useState(null); // 'cheatLeft', 'cheatRight', 'hold'
+  const [msg, setMsg] = useState('');
+  const doneRef = useRef(false);
+
+  const finish = useCallback((win, delay = 1200) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setTimeout(() => onComplete(win), delay);
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (phase !== 'waiting') return;
+
+    // Skater approaches for 1-2.5 seconds
+    const delay = 1000 + (Math.random() * 1500);
+    let innerTo = null;
+
+    const to = setTimeout(() => {
+      // Skater makes their move
+      const actualDir = Math.random() > 0.5 ? 'left' : 'right';
+      setDirection(actualDir);
+
+      if (strategy === 'cheatLeft' || strategy === 'cheatRight') {
+        // GAMBLE RESOLUTION: Instant win or loss based on your guess
+        setPhase('result');
+        const guessedRight = (strategy === 'cheatLeft' && actualDir === 'left') || (strategy === 'cheatRight' && actualDir === 'right');
+        setMsg(guessedRight ? 'PERFECT READ!' : 'BIT ON THE FAKE!');
+        finish(guessedRight);
+      } else {
+        // HOLD GROUND RESOLUTION: Quick-time reflex event
+        setPhase('deking');
+        
+        // Reaction window relies on Hockey IQ and Reflexes, but is tighter since you waited
+        const window = Math.min(900, 450 + (player.hockeyIQ * 5));
+        innerTo = setTimeout(() => {
+          setPhase(prev => {
+            if (prev === 'deking') {
+              setMsg('TOO SLOW!');
+              finish(false);
+              return 'result';
+            }
+            return prev;
+          });
+        }, window);
+      }
+    }, delay);
+
+    return () => { clearTimeout(to); if (innerTo) clearTimeout(innerTo); };
+  }, [phase, strategy, player, finish]);
+
+  const startPlay = (strat) => {
+    setStrategy(strat);
+    setPhase('waiting');
+  };
+
+  const handlePad = (side) => {
+    if (phase !== 'deking') return;
+    setPhase('result');
+    if (side === direction) {
+      setMsg('GREAT SAVE!');
+      finish(true);
+    } else {
+      setMsg('BEAT CLEAN!');
+      finish(false);
+    }
+  };
+
+  if (phase === 'setup') {
+    return (
+      <div className="w-full max-w-sm mx-auto text-center animate-fade-in">
+        <h3 className="text-xl font-black text-white sports-font mb-4 tracking-wider">CHOOSE YOUR STRATEGY</h3>
+        <div className="flex flex-col gap-3">
+          <button onClick={() => startPlay('cheatLeft')} className="bg-[#101410] border-2 border-[#F59E0B] text-[#F59E0B] hover:bg-[#F59E0B]/10 p-3.5 rounded-xl font-bold uppercase tracking-widest transition-colors cursor-pointer shadow-lg hover:-translate-y-0.5">
+            Gamble: Cheat Left (50/50)
+          </button>
+          <button onClick={() => startPlay('hold')} className="bg-[#101410] border-2 border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6]/10 p-3.5 rounded-xl font-bold uppercase tracking-widest transition-colors cursor-pointer shadow-lg hover:-translate-y-0.5">
+            Safe: Hold Ground & React
+          </button>
+          <button onClick={() => startPlay('cheatRight')} className="bg-[#101410] border-2 border-[#F59E0B] text-[#F59E0B] hover:bg-[#F59E0B]/10 p-3.5 rounded-xl font-bold uppercase tracking-widest transition-colors cursor-pointer shadow-lg hover:-translate-y-0.5">
+            Gamble: Cheat Right (50/50)
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-6 px-2 italic font-sans leading-relaxed">
+          Gambling removes the need for reflexes but leaves the opposite side wide open. Holding ground relies entirely on your reaction time!
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-sm mx-auto text-center animate-fade-in">
+      <div className="h-32 flex flex-col items-center justify-center mb-8">
+        {phase === 'waiting' && <span className="text-slate-400 font-bold tracking-widest uppercase animate-pulse">Skating in...</span>}
+        {(phase === 'deking' || phase === 'result') && direction === 'left' && <span className="text-6xl text-[#3b82f6] animate-bounce">⬅️</span>}
+        {(phase === 'deking' || phase === 'result') && direction === 'right' && <span className="text-6xl text-[#3b82f6] animate-bounce">➡️</span>}
+        
+        {phase === 'result' && (
+          <p className={`mt-4 font-black sports-font text-2xl uppercase tracking-widest ${msg.includes('SAVE') || msg.includes('PERFECT') ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+            {msg}
+          </p>
+        )}
+      </div>
+
+      {phase === 'deking' && (
+        <div className="flex gap-4">
+          <button onClick={() => handlePad('left')} className="flex-1 bg-slate-800 border-4 border-slate-600 rounded-xl py-8 text-2xl font-black text-white hover:border-[#3b82f6] active:bg-[#3b82f6] transition-all cursor-pointer">
+            LEFT PAD
+          </button>
+          <button onClick={() => handlePad('right')} className="flex-1 bg-slate-800 border-4 border-slate-600 rounded-xl py-8 text-2xl font-black text-white hover:border-[#3b82f6] active:bg-[#3b82f6] transition-all cursor-pointer">
+            RIGHT PAD
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const OneTimerGame = ({ player, onComplete }) => {
+  const [position, setPosition] = useState(-20);
+  const [status, setStatus] = useState('playing');
+  const doneRef = useRef(false);
+
+  const finish = useCallback((win) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setTimeout(() => onComplete(win), 1000);
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (status !== 'playing') return;
+    
+    // Higher shooting/hockey IQ makes the puck travel at a slightly more manageable speed
+    const speed = Math.max(2.5, 6 - (player.shooting * 0.03));
+    const ticker = setInterval(() => {
+      setPosition(prev => {
+        const next = prev + speed;
+        if (next > 120) {
+          setStatus('lost');
+          finish(false);
+        }
+        return next;
+      });
+    }, 20);
+    return () => clearInterval(ticker);
+  }, [status, player, finish]);
+
+  const handleShoot = () => {
+    if (status !== 'playing') return;
+    // The sweet spot is exactly between 72% and 88% of the bar
+    if (position >= 72 && position <= 88) {
+      setStatus('won');
+      finish(true);
+    } else {
+      setStatus('lost');
+      finish(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-sm mx-auto text-center">
+      <div className="h-16 w-full bg-slate-800 rounded-full border-4 border-slate-600 relative overflow-hidden mb-8 shadow-inner">
+        {/* Sweet Spot */}
+        <div className="absolute top-0 bottom-0 left-[72%] right-[12%] bg-[#F59E0B]/40 border-x-4 border-[#F59E0B]"></div>
+        {/* The Puck */}
+        <div
+          className={`absolute top-2 bottom-2 w-10 bg-black rounded-full shadow-lg border-2 transition-colors ${status === 'won' ? 'border-[#22E748] bg-[#22E748]' : status === 'lost' ? 'border-[#ef4444] bg-[#ef4444]' : 'border-slate-400'}`}
+          style={{ left: `${position}%` }}
+        ></div>
+      </div>
+      <button
+        onClick={handleShoot}
+        className={`w-full py-4 rounded-xl font-black sports-font text-2xl uppercase tracking-widest transition-transform active:scale-95 ${status === 'playing' ? 'bg-[#F59E0B] text-black shadow-[0_0_15px_rgba(245,158,11,0.5)] cursor-pointer' : status === 'won' ? 'bg-[#22E748] text-white' : 'bg-[#ef4444] text-white'}`}
+      >
+        {status === 'playing' ? 'FIRE THE ONE-TIMER!' : status === 'won' ? 'WHAT A ROCKET!' : 'WHIFFED IT!'}
+      </button>
     </div>
   );
 };
@@ -629,9 +1265,11 @@ function App() {
   }, [unlockedAchievements]);
 
   const [isShopOpen, setIsShopOpen] = useState(false);
+  const [negotiation, setNegotiation] = useState(null);
   const [activeTrainings, setActiveTrainings] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
   const [activeMinigame, setActiveMinigame] = useState(null);
+  const [minigameStarted, setMinigameStarted] = useState(false);
   const [activePress, setActivePress] = useState({ journalists: [], questions: [], currentQ: 0, answers: [] });
   const [minigameContext, setMinigameContext] = useState('season');
 
@@ -719,8 +1357,16 @@ function App() {
   const playerTeamDisplayName = useMemo(
     () => getFullTeamName(player.team, player.league),
     [player.team, player.league]
+    
   );
-
+// SAFE ZONE HOOK FOR PRESS CONFERENCES
+  const pressAnswerKeys = useMemo(() => {
+    const q = activePress.questions[activePress.currentQ];
+    if (!q) return [];
+    const keys = ['professional', 'passionate', 'humble', 'cocky'].filter(k => q.answers[k]);
+    return keys.sort(() => 0.5 - Math.random());
+  }, [activePress.currentQ, activePress.questions]);
+  
   const handleStart = () => {
     const lg = player.startLeague;
     let pool = ohlTeams || [];
@@ -749,13 +1395,14 @@ function App() {
 
     const startOvr = Math.floor((bSht + bSkt + bPhy + bIq + bSta) / 5);
 
+    const randomReporter = PRESS_JOURNALISTS[Math.floor(Math.random() * PRESS_JOURNALISTS.length)];
+
     setPlayer(p => ({
       ...p, team: startTeam.id, league: lg, teamsPlayedFor: [startTeam.id],
       shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta, ovr: startOvr,
       isGenerational: isGen,
-      // If Generational, kickstart the Rival storyline immediately
-      storylines: { ...p.storylines, rival: isGen ? 1 : 0 },
-      archRival: isGen ? { name: 'Your Draft Class Rival', ovr: startOvr + 1 } : null
+      storylines: { ...p.storylines, mediaNemesis: isGen ? 1 : 0 },
+      nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null
     }));
     
     generateTraining(player.pos);
@@ -1316,28 +1963,30 @@ function App() {
     setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
 
     // ==========================================
-    // STORYLINE 1: THE GENERATIONAL RIVALRY
+    // STORYLINE 1: THE MEDIA NEMESIS
     // ==========================================
-    const rivalStage = player.storylines?.rival || 0;
+    const nemesisStage = player.storylines?.mediaNemesis || 0;
+    const mediaTrust = player.relationships?.media || 50;
     
-    // Organic Rivalry Trigger: 10% chance for normal players to develop a rival in their first 3 years
-    if (rivalStage === 0 && player.stats?.seasonsPlayed <= 3 && Math.random() < 0.10) {
+    // Organic Trigger: Bad media relations early in career
+    if (nemesisStage === 0 && currentLg === 'NHL' && mediaTrust < 40 && player.stats?.seasonsPlayed <= 4 && Math.random() < 0.20) {
+        const organicReporter = PRESS_JOURNALISTS[Math.floor(Math.random() * PRESS_JOURNALISTS.length)];
         setPlayer(p => ({ 
             ...p, 
-            storylines: { ...p.storylines, rival: 1 },
-            archRival: { name: 'A highly touted prospect from your draft class', ovr: p.ovr + 2 }
+            storylines: { ...p.storylines, mediaNemesis: 1 },
+            nemesisName: `${organicReporter.name} (${organicReporter.outlet})`
         }));
     }
 
-    // STAGE 1: THE CALL OUT (Early Career)
-    if (rivalStage === 1 && Math.random() < 0.6) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, rival: 2 } }));
+    // STAGE 1: THE HIT PIECE
+    if (nemesisStage === 1 && Math.random() < 0.5) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, mediaNemesis: 2 } }));
         setActiveEvent({
-            title: '🔥 THE "ANTI-YOU" EMERGES',
-            desc: `The media has officially linked your legacy to ${player.archRival?.name || 'your biggest draft rival'}. They play a completely opposite style to you, and just publicly told the press they are going to win more hardware than you. How do you respond?`,
+            title: '📰 THE HIT PIECE',
+            desc: `Notorious local shock-jock ${player.nemesisName || 'a local columnist'} just published a scathing hit piece on you. He called you selfish, lazy, and a locker room cancer. The article is trending everywhere.`,
             choices: [
-                { label: 'Brush it off (Humble)', isRisky: false, feedback: 'You took the high road. Your coach praised your maturity, but the fans wanted a quote.', effect: { idol: -5, ovr: 1, rel: { coach: 15 } } },
-                { label: 'Return Fire (Cocky)', isRisky: true, successChance: 0.5, successFeedback: 'The fans eat it up! You just ignited the greatest rivalry in modern hockey.', successEffect: { idol: 35, ovr: 1, money: 15000 }, failFeedback: 'You sounded arrogant and then immediately went on a scoring slump.', failEffect: { idol: -20, ovr: -1, rel: { coach: -10 } } }
+                { label: 'Take the High Road', isRisky: false, feedback: 'You refused to take the bait. Your coach loved the maturity, but the fans wanted you to defend yourself.', effect: { idol: -15, ovr: 1, rel: { coach: 15, media: 5 } } },
+                { label: 'Declare War', isRisky: true, successChance: 0.5, successFeedback: 'You publicly called the reporter a hack and backed it up on the ice! The fans love the drama.', successEffect: { idol: 40, ovr: 1, rel: { media: -20, teammates: 10 } }, failFeedback: 'You sounded incredibly rattled and defensive. The reporter just tweeted "I rest my case."', failEffect: { idol: -30, ovr: -1, rel: { media: -30 } } }
             ],
             madePlayoffs
         });
@@ -1345,15 +1994,15 @@ function App() {
         return;
     }
 
-    // STAGE 2: HEAD-TO-HEAD SHOWDOWN (Mid Career)
-    if (rivalStage === 2 && Math.random() < 0.4) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, rival: 3 } }));
+    // STAGE 2: THE LOCKER ROOM CONFRONTATION
+    if (nemesisStage === 2 && !madePlayoffs && Math.random() < 0.4) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, mediaNemesis: 3 } }));
         setActiveEvent({
-            title: '⚔️ RIVALRY SHOWDOWN',
-            desc: `Your team is facing off against your arch-rival on national television. The cameras are isolated on the two of you, and they've been chirping you since the warmups.`,
+            title: '🎤 THE AMBUSH',
+            desc: `Following a brutal loss, ${player.nemesisName} forces his way to your locker and asks a wildly disrespectful, baiting question about your work ethic right in front of the cameras.`,
             choices: [
-                { label: 'Play the Team Game', isRisky: false, feedback: 'You ignored the noise and played a flawless, fundamental game to secure the win.', effect: { idol: 15, ovr: 1, rel: { coach: 10 } } },
-                { label: 'Try to Embarrass Them', isRisky: true, successChance: (pOvr >= 80 ? 0.65 : 0.40), successFeedback: 'You completely undressed them on a 1-on-1 and scored! The highlight reel is everywhere.', successEffect: { idol: 50, ovr: 1, money: 30000 }, failFeedback: 'You tried to do too much, turned the puck over, and they scored the game-winner on the counter-attack.', failEffect: { idol: -30, ovr: -1, rel: { coach: -15 } } }
+                { label: 'Walk Away', isRisky: false, feedback: 'You walked away mid-question. It looks bad on TV, but you avoided a fine.', effect: { idol: -10, ovr: 0, rel: { media: -15 } } },
+                { label: 'Put Him In His Place', isRisky: true, successChance: (pOvr >= 85 ? 0.7 : 0.3), successFeedback: 'You systematically dismantled his hockey knowledge on live TV. It was a legendary press conference moment!', successEffect: { idol: 50, ovr: 1, money: 10000, rel: { media: 20 } }, failFeedback: 'You lost your temper, cursed him out, and the league fined you heavily. A total PR disaster.', failEffect: { idol: -40, ovr: -1, money: -50000, rel: { media: -40 } } }
             ],
             madePlayoffs
         });
@@ -1361,24 +2010,14 @@ function App() {
         return;
     }
 
-    // STAGE 3: THE AWARD RACE (NHL Prime)
-    if (rivalStage === 3 && currentLg === 'NHL' && Math.random() < 0.35) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, rival: 2 } })); // Loops back to Stage 2 so the rivalry continues!
-        
-        const winChance = pOvr >= 90 ? 0.7 : (pOvr >= 80 ? 0.4 : 0.15);
+    // STAGE 3: VINDICATION
+    if (nemesisStage === 3 && currentLg === 'NHL' && playoffs?.overallStatus === 'won_cup') {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, mediaNemesis: 4 } })); // Ends arc
         setActiveEvent({
-            title: '🏆 THE AWARD RACE',
-            desc: `The NHL Awards are tonight. It's down to you and your arch-rival for a major individual trophy. The hockey world is holding its breath.`,
+            title: '🏆 THE ULTIMATE VINDICATION',
+            desc: `You just won the Cup. In the post-game press conference, you spot ${player.nemesisName} sitting quietly in the back of the room. He looks completely defeated.`,
             choices: [
-                { 
-                  label: 'Attend the Ceremony', 
-                  isRisky: true, 
-                  successChance: winChance, 
-                  successFeedback: 'You won the award right in front of them! The ultimate bragging rights.', 
-                  successEffect: { idol: 60, ovr: 2, money: 75000 }, 
-                  failFeedback: 'They won the award and smirked at you from the stage. You are absolutely furious (but highly motivated).', 
-                  failEffect: { idol: 0, ovr: 3 } // Big OVR boost because you are motivated by the snub!
-                }
+                { label: 'Call Him Out Publicly', isRisky: false, feedback: 'You stared right at him and asked, "What are you going to write tomorrow?" The entire room erupted in laughter. You won the war.', effect: { idol: 100, ovr: 1, rel: { media: 30 } } }
             ],
             madePlayoffs
         });
@@ -1386,6 +2025,46 @@ function App() {
         return;
     }
 
+    // ==========================================
+    // STORYLINE 1.5: THE FRANCHISE DUO
+    // ==========================================
+    const duoStage = player.storylines?.franchiseDuo || 0;
+    const teammateTrust = player.relationships?.teammates || 50;
+
+    // Organic Trigger: Good teammate relations early in NHL career
+    if (duoStage === 0 && currentLg === 'NHL' && teammateTrust > 75 && player.stats?.seasonsPlayed >= 2 && Math.random() < 0.15) {
+        setPlayer(p => ({ 
+            ...p, 
+            storylines: { ...p.storylines, franchiseDuo: 1 },
+            duoName: 'your linemate'
+        }));
+        setActiveEvent({
+            title: '🤝 THE DYNAMIC DUO',
+            desc: `You and a young linemate have developed literal mind-reading chemistry on the ice. The fans have given you a combined nickname, and you are officially inseparable on and off the ice.`,
+            choices: [
+                { label: 'Embrace the Brotherhood', isRisky: false, feedback: 'The two of you are the heartbeat of the franchise. Your chemistry makes everyone better.', effect: { idol: 30, ovr: 1, rel: { teammates: 25 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // STAGE 2: THE CAP CASUALTY 
+    if (duoStage === 1 && player.age > 24 && Math.random() < 0.25) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, franchiseDuo: 2 } }));
+        setActiveEvent({
+            title: '💼 THE BUSINESS OF HOCKEY',
+            desc: `Your best friend on the team is entering a contract year. The GM pulls you aside and says they can't afford to keep both of you under the salary cap unless you agree to restructure your own contract and take a massive pay cut.`,
+            choices: [
+                { label: 'Take the Pay Cut for Him', isRisky: false, feedback: 'You sacrificed millions of dollars to keep your duo together. The fans worship your loyalty.', effect: { idol: 100, ovr: 1, money: -2500000, rel: { teammates: 50, coach: 20 } } },
+                { label: 'Keep Your Money', isRisky: false, feedback: 'You told the GM hockey is a business. Your friend was traded the next day. The locker room is stunned, and you feel entirely alone.', effect: { idol: -50, ovr: -2, money: 0, rel: { teammates: -40 } } }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
     // ==========================================
     // STORYLINE 2: LOCKER ROOM POLITICS
     // ==========================================
@@ -1555,6 +2234,77 @@ function App() {
         return;
     }
     // ==========================================
+    // STORYLINE 5: THE POSITIONAL LOGJAM (Centers Only)
+    // ==========================================
+    if (!player.storylines?.positionChange && player.pos === 'C' && ['NHL', 'AHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < 0.15) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, positionChange: 1 } }));
+        setActiveEvent({
+            title: '🔄 ROSTER LOGJAM',
+            desc: `Your team has incredible depth down the middle, but they are weak on the wings. The head coach pulls you aside and asks you to shift to the Wing permanently to balance the lines.`,
+            choices: [
+                {
+                    label: 'Accept the Move (Team Player)',
+                    isRisky: false,
+                    feedback: 'You put the team first and shifted to the wing. The coach loved your unselfishness, but you had to learn a new system on the fly (-1 OVR).',
+                    effect: { idol: 10, ovr: -1, rel: { coach: 25 } },
+                    action: 'CHANGE_POSITION',
+                    actionData: Math.random() > 0.5 ? 'LW' : 'RW'
+                },
+                {
+                    label: 'Refuse (I am a Center)',
+                    isRisky: true,
+                    successChance: 0.5,
+                    successFeedback: 'You stood your ground and proved you are the best Center on the roster. The coach respected your confidence and bumped a veteran to the wing instead.',
+                    successEffect: { idol: 15, ovr: 1, rel: { coach: 10 } },
+                    failFeedback: 'You flat out refused the coach\'s request. He benched you for the third period to teach you a lesson about being a team player.',
+                    failEffect: { idol: -10, ovr: -1, rel: { coach: -30 } }
+                }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+    // ==========================================
+    // STORYLINE: THE CHL IMPORT DRAFT
+    // ==========================================
+    // Triggers ONLY ONCE for 16 or 17 year olds playing in Europe
+    if (!player.storylines?.importDraft && !player.chlRights && (pAge === 16 || pAge === 17) && ['SHL', 'LIIGA'].includes(currentLg)) {
+        
+        setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), importDraft: 1 } }));
+        const chlLeagues = ['OHL', 'WHL', 'QMJHL'];
+        const randomLg = chlLeagues[Math.floor(Math.random() * chlLeagues.length)];
+        let pool = getOpponentPool(randomLg) || [];
+        if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team', city: '' }];
+        const draftingTeam = pool[Math.floor(Math.random() * pool.length)];
+        const fullTeamName = draftingTeam.fullName || 
+          (draftingTeam.city ? `${draftingTeam.city} ${draftingTeam.name}` : draftingTeam.name);
+
+        setActiveEvent({
+            title: '🇨🇦 THE CHL IMPORT DRAFT',
+            desc: `You have been selected by the ${fullTeamName} (${randomLg}) in the CHL Import Draft! They want you to leave Europe and come play Major Junior hockey in North America to get used to the smaller ice.`,
+            choices: [
+                {
+                    label: 'Pack your bags for North America',
+                    isRisky: false,
+                    feedback: `You signed with ${draftingTeam.name}. The smaller ice is an adjustment, but NHL scouts are watching closely.`,
+                    effect: { idol: 15, ovr: 1 },
+                    action: 'ACCEPT_IMPORT_DRAFT',
+                    actionData: { teamObj: draftingTeam, league: randomLg }
+                },
+                {
+                    label: 'Stay in Europe',
+                    isRisky: false,
+                    feedback: `You decided to stay and play against grown men in Europe. ${draftingTeam.name} will retain your CHL rights just in case you change your mind later.`,
+                    effect: { idol: 5, ovr: 1 },
+                    action: 'DECLINE_IMPORT_DRAFT',
+                    actionData: { teamObj: draftingTeam, league: randomLg }
+                }
+            ]
+        });
+        setScreen('event');
+        return;
+    }
 
     if (pAge <= 19 && Math.random() > 0.4) {
       setMinigameContext('wjc');
@@ -1848,10 +2598,11 @@ function App() {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     setActiveMinigame(pick.id);
     setMinigameContext(context);
+    setMinigameStarted(false); // <--- Add this line!
     setScreen('minigame');
   };
 
-  const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
+const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     const scored = Math.random() < successChance;
 
     if (minigameContext === 'memcup') {
@@ -1862,7 +2613,7 @@ function App() {
           setEventFeedback(`${successMsg} You won the Semi-Final!`);
         } else {
           setMemCup({ round: 1, status: 'won' });
-          setPlayer(p => ({ ...p, stats: { ...p.stats, memCupBoost: 50, titles: p.stats.titles + 1 } }));
+          setPlayer(p => ({ ...p, stats: { ...p.stats, memCupBoost: 50, titles: (p.stats.titles || 0) + 1 } }));
           setEventFeedback(`${successMsg} You won the Memorial Cup!`);
           unlockAchievement('mem_cup');
         }
@@ -1913,6 +2664,38 @@ function App() {
     });
     setEventImpacts({ idol: outcome.idol || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 });
     setEventFeedback(scored ? successMsg : failMsg);
+    setScreen('event-result');
+  };
+
+  const handleInteractiveResult = (isWin, reward, successMsg, failMsg) => {
+    const payout = isWin ? reward.win : reward.loss;
+
+    setPlayer(prev => {
+      const withOvr = applyOvrDelta(prev, payout.ovr || 0);
+      return {
+        ...withOvr,
+        idolatry: capIdol(withOvr.idolatry + (payout.idol || 0)),
+        ovr: recomputeOvr(withOvr),
+        stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (payout.money || 0) },
+        relationships: {
+          coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (payout.rel?.coach || 0))),
+          teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (payout.rel?.teammates || 0))),
+          media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (payout.rel?.media || 0)))
+        }
+      };
+    });
+    
+    // Advance the Memorial Cup if we just finished a minigame during it
+    if (minigameContext === 'memcup') {
+        setMemCup(prev => ({ 
+           ...prev, 
+           status: isWin ? 'semi_won' : 'lost', 
+           lastFeedback: isWin ? successMsg : failMsg 
+        }));
+    }
+
+    setEventImpacts({ idol: payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 });
+    setEventFeedback(isWin ? successMsg : failMsg);
     setScreen('event-result');
   };
 
@@ -1973,8 +2756,34 @@ function App() {
           };
           setSeasonRecap(updatedRecap);
         }
+      } else if (choice.action === 'CHANGE_POSITION') {
+        updated.pos = choice.actionData;
+      } else if (choice.action === 'ACCEPT_IMPORT_DRAFT') {
+        const { teamObj, league } = choice.actionData;
+        updated.team = teamObj.id;
+        updated.league = league;
+        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamObj.id]));
+        // Save rights
+        updated.chlRights = teamObj.id;
+        updated.chlRightsLeague = league;
+      } else if (choice.action === 'DECLINE_IMPORT_DRAFT') {
+        const { teamObj, league } = choice.actionData;
+        updated.chlRights = teamObj.id;
+        updated.chlRightsLeague = league;
+      } else if (choice.action === 'DEMOTE_TO_JUNIORS') {
+        // Checks CHL Import Rights first, falls back to original junior team, then 'UNK'
+        const targetJuniorTeam = player.chlRights || player.juniorTeam || 'UNK';
+        const targetJuniorLeague = player.chlRightsLeague || player.juniorLeague || 'OHL';
+
+        updated.team = targetJuniorTeam;
+        updated.league = targetJuniorLeague;
+        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), targetJuniorTeam]));
+      } else if (choice.action === 'ACCEPT_ARBITRATION') {
+        updated.team = choice.actionData.team;
+        updated.league = 'NHL';
+        updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role };
+        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
       }
-      
       const withOvr = applyOvrDelta(updated, outcomeEffect?.ovr || 0);
       return {
         ...withOvr,
@@ -2342,12 +3151,13 @@ let champion = null;
       baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
       maxYears = 2;
     } else if (player.league === 'NHL') {
-      const recentAwards = seasonRecap?.awards || [];
-      const isSuperstar = recentAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
+      // Look at entire career history for major awards, not just last season
+      const careerAwards = player.stats?.awards || [];
+      const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
 
-      if (player.ovr >= 85) {
+      if (player.ovr >= 85 || isSuperstar) {
         baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi;
-        maxYears = 7;
+        maxYears = 8; // Franchise max length
       } else if (player.ovr >= 80) {
         baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi;
         maxYears = 5;
@@ -2359,21 +3169,10 @@ let champion = null;
         maxYears = 2;
       }
 
-      // 🏆 MVP CONTRACT OVERRIDE: If you won a major award, you get PAID regardless of OVR.
+      // 🏆 MVP CONTRACT OVERRIDE: Superstars get the max length and massive money
       if (isSuperstar) {
          baseSalary = Math.max(baseSalary, 10500000 * multi);
-         maxYears = Math.max(maxYears, 5);
-      }
-
-      if (player.age >= 38) {
-        baseSalary *= 0.40;
-        maxYears = 1;
-      } else if (player.age >= 36) {
-        baseSalary *= 0.55;
-        maxYears = 2;
-      } else if (player.age >= 34) {
-        baseSalary *= 0.75;
-        maxYears = 3;
+         maxYears = Math.max(maxYears, 8);
       }
 
       const NHL_MAX_SALARY = 13500000;
@@ -2393,12 +3192,12 @@ let champion = null;
          offers.push({
            team: actingTeam,
            league: player.league,
-           type: isRFA ? 'QUALIFYING OFFER' : 'EXTENSION',
+           type: isRFA ? (player.ovr >= 82 ? 'RFA EXTENSION' : 'QUALIFYING OFFER') : 'EXTENSION',
            salary: baseSalary,
-           years: Math.min(3, maxYears),
+           years: isRFA && player.ovr < 82 ? 1 : maxYears, // QOs are 1 year. Extensions use full maxYears.
            role: getRole(baseSalary, player),
            idolHit: 10,
-           state: 'Current Club' // Explicitly marking your current team
+           state: 'Current Club'
          });
       }
     }
@@ -2463,7 +3262,7 @@ let champion = null;
               league: targetLg,
               type: isTradeRequest ? 'TRADE' : 'FREE AGENCY',
               salary: offerSalary,
-              years: Math.floor(Math.random() * maxYears) + 1,
+              years: Math.min(7, Math.floor(Math.random() * maxYears) + 1),
               role: targetLg === 'NHL' ? getRole(offerSalary, player) : 'Pro Roster',
               idolHit: getTransferImpact(actingTeam, t),
               state: teamState
@@ -2484,6 +3283,7 @@ let champion = null;
     if (player.draftTeam === o.team && player.team !== o.team) unlockAchievement('return_home');
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
+    // ... end of signContract function ...
     setPlayer(p => {
       const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
       return {
@@ -2495,7 +3295,88 @@ let champion = null;
     setScreen('preseason');
   };
 
-  const buyItem = (item) => {
+  const handleArbitration = (offer) => {
+      // Calculate a fair arbitration award based purely on current OVR
+      let arbSalary = 1000000;
+      if (player.ovr >= 85) arbSalary = 6500000;
+      else if (player.ovr >= 80) arbSalary = 4000000;
+      else if (player.ovr >= 75) arbSalary = 2250000;
+      else arbSalary = 1100000;
+
+      arbSalary = Math.round(arbSalary / 25000) * 25000;
+
+      setActiveEvent({
+          title: '⚖️ SALARY ARBITRATION',
+          desc: `You filed for salary arbitration. To drive your price down, your team's lawyers spent four grueling hours in a boardroom brutally tearing apart your game, highlighting every mistake and flaw from last season. It's a harsh business.\n\nThe independent arbitrator has ruled: You are awarded a 1-year, ${formatMoney(arbSalary)} contract.`,
+          choices: [
+              {
+                  label: 'Accept Arbitrator\'s Ruling',
+                  isRisky: false,
+                  feedback: `You are locked in for 1 year at ${formatMoney(arbSalary)}. The relationship with the front office is definitely bruised.`,
+                  effect: { idol: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
+                  action: 'ACCEPT_ARBITRATION',
+                  actionData: { team: offer.team, salary: arbSalary, years: 1, role: getRole(arbSalary, player) }
+              }
+          ],
+          isOffseasonEvent: true
+      });
+      setScreen('event');
+  };
+
+  const startNegotiation = (offer) => {
+    setNegotiation({
+      originalOffer: offer,
+      currentSalary: offer.salary,
+      currentCard: Math.floor(Math.random() * 13) + 1, // 1 to 13 (Ace to King)
+      status: 'playing',
+      msg: "Read the GM's mood. Guess if the next card is Higher or Lower to raise your salary. One wrong guess and the offer drops!"
+    });
+    setScreen('negotiation');
+  };
+
+  const handleNegotiateGuess = (guess) => {
+    let nextCard = Math.floor(Math.random() * 13) + 1;
+    while (nextCard === negotiation.currentCard) {
+      nextCard = Math.floor(Math.random() * 13) + 1; // Prevent ties for simplicity
+    }
+    
+    const isHigher = nextCard > negotiation.currentCard;
+    const isCorrect = (guess === 'higher' && isHigher) || (guess === 'lower' && !isHigher);
+    
+    if (isCorrect) {
+       // +5% bump per correct guess
+       const bump = Math.round(negotiation.originalOffer.salary * 0.05 / 25000) * 25000;
+       setNegotiation(prev => ({
+         ...prev,
+         currentCard: nextCard,
+         currentSalary: prev.currentSalary + bump,
+         msg: "✅ Great counter-argument! The GM bumped your salary."
+       }));
+    } else {
+       // -10% penalty for pushing your luck
+       const penalty = Math.round(negotiation.originalOffer.salary * 0.10 / 25000) * 25000;
+       setNegotiation(prev => ({
+         ...prev,
+         currentCard: nextCard,
+         currentSalary: Math.max(850000, prev.currentSalary - penalty),
+         status: 'busted',
+         msg: "❌ You pushed too hard! The GM got offended and slashed the offer."
+       }));
+    }
+  };
+
+  const finishNegotiation = (signNow) => {
+    const updatedOffer = { ...negotiation.originalOffer, salary: negotiation.currentSalary, negotiated: true };
+    if (signNow) {
+       signContract(updatedOffer);
+    } else {
+       // Save the modified offer back to the Free Agency pool
+       setFreeAgencyOffers(prev => prev.map(o => (o.team === updatedOffer.team && o.type === updatedOffer.type) ? updatedOffer : o));
+       setScreen('transfer');
+    }
+  };
+  
+    const buyItem = (item) => {
     if (item.type === 'staff') unlockAchievement('staff_hired');
     if (item.type === 'luxury') unlockAchievement('luxury_buyer');
     if (item.id === 'agent') unlockAchievement('agent_hired');
@@ -2890,35 +3771,47 @@ let champion = null;
 
           return (
             <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#040505] text-white font-sans">
-              <div className="w-full max-w-4xl space-y-6">
+              <div className="w-full max-w-4xl space-y-4">
                 
-                <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#F59E0B] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+                {/* 1. HERO HEADER (Fixed English & Top Award Aggregation) */}
+                <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#3b82f6] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(59,130,246,0.15)]">
                   <div className="flex justify-between items-center mb-6">
                     <span className="text-[10px] sm:text-xs font-black tracking-widest text-slate-400 uppercase bg-black/40 px-3 py-1 rounded-full border border-slate-700">
                       RETIRED AT AGE {player.age}
                     </span>
-                    <span className="text-[10px] sm:text-xs font-black tracking-widest text-[#F59E0B] uppercase bg-[#F59E0B]/10 px-3 py-1 rounded-full border border-[#F59E0B]/30 sports-font">
-                      {isLegend ? 'SHINECARD • LEGEND' : 'CAREER ACCOMPLISHED'}
+                    <span className="text-[10px] sm:text-xs font-black tracking-widest text-[#3b82f6] uppercase bg-[#3b82f6]/10 px-3 py-1 rounded-full border border-[#3b82f6]/30 sports-font">
+                      {isLegend ? 'HALL OF FAME CAREER' : 'CAREER ACCOMPLISHED'}
                     </span>
                   </div>
 
-                  <p className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-1 font-sans">{player.name} · #{player.number}</p>
-                  <h1 className="text-4xl sm:text-6xl font-black text-[#22E748] sports-font uppercase tracking-tight italic mb-2">
-                    "THE KING OF {primaryTeamName.toUpperCase()}"
+                  <h1 className="text-5xl sm:text-6xl font-black text-white number-font uppercase tracking-tight mb-1">
+                    {player.name}
                   </h1>
-                  <p className="text-lg sm:text-2xl font-black text-white sports-font uppercase tracking-wide flex items-center justify-center gap-2">
-                    LEGEND OF {primaryTeamName.toUpperCase()} 🗿
+                  <p className="text-xl sm:text-2xl font-black text-[#3b82f6] sports-font uppercase tracking-wide">
+                    #{player.number} · {primaryTeamName.toUpperCase()}
                   </p>
-                  <p className="text-xs sm:text-sm text-slate-400 font-sans italic mt-2">
-                    {isLegend ? 'You have a bronze statue erected right outside the main arena gates.' : 'Your jersey hangs proudly in the rafters of the stadium.'}
+                  <p className="text-xs sm:text-sm text-slate-400 font-sans italic mt-2 mb-4">
+                    {isLegend ? 'Your jersey hangs proudly in the rafters of the arena.' : 'You officially hang up the skates after a hard-fought career.'}
                   </p>
+
+                  {/* AGGREGATED AWARDS AT TOP */}
+                  {Object.keys(aggregatedAwards).length > 0 && (
+                    <div className="pt-4 border-t border-[rgba(255,255,255,0.065)] flex flex-wrap justify-center gap-x-4 gap-y-2">
+                      {Object.values(aggregatedAwards).sort((a,b) => b.count - a.count).map((aw, idx) => (
+                        <span key={idx} className="text-xs sm:text-sm font-bold text-[#F59E0B] uppercase tracking-wider font-sans bg-[#F59E0B]/10 px-2 py-1 rounded border border-[#F59E0B]/20">
+                          {aw.count}x {aw.name.replace(' Trophy', '').replace(' Memorial', '')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
+                {/* 2. CORE STATS GRID (Fixed Vocabulary) */}
                 <div className="game-panel p-4 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
                   <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-3 mb-4 px-2">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">NATIONALITY: {player.nat}</span>
-                      <span className="text-xs font-bold text-[#22E748] uppercase tracking-widest">OVR {player.ovr}</span>
+                      <span className="text-xs font-bold text-[#22E748] uppercase tracking-widest">PEAK OVR: {player.stats?.peakOvr || player.ovr}</span>
                     </div>
                   </div>
 
@@ -2937,11 +3830,11 @@ let champion = null;
                     </div>
                     <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)]">
                       <p className="text-2xl sm:text-3xl font-black text-white sports-font">{totalGames}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">MATCHES</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">GAMES PLAYED</p>
                     </div>
                     <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)]">
                       <p className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font">{player.stats?.titles || 0}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">TITLES</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">CHAMPIONSHIPS</p>
                     </div>
                     <div className="bg-[#101410] p-3 rounded-xl border border-[#3b82f6]/30">
                       <p className="text-xl sm:text-2xl font-black text-[#3b82f6] sports-font">{formatMoney(player.stats?.value || 50000)}</p>
@@ -2949,51 +3842,59 @@ let champion = null;
                     </div>
                     <div className="bg-[#101410] p-3 rounded-xl border border-[#22E748]/30">
                       <p className="text-xl sm:text-2xl font-black text-[#22E748] sports-font">{formatMoney(player.stats?.earnings || 0)}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">TOTAL EARNED</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">CAREER EARNINGS</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="game-panel p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
-                  <h3 className="text-sm font-bold text-slate-400 tracking-widest uppercase mb-6 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
-                    YOUR STORY, CLUB BY CLUB
+                {/* 3. CLUB HISTORY (Fixed text wrapping & single line stats) */}
+                <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-4 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
+                    CAREER HISTORY
                   </h3>
 
                   {stints.length === 0 ? (
                     <p className="text-slate-500 text-sm italic font-sans">No detailed club history recorded for this career.</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {stints.map((stint, idx) => (
-                        <div key={idx} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-4 sm:p-5 flex flex-col gap-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <TeamLogo teamId={stint.team} league={stint.league} />
-                              <div>
-                                <h4 className="text-lg sm:text-xl font-black text-white sports-font">{getFullTeamName(stint.team, stint.league)}</h4>
-                                <p className="text-xs text-slate-500 font-bold font-sans">
+                        <div key={idx} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-3 sm:p-4 flex flex-col gap-3">
+                          <div className="flex items-center justify-between gap-2">
+                            {/* Truncated team name so it never wraps */}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <TeamLogo teamId={stint.team} league={stint.league} size="small" className="shrink-0" />
+                              <div className="min-w-0">
+                                <h4 className="text-base sm:text-lg font-black text-white sports-font truncate">{getFullTeamName(stint.team, stint.league)}</h4>
+                                <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
                                   {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.league}
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <span className="text-xs sm:text-sm font-black text-slate-300 font-sans">
-                                {stint.games} GP · {isGoalie ? `${stint.saves} Saves` : `${stint.goals} G · ${stint.assists} A`}
+                            {/* Whitespace-nowrap on stats so "A" never drops to a new line */}
+                            <div className="text-right shrink-0">
+                              <span className="text-[10px] sm:text-sm font-black text-slate-300 font-sans whitespace-nowrap">
+                                {stint.games} GP · {isGoalie ? `${stint.saves} SV` : `${stint.goals} G · ${stint.assists} A`}
                               </span>
                             </div>
                           </div>
 
+                          {/* Simplified Team-Level Awards ("2028 Hart") */}
                           {(stint.titles.length > 0 || stint.awards.length > 0) && (
-                            <div className="flex flex-wrap gap-2 pt-2 border-t border-[rgba(255,255,255,0.04)]">
+                            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[rgba(255,255,255,0.04)]">
                               {stint.titles.length > 0 && (
-                                <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider font-sans">
-                                  🏆 {stint.titles.length}x Champion ({stint.titles.join(', ')})
+                                <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider font-sans">
+                                  🏆 {stint.titles.length}x Cup ({stint.titles.join(', ')})
                                 </span>
                               )}
-                              {stint.awards.map((aw, aIdx) => (
-                                <span key={aIdx} className="bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider font-sans">
-                                  🥇 {aw}
-                                </span>
-                              ))}
+                              {stint.awards.map((aw, aIdx) => {
+                                // Strip out the word "Trophy" so it's super clean, e.g. "2028 Hart"
+                                const cleanAward = aw.replace(' Trophy', '').replace(' Memorial', '');
+                                return (
+                                  <span key={aIdx} className="bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider font-sans">
+                                    🥇 {cleanAward}
+                                  </span>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -3002,36 +3903,8 @@ let champion = null;
                   )}
                 </div>
 
-                <div className="game-panel p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
-                  <h3 className="text-sm font-bold text-[#F59E0B] tracking-widest uppercase mb-6 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3 flex items-center gap-2">
-                    🏆 INDIVIDUAL ACCOLADES ({Object.keys(aggregatedAwards).length})
-                  </h3>
-
-                  {Object.keys(aggregatedAwards).length === 0 ? (
-                    <p className="text-slate-500 text-sm italic font-sans">No individual trophies won during this career.</p>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {Object.values(aggregatedAwards).map((item, idx) => (
-                        <div key={idx} className="bg-[#101410] border border-[#F59E0B]/20 p-4 rounded-xl flex items-start gap-4">
-                          <span className="text-3xl shrink-0">🏅</span>
-                          <div>
-                            <h4 className="text-base sm:text-lg font-black text-white sports-font">
-                              {item.name} <span className="text-[#F59E0B]">×{item.count}</span>
-                            </h4>
-                            {item.years.length > 0 && (
-                              <p className="text-xs text-slate-400 font-sans mt-1">
-                                Won in: <span className="text-slate-200 font-bold">{item.years.join(', ')}</span>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 <div className="text-center pt-4">
-                  <button onClick={handleNewGame} className="btn-primary py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest uppercase w-full sm:w-auto">
+                  <button onClick={handleNewGame} className="btn-primary w-full sm:w-auto py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest uppercase shadow-2xl">
                     START NEW CAREER
                   </button>
                 </div>
@@ -3044,8 +3917,10 @@ let champion = null;
         {screen === 'press' && (() => {
           const q = activePress.questions[activePress.currentQ];
           const journalist = activePress.journalists[activePress.currentQ];
-          const answerKeys = ['professional', 'passionate', 'humble', 'cocky'].filter(k => q?.answers[k]);
           
+          // Pulls from the safe top-level hook instead!
+          const answerKeys = pressAnswerKeys;
+
           return (
             <div className="game-panel p-4 sm:p-8 mt-2 border-t-2 border-t-[#3b82f6] text-left">
               <div className="mb-4 sm:mb-6 border-b border-[rgba(255,255,255,0.065)] pb-4">
@@ -3059,12 +3934,18 @@ let champion = null;
                 
                 {player.hockeyIQ >= 75 ? (
                   <>
-                    <p className="text-sm sm:text-base font-black text-white mb-1">🎙️ {journalist?.name}</p>
+                    <p className="text-sm sm:text-base font-black text-white mb-1 flex items-center flex-wrap gap-2">
+                      🎙️ {journalist?.name}
+                      {journalist?.outlet && <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest font-sans">{journalist.outlet}</span>}
+                    </p>
                     <p className="text-xs sm:text-sm text-slate-400 italic">"{journalist?.desc}"</p>
                   </>
                 ) : player.hockeyIQ >= 60 ? (
                   <>
-                    <p className="text-sm sm:text-base font-black text-white mb-1">🎙️ {journalist?.name}</p>
+                    <p className="text-sm sm:text-base font-black text-white mb-1 flex items-center flex-wrap gap-2">
+                      🎙️ {journalist?.name}
+                      {journalist?.outlet && <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest font-sans">{journalist.outlet}</span>}
+                    </p>
                     <p className="text-xs sm:text-sm text-slate-500 italic">You aren't quite sure what angle they are going for...</p>
                   </>
                 ) : (
@@ -3089,15 +3970,23 @@ let champion = null;
               <p className="text-[9px] sm:text-[10px] font-bold text-[#3b82f6] tracking-widest uppercase mb-2">QUESTION {activePress.currentQ + 1} OF 3</p>
               <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 leading-snug">"{q?.q}"</h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
                 {answerKeys.map((vibeKey) => {
                   const vibe = PRESS_VIBES[vibeKey];
                   return (
-                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-3 sm:p-5 rounded-xl transition-colors group flex flex-col gap-2 sm:gap-3 cursor-pointer">
-                       <div className="flex items-center gap-2">
-                         <span className={`text-[8px] sm:text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest ${vibe.bg} ${vibe.color} border ${vibe.border}`}>{vibe.icon} {vibe.label}</span>
-                       </div>
-                       <p className="text-xs sm:text-base text-slate-300 font-medium group-hover:text-white transition-colors">"{q.answers[vibeKey]}"</p>
+                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-4 sm:p-5 rounded-xl transition-colors group flex flex-col justify-center cursor-pointer min-h-[100px]">
+                       <p className="text-sm sm:text-base text-slate-300 font-medium group-hover:text-white transition-colors italic leading-relaxed">
+                         "{q.answers[vibeKey]}"
+                       </p>
+                       
+                       {/* HIGH IQ PERK: Unlocks the labels to make matching trivial */}
+                       {player.hockeyIQ >= 75 && (
+                         <div className="flex items-center gap-2 mt-3 opacity-40 group-hover:opacity-100 transition-opacity">
+                           <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${vibe.bg} ${vibe.color} border ${vibe.border}`}>
+                             {vibe.icon} {vibe.label}
+                           </span>
+                         </div>
+                       )}
                     </button>
                   )
                 })}
@@ -3136,7 +4025,11 @@ let champion = null;
                    <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">INTERVIEWEE BREAKDOWN</span>
                  </div>
                  <div className="p-3 sm:p-4 bg-[#1a2230]">
-                    <p className="text-xs sm:text-sm text-white"><span className="font-bold text-[#3b82f6]">🎙️ {primaryJournalist.name}:</span> {primaryJournalist.desc}</p>
+                    <p className="text-xs sm:text-sm text-white flex items-center flex-wrap gap-1.5">
+                      <span className="font-bold text-[#3b82f6]">🎙️ {primaryJournalist.name}</span> 
+                      {primaryJournalist.outlet && <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest font-sans mr-1">{primaryJournalist.outlet}</span>}
+                      — {primaryJournalist.desc}
+                    </p>
                  </div>
               </div>
 
@@ -3191,8 +4084,8 @@ let champion = null;
                    <TeamLogo teamId={seasonRecap?.draftedBy?.id} league="NHL" />
                 </div>
                 
-                <h3 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight">
-                  THE {seasonRecap?.draftedBy?.name || 'UNKNOWN'} ARE PROUD TO SELECT, FROM {getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
+                <h3 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight px-4">
+                  THE {getFullTeamName(seasonRecap?.draftedBy?.id, 'NHL').toUpperCase()} ARE PROUD TO SELECT, FROM {['SHL', 'LIIGA'].includes(seasonRecap?.juniorLeague) ? '' : 'THE '}{getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
                 </h3>
                 
                 <h2 className="text-5xl sm:text-6xl font-black text-[#3b82f6] sports-font uppercase mt-2">{player.name}</h2>
@@ -3228,14 +4121,22 @@ let champion = null;
 
         {screen === 'preseason' && (
           <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#22E748] relative z-20">
-            <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mb-2 text-center sports-font tracking-tighter">PRE-SEASON {currentYear}</h2>
-            <p className="text-slate-400 text-center mb-10 font-medium text-sm sm:text-lg font-sans">The dice rolled three upgrades. Pick one focus.</p>
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
+              <div>
+                <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest font-sans border border-[#3b82f6]/30 px-2.5 py-1 rounded bg-[#3b82f6]/10">
+                  OFF-SEASON DEVELOPMENT
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mt-2 text-center sports-font tracking-tighter">PRE-SEASON {currentYear}</h2>
+                <p className="text-center text-slate-400 text-sm sm:text-base font-sans mb-4">The dice rolled three upgrades. Pick one focus.</p>
+              </div>
+              <div className="text-3xl sm:text-4xl dice-roll">🎲</div>
+            </div>
 
-            <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full">
+           <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full">
               {activeTrainings.map(t => (
                 <button
                   type="button"
-                  key={t.id} 
+                  key={t.id}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -3250,23 +4151,42 @@ let champion = null;
                           <span className={`shrink-0 text-[9px] sm:text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest font-sans ${t.rarity === 'Epic' ? 'bg-[#F59E0B] text-black' : 'bg-[#3b82f6] text-white'}`}>{t.rarity}</span>
                         ) : <span className="shrink-0"></span>}
                         <span className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-black text-slate-700 uppercase sports-font tracking-tighter text-right leading-none break-words min-w-0">
-                          {{ 'SHT': 'SHOOTING', 'SKT': 'SKATING', 'PHY': 'PHYSICAL', 'IQ': 'HOCKEY IQ', 'STA': 'STAMINA', 'REF': 'REFLEXES', 'AGI': 'AGILITY' }[t.tag] || t.tag}
+                          {{
+                            'SHT': 'SHOOTING', 'SKT': 'SKATING', 'PHY': 'PHYSICAL',
+                            'IQ': 'HOCKEY IQ', 'MIND': 'HOCKEY IQ',
+                            'STA': 'STAMINA', 'STM': 'STAMINA',
+                            'REF': 'REFLEXES', 'POS': 'POSITIONING', 'AGI': 'AGILITY',
+                            'TECH': 'TECHNIQUE', 'GRIT': 'GRIT', 'POW': 'POWER',
+                            'SKL': 'SKILL', 'PRO': 'PROGRAM', 'ELITE': 'ELITE',
+                            'EYES': 'VISION', 'FLEX': 'FLEXIBILITY'
+                          }[t.tag] || t.tag}
                         </span>
                       </div>
                       <h3 className="text-xl sm:text-2xl font-black text-white uppercase leading-tight mb-3 text-left sports-font mt-2">{t.name}</h3>
                       <p className="text-xs sm:text-sm text-slate-400 leading-relaxed italic text-left font-sans mb-4">{t.flavor}</p>
                     </div>
 
-                    {/* BUBBLE BADGES FOR STAT BOOSTS */}
-                    <div className="mt-auto text-left pt-4 border-t border-[rgba(255,255,255,0.065)] w-full flex flex-wrap gap-1.5">
-                      {(t.desc || '').split(',').map((boost, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black sports-font tracking-wider bg-[#22E748]/15 border border-[#22E748]/40 text-[#22E748]"
-                        >
-                          {boost.trim()}
-                        </span>
-                      ))}
+                    {/* STAT PILLS — color-coded per stat, matching the international game */}
+                    <div className="mt-auto text-left pt-4 border-t border-[rgba(255,255,255,0.065)] w-full flex flex-wrap items-center gap-1.5">
+                      {(t.desc || '').split(',').map((boost, idx) => {
+                        const trimmed = boost.trim();
+                        const parts = trimmed.split(/\s+/);
+                        const stat = (parts[1] || '').toUpperCase();
+                        let colorCls = 'text-white bg-white/10 border-white/30';
+                        if (['PHY'].includes(stat)) colorCls = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30';
+                        if (['SKT', 'AGI', 'POS'].includes(stat)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30';
+                        if (['SHT', 'REF'].includes(stat)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
+                        if (['IQ', 'MIND'].includes(stat)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30';
+                        if (['STA', 'STM'].includes(stat)) colorCls = 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30';
+                        return (
+                          <span
+                            key={idx}
+                            className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border ${colorCls}`}
+                          >
+                            {trimmed}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </button>
@@ -3293,8 +4213,40 @@ let champion = null;
           const isContender = standings <= playoffSpots;
 
           const handleSkip = () => {
-             setSeasonRecap(res.recap);
-             runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, 2026 + (player.stats?.seasonsPlayed || 0), standings);
+             const currentLg = res.currentLg;
+             const isExpiring = player.contract?.years === 1 || ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg);
+             const totalTeamsInLeague = getOpponentPool(currentLg)?.length || 20;
+             const isRebuilding = standings > (totalTeamsInLeague * 0.6);
+             
+             let eliteThreshold = 82;
+             if (['AHL', 'SHL', 'LIIGA'].includes(currentLg)) eliteThreshold = 72;
+             if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
+             const isElite = player.ovr >= eliteThreshold;
+
+             // 40% chance if elite/expiring on a bad team. 5% random hockey trade otherwise.
+             const tradeChance = (isExpiring && isRebuilding && isElite) ? 0.40 : 0.05;
+
+             if (['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < tradeChance) {
+                  let pool = (getOpponentPool(currentLg) || []).filter(t => t.id !== res.currentTeam);
+                  if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+                  
+                  const destTeam = pool[Math.floor(Math.random() * pool.length)];
+                  const destStandings = Math.floor(Math.random() * (playoffSpots - 2)) + 1; 
+                  
+                  setActiveEvent({
+                     title: '11TH HOUR BLOCKBUSTER!',
+                     desc: `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the ${destTeam.name} (${currentLg}).`,
+                     choices: [
+                        { label: 'Embrace the fresh start', isRisky: false, feedback: 'You packed your bags and joined your new squad.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                        { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                     ],
+                     isTradeDeadlineEvent: true
+                  });
+                  setScreen('event');
+             } else {
+                 setSeasonRecap(res.recap);
+                 runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, 2026 + (player.stats?.seasonsPlayed || 0), standings);
+             }
           };
 
           const handleTradeRequest = () => {
@@ -3514,26 +4466,21 @@ let champion = null;
                     </div>
 
                     {/* ODDS & REWARD BADGES */}
-                    <div className="w-full bg-black/40 rounded-lg p-3 border border-[rgba(255,255,255,0.04)] flex flex-col gap-1 sm:gap-1.5 font-sans mt-auto">
+                    <div className="w-full bg-black/40 rounded-lg p-2.5 border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center gap-1.5 font-sans mt-auto">
                       
-                      {/* ROW 1: ODDS */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">SUCCESS ODDS</span>
-                        <span className={`text-xs sm:text-sm font-black sports-font ${c.chance >= 0.65 ? 'text-[#22E748]' : c.chance >= 0.50 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>
-                          {Math.round(c.chance * 100)}%
-                        </span>
-                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                        SUCCESS ODDS: <span className={`font-black sports-font text-xs ml-1 ${c.chance >= 0.65 ? 'text-[#22E748]' : c.chance >= 0.50 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>{Math.round(c.chance * 100)}%</span>
+                      </p>
 
-                      {/* ROW 2: INDEPENDENT STAT PILLS (Side-by-side) */}
                       <div className="flex justify-center items-center gap-1.5 flex-wrap">
                         {String(c.tag).split('+').map((statLabel, idx) => {
                           const s = statLabel.trim();
-                          let colorCls = 'text-white bg-white/10 border-white/30'; // Default fallback
-                          if (['PHY'].includes(s)) colorCls = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'; // Orange
-                          if (['SKT', 'AGI'].includes(s)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; // Green
-                          if (['SHT', 'REF'].includes(s)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'; // Blue
-                          if (['IQ'].includes(s)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; // Purple
-                          if (['STA'].includes(s)) colorCls = 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'; // Red
+                          let colorCls = 'text-white bg-white/10 border-white/30'; 
+                          if (['PHY'].includes(s)) colorCls = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'; 
+                          if (['SKT', 'AGI'].includes(s)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; 
+                          if (['SHT', 'REF'].includes(s)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'; 
+                          if (['IQ'].includes(s)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; 
+                          if (['STA'].includes(s)) colorCls = 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'; 
                           
                           return (
                             <span key={idx} className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border ${colorCls}`}>
@@ -3611,7 +4558,7 @@ let champion = null;
               }
               
               if (rivalWonTitle) {
-                  narrative += ` Adding insult to injury, your arch-rivals—the ${rivalName}—lifted the trophy.`;
+                  narrative += ` Adding insult to injury, your arch-rivals—${['SHL', 'LIIGA'].includes(player.league) ? '' : 'the '}${rivalName}—lifted the trophy.`;
               } else if (hasHardware && pw > 0 && pw < maxWins - 1) {
                   narrative += " Your individual brilliance wasn't enough to carry the team.";
               }
@@ -3619,7 +4566,7 @@ let champion = null;
               narrativeTitle = 'MISSED THE DANCE';
               narrative = 'A disappointing campaign. Rebuild for next year.';
               if (rivalWonTitle) {
-                  narrative = `A nightmare season. Not only did you miss the playoffs, but your arch-rivals, the ${rivalName}, won it all.`;
+                  narrative = `A nightmare season. Not only did you miss the playoffs, but your arch-rivals, ${['SHL', 'LIIGA'].includes(player.league) ? '' : 'the '}${rivalName}, won it all.`;
               } else if (hasHardware) {
                   narrative = 'You had an incredible individual year, but the team completely let you down.';
               }
@@ -3651,7 +4598,7 @@ let champion = null;
               </div>
 
               <ul className="space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-lg mb-10 font-sans text-left">
-                <li className="border-l-4 border-[#3b82f6] pl-4 py-1">🏅 {getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in the {player.league}.</li>
+                <li className="border-l-4 border-[#3b82f6] pl-4 py-1">🏅 {['SHL', 'LIIGA'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in the {player.league}.</li>
                 
                 {player.pos === 'G' ? (
                   <li className="border-l-4 border-[#22E748] pl-4 py-1">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games.</li>
@@ -3682,6 +4629,55 @@ let champion = null;
                   </li>
                 )}
               </ul>
+
+{/* REPUTATION & WORLD BUILDING */}
+              <div className="mt-8 mb-10 border border-[rgba(255,255,255,0.065)] rounded-xl overflow-hidden text-left bg-[#0a0d0a] shadow-lg">
+                <div className="bg-[#101410] px-4 py-3 border-b border-[rgba(255,255,255,0.065)] flex items-center justify-between">
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest font-sans">REPUTATION REPORT</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest sports-font">END OF YEAR {currentYear}</span>
+                </div>
+                
+                <div className="p-4 sm:p-6 space-y-5">
+                  {/* Coach */}
+                  <div>
+                    <h4 className="text-[10px] font-black text-[#3b82f6] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                      <span className="text-sm">👔</span> COACHING STAFF
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed italic">
+                      {(player.relationships?.coach || 50) < 30 ? "The coaching staff has completely lost faith in you. There are whispers of a serious rift behind closed doors, and you're constantly looking over your shoulder." :
+                       (player.relationships?.coach || 50) < 50 ? "Your relationship with the bench boss is strictly business. You play your minutes, but you definitely aren't his favorite player to draw plays for." :
+                       (player.relationships?.coach || 50) < 80 ? "The coaching staff trusts you in key situations. You're a reliable piece of the system and a fixture in their game plan." :
+                       "You are an absolute extension of the coach on the ice. They implicitly trust you to run the locker room and dictate the pace of play."}
+                    </p>
+                  </div>
+
+                  {/* Teammates */}
+                  <div className="border-t border-[rgba(255,255,255,0.065)] pt-5">
+                    <h4 className="text-[10px] font-black text-[#22E748] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                      <span className="text-sm">🤝</span> THE LOCKER ROOM
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed italic">
+                      {(player.relationships?.teammates || 50) < 30 ? "The room is freezing you out. Guys are openly ignoring you during team dinners, and the chemistry on your line is non-existent." :
+                       (player.relationships?.teammates || 50) < 50 ? "You're somewhat isolated. It's a professional relationship, but you definitely aren't in the inner circle of the team's core." :
+                       (player.relationships?.teammates || 50) < 80 ? "The boys love you. You're a massive glue guy in the room and a staple at all the team events away from the rink." :
+                       "You are the undisputed heartbeat of this roster. The rest of the team would happily run through a brick wall for you."}
+                    </p>
+                  </div>
+
+                  {/* Media */}
+                  <div className="border-t border-[rgba(255,255,255,0.065)] pt-5">
+                    <h4 className="text-[10px] font-black text-[#F59E0B] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                      <span className="text-sm">📰</span> LOCAL MEDIA
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed italic">
+                      {(player.relationships?.media || 50) < 30 ? "The local press has their knives out. Every minor mistake you make is aggressively blown out of proportion on the front page." :
+                       (player.relationships?.media || 50) < 50 ? "Media coverage is lukewarm. You aren't a darling, but they generally respect your game when you perform well." :
+                       (player.relationships?.media || 50) < 80 ? "Reporters love crowding your locker. You provide great soundbites and usually control the public narrative." :
+                       "You are a total media darling. Journalists constantly spin your game positively, giving you massive PR armor in this city."}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
               {/* STICKY FOOTER ACTION BUTTONS */}
               <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#040505] via-[#040505] to-transparent z-40 mt-8 flex flex-col sm:flex-row gap-4">
@@ -3810,42 +4806,37 @@ let champion = null;
           const accent = ACCENT[mg?.accent] || ACCENT.blue;
 
           return (
-            <div className={`game-panel p-6 sm:p-12 mt-2 border-t-2 ${accent.border} text-center`}>
-              <h2 className={`text-3xl sm:text-5xl font-black mb-4 ${accent.heading} sports-font tracking-tighter uppercase leading-tight text-balance sm:whitespace-nowrap`}>{mg?.title}</h2>
-              <p className="text-base sm:text-xl text-slate-300 mb-8 sm:mb-12 max-w-2xl mx-auto text-left sm:text-center">{mg?.desc}</p>
-             <div className="flex sm:grid sm:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory pb-6 pt-2 px-2 sm:px-0 w-full max-w-4xl mx-auto">
-                {(mg?.choices || []).map((c, i) => {
-                  const chance = choiceChance(player, c);
-                  const pill = ARCH_PILL[c.archetype] || ARCH_PILL.safe;
-                  return (
-                    <button 
-                      key={i} 
-                      onClick={() => handleMinigameChoice(chance, c.success, c.fail, c.reward)} 
-                      className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] ${pill.hover} p-5 sm:p-6 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-between group shadow-lg min-h-[160px]`}
-                    >
-                      <h3 className="font-black text-xl sm:text-2xl text-white sports-font text-balance leading-tight mb-4 group-hover:scale-105 transition-transform text-center w-full">
-                        {c.label}
-                      </h3>
-                      
-                      {/* STAT BREAKDOWN BOX */}
-                      <div className="w-full bg-black/40 rounded-lg p-3 border border-[rgba(255,255,255,0.04)] flex flex-col gap-2 font-sans mt-auto">
-                         <div className="flex justify-between items-center">
-                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">SUCCESS ODDS</span>
-                             <span className={`text-xs sm:text-sm font-black ${chance >= 0.65 ? 'text-[#22E748]' : chance >= 0.45 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>
-                               {Math.round(chance * 100)}%
-                             </span>
-                         </div>
-                         <div className="flex justify-between items-center">
-                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">RISK LEVEL</span>
-                             <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${pill.cls}`}>
-                                {pill.label}
-                             </span>
-                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+            <div className={`game-panel p-6 sm:p-12 mt-2 border-t-2 ${accent.border} text-center flex flex-col`}>
+              {!minigameStarted ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="inline-block px-4 py-1.5 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-full text-[#F59E0B] text-xs sm:text-sm font-black uppercase tracking-widest mb-6">
+                    ⚠️ Live Play Opportunity
+                  </div>
+                  <h2 className={`text-4xl sm:text-6xl font-black mb-6 ${accent.heading} sports-font tracking-tighter uppercase leading-tight text-balance sm:whitespace-nowrap`}>{mg?.title}</h2>
+                  <p className="text-lg sm:text-2xl text-slate-300 mb-10 max-w-2xl mx-auto text-center leading-relaxed">{mg?.desc}</p>
+                  
+                  <button
+                    onClick={() => setMinigameStarted(true)}
+                    className="btn-primary py-4 px-10 rounded-xl text-xl sm:text-2xl cursor-pointer sports-font tracking-widest shadow-[0_0_20px_rgba(34,231,72,0.3)] transition-transform hover:scale-105"
+                  >
+                    🟢 ENTER SITUATION
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col h-full w-full fade-up">
+                  <h2 className={`text-2xl sm:text-3xl font-black mb-6 ${accent.heading} sports-font tracking-tighter uppercase leading-tight`}>{mg?.title}</h2>
+                  <div className="bg-black/50 p-6 sm:p-10 rounded-2xl border border-[rgba(255,255,255,0.05)] shadow-inner min-h-[350px] sm:min-h-[400px] flex flex-col justify-center relative flex-1">
+                     {mg?.gameType === 'shootout' && <ShootoutGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'faceoff' && <FaceoffGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'crease' && <CreaseGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'film' && <FilmRoomGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'deflect' && <DeflectionGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'block' && <ShotBlockGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'breakaway' && <BreakawayGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'onetimer' && <OneTimerGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -3949,7 +4940,7 @@ let champion = null;
                       {/* CHAMPIONSHIP FINAL (CENTER) */}
                       <div className="flex flex-col justify-center gap-2 min-w-[115px] sm:min-w-[145px] shrink-0 relative px-1">
                         <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none mix-blend-screen">
-                        <TrophySVG league={playoffs.currentLg} className="w-24 h-24 sm:w-28 sm:h-28 mt-4" />
+                        <TrophyImage league={playoffs.currentLg} className="w-24 h-24 sm:w-28 sm:h-28 mt-4" />
                       </div>
                         <p className="text-center text-[8px] sm:text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider">
                           {(getPlayoffRounds(playoffs.currentLg)[playoffs.bracket.length - 1]?.name || 'FINAL').toUpperCase()}
@@ -4036,7 +5027,7 @@ let champion = null;
               {activeMatch && (
                  <div className="max-w-sm sm:max-w-md w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-5 sm:p-6 rounded-xl text-center shadow-lg mx-auto mb-4">
 
-                    {/* TOP STATUS LINE — always occupies the same slot so the grid below never shifts */}
+                    {/* {/* TOP STATUS LINE — always occupies the same slot so the grid below never shifts */}
                     <div className="mb-6 flex flex-col items-center">
                       
                       {activeMatch.status === 'playing' && (
@@ -4044,9 +5035,9 @@ let champion = null;
                           <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest mb-3 font-sans">
                              ROUND {playoffs.activeRoundIndex + 1} MATCHUP
                           </p>
-                          <TeamLogo teamId={activeMatch.team2?.id} league={playoffs.currentLg} size="large" />
+                          <TeamLogo teamId={activeMatch.team2?.id || 'UNK'} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="large" />
                           <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
-                             VS. {getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
+                             VS. {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
                           </p>
                         </>
                       )}
@@ -4056,9 +5047,9 @@ let champion = null;
                           <p className="text-[11px] sm:text-xs font-black text-[#22E748] uppercase tracking-widest mb-3 font-sans">
                              ⚡ SERIES VICTORY! ({activeMatch.wins1}-{activeMatch.wins2})
                           </p>
-                          <TeamLogo teamId={activeMatch.team2?.id} league={playoffs.currentLg} size="large" />
+                          <TeamLogo teamId={activeMatch.team2?.id || 'UNK'} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="large" />
                           <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
-                             DEFEATED {getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
+                             DEFEATED {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
                           </p>
                         </>
                       )}
@@ -4068,9 +5059,9 @@ let champion = null;
                           <p className="text-[11px] sm:text-xs font-black text-[#ef4444] uppercase tracking-widest mb-3 font-sans">
                              💔 ELIMINATED ({activeMatch.wins1}-{activeMatch.wins2})
                           </p>
-                          <TeamLogo teamId={activeMatch.team2?.id} league={playoffs.currentLg} size="large" />
+                          <TeamLogo teamId={activeMatch.team2?.id || 'UNK'} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="large" />
                           <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
-                             DEFEATED BY {getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
+                             DEFEATED BY {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
                           </p>
                         </>
                       )}
@@ -4296,9 +5287,10 @@ let champion = null;
                    </p>
                    <button
                      onClick={() => setMemCup({ round: 1, status: 'playing' })}
-                     className="btn-primary w-full py-4 rounded-xl font-black sports-font text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer"
+                     className="btn-primary w-full py-4 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-transform hover:scale-105 cursor-pointer shadow-lg"
                    >
-                     ENTER CHAMPIONSHIP FINAL VS {finalOpponent.toUpperCase()} ➔
+                     <span className="text-[10px] sm:text-xs font-bold text-white/70 uppercase tracking-widest font-sans">PROCEED TO THE</span>
+                     <span className="text-lg sm:text-xl font-black sports-font uppercase text-white text-center text-balance leading-none">CHAMPIONSHIP FINAL VS. {finalOpponent.toUpperCase()} ➔</span>
                    </button>
                 </div>
               )}
@@ -4315,32 +5307,43 @@ let champion = null;
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {choices.map((c, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleChoice(c)}
-                        className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] hover:border-[#F59E0B] p-4 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-between group"
-                      >
-                        <div>
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider font-sans border border-[#F59E0B]/30 px-2 py-0.5 rounded bg-[#F59E0B]/10">
-                              {c.tag}
-                            </span>
-                            <span className="text-xs font-black text-slate-400 sports-font">
-                              {Math.round(c.chance * 100)}%
-                            </span>
+                  {isFinal ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {choices.map((c, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleChoice(c)}
+                          className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] hover:border-[#F59E0B] p-4 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-between group"
+                        >
+                          <div>
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[9px] font-bold text-[#F59E0B] uppercase tracking-wider font-sans border border-[#F59E0B]/30 px-2 py-0.5 rounded bg-[#F59E0B]/10">
+                                {c.tag}
+                              </span>
+                              <span className="text-xs font-black text-slate-400 sports-font">
+                                {Math.round(c.chance * 100)}%
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-black text-white sports-font uppercase group-hover:text-[#F59E0B] transition-colors mb-1">
+                              {c.label}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 font-sans leading-tight">
+                              {c.desc}
+                            </p>
                           </div>
-                          <h4 className="text-sm font-black text-white sports-font uppercase group-hover:text-[#F59E0B] transition-colors mb-1">
-                            {c.label}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 font-sans leading-tight">
-                            {c.desc}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-[#1a2230] border border-[#3b82f6]/30 rounded-xl p-6 sm:p-8 text-center shadow-lg">
+                       <div className="text-4xl mb-4 animate-bounce">🏒</div>
+                       <h4 className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-3">LIVE MINIGAME SCENARIO</h4>
+                       <p className="text-sm sm:text-base text-slate-300 font-sans mb-8 max-w-lg mx-auto">The Semi-Final is a do-or-die elimination game. Step onto the ice and complete a live interactive minigame to secure your spot in the Championship Final!</p>
+                       <button onClick={() => triggerMinigame('memcup')} className="btn-primary py-4 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest shadow-[0_0_15px_rgba(34,231,75,0.3)] hover:scale-105 transition-transform cursor-pointer">
+                          ENTER SEMI-FINAL SCENARIO
+                       </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4373,14 +5376,14 @@ let champion = null;
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 text-left">
                     <div className="bg-[#101410]/80 p-3.5 rounded-xl border border-[rgba(255,255,255,0.065)] flex flex-col justify-start min-h-[72px]">
                       <p className="text-[9px] font-bold text-slate-500 uppercase font-sans tracking-wider mb-1">
-                        {player.rights ? 'FRONT OFFICE IMPRESSION' : 'NHL DRAFT IMPACT'}
+                        {(player.rights || player.draftTeam) ? 'FRONT OFFICE IMPRESSION' : 'NHL DRAFT IMPACT'}
                       </p>
                       <p className={`text-sm sm:text-base font-black sports-font leading-tight ${
                         memCup.status === 'won' ? 'text-[#22E748]' : 'text-slate-300'
                       }`}>
                         {memCup.status === 'won' 
-                          ? (player.rights ? '🚀 EXCEEDED EXPECTATIONS' : (player.ovr >= 65 ? '🚀 LOCK FOR TOP 10 PICK' : '🚀 RISES TO 1ST ROUND'))
-                          : '➡️ STABLE DEVELOPMENT'}
+                          ? ((player.rights || player.draftTeam) ? '🚀 EXCEEDED EXPECTATIONS' : (player.ovr >= 65 ? '🚀 LOCK FOR TOP 10 PICK' : '🚀 RISES TO 1ST ROUND'))
+                          : ((player.rights || player.draftTeam) ? '➡️ STABLE DEVELOPMENT' : '📉 MINOR DRAFT HIT')}
                       </p>
                     </div>
 
@@ -4510,12 +5513,84 @@ let champion = null;
                     >
                       {isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}
                     </button>
+                    {/* ARBITRATION BUTTON */}
+                    {o.type === 'QUALIFYING OFFER' && (
+                       <button
+                          onClick={() => handleArbitration(o)}
+                          className="w-full py-2.5 mt-2 rounded-lg bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/40 font-black sports-font tracking-widest text-sm hover:bg-[#ef4444]/20 transition-colors cursor-pointer"
+                       >
+                          FILE FOR ARBITRATION
+                       </button>
+                    )}
+
+                    {/* NEGOTIATION BUTTON */}
+                    {!o.negotiated && o.type !== 'QUALIFYING OFFER' && player.ovr >= 80 && (
+                       <button
+                          onClick={() => startNegotiation(o)}
+                          className="w-full py-2.5 mt-2 rounded-lg bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/40 font-black sports-font tracking-widest text-sm hover:bg-[#3b82f6]/20 transition-colors cursor-pointer shadow-sm"
+                       >
+                          🤝 NEGOTIATE SALARY
+                       </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
         )}
+{screen === 'negotiation' && (() => {
+          const getCardName = (val) => {
+             if (val === 11) return 'J';
+             if (val === 12) return 'Q';
+             if (val === 13) return 'K';
+             if (val === 1) return 'A';
+             return val;
+          };
+
+          return (
+            <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#F59E0B] text-center max-w-xl mx-auto">
+              <h2 className="text-3xl sm:text-4xl font-black text-white uppercase mb-2 sports-font tracking-wide">CONTRACT NEGOTIATION</h2>
+              <p className="text-sm sm:text-base text-slate-400 font-sans mb-8">{negotiation.msg}</p>
+
+              <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-2xl p-6 sm:p-8 mb-8 shadow-inner flex flex-col items-center">
+                 <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">CURRENT OFFER</p>
+                 <p className={`text-4xl sm:text-5xl font-black sports-font mb-6 transition-colors ${negotiation.currentSalary > negotiation.originalOffer.salary ? 'text-[#22E748]' : negotiation.currentSalary < negotiation.originalOffer.salary ? 'text-[#ef4444]' : 'text-white'}`}>
+                   {formatMoney(negotiation.currentSalary)}
+                 </p>
+                 
+                 <div className="w-24 h-36 sm:w-32 sm:h-48 bg-white rounded-xl border-4 border-slate-300 shadow-[0_10px_25px_rgba(0,0,0,0.5)] flex items-center justify-center relative overflow-hidden mb-6">
+                    <span className="absolute top-2 left-3 text-xl sm:text-2xl font-black text-slate-800">{getCardName(negotiation.currentCard)}</span>
+                    <span className="text-5xl sm:text-7xl font-black text-slate-800">{getCardName(negotiation.currentCard)}</span>
+                    <span className="absolute bottom-2 right-3 text-xl sm:text-2xl font-black text-slate-800 rotate-180">{getCardName(negotiation.currentCard)}</span>
+                 </div>
+
+                 {negotiation.status === 'playing' ? (
+                   <div className="flex gap-4 w-full">
+                     <button onClick={() => handleNegotiateGuess('lower')} className="flex-1 bg-[#ef4444]/10 border-2 border-[#ef4444]/40 hover:bg-[#ef4444]/20 text-[#ef4444] py-4 rounded-xl font-black sports-font text-xl transition-transform active:scale-95 cursor-pointer">
+                       ⬇ LOWER
+                     </button>
+                     <button onClick={() => handleNegotiateGuess('higher')} className="flex-1 bg-[#22E748]/10 border-2 border-[#22E748]/40 hover:bg-[#22E748]/20 text-[#22E748] py-4 rounded-xl font-black sports-font text-xl transition-transform active:scale-95 cursor-pointer">
+                       ⬆ HIGHER
+                     </button>
+                   </div>
+                 ) : (
+                   <div className="bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font text-xl py-3 px-6 rounded-lg uppercase tracking-widest animate-pulse">
+                     NEGOTIATION FAILED
+                   </div>
+                 )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                 <button onClick={() => finishNegotiation(true)} className="flex-1 btn-primary py-4 rounded-xl font-black sports-font text-lg uppercase tracking-widest shadow-lg">
+                   SIGN DEAL NOW
+                 </button>
+                 <button onClick={() => finishNegotiation(false)} className="flex-1 bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] text-white py-4 rounded-xl font-black sports-font text-lg uppercase tracking-widest transition-colors cursor-pointer">
+                   RETURN TO OFFERS
+                 </button>
+              </div>
+            </div>
+          );
+        })()}
 
       </div> 
     </div>

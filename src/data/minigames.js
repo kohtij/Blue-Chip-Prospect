@@ -1,199 +1,98 @@
-export const MINIGAMES = [
-  // ==========================================
-  // SKATER MINIGAMES
-  // ==========================================
+export const interactiveMinigames = [
   {
-    id: 'breakaway',
-    title: 'THE BREAKAWAY',
-    forGoalie: false,
+    id: 'shootout_snipe',
+    title: 'THE SHOOTOUT SNIPE',
+    desc: 'The game is on your stick. Watch the goalie, wait for the weak spot to open up (green), and snipe it before the clock runs out!',
     accent: 'blue',
-    desc: 'You intercept a pass at your own blue line and burst in all alone. The goalie comes out to challenge. What is your move?',
-    choices: [
-      {
-        label: 'Snap it Low Blocker',
-        archetype: 'safe',
-        stats: ['shooting'],
-        baseChance: 0.75,
-        success: 'You picked your spot and snapped it home cleanly.',
-        fail: 'The goalie read the shot and kicked out a pad to make an easy save.',
-        reward: { win: { idol: 5, ovr: 0 }, loss: { idol: 0, ovr: 0 } }
-      },
-      {
-        label: 'Fake and Elevate',
-        archetype: 'skill',
-        stats: ['skating', 'hockeyIQ'],
-        baseChance: 0.55,
-        success: 'You dropped the shoulder, forced the goalie down, and roofed it!',
-        fail: 'You ran out of real estate and jammed the puck right into the goalie\'s chest logo.',
-        reward: { win: { idol: 15, ovr: 0 }, loss: { idol: -5, ovr: 0 } }
-      },
-      {
-        label: 'The Datsyukian Deke',
-        archetype: 'gamble',
-        stats: ['skating', 'shooting', 'hockeyIQ'],
-        baseChance: 0.30,
-        success: 'ABSOLUTELY FILTHY! You dragged the puck through your legs and chipped it in! The crowd has lost their minds!',
-        fail: 'You got your skates tangled up trying to get fancy, fell over, and slid directly into the corner boards. Humiliating.',
-        reward: { win: { idol: 35, ovr: 1, money: 10000 }, loss: { idol: -20, ovr: -1, money: 0 } }
-      }
-    ]
+    gameType: 'shootout',
+    pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
+    reward: { win: { idol: 25, ovr: 1, money: 5000 }, loss: { idol: -15, ovr: 0 } },
+    successMsg: "Snipe city! You went top shelf where momma hides the peanut butter!",
+    failMsg: "You waited too long and the goalie poke-checked the puck away."
   },
   {
-    id: 'odd_man',
-    title: '2-ON-1 RUSH',
-    forGoalie: false,
+    id: 'faceoff_draw',
+    title: 'THE FACEOFF DRAW',
+    desc: 'Stare down the referee. When the circle flashes GREEN, click as fast as possible to win the draw. Do not jump early!',
+    accent: 'amber',
+    gameType: 'faceoff',
+    pos: ['C'], // Centers only
+    reward: { win: { idol: 15, ovr: 1, rel: { coach: 10 } }, loss: { idol: -10, ovr: 0, rel: { coach: -10 } } },
+    successMsg: "Clean win! You snapped it straight back to your defenseman.",
+    failMsg: "You lost the draw, putting your team immediately on the defensive."
+  },
+  {
+    id: 'rapid_crease',
+    title: 'RAPID FIRE CREASE',
+    desc: 'They are peppering you with shots! Click the pucks (red dots) as they appear to make the save. Make 5 saves to survive!',
+    accent: 'red',
+    gameType: 'crease',
+    pos: ['G'], // Goalies only
+    reward: { win: { idol: 30, ovr: 1, rel: { teammates: 15 } }, loss: { idol: -20, ovr: -1 } },
+    successMsg: "Brick wall! You robbed them blind and kept the puck out of the net.",
+    failMsg: "The barrage was too much. You gave up a soft rebound goal."
+  },
+  {
+    id: 'film_room',
+    title: 'THE FILM ROOM',
+    desc: 'Coach is drawing up a play. Memorize the exact pattern, then select the matching play from the options.',
     accent: 'emerald',
-    desc: 'Late in a tie game, you and your winger break out on a 2-on-1. The lone defenseman is sliding over to take away the pass.',
-    choices: [
-      {
-        label: 'Use the Decoy and Shoot',
-        archetype: 'safe',
-        stats: ['shooting'],
-        baseChance: 0.75,
-        success: 'You used the defender\'s momentum against them and wired a wrister past the goalie.',
-        fail: 'You telegraphed the shot. The goalie swallowed it up for a whistle.',
-        reward: { win: { idol: 5, ovr: 0 }, loss: { idol: 0, ovr: 0 } }
-      },
-      {
-        label: 'Look for the Cross-Ice Tap In',
-        archetype: 'skill',
-        stats: ['hockeyIQ'],
-        baseChance: 0.55,
-        success: 'You thread the needle perfectly through the defender\'s skates for an easy backdoor tap-in!',
-        fail: 'The defender anticipated the pass and knocked it out of mid-air.',
-        reward: { win: { idol: 15, ovr: 0 }, loss: { idol: -5, ovr: 0 } }
-      },
-      {
-        label: 'Blind Drop Pass',
-        archetype: 'gamble',
-        stats: ['hockeyIQ', 'skating'],
-        baseChance: 0.30,
-        success: 'INCREDIBLE VISION! You completely fooled the defender and goalie, leaving your trailing teammate with a wide open net!',
-        fail: 'You dropped it to absolutely nobody. The puck slid harmlessly to the boards while the fans rained boos upon you.',
-        reward: { win: { idol: 30, ovr: 1, money: 5000 }, loss: { idol: -20, ovr: 0, money: 0 } }
-      }
-    ]
+    gameType: 'film',
+    pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], // Everyone
+    reward: { win: { idol: 5, ovr: 1, rel: { coach: 20 } }, loss: { idol: 0, ovr: 0, rel: { coach: -20 } } },
+    successMsg: "High IQ! You knew exactly where everyone was supposed to be.",
+    failMsg: "You blew your assignment and the coach ripped into you."
   },
   {
-    id: 'board_battle',
-    title: 'LATE GAME BOARD BATTLE',
-    forGoalie: false,
+    id: 'tip_in',
+    title: 'THE DEFLECTION',
+    desc: 'Your defenseman winds up from the point. Wait for the puck to enter the sweet spot (green zone) and click to tip it past the goalie!',
+    accent: 'emerald',
+    gameType: 'deflect',
+    pos: ['C', 'LW', 'RW'], // Forwards only
+    reward: { win: { idol: 20, ovr: 1 }, loss: { idol: -5, ovr: 0 } },
+    successMsg: "Perfect hand-eye coordination! You tipped it right under the bar.",
+    failMsg: "You missed the puck entirely and the goalie swallowed it up."
+  },
+  {
+    id: 'shot_block',
+    title: 'THE SHOT BLOCK',
+    desc: 'They are teeing up a one-timer! Watch the shooter, see which lane flashes RED, and click that lane to step in front of the puck. Block 3 shots!',
     accent: 'amber',
-    desc: 'You are up by one goal with 45 seconds left. The puck gets dumped into your corner and a massive opposing enforcer is bearing down on you.',
-    choices: [
-      {
-        label: 'Eat the Puck',
-        archetype: 'safe',
-        stats: ['physicality'],
-        baseChance: 0.75,
-        success: 'You braced for impact, pinned the puck to the boards, and successfully killed crucial seconds off the clock.',
-        fail: 'You got out-muscled on the wall and they stripped the puck away.',
-        reward: { win: { idol: 5, ovr: 0 }, loss: { idol: 0, ovr: 0 } }
-      },
-      {
-        label: 'Reverse Hit',
-        archetype: 'skill',
-        stats: ['physicality', 'skating'],
-        baseChance: 0.55,
-        success: 'You lowered your center of gravity and planted the enforcer onto the ice! The crowd goes wild for the physical dominance.',
-        fail: 'You missed the angle and got flattened, turning the puck over in a dangerous area.',
-        reward: { win: { idol: 15, ovr: 0 }, loss: { idol: -5, ovr: 0 } }
-      },
-      {
-        label: 'Spin Off the Check and Rush',
-        archetype: 'gamble',
-        stats: ['skating', 'hockeyIQ'],
-        baseChance: 0.30,
-        success: 'You spun off the contact beautifully, leaving the enforcer in the dust, and launched a breakaway for the empty net dagger!',
-        fail: 'You tried to get cute in the defensive zone, got completely leveled, and coughed up the game-tying goal.',
-        reward: { win: { idol: 35, ovr: 1, money: 10000 }, loss: { idol: -25, ovr: -1, money: 0 } }
-      }
-    ]
+    gameType: 'block',
+    pos: ['LD', 'RD'], // Defensemen only
+    reward: { win: { idol: 25, ovr: 1, rel: { teammates: 20, coach: 15 } }, loss: { idol: 0, ovr: -1, rel: { coach: -5 } } },
+    successMsg: "You ate those pucks like a champion. The bench is going wild for you!",
+    failMsg: "You screened your own goalie and the puck went right past you into the net."
   },
-
-  // ==========================================
-  // GOALIE MINIGAMES
-  // ==========================================
   {
-    id: 'breakaway_g',
-    title: 'THE BREAKAWAY (GOALIE)',
-    forGoalie: true,
+    id: 'breakaway_deke',
+    title: 'THE BREAKAWAY',
+    desc: 'A star forward is coming in all alone! Watch his shoulders. When he commits to a side (arrow appears), instantly click the matching pad to make the save!',
     accent: 'blue',
-    desc: 'A turnover at the blue line sends their top scorer in all alone. They cross the hash marks and stare you down.',
-    choices: [
-      {
-        label: 'Hold Your Depth and Wait',
-        archetype: 'safe',
-        stats: ['hockeyIQ', 'skating'],
-        baseChance: 0.75,
-        success: 'You stayed patient, forced them to make the first move, and easily turned aside the backhand attempt.',
-        fail: 'You gave them too much room and they sniped it clean over your shoulder.',
-        reward: { win: { idol: 5, ovr: 0 }, loss: { idol: 0, ovr: 0 } }
-      },
-      {
-        label: 'Aggressive Poke Check',
-        archetype: 'skill',
-        stats: ['physicality', 'skating'],
-        baseChance: 0.55,
-        success: 'Perfect timing! You lunged forward and knocked the puck right off their stick before they could shoot!',
-        fail: 'You missed the puck and completely took out their skates. You gave up a penalty shot.',
-        reward: { win: { idol: 15, ovr: 0 }, loss: { idol: -5, ovr: 0 } }
-      },
-      {
-        label: 'The Flying Pad Stack',
-        archetype: 'gamble',
-        stats: ['shooting', 'skating'], // Using shooting for reflexes/agility proxy
-        baseChance: 0.30,
-        success: 'OLD SCHOOL HOCKEY! You went fully airborne and stacked the pads, robbing them blind! The arena is deafening!',
-        fail: 'You totally misjudged the timing. They literally stepped around you and walked it into an empty net.',
-        reward: { win: { idol: 35, ovr: 1, money: 10000 }, loss: { idol: -25, ovr: -1, money: 0 } }
-      }
-    ]
+    gameType: 'breakaway',
+    pos: ['G'], // Goalies only
+    reward: { win: { idol: 35, ovr: 1, rel: { teammates: 10 } }, loss: { idol: -15, ovr: -1 } },
+    successMsg: "Highway robbery! You read the deke perfectly and flashed the leather.",
+    failMsg: "You bit on the fake and he tucked it in the empty side of the net."
   },
   {
-    id: 'net_scramble',
-    title: 'NET-FRONT SCRAMBLE',
-    forGoalie: true,
+    id: 'one_timer',
+    title: 'THE ONE-TIMER',
+    desc: 'A perfect cross-ice pass is sliding into your wheelhouse. Wait for the puck to enter the yellow sweet-spot and click to blast it home!',
     accent: 'amber',
-    desc: 'Chaos in the crease! There is a massive pileup of bodies in front of you, hacking at a loose puck in the blue paint.',
-    choices: [
-      {
-        label: 'Smother Everything',
-        archetype: 'safe',
-        stats: ['physicality'],
-        baseChance: 0.75,
-        success: 'You threw your entire body over the pile and successfully froze the puck for a whistle.',
-        fail: 'A stick knocked the puck loose just as you dropped, leading to a weak trickle-in goal.',
-        reward: { win: { idol: 5, ovr: 0 }, loss: { idol: 0, ovr: 0 } }
-      },
-      {
-        label: 'Track the Puck and Kick it Out',
-        archetype: 'skill',
-        stats: ['hockeyIQ'],
-        baseChance: 0.55,
-        success: 'You maintained absolute focus through the screen and kicked the puck out of the zone.',
-        fail: 'You kicked it directly onto the tape of a trailing forward for an easy put-back.',
-        reward: { win: { idol: 15, ovr: 0 }, loss: { idol: -5, ovr: 0 } }
-      },
-      {
-        label: 'Start Throwing Blockers',
-        archetype: 'gamble',
-        stats: ['physicality', 'stamina'],
-        baseChance: 0.30,
-        success: 'You had enough of the hacking! You started throwing blocker punches, cleared the crease yourself, and fired up the whole arena!',
-        fail: 'You lost your temper, took a brutal unsportsmanlike conduct penalty, and gave them a 5-on-3 powerplay.',
-        reward: { win: { idol: 30, ovr: 0, money: 5000 }, loss: { idol: -20, ovr: -1, money: -5000 } }
-      }
-    ]
-  }
+    gameType: 'onetimer',
+    pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
+    reward: { win: { idol: 20, ovr: 1 }, loss: { idol: -10, ovr: 0 } },
+    successMsg: "What a rocket! You blasted the one-timer top shelf.",
+    failMsg: "You fanned on the shot and the puck trickled into the corner."
+  },
 ];
 
 export const getMinigamePool = (pos) => {
-  const isGoalie = pos === 'G';
-  return MINIGAMES.filter(mg => mg.forGoalie === isGoalie);
+  return interactiveMinigames.filter(m => !m.pos || m.pos.includes(pos));
 };
 
-export const findMinigame = (id, pos) => {
-  const pool = getMinigamePool(pos);
-  return pool.find(mg => mg.id === id) || pool[0];
+export const findMinigame = (id) => {
+  return interactiveMinigames.find(m => m.id === id);
 };
