@@ -484,21 +484,21 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
   };
 
   return (
-    <div className="w-full max-w-[420px] md:max-w-5xl mx-auto mb-2 z-10 relative drop-shadow-2xl">
+    <div className="w-full max-w-[420px] md:max-w-2xl mx-auto mb-4 z-10 relative drop-shadow-2xl">
       <div 
-        className="border border-[rgba(255,255,255,0.08)] border-t-0 rounded-[14px] overflow-hidden relative p-4 md:p-6"
+        className="border border-[rgba(255,255,255,0.08)] border-t-0 rounded-[14px] overflow-hidden relative p-4 md:p-6 sm:p-8"
         style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${teamBg} 12%, #12161c) 0%, #0a0d0a 38%)` }}
       >
         <div className="absolute top-0 left-0 right-0 h-[3px] opacity-90 z-0" style={{ background: `linear-gradient(90deg, transparent, ${frameColor}, transparent)` }}></div>
         {player.ovr >= 90 && <div className="bluechip-foil-overlay"></div>}
 
-        <div className="relative z-10 flex flex-col lg:flex-row gap-6 lg:gap-8 h-full w-full">
-          
+        <div className="relative z-10 flex flex-col gap-6 sm:gap-8 h-full w-full">
+
           {/* ========================================== */}
-          {/* LEFT COLUMN: PLAYER INFO & IDOLATRY (lg:w-5/12) */}
+          {/* TOP SECTION: PLAYER INFO & IDOLATRY        */}
           {/* ========================================== */}
-          <div className="flex flex-col lg:w-5/12 min-w-0 justify-center">
-            
+          <div className="flex flex-col w-full min-w-0 justify-center">
+
             <div className="flex items-start justify-between gap-3">
               
               {/* OVR, Logo & Text Cluster */}
@@ -579,9 +579,9 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
           </div>
 
           {/* ========================================== */}
-          {/* RIGHT COLUMN: STAT GRIDS (lg:w-7/12)         */}
+          {/* BOTTOM SECTION: STAT GRIDS                   */}
           {/* ========================================== */}
-          <div className="flex flex-col gap-2 md:gap-3 lg:w-7/12 shrink-0 justify-center w-full">
+          <div className="flex flex-col gap-2 md:gap-3 w-full shrink-0 justify-center">
             
             {/* 1. STATS ROW */}
             <div className="grid grid-cols-4 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
@@ -1973,7 +1973,7 @@ function App() {
             setPendingSeasonResult(result);
             setActiveEvent({
                title: 'BLOCKBUSTER TRADE!',
-               desc: `Your GM called you into the office... you've been traded! The team decided to move in a different direction and shipped you to the ${destTeam.name} (${currentLg}).`,
+               desc: `Your GM called you into the office... you've been traded! The team decided to move in a different direction and shipped you to the ${getFullTeamName(destTeam.id, currentLg)}.`,
                choices: [
                   { label: 'Embrace the fresh start', isRisky: false, feedback: 'You packed your bags and joined your new squad.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
                   { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
@@ -3224,10 +3224,12 @@ let champion = null;
     
     const isRFA = player.league === 'NHL' && player.age < 27 && (player.stats?.seasonsPlayed || 0) < 7;
     const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(player.league);
-
+    
+    let teamDidNotExtend = false;
     if (!isTradeRequest && !isAmateurGraduating) {
       if (player.ovr < 65 && Math.random() > 0.60) {
          setEventFeedback("Your team elected not to extend your contract. You are now a UFA.");
+         teamDidNotExtend = true;
       } else {
          offers.push({
            team: actingTeam,
@@ -3242,7 +3244,7 @@ let champion = null;
       }
     }
 
-    if (isRFA && !isTradeRequest && !isAmateurGraduating) {
+    if (isRFA && !teamDidNotExtend && !isTradeRequest && !isAmateurGraduating) {
       if (Math.random() > 0.85) { 
          const pool = nhlTeams || [];
          if (pool.length > 0) {
@@ -3312,6 +3314,20 @@ let champion = null;
       }
     }
     
+// Guarantee fallback offers if no teams met criteria
+    if (offers.length === 0) {
+      offers = [{
+        team: (ahlTeams && ahlTeams.length > 0) ? ahlTeams[0].id : 'UNK',
+        league: 'AHL',
+        type: 'FREE AGENCY',
+        salary: 85000,
+        years: 1,
+        role: 'Pro Roster',
+        idolHit: 0,
+        state: 'Depth Opportunity'
+      }];
+    }
+
     offers.sort((a, b) => b.salary - a.salary);
     setFreeAgencyOffers(offers);
     setScreen('transfer');
@@ -4420,7 +4436,7 @@ let champion = null;
                   
                   setActiveEvent({
                      title: '11TH HOUR BLOCKBUSTER!',
-                     desc: `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the ${destTeam.name} (${currentLg}).`,
+                     desc: `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the ${getFullTeamName(destTeam.id, currentLg)}.`,
                      choices: [
                         { label: 'Embrace the fresh start', isRisky: false, feedback: 'You packed your bags and joined your new squad.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
                         { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
@@ -4814,55 +4830,6 @@ let champion = null;
                   </li>
                 )}
               </ul>
-
-            {/* REPUTATION & WORLD BUILDING */}
-              <div className="mt-8 mb-10 border border-[rgba(255,255,255,0.065)] rounded-xl overflow-hidden text-left bg-[#0a0d0a] shadow-lg">
-                <div className="bg-[#101410] px-4 py-3 border-b border-[rgba(255,255,255,0.065)] flex items-center justify-between">
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest font-sans">REPUTATION REPORT</span>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest sports-font">END OF YEAR {currentYear}</span>
-                </div>
-                
-                <div className="p-4 sm:p-6 space-y-5">
-                  {/* Coach */}
-                  <div>
-                    <h4 className="text-[10px] font-black text-[#3b82f6] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <span className="text-sm">👔</span> COACHING STAFF
-                    </h4>
-                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed italic">
-                      {(player.relationships?.coach || 50) < 30 ? "The coaching staff has completely lost faith in you. There are whispers of a serious rift behind closed doors, and you're constantly looking over your shoulder." :
-                       (player.relationships?.coach || 50) < 50 ? "Your relationship with the bench boss is strictly business. You play your minutes, but you definitely aren't his favorite player to draw plays for." :
-                       (player.relationships?.coach || 50) < 80 ? "The coaching staff trusts you in key situations. You're a reliable piece of the system and a fixture in their game plan." :
-                       "You are an absolute extension of the coach on the ice. They implicitly trust you to run the locker room and dictate the pace of play."}
-                    </p>
-                  </div>
-
-                  {/* Teammates */}
-                  <div className="border-t border-[rgba(255,255,255,0.065)] pt-5">
-                    <h4 className="text-[10px] font-black text-[#22E748] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <span className="text-sm">🤝</span> THE LOCKER ROOM
-                    </h4>
-                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed italic">
-                      {(player.relationships?.teammates || 50) < 30 ? "The room is freezing you out. Guys are openly ignoring you during team dinners, and the chemistry on your line is non-existent." :
-                       (player.relationships?.teammates || 50) < 50 ? "You're somewhat isolated. It's a professional relationship, but you definitely aren't in the inner circle of the team's core." :
-                       (player.relationships?.teammates || 50) < 80 ? "The boys love you. You're a massive glue guy in the room and a staple at all the team events away from the rink." :
-                       "You are the undisputed heartbeat of this roster. The rest of the team would happily run through a brick wall for you."}
-                    </p>
-                  </div>
-
-                  {/* Media */}
-                  <div className="border-t border-[rgba(255,255,255,0.065)] pt-5">
-                    <h4 className="text-[10px] font-black text-[#F59E0B] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <span className="text-sm">📰</span> LOCAL MEDIA
-                    </h4>
-                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed italic">
-                      {(player.relationships?.media || 50) < 30 ? "The local press has their knives out. Every minor mistake you make is aggressively blown out of proportion on the front page." :
-                       (player.relationships?.media || 50) < 50 ? "Media coverage is lukewarm. You aren't a darling, but they generally respect your game when you perform well." :
-                       (player.relationships?.media || 50) < 80 ? "Reporters love crowding your locker. You provide great soundbites and usually control the public narrative." :
-                       "You are a total media darling. Journalists constantly spin your game positively, giving you massive PR armor in this city."}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               {/* STICKY FOOTER ACTION BUTTONS */}
               <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#040505] via-[#040505] to-transparent z-40 mt-8 flex flex-col sm:flex-row gap-4">
