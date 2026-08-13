@@ -1962,8 +1962,8 @@ function App() {
          const isElite = finalPlayer.ovr >= eliteThreshold;
 
          // 40% chance to be traded if elite/expiring on a bad team. 5% random hockey trade otherwise.
-         const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
-
+         const tradeChance = (result.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
+         
          if (Math.random() < tradeChance) {
             // Dynamically pull from the exact league the player is in!
             let pool = (getOpponentPool(currentLg) || []).filter(t => t.id !== result.currentTeam);
