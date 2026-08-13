@@ -526,7 +526,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
                   
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <p className="text-[9px] md:text-[10px] font-bold uppercase leading-none tracking-wide text-slate-500 whitespace-nowrap">
-                      {player.age} YRS OLD · {player.pos} · {getDisplayDeployment(player.ovr, player.pos, player.league)} · {player.stats[lgKey]?.games || 0} GP
+                      {player.age} YRS OLD · {player.pos} · {getDisplayDeployment(player.ovr, player.pos, player.league)} · {player.stats[lgKey]?.games || 0} GP {player.league !== 'NCAA' && player.contract?.years !== undefined && ` · ${player.contract.years} YRS LEFT`}
                     </p>
                     <span className={`text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest leading-none ${intlStatus.color}`}>
                       {intlStatus.label}
@@ -1832,7 +1832,10 @@ function App() {
     const currentEarnings = finalPlayer.stats?.earnings || 0;
     const updatedEarnings = currentEarnings + annualSalary;
 
-    const remainingYears = Math.max(0, (finalPlayer.contract?.years || 0) - 1);
+    const isSlideEligible = finalPlayer.age < 20 && ['OHL', 'WHL', 'QMJHL'].includes(result.currentLg);
+    const remainingYears = isSlideEligible 
+        ? (finalPlayer.contract?.years || 0) 
+        : Math.max(0, (finalPlayer.contract?.years || 0) - 1);
 
     const ovr = finalPlayer.ovr;
     let computedValue = 50000;
@@ -1959,7 +1962,7 @@ function App() {
          const isElite = finalPlayer.ovr >= eliteThreshold;
 
          // 40% chance to be traded if elite/expiring on a bad team. 5% random hockey trade otherwise.
-         const tradeChance = (isExpiring && isRebuilding && isElite) ? 0.40 : 0.05;
+         const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
 
          if (Math.random() < tradeChance) {
             // Dynamically pull from the exact league the player is in!
@@ -3230,13 +3233,17 @@ let champion = null;
       if (player.ovr < 65 && Math.random() > 0.60) {
          setEventFeedback("Your team elected not to extend your contract. You are now a UFA.");
          teamDidNotExtend = true;
+      } else if (!isRFA && Math.random() > 0.70 && player.ovr < 85) {
+         // 30% chance for non-superstar UFAs to be let go by their current team
+         setEventFeedback("Your current team has decided to move in a different direction and will not offer you an extension. You are heading to the open market.");
+         teamDidNotExtend = true;
       } else {
          offers.push({
            team: actingTeam,
            league: player.league,
            type: isRFA ? (player.ovr >= 82 ? 'RFA EXTENSION' : 'QUALIFYING OFFER') : 'EXTENSION',
            salary: baseSalary,
-           years: isRFA && player.ovr < 82 ? 1 : maxYears, // QOs are 1 year. Extensions use full maxYears.
+           years: isRFA && player.ovr < 82 ? 1 : maxYears,
            role: getRole(baseSalary, player),
            idolHit: 10,
            state: 'Current Club'
@@ -4181,7 +4188,7 @@ let champion = null;
                 </button>
                 
                 {player.league === 'USHL' && (
-                   <button onClick={() => handleDraftChoice('NCAA')} className="bg-[#101410] hover:bg-[#1a2230] ...">
+                   <button onClick={() => handleDraftChoice('NCAA')} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest transition-colors w-full sm:w-auto">
                      COMMIT TO NCAA
                    </button>
                 )}
@@ -4327,7 +4334,9 @@ let champion = null;
                             rounds: prev.rounds - 1,
                             log: [
                               success 
-                                ? "🟢 You highlight your reliable two-way play. The arbitrator nods, ticking the price up slightly." 
+                                ? (player.pos === 'G' 
+                                    ? "🟢 You highlight your reliable crease control and save percentage. The arbitrator nods, ticking the price up slightly." 
+                                    : "🟢 You highlight your reliable two-way play. The arbitrator nods, ticking the price up slightly.") 
                                 : "🔴 The team counters your stats with advanced analytics. The arbitrator is unmoved.",
                               ...prev.log
                             ]
@@ -4424,11 +4433,12 @@ let champion = null;
              if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
              const isElite = player.ovr >= eliteThreshold;
 
-             // 40% chance if elite/expiring on a bad team. 5% random hockey trade otherwise.
-             const tradeChance = (isExpiring && isRebuilding && isElite) ? 0.40 : 0.05;
+             // 40% chance if elite/expiring on a bad team. 5% random hockey trade otherwise. NTDP players cannot be traded.
+             const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
 
              if (['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < tradeChance) {
-                  let pool = (getOpponentPool(currentLg) || []).filter(t => t.id !== res.currentTeam);
+                  // Filter out current team AND the NTDP from potential destinations
+                  let pool = (getOpponentPool(currentLg) || []).filter(t => t.id !== res.currentTeam && t.id !== 'NTDP');
                   if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
                   
                   const destTeam = pool[Math.floor(Math.random() * pool.length)];
@@ -5697,6 +5707,15 @@ let champion = null;
         })()}
 
       </div> 
+      {/* GLOBAL FOOTER */}
+        <div className="mt-12 text-center pb-6 border-t border-[rgba(255,255,255,0.05)] pt-6">
+           <a 
+             href="mailto:x.com/ferreirahockey" 
+             className="text-[10px] sm:text-xs font-bold text-slate-500 hover:text-[#3b82f6] uppercase tracking-widest font-sans transition-colors"
+           >
+             HAVE FEEDBACK? CONTACT ME
+           </a>
+        </div>
     </div>
   );
 }
