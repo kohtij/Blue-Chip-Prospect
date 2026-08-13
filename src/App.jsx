@@ -5710,7 +5710,7 @@ let champion = null;
       {/* GLOBAL FOOTER */}
         <div className="mt-12 text-center pb-6 border-t border-[rgba(255,255,255,0.05)] pt-6">
            <a 
-             href="mailto:x.com/ferreirahockey" 
+             href="https://x.com/ferreirahockey" 
              className="text-[10px] sm:text-xs font-bold text-slate-500 hover:text-[#3b82f6] uppercase tracking-widest font-sans transition-colors"
            >
              HAVE FEEDBACK? CONTACT ME
