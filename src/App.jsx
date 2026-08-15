@@ -769,9 +769,9 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
             </div>
           </div>
 
-          {/* 3. NEW CAREER AGGREGATES SECTION (Stretches to fill empty space) */}
-          <div className="flex flex-col flex-1 w-full justify-end min-h-0 pt-2 pb-1">
-            <div className="bg-[#101410] border border-[rgba(255,255,255,0.05)] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-inner h-full gap-4">
+          {/* 3. NEW CAREER AGGREGATES SECTION */}
+          <div className="flex flex-col w-full pt-2 pb-1">
+            <div className="bg-[#101410] border border-[rgba(255,255,255,0.05)] rounded-xl p-4 sm:p-5 flex flex-col shadow-inner gap-6">
               
               {/* ALL-TIME STATS */}
               <div>
@@ -818,7 +818,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
               </div>
 
               {/* CHASING GREATNESS (MILESTONES) */}
-              <div className="mt-auto">
+              <div>
                 <h4 className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 font-sans border-b border-[rgba(255,255,255,0.05)] pb-1.5">
                   CHASING GREATNESS
                 </h4>
@@ -4119,7 +4119,7 @@ let champion = null;
         
         {/* LEFT/TOP COLUMN: DASHBOARD */}
         {screen !== 'creation' && screen !== 'retirement' && (
-          <div className="w-full lg:w-[420px] shrink-0 z-40 flex flex-col">
+          <div className="w-full lg:w-[420px] shrink-0 z-40 flex flex-col lg:sticky lg:top-6 lg:self-start">
             <Dashboard
               player={player} tier={tier} statChanges={statChanges} 
               lgKey={lgKey} isJunior={isJunior} isAHL={isAHL} 
