@@ -136,6 +136,116 @@ export const recomputeOvr = (player) => {
  * Returns everything the caller needs to update state and decide the next
  * screen, without calling any React setters itself.
  */
+// ---------------------------------------------------------------------------
+// Season phase helpers — extracted from simulateSeason for readability.
+// Each is a pure function: same inputs → same outputs, no side effects.
+// ---------------------------------------------------------------------------
+
+/**
+ * Assign all league-appropriate trophies + All-Star selection for one season.
+ * Deterministic on stats (goals, assists, saves, shots, games) + rating.
+ * Uses player.league (not the mid-season currentLg) so mid-season AHL→NHL
+ * promotions do not retroactively change award eligibility.
+ */
+function _computeAwards({ player, rating, g, a, saves, shots, games }) {
+  const awards = [];
+  const pts = g + a;
+  const isGoalie = player.pos === 'G';
+  const isDefense = ['LD', 'RD'].includes(player.pos);
+  const svPct = saves / (shots || 1);
+
+  // League-specific trophies. Same thresholds as before; each league picked once.
+  switch (player.league) {
+    case 'OHL':
+      if (pts >= 110 || (isGoalie && svPct >= 0.925)) awards.push('Red Tilson Trophy (OHL Most Outstanding Player)');
+      if (pts >= 100) awards.push('Eddie Powers Memorial Trophy (OHL Scoring Champion)');
+      if (isDefense && pts >= 65) awards.push('Max Kaminsky Trophy (OHL Most Outstanding Defenceman)');
+      if (isGoalie && svPct >= 0.915 && games >= 35) awards.push('FW "Dinty" Moore Trophy (OHL Best Goaltender)');
+      if (player.age === 16 && pts >= 60) awards.push('Emms Family Award (OHL Rookie of the Year)');
+      break;
+    case 'WHL':
+      if (pts >= 110 || (isGoalie && svPct >= 0.925)) awards.push('Four Broncos Memorial Trophy (WHL Player of the Year)');
+      if (pts >= 100) awards.push('Bob Clarke Trophy (WHL Top Scorer)');
+      if (isDefense && pts >= 65) awards.push('Bill Hunter Memorial Trophy (WHL Top Defenceman)');
+      if (isGoalie && svPct >= 0.915 && games >= 35) awards.push('Del Wilson Trophy (WHL Top Goaltender)');
+      if (player.age === 16 && pts >= 60) awards.push('Jim Piggott Memorial Trophy (WHL Rookie of the Year)');
+      break;
+    case 'QMJHL':
+      if (pts >= 110 || (isGoalie && svPct >= 0.925)) awards.push('Michel Brière Memorial Trophy (QMJHL Most Valuable Player)');
+      if (pts >= 100) awards.push('Jean Béliveau Trophy (QMJHL Top Scorer)');
+      if (isDefense && pts >= 65) awards.push('Émile Bouchard Trophy (QMJHL Defenceman of the Year)');
+      if (isGoalie && svPct >= 0.915 && games >= 35) awards.push('Jacques Plante Trophy (QMJHL Best GAA)');
+      if (player.age === 16 && pts >= 60) awards.push('RDS Cup (QMJHL Rookie of the Year)');
+      break;
+    case 'USHL':
+      if (pts >= 85 || (isGoalie && svPct >= 0.925)) awards.push('USHL Player of the Year');
+      if (pts >= 75) awards.push('USHL Forward of the Year');
+      if (isDefense && pts >= 50) awards.push('USHL Defenceman of the Year');
+      if (isGoalie && svPct >= 0.915 && games >= 30) awards.push('USHL Goaltender of the Year');
+      break;
+    case 'NHL':
+      if (pts >= 105 || (isGoalie && svPct >= 0.925 && games >= 50)) awards.push('Hart Trophy');
+      if (g >= 55) awards.push('Maurice Richard Trophy');
+      if (pts >= 105) awards.push('Art Ross Trophy');
+      if (isDefense && pts >= 75) awards.push('Norris Trophy');
+      if (isGoalie && svPct >= 0.920 && games >= 40) awards.push('Vezina Trophy');
+      if (player.stats?.seasonsPlayed === 1 && pts >= 65) awards.push('Calder Trophy');
+      break;
+    default: break;
+  }
+
+  // All-Star selection — highest team-independent honor, based on season rating.
+  if (rating >= 8.5) {
+    if (player.league === 'NHL') {
+      awards.push('NHL All-Star');
+      if (rating >= 9.2) awards.push('1st Team All-Star');
+    } else if (['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
+      awards.push(`${player.league} 1st All-Star Team`);
+    } else if (player.league === 'NCAA') {
+      awards.push('1st Team All-American');
+    } else if (player.league) {
+      awards.push(`${player.league} All-Star`);
+    }
+  }
+
+  return awards;
+}
+
+/**
+ * Compute the per-attribute stat delta for one season: training input plus
+ * age-driven progression (young players go up) or decline (30+ goes down).
+ * coachModifier reduces the decline magnitude if the player owns the Coach.
+ */
+function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifier }) {
+  const st = {
+    shooting:    trainingEffect.shooting    || 0,
+    skating:     trainingEffect.skating     || 0,
+    stamina:     trainingEffect.stamina     || 0,
+    hockeyIQ:    trainingEffect.hockeyIQ    || 0,
+    physicality: trainingEffect.physicality || 0
+  };
+
+  // Progression: 24-and-under gain 0-2 points into random stats based on rating
+  if (newAge <= 24) {
+    const pointsToDistribute = rating >= 8.5 ? 2 : rating >= 7.0 ? 1 : 0;
+    const statsToUpgrade = ['shooting', 'skating', 'stamina', 'hockeyIQ', 'physicality'];
+    for (let i = 0; i < pointsToDistribute; i++) {
+      const s = statsToUpgrade[Math.floor(Math.random() * statsToUpgrade.length)];
+      st[s]++;
+    }
+  }
+
+  // Decline: 30+ loses points to skating, stamina, physicality. Coach item reduces it.
+  if (newAge >= 30) {
+    const agePenalty = newAge >= 34 ? 2 : 1;
+    st.skating     -= Math.floor((2 * agePenalty) * coachModifier);
+    st.stamina     -= Math.floor((3 * agePenalty) * coachModifier);
+    st.physicality -= Math.floor((1 * agePenalty) * coachModifier);
+  }
+
+  return st;
+}
+
 export function simulateSeason(player, trainingEffect = {}) {
   const p = player;
   let currentLg = p.league;
@@ -259,70 +369,7 @@ export function simulateSeason(player, trainingEffect = {}) {
   rating = Number(rating.toFixed(1));
 
   // --- HARDWARE & AWARDS ---
-  const awards = [];
-  const playerOvr = p.ovr;
-  const stats = { goals: g, assists: a, saves: saves, shots: shots, games: games };
-  const pts = g + a;
-
-  const isGoalie = player.pos === 'G';
-  const isDefense = ['LD', 'RD'].includes(player.pos);
-  const isForward = ['C', 'LW', 'RW'].includes(player.pos);
-
-  // DETERMINISTIC HARDWARE ASSIGNMENT (If you earn the stats, you win the trophy)
-  // 1. OHL TROPHIES
-  if (player.league === 'OHL') {
-    if (pts >= 110 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('Red Tilson Trophy (OHL Most Outstanding Player)');
-    if (pts >= 100) awards.push('Eddie Powers Memorial Trophy (OHL Scoring Champion)');
-    if (isDefense && pts >= 65) awards.push('Max Kaminsky Trophy (OHL Most Outstanding Defenceman)');
-    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 35) awards.push('FW "Dinty" Moore Trophy (OHL Best Goaltender)');
-    if (player.age === 16 && pts >= 60) awards.push('Emms Family Award (OHL Rookie of the Year)');
-  }
-  // 2. WHL TROPHIES
-  else if (player.league === 'WHL') {
-    if (pts >= 110 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('Four Broncos Memorial Trophy (WHL Player of the Year)');
-    if (pts >= 100) awards.push('Bob Clarke Trophy (WHL Top Scorer)');
-    if (isDefense && pts >= 65) awards.push('Bill Hunter Memorial Trophy (WHL Top Defenceman)');
-    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 35) awards.push('Del Wilson Trophy (WHL Top Goaltender)');
-    if (player.age === 16 && pts >= 60) awards.push('Jim Piggott Memorial Trophy (WHL Rookie of the Year)');
-  }
-  // 3. QMJHL TROPHIES
-  else if (player.league === 'QMJHL') {
-    if (pts >= 110 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('Michel Brière Memorial Trophy (QMJHL Most Valuable Player)');
-    if (pts >= 100) awards.push('Jean Béliveau Trophy (QMJHL Top Scorer)');
-    if (isDefense && pts >= 65) awards.push('Émile Bouchard Trophy (QMJHL Defenceman of the Year)');
-    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 35) awards.push('Jacques Plante Trophy (QMJHL Best GAA)');
-    if (player.age === 16 && pts >= 60) awards.push('RDS Cup (QMJHL Rookie of the Year)');
-  }
-  // 4. USHL TROPHIES
-  else if (player.league === 'USHL') {
-    if (pts >= 85 || (isGoalie && (saves/(shots||1)) >= 0.925)) awards.push('USHL Player of the Year');
-    if (pts >= 75) awards.push('USHL Forward of the Year');
-    if (isDefense && pts >= 50) awards.push('USHL Defenceman of the Year');
-    if (isGoalie && (saves / (shots || 1)) >= 0.915 && games >= 30) awards.push('USHL Goaltender of the Year');
-  }
-  // 5. NHL TROPHIES (STANDARD)
-  else if (player.league === 'NHL') {
-    if (pts >= 105 || (isGoalie && (saves/(shots||1)) >= 0.925 && games >= 50)) awards.push('Hart Trophy');
-    if (g >= 55) awards.push('Maurice Richard Trophy');
-    if (pts >= 105) awards.push('Art Ross Trophy');
-    if (isDefense && pts >= 75) awards.push('Norris Trophy');
-    if (isGoalie && (saves / (shots || 1)) >= 0.920 && games >= 40) awards.push('Vezina Trophy');
-    if (player.stats?.seasonsPlayed === 1 && pts >= 65) awards.push('Calder Trophy');
-  }
-
-  // FIX: ALL-STAR SELECTIONS
-  if (rating >= 8.5) {
-    if (player.league === 'NHL') {
-      awards.push('NHL All-Star');
-      if (rating >= 9.2) awards.push('1st Team All-Star');
-    } else if (['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
-      awards.push(`${player.league} 1st All-Star Team`);
-    } else if (player.league === 'NCAA') {
-      awards.push('1st Team All-American');
-    } else {
-      awards.push(`${player.league} All-Star`);
-    }
-  }
+  const awards = _computeAwards({ player, rating, g, a, saves, shots, games, currentLg: player.league });
 
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
     currentLg = 'NHL';
@@ -362,35 +409,14 @@ export function simulateSeason(player, trainingEffect = {}) {
   // Coach's declineModifier is looked up from economy.js so tweaking the
   // shop item's effect value actually changes coach effectiveness.
   const coachItem = shopItems.find(i => i.id === 'coach');
-  const coachModifier = coachItem?.effect?.declineModifier ?? 0.5;
-  const declineMod = p.inventory.includes('coach') ? coachModifier : 1;
+  const coachModifier = p.inventory.includes('coach')
+    ? (coachItem?.effect?.declineModifier ?? 0.5)
+    : 1;
 
   // st = the TOTAL stat delta for the season: training + natural
   // development/decline. This is what feeds both persisted stats and the
   // "▲/▼" indicators on the dashboard.
-  const st = {
-    shooting: trainingEffect.shooting || 0,
-    skating: trainingEffect.skating || 0,
-    stamina: trainingEffect.stamina || 0,
-    hockeyIQ: trainingEffect.hockeyIQ || 0,
-    physicality: trainingEffect.physicality || 0
-  };
-
-  if (newAge <= 24) {
-    const pointsToDistribute = rating >= 8.5 ? 2 : rating >= 7.0 ? 1 : 0;
-    const statsToUpgrade = ['shooting', 'skating', 'stamina', 'hockeyIQ', 'physicality'];
-    for (let i = 0; i < pointsToDistribute; i++) {
-      const s = statsToUpgrade[Math.floor(Math.random() * statsToUpgrade.length)];
-      st[s]++;
-    }
-  }
-
-  if (newAge >= 30) {
-    const agePenalty = newAge >= 34 ? 2 : 1;
-    st.skating -= Math.floor((2 * agePenalty) * declineMod);
-    st.stamina -= Math.floor((3 * agePenalty) * declineMod);
-    st.physicality -= Math.floor((1 * agePenalty) * declineMod);
-  }
+  const st = _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifier });
 
   const newSht = p.shooting + st.shooting;
   const newSkt = p.skating + st.skating;
@@ -420,7 +446,7 @@ export function simulateSeason(player, trainingEffect = {}) {
   let newVal = Math.min(maxVal, Math.max(50000, decayedValue + valIncrease));
   
   // Apply a minor age penalty if they are actively declining
-  if (declineMod < 1) newVal = Math.max(50000, newVal - 500000);
+  if (coachModifier < 1) newVal = Math.max(50000, newVal - 500000);
   const nextOvr = recomputeOvr({ shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
   const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 

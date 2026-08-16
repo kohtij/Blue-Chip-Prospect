@@ -146,6 +146,14 @@ body::after {
    PANELS + CORE COMPONENTS
    ============================================================ */
 
+/* Panel surfaces — the exact combo repeated dozens of times in App.jsx.
+   Use these instead of inlining `bg-[#101410] border border-[rgba(255,255,255,0.065)]`.
+   Kept as separate classes so each radius can be picked without a Tailwind rebuild. */
+.panel-surface       { background: var(--card-bg-elevated); border: 1px solid var(--card-border); }
+.panel-surface-lg    { background: var(--card-bg-elevated); border: 1px solid var(--card-border); border-radius: 0.5rem; }
+.panel-surface-xl    { background: var(--card-bg-elevated); border: 1px solid var(--card-border); border-radius: 0.75rem; }
+.panel-surface-2xl   { background: var(--card-bg-elevated); border: 1px solid var(--card-border); border-radius: 1rem; }
+
 .game-panel {
   background: linear-gradient(180deg, var(--card-bg-elevated) 0%, var(--card-bg) 38%);
   border: 1px solid rgba(255, 255, 255, 0.08);
