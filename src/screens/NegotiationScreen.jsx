@@ -1,8 +1,10 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { formatMoney } from '../utils/gameHelpers';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function NegotiationScreen({ finishNegotiation, handleNegotiatePush, negotiation }) {
+export default function NegotiationScreen() {
+  const { finishNegotiation, handleNegotiatePush, negotiation } = useAppContext();
   return (() => {
           return (
             <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#F59E0B] text-center max-w-xl mx-auto">

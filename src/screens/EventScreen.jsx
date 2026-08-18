@@ -1,7 +1,9 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function EventScreen({ activeEvent, handleEventChoice }) {
+export default function EventScreen() {
+  const { activeEvent, handleEventChoice } = useAppContext();
   return (() => {
           const isGenEvent = activeEvent.title === '🌟 THE CHOSEN ONE';
           return (

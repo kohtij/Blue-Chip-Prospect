@@ -1,7 +1,9 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function EventResultScreen({ activeEvent, eventFeedback, minigameContext, player, proceedToNextScreen }) {
+export default function EventResultScreen() {
+  const { activeEvent, eventFeedback, minigameContext, player, proceedToNextScreen } = useAppContext();
   return (
           <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#22E748]">
             <h2 className="text-3xl sm:text-4xl font-black text-white uppercase mb-6 sports-font tracking-tighter">THE VERDICT</h2>

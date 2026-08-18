@@ -1,8 +1,10 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { PRESS_VIBES } from '../utils/appHelpers';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function PressResultScreen({ activePress, handleEndPress }) {
+export default function PressResultScreen() {
+  const { activePress, handleEndPress } = useAppContext();
   return (() => {
            const journalistsList = activePress.journalists || (activePress.journalist ? [activePress.journalist] : []);
            const hits = activePress.answers.filter((ans, i) => ans === (journalistsList[i]?.id || activePress.journalist?.id)).length;

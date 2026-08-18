@@ -1,7 +1,9 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function PreseasonScreen({ activeTrainings, currentYear, handleTrain, player }) {
+export default function PreseasonScreen() {
+  const { activeTrainings, currentYear, handleTrain, player } = useAppContext();
   return (
           <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#22E748] relative z-20">
            <div className="flex flex-col items-start border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">

@@ -1,10 +1,12 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function TransferScreen({ freeAgencyOffers, handleArbitration, player, signContract, startNegotiation }) {
+export default function TransferScreen() {
+  const { freeAgencyOffers, handleArbitration, player, signContract, startNegotiation } = useAppContext();
   return (
           <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6]">
             <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mb-4 text-center sports-font tracking-tighter">

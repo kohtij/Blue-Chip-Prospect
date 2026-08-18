@@ -1,9 +1,11 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { ACCENT } from '../utils/appHelpers';
 import { findMinigame } from '../data/minigames';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function MinigameScreen({ BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame, activeMinigame, handleInteractiveResult, minigameStarted, player, setMinigameStarted }) {
+export default function MinigameScreen() {
+  const { BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame, activeMinigame, handleInteractiveResult, minigameStarted, player, setMinigameStarted } = useAppContext();
   return (() => {
           const mg = findMinigame(activeMinigame, player.pos);
           const accent = ACCENT[mg?.accent] || ACCENT.blue;

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getAwardPill, getFullTeamName } from '../utils/appHelpers';
 import { getAwardImage } from '../data/awards';
 import { formatMoney } from '../utils/gameHelpers';
@@ -6,7 +7,8 @@ import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function RetirementScreen({ handleNewGame, player }) {
+export default function RetirementScreen() {
+  const { handleNewGame, player } = useAppContext();
   return (() => {
           const isLegend = player.idolatry >= 800;
           const isGoalie = player.pos === 'G';

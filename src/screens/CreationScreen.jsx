@@ -1,8 +1,10 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function CreationScreen({ handleStart, player, safeNationalities, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements }) {
+export default function CreationScreen() {
+  const { handleStart, player, safeNationalities, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements } = useAppContext();
   return (
           <div className="min-h-screen flex items-center justify-center p-6 bg-[#040505] text-white">
             <div className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748]">

@@ -1,7 +1,9 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function CombineScreen({ combineColor, combinePhase, combineScore, handleCombineReflex, handleDraftDay, setCombineClicks, setCombinePhase, setCombineScore }) {
+export default function CombineScreen() {
+  const { combineColor, combinePhase, combineScore, handleCombineReflex, handleDraftDay, setCombineClicks, setCombinePhase, setCombineScore } = useAppContext();
   return (() => {
           if (combinePhase === 1) {
              return (

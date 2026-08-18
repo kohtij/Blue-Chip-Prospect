@@ -1,10 +1,12 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { LEAGUE_CONFIG, getOpponentPool, getPrimaryRival, ncaaTeams } from '../data/teams';
 import { capIdol, formatMoney } from '../utils/gameHelpers';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function RecapScreen({ advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement }) {
+export default function RecapScreen() {
+  const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
   return (() => {
           const titles = getPlayoffTitles(player.league);
           let narrative = '';

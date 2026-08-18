@@ -1,7 +1,9 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function IntlMinigameScreen({ activeEvent, handleMinigameChoice, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult }) {
+export default function IntlMinigameScreen() {
+  const { activeEvent, handleMinigameChoice, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult } = useAppContext();
   return (() => {
           const nat = safeNationalities.find(n => n.id === player.nat);
           const countryName = nat?.sentenceName || nat?.name || 'your country';

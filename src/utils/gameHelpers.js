@@ -246,22 +246,23 @@ function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifie
   return st;
 }
 
-export function simulateSeason(player, trainingEffect = {}) {
-  const p = player;
+/**
+ * Decide where the player starts the season and emit any waiver message.
+ * Handles promotion (OVR >= promoteThresh → NHL) and demotion (OVR < demoteThresh
+ * AND currently NHL → AHL). Returns { currentLg, currentTeam, waiverEvent, isDemoted }.
+ * Pure — reads only from p and league flags, no mutations.
+ */
+function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
   let currentLg = p.league;
   let currentTeam = p.team;
   let waiverEvent = null;
   let isDemoted = false;
 
-  const isJuniorLg = juniorLeagues.includes(currentLg);
-  const isEuroLg = euroLeagues.includes(currentLg);
-  const isNCAA = currentLg === 'NCAA';
-
   // Dynamic Thresholds: Goalies take years to develop and need a much higher OVR to stick in the NHL.
   const promoteThresh = p.pos === 'G' ? 75 : 68;
-  const demoteThresh = p.pos === 'G' ? 71 : 64;
+  const demoteThresh  = p.pos === 'G' ? 71 : 64;
 
-  // Prevent auto-promotion/demotion for NCAA players
+  // Amateur & Euro players skip auto-promotion/demotion — they follow their league arc.
   if (!isJuniorLg && !isEuroLg && !isNCAA) {
     if (p.ovr >= promoteThresh) {
       if (currentLg === 'AHL') {
@@ -271,16 +272,9 @@ export function simulateSeason(player, trainingEffect = {}) {
       }
       currentLg = 'NHL';
     } else if (p.ovr < demoteThresh) {
-      if (currentLg === 'AHL') {
-        waiverEvent = 'You had a great camp and earned a call-up to the NHL roster!';
-        const parentNhlTeam = nhlTeams.find(t => t.ahlId === currentTeam);
-        if (parentNhlTeam) currentTeam = parentNhlTeam.id;
-      }
-      currentLg = 'NHL';
-    } else if (p.ovr < DEMOTE_OVR) {
+      // Below demotion threshold: NHL players get sent down to the AHL affiliate.
+      // (AHL players who are still below threshold just stay in AHL.)
       if (currentLg === 'NHL') {
-        // Dropped below the demotion line: send the player down to the
-        // NHL club's AHL affiliate for the season.
         const parentNhlTeam = nhlTeams.find(t => t.id === currentTeam);
         if (parentNhlTeam && parentNhlTeam.ahlId) currentTeam = parentNhlTeam.ahlId;
         currentLg = 'AHL';
@@ -288,7 +282,23 @@ export function simulateSeason(player, trainingEffect = {}) {
         waiverEvent = 'You cleared waivers and were reassigned to the AHL affiliate.';
       }
     }
+    // Between demoteThresh and promoteThresh: no change — player stays put.
   }
+
+  return { currentLg, currentTeam, waiverEvent, isDemoted };
+}
+
+export function simulateSeason(player, trainingEffect = {}) {
+  const p = player;
+  const isJuniorLg = juniorLeagues.includes(p.league);
+  const isEuroLg = euroLeagues.includes(p.league);
+  const isNCAA = p.league === 'NCAA';
+
+  const placement = _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA);
+  let currentLg   = placement.currentLg;
+  let currentTeam = placement.currentTeam;
+  let waiverEvent = placement.waiverEvent;
+  const isDemoted = placement.isDemoted;
 
  // Training is applied exactly once here, on top of buff-adjusted stats.
   let simSht = getActiveStat(p, 'shooting') + (trainingEffect.shooting || 0);

@@ -1,8 +1,10 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function DraftScreen({ TeamLogo, handleDraftChoice, player, seasonRecap }) {
+export default function DraftScreen() {
+  const { TeamLogo, handleDraftChoice, player, seasonRecap } = useAppContext();
   return (() => {
           const isFirstRound = seasonRecap?.draftPick <= 32;
           return (

@@ -1,11 +1,13 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
 import { getPlayoffRounds } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function PlayoffsScreen({ advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setEventFeedback, setPlayer, setPlayoffs, setScreen }) {
+export default function PlayoffsScreen() {
+  const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setEventFeedback, setPlayer, setPlayoffs, setScreen } = useAppContext();
   return (() => {
           const activeRound = playoffs.bracket[playoffs.activeRoundIndex];
           const playerMatchIndex = activeRound?.findIndex(m => m.isPlayerSeries);

@@ -1,9 +1,11 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getRole } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function ArbitrationScreen({ arbState, player, setActiveEvent, setArbState, setScreen }) {
+export default function ArbitrationScreen() {
+  const { arbState, player, setActiveEvent, setArbState, setScreen } = useAppContext();
   return (
           <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-[#040505]">
             <div className="w-full max-w-2xl space-y-6">

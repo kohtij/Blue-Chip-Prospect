@@ -1,9 +1,11 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ohlTeams, qmjhlTeams, whlTeams } from '../data/teams';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function MemorialCupScreen({ handleEndMemCup, memCup, player, setMemCup, triggerMinigame }) {
+export default function MemorialCupScreen() {
+  const { handleEndMemCup, memCup, player, setMemCup, triggerMinigame } = useAppContext();
   return (() => {
           const isFinal = memCup.round === 1;
 

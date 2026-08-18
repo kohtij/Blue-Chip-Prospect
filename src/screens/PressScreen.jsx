@@ -1,8 +1,10 @@
 import React from 'react';
+import { useAppContext } from '../AppContext';
 import { PRESS_VIBES } from '../utils/appHelpers';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
-export default function PressScreen({ activePress, handlePressAnswer, player, pressAnswerKeys }) {
+export default function PressScreen() {
+  const { activePress, handlePressAnswer, player, pressAnswerKeys } = useAppContext();
   return (() => {
           const q = activePress.questions[activePress.currentQ];
           const journalist = activePress.journalists[activePress.currentQ];
