@@ -346,7 +346,7 @@ const generateTraining = useCallback((pos) => {
     if (player.pos === 'C') { bIq += 10; bSkt += 5; bSht -= 5; bPhy -= 5; bSta -= 5; }
     if (['LW', 'RW'].includes(player.pos)) { bSht += 10; bSkt += 5; bPhy -= 5; bIq -= 5; bSta -= 5; }
     if (['LD', 'RD'].includes(player.pos)) { bPhy += 10; bSta += 5; bIq += 5; bSkt -= 5; bSht -= 15; }
-    if (player.pos === 'G') { bSht += 10; bSkt += 10; bPhy += 5; bIq -= 5; bSta -= 20; }
+    if (player.pos === 'G') { bSht += 5; bSkt += 5; bPhy += 0; bIq -= 10; bSta -= 20; }
 
     const validReporters = getJournalistsForLeague(lg);
     const randomReporter = validReporters[Math.floor(Math.random() * validReporters.length)];
@@ -1067,7 +1067,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     isJunior, memCup, minigameContext, minigameStarted,
     negotiation, pendingSeasonResult, player, playoffs,
     pressAnswerKeys, proceedFromPlayoffs, proceedToNextScreen, runPostSeasonFlow,
-    safeNationalities, seasonEvents, seasonRecap, setActiveEvent,
+    safeNationalities, seasonEvents, setSeasonEvents, seasonRecap, setActiveEvent,
     setArbState, setCombinePhase, setCombineScore,
     setEventFeedback, setNegotiation, setHasDemandedTrade, setIntlResult, setMemCup,
     setMinigameStarted, setPlayer, setPlayoffs, setScreen,

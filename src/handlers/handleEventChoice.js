@@ -3,7 +3,7 @@ import { getRole } from '../utils/appHelpers';
 
 export function handleEventChoice(ctx, choice) {
   const {
-    activeEvent, player, setEventFeedback, setPlayer, setScreen, setSeasonEvents, unlockAchievement
+    activeEvent, player, setEventFeedback, setPlayer, setScreen, setSeasonEvents, unlockAchievement, triggerMinigame
   } = ctx;
 
   let outcomeEffect;
@@ -67,6 +67,12 @@ export function handleEventChoice(ctx, choice) {
     updated.team = choice.actionData.team; updated.league = 'NHL';
     updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role };
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
+  } else if (choice.action === 'INTL_SAFE') {
+     // Safe approach just processes the standard outcome and ends the event.
+  } else if (choice.action === 'INTL_RISKY') {
+     // Risky approach means the player wants to play the interactive minigame!
+     triggerMinigame(ctx.minigameContext || 'wjc');
+     return;
   }
 
   const withOvr = applyOvrDelta(updated, outcomeEffect?.ovr || 0);

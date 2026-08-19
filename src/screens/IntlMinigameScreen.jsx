@@ -119,15 +119,19 @@ export default function IntlMinigameScreen() {
                     <button
                       key={i}
                       onClick={() => handlePrepChoice(c)}
-                      className={`border ${c.isRisky ? 'border-[#F59E0B]/30 hover:border-[#F59E0B]' : 'border-[#22E748]/30 hover:border-[#22E748]'} bg-black/40 hover:bg-black/60 p-5 rounded-lg transition-all cursor-pointer flex flex-col text-left group`}
+                      className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-2 shadow-lg group"
                     >
-                      <h4 className={`font-black text-lg sports-font leading-tight mb-2 uppercase ${c.isRisky ? 'text-[#F59E0B]' : 'text-[#22E748]'}`}>{c.label}</h4>
-                      <p className="text-xs text-slate-400 mb-4 flex-1">{c.desc}</p>
-                      <div className="mt-auto pt-3 border-t border-[rgba(255,255,255,0.05)]">
-                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                           {c.isRisky ? 'RISKY CHOICE' : 'SAFE CHOICE'}
-                         </p>
+                      <div className="flex justify-between items-center w-full">
+                         <h4 className="text-sm sm:text-base font-bold sports-font uppercase group-hover:text-[#3b82f6] transition-colors">{c.label}</h4>
+                         <div className="flex items-center gap-2">
+                           {c.isRisky ? (
+                              <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>
+                           ) : (
+                              <span className="bg-[#3b82f6]/10 text-[#3b82f6] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#3b82f6]/30">SAFE</span>
+                           )}
+                         </div>
                       </div>
+                      <p className="text-xs text-slate-400 font-sans mt-2">{c.desc}</p>
                     </button>
                   ))}
               </div>
