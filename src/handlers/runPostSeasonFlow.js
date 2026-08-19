@@ -3,9 +3,10 @@
 import { getOpponentPool, getPrimaryRival } from '../data/teams';
 import { eventDeck } from '../data/economy';
 import { PRESS_QUESTIONS, getJournalistsForLeague } from '../utils/appHelpers';
+import { checkPlayoffs } from './checkPlayoffs';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) {
-  const { checkPlayoffs, player, playoffs, setActiveEvent, setActivePress, setIntlResult, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
+  const { player, playoffs, setActiveEvent, setActivePress, setIntlResult, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
 
     setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
 
@@ -569,13 +570,13 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });
            setScreen('event');
         } else {
-           if (madePlayoffs) checkPlayoffs(currentLg, currentTeam, standings);
+           if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings);
            else setScreen('recap');
         }
       }
       return;
     }
 
-    if (madePlayoffs) checkPlayoffs(currentLg, currentTeam, standings);
+    if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings);
     else setScreen('recap');
 }

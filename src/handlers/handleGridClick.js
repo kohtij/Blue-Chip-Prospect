@@ -127,7 +127,7 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
             if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
 
             const nextGpm = getGamesPerMatchup(playoffs.currentLg, nextRoundIdx);
-            const nextDeckSize = nextGpm === 1 ? 1 : nextGpm + 2;
+            const nextDeckSize = nextGpm === 1 ? 3 : nextGpm + 2; // Always provide at least 3 choices for single-elimination
             const nextDeck = isPlayerMatch
               ? (generatePlayoffDeck
                   ? generatePlayoffDeck(playoffs.standings || 1, playoffs.spots, nextRoundIdx + 1, nextGpm)

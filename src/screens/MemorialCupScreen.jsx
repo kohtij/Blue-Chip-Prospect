@@ -1,4 +1,4 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ohlTeams, qmjhlTeams, whlTeams } from '../data/teams';
@@ -115,10 +115,9 @@ export default function MemorialCupScreen() {
                    </p>
                    <button
                      onClick={() => setMemCup({ round: 1, status: 'playing' })}
-                     className="btn-primary w-full py-4 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-transform hover:scale-105 cursor-pointer shadow-lg"
+                     className="btn-primary w-full py-4 px-2 rounded-xl flex flex-col items-center justify-center transition-transform hover:scale-105 cursor-pointer shadow-lg"
                    >
-                     <span className="text-[10px] sm:text-xs font-bold text-white/70 uppercase tracking-widest font-sans">PROCEED TO THE</span>
-                     <span className="text-lg sm:text-xl font-black sports-font uppercase text-white text-center text-balance leading-none">CHAMPIONSHIP FINAL VS. {finalOpponent.toUpperCase()} ➔</span>
+                     <span className="text-lg sm:text-xl font-black sports-font uppercase text-[#040505] tracking-widest text-center text-balance leading-none">PROCEED TO THE CHAMPIONSHIP FINAL ➔</span>
                    </button>
                 </div>
               )}

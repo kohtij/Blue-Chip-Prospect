@@ -1,11 +1,10 @@
-import React from 'react';
 import { getTeamData, nationalities } from '../data/teams';
 import { formatMoney, getActiveStat } from '../utils/gameHelpers';
 import { getDisplayDeployment, getFullTeamName } from '../utils/appHelpers';
 import TeamLogo from './TeamLogo';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenShop, hasDemandedTrade, setHasDemandedTrade }) => {
+const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop }) => {
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
   const nextYear = currentYear + 1;
@@ -43,14 +42,17 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
     return 'linear-gradient(90deg, color-mix(in srgb, #22E748 55%, #14532d), #4ade80)'; // Green
   };
 
-  // NEW CAREER AGGREGATES
-  const cGP = (player.stats?.nhl?.games || 0) + (player.stats?.chl?.games || 0) + (player.stats?.ahl?.games || 0);
-  const cG = (player.stats?.nhl?.goals || 0) + (player.stats?.chl?.goals || 0) + (player.stats?.ahl?.goals || 0);
-  const cA = (player.stats?.nhl?.assists || 0) + (player.stats?.chl?.assists || 0) + (player.stats?.ahl?.assists || 0);
+  // NEW CAREER AGGREGATES (Separated by League)
+  const activeBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(player.league) ? 'chl' : (player.league === 'AHL' ? 'ahl' : 'nhl');
+  const bName = activeBucket === 'nhl' ? 'NHL' : activeBucket === 'ahl' ? 'AHL' : 'PRE-NHL';
+  
+  const cGP = player.stats?.[activeBucket]?.games || 0;
+  const cG = player.stats?.[activeBucket]?.goals || 0;
+  const cA = player.stats?.[activeBucket]?.assists || 0;
   const cPts = cG + cA;
-  const cShots = (player.stats?.nhl?.shots || 0) + (player.stats?.chl?.shots || 0) + (player.stats?.ahl?.shots || 0);
-  const cSaves = (player.stats?.nhl?.saves || 0) + (player.stats?.chl?.saves || 0) + (player.stats?.ahl?.saves || 0);
-  const cSHO = (player.stats?.nhl?.shutouts || 0) + (player.stats?.chl?.shutouts || 0) + (player.stats?.ahl?.shutouts || 0);
+  const cShots = player.stats?.[activeBucket]?.shots || 0;
+  const cSaves = player.stats?.[activeBucket]?.saves || 0;
+  const cSHO = player.stats?.[activeBucket]?.shutouts || 0;
   const cSV = cShots > 0 ? (cSaves / cShots).toFixed(3).replace('0.', '.') : '.000';
   const cGAA = cGP > 0 ? ((cShots - cSaves) / cGP).toFixed(2) : '0.00';
 
@@ -78,7 +80,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
 
         <div className="relative z-10 flex flex-col gap-4 sm:gap-5 h-full w-full flex-1">
 
-          {/* 1. TOP SECTION: PLAYER INFO & IDOLATRY */}
+          {/* 1. TOP SECTION: PLAYER INFO & FAN STATUS */}
           <div className="flex flex-col w-full min-w-0 justify-center shrink-0">
             <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
               
@@ -115,7 +117,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
                           const isJunior = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(player.league);
                           if (isJunior) {
                              if (player.age >= 20) {
-                                return <span className="text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30 shrink-0">(OVERAGER)</span>;
+                                return <span className="text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30 shrink-0">OVERAGER</span>;
                              }
                              return null;
                           }
@@ -163,20 +165,20 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
               </div>
             </div>
 
-            {/* IDOLATRY BAR */}
+            {/* FAN STATUS BAR */}
             <div className="mt-4 md:mt-5 w-full space-y-1.5">
               <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide">
-                <span className="text-slate-400">Idolatry</span>
-                <span className="text-slate-400"> {tier.label} · {Math.floor((player.idolatry / 1000) * 100)}/100</span>
+                <span className="text-slate-400">Fan Status</span>
+                <span className="text-slate-400"> {tier.label} · {Math.floor(((Number(player.fanstatus) || 0) / 1000) * 100)}/100</span>
               </div>
               <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: getBarColor(player.idolatry) }}></div>
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((Number(player.fanstatus) || 0) / 1000) * 100)}%`, background: getBarColor(Number(player.fanstatus) || 0) }}></div>
               </div>
               <div className="relative h-3.5 md:h-4">
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${player.idolatry >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${player.idolatry >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${player.idolatry >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${player.idolatry >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
               </div>
               <p className="text-[9px] md:text-[10px] font-bold leading-none text-slate-400 mt-1 md:mt-1.5">
                 {tier.req > 0 ? `You're ${tier.req} pts short of ${tier.nextLabel}` : <span className="text-[#F59E0B]">Max Icon Status 🏆</span>}
@@ -262,7 +264,7 @@ const Dashboard = ({ player, tier, statChanges, lgKey, isJunior, isAHL, onOpenSh
               {/* ALL-TIME STATS */}
               <div>
                 <h4 className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 font-sans border-b border-[rgba(255,255,255,0.05)] pb-1.5">
-                  ALL-TIME CAREER TOTALS
+                  ALL-TIME {bName} TOTALS
                 </h4>
                 <div className="flex justify-between items-center px-1 sm:px-2">
                    <div className="text-center">

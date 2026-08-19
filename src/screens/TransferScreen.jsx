@@ -1,4 +1,4 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { getPrimaryRival } from '../data/teams';
@@ -114,20 +114,20 @@ export default function TransferScreen() {
                          {isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}
                        </button>
 
-                         {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && player.ovr >= 80 && o.type !== 'SCHOLARSHIP')) && (
-                           <div className="flex gap-2">
-                             {o.type === 'QUALIFYING OFFER' && (
-                               <button onClick={() => handleArbitration(o)} className="flex-1 py-2 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
-                                 ARBITRATION
-                               </button>
-                             )}
-                             {!o.negotiated && o.type !== 'QUALIFYING OFFER' && player.ovr >= 80 && o.type !== 'SCHOLARSHIP' && (
-                               <button onClick={() => startNegotiation(o)} className="flex-1 py-2 rounded-lg bg-[#3b82f6]/10 border border-[#3b82f6]/40 text-[#3b82f6] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#3b82f6]/20 transition-colors cursor-pointer">
-                                 NEGOTIATE
-                               </button>
-                             )}
-                           </div>
-                         )}
+                         {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && o.type !== 'SCHOLARSHIP')) && (
+                     <div className="flex gap-2 mt-1">
+                       {o.type === 'QUALIFYING OFFER' && (
+                         <button onClick={() => handleArbitration(o)} className="flex-1 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
+                           ARBITRATION
+                         </button>
+                       )}
+                       {!o.negotiated && o.type !== 'QUALIFYING OFFER' && o.type !== 'SCHOLARSHIP' && (
+                         <button onClick={() => startNegotiation(o)} className="flex-1 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/40 text-[#3b82f6] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#3b82f6]/20 transition-colors cursor-pointer">
+                           NEGOTIATE
+                         </button>
+                       )}
+                     </div>
+                   )}
                       </div>
                     </div>
                   </div>

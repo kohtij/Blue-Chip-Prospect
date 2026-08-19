@@ -1,10 +1,25 @@
-import React from 'react';
+import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
+import { formatMoney } from '../utils/gameHelpers';
+import TeamLogo from '../components/TeamLogo';
 
-// Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
 export default function CreationScreen() {
   const { handleStart, player, safeNationalities, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements } = useAppContext();
+  
+  const [showRecordsMenu, setShowRecordsMenu] = useState(false);
+  
+  // Lazy initialize so it reads from localStorage exactly once when the screen loads,
+  // bypassing the need for a useEffect entirely!
+  // Since we only read the records on this screen, we can omit the setter function!
+  const [savedCareers] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
   return (
           <div className="min-h-screen flex items-center justify-center p-6 bg-[#040505] text-white">
             <div className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748]">
@@ -91,15 +106,17 @@ export default function CreationScreen() {
                       : 'bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 border border-[#F59E0B]/40 text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.25)] cursor-pointer hover:scale-[1.02]'
                   }`}
                 >
-                  🎲 QUICK START (RANDOM)
+                  🎲 QUICK START
                 </button>
               </div>
 
-              {/* COLLAPSIBLE ACHIEVEMENTS DROPDOWN */}
-              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-8 w-full">
+              {/* COLLAPSIBLE LOGS AND ACHIEVEMENTS */}
+              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-8 w-full flex flex-col gap-3">
+                
+                {/* ACHIEVEMENTS BUTTON */}
                 <button 
                   type="button"
-                  onClick={() => setShowAchievementsMenu(!showAchievementsMenu)}
+                  onClick={() => { setShowAchievementsMenu(!showAchievementsMenu); setShowRecordsMenu(false); }}
                   className="w-full bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
@@ -118,9 +135,9 @@ export default function CreationScreen() {
                   </span>
                 </button>
 
-                {/* EXPANDABLE MENU */}
+                {/* ACHIEVEMENTS MENU */}
                 {showAchievementsMenu && (
-                  <div className="mt-4 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl max-h-[420px] overflow-y-auto space-y-3 text-left">
+                  <div className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl max-h-[420px] overflow-y-auto space-y-3 text-left">
                     <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-2 mb-3">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-sans">
                         HALL OF FAME TROPHY CASE
@@ -160,6 +177,75 @@ export default function CreationScreen() {
                     </div>
                   </div>
                 )}
+
+                {/* HALL OF RECORDS BUTTON */}
+                <button 
+                  type="button"
+                  onClick={() => { setShowRecordsMenu(!showRecordsMenu); setShowAchievementsMenu(false); }}
+                  className="w-full bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl sm:text-2xl">🏛️</span>
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-black text-white sports-font uppercase tracking-wider group-hover:text-[#3b82f6] transition-colors">
+                        HALL OF RECORDS
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-slate-400 font-sans">
+                        {savedCareers.length} PAST CAREERS LOGGED
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-slate-400 text-lg transition-transform duration-300 ${showRecordsMenu ? 'rotate-180' : ''}`}>
+                    ▼
+                  </span>
+                </button>
+
+                {/* HALL OF RECORDS MENU */}
+                {showRecordsMenu && (
+                  <div className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl max-h-[420px] overflow-y-auto space-y-3 text-left">
+                    <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-2 mb-3">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-sans">
+                        PAST LEGENDS
+                      </span>
+                    </div>
+
+                    {savedCareers.length === 0 ? (
+                       <p className="text-slate-500 text-sm italic font-sans text-center py-4">No past careers found. Finish a career to log it here!</p>
+                    ) : (
+                       <div className="flex flex-col gap-3">
+                         {savedCareers.map(c => (
+                           <div key={c.id} className="bg-[#101410] border border-[rgba(255,255,255,0.08)] p-4 rounded-xl flex items-center gap-4 group hover:border-[#3b82f6]/50 transition-colors">
+                             
+                             <div className="w-12 h-12 shrink-0 flex items-center justify-center bg-black/40 rounded-lg border border-[rgba(255,255,255,0.05)]">
+                               {c.logo ? <TeamLogo teamId={c.logo} league={'NHL'} size="small" /> : <span className="text-2xl">🏒</span>}
+                             </div>
+                             
+                             <div className="min-w-0 flex-1">
+                               <div className="flex justify-between items-start mb-1">
+                                 <h4 className="text-base sm:text-lg font-black text-white sports-font uppercase leading-none truncate">
+                                   {c.name}
+                                 </h4>
+                                 {c.isLegend && <span className="text-[9px] font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/30 px-2 py-0.5 rounded ml-2 shrink-0">LEGEND</span>}
+                               </div>
+                               
+                               <p className="text-[10px] text-slate-400 font-bold uppercase font-sans truncate mb-2">
+                                 {c.pos} · {c.team}
+                               </p>
+                               
+                               <div className="flex items-center gap-3 text-[10px] font-black sports-font tracking-widest">
+                                 <span className="text-[#3b82f6]">{c.games} GP</span>
+                                 <span className="text-[#22E748]">{c.points} {c.pos === 'G' ? 'SV%' : 'PTS'}</span>
+                                 <span className="text-[#F59E0B]">{c.cups} CUPS</span>
+                                 <span className="text-slate-300 hidden sm:inline">{formatMoney(c.earnings)}</span>
+                               </div>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                    )}
+                  </div>
+                )}
+
               </div>
                 
             </div>

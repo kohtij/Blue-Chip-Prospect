@@ -1,27 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, ahlTeams, shlTeams, liigaTeams, ncaaTeams,
-  nationalities, juniorLeagues, euroLeagues, LEAGUE_CONFIG,
-  getTeamData, getDeployment, getOpponentPool, getPrimaryRival,
-  getTeamConference, getTeamDivision, getConferences, getDivisions,
-  getPlayoffFormat, getPlayoffRounds, groupByConference
-} from './data/teams';
-import { getAwardImage, getPlayoffTrophyImage } from './data/awards';
-import { shopItems, skaterTrainingPool, goalieTrainingPool, eventDeck } from './data/economy';
-import { getMinigamePool, findMinigame } from './data/minigames';
-import {
-  cap, capIdol, formatMoney, getIdolTier, getTransferImpact,
-  getActiveStat, applyOvrDelta, recomputeOvr, simulateSeason, generatePlayoffDeck,
-  choiceChance
-// Import the new helpers.
-} from './utils/gameHelpers';
+import  { useState, useEffect, useCallback, useRef } from 'react';
 
-// Extracted module-scope helpers
 import {
-  makeInitialPlayer, getRole, getGamesPerMatchup, getWinsNeeded,
-  getDisplayDeployment, getFullTeamName, getPlayoffTitles,
-  ACCENT, ARCH_PILL, MASTER_ACHIEVEMENTS, PRESS_VIBES, PRESS_JOURNALISTS,
-  getJournalistsForLeague, getAwardPill, PRESS_QUESTIONS
+  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, ncaaTeams,
+  nationalities, juniorLeagues, euroLeagues, getPrimaryRival
+} from './data/teams';
+import { shopItems, skaterTrainingPool, goalieTrainingPool } from './data/economy';
+import { getMinigamePool } from './data/minigames';
+import {
+  cap, capIdol, formatMoney, getIdolTier, applyOvrDelta, recomputeOvr
+} from './utils/gameHelpers';
+import {
+  makeInitialPlayer, getRole, getWinsNeeded,
+  MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName
 } from './utils/appHelpers';
 
 // Extracted screen components
@@ -38,8 +28,6 @@ import NegotiationScreen from './screens/NegotiationScreen';
 
 // Extracted shared components
 import TeamLogo from './components/TeamLogo';
-import TrophySVG from './components/TrophySVG';
-import TrophyImage from './components/TrophyImage';
 import Dashboard from './components/Dashboard';
 import ShootoutGame from './components/ShootoutGame';
 import FaceoffGame from './components/FaceoffGame';
@@ -50,7 +38,7 @@ import ShotBlockGame from './components/ShotBlockGame';
 import BreakawayGame from './components/BreakawayGame';
 import OneTimerGame from './components/OneTimerGame';
 
-// Additional extracted screens (this turn)
+// Additional extracted screens
 import { AppContext } from './AppContext';
 import CreationScreen from './screens/CreationScreen';
 import RetirementScreen from './screens/RetirementScreen';
@@ -61,7 +49,7 @@ import RecapScreen from './screens/RecapScreen';
 import PlayoffsScreen from './screens/PlayoffsScreen';
 import TransferScreen from './screens/TransferScreen';
 
-// Extracted top-level handlers (this turn)
+// Extracted top-level handlers
 import { advanceToOffseason as _advanceToOffseason } from './handlers/advanceToOffseason';
 import { handleTrain as _handleTrain } from './handlers/handleTrain';
 import { runPostSeasonFlow as _runPostSeasonFlow } from './handlers/runPostSeasonFlow';
@@ -81,7 +69,7 @@ function App() {
     try {
       const saved = localStorage.getItem('hockey_career_achievements');
       return saved ? JSON.parse(saved) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   });
@@ -90,28 +78,30 @@ function App() {
   const [showAchievementsMenu, setShowAchievementsMenu] = useState(false);
 
   const unlockAchievement = useCallback((id) => {
-    setUnlockedAchievements(prev => {
-      if (prev.includes(id)) return prev;
-      const updated = [...prev, id];
-      try {
-        localStorage.setItem('hockey_career_achievements', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save achievements', e);
-      }
-      const masterObj = MASTER_ACHIEVEMENTS.find(a => a.id === id);
-      if (masterObj) {
-        setAchievementToast(masterObj);
-        setTimeout(() => setAchievementToast(null), 4000);
-      }
-      return updated;
-    });
+    setTimeout(() => {
+      setUnlockedAchievements(prev => {
+        if (prev.includes(id)) return prev;
+        const updated = [...prev, id];
+        try {
+          localStorage.setItem('hockey_career_achievements', JSON.stringify(updated));
+        } catch (e) {
+          console.error('Failed to save achievements', e);
+        }
+        const masterObj = MASTER_ACHIEVEMENTS.find(a => a.id === id);
+        if (masterObj) {
+          setAchievementToast(masterObj);
+          setTimeout(() => setAchievementToast(null), 4000);
+        }
+        return updated;
+      });
+    }, 0);
   }, []);
 
   useEffect(() => {
     if (unlockedAchievements.length >= 40) {
-      unlockAchievement('the_idol');
+      setTimeout(() => unlockAchievement('the_idol'), 0);
     }
-  }, [unlockedAchievements]);
+  }, [unlockedAchievements, unlockAchievement]);
 
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [negotiation, setNegotiation] = useState(null);
@@ -130,7 +120,6 @@ function App() {
   const [intlResult, setIntlResult] = useState(null);
 
   const [eventFeedback, setEventFeedback] = useState('');
-  const [eventImpacts, setEventImpacts] = useState({});
   const [statChanges, setStatChanges] = useState(null);
 
   const [seasonRecap, setSeasonRecap] = useState(null);
@@ -145,22 +134,20 @@ function App() {
   // Safely hoisted Combine state variables
   const [combinePhase, setCombinePhase] = useState(1);
   const [combineScore, setCombineScore] = useState(0);
-  const [combineClicks, setCombineClicks] = useState(0);
   const [combineColor, setCombineColor] = useState('red');
   const combineTimeRef = useRef(0);
 
   // Combine Reflex Timer Effect
-  useEffect(() => {
-    if (screen === 'combine' && combinePhase === 1) {
-      setCombineColor('red');
-      const delay = 1500 + Math.random() * 3000;
-      const timer = setTimeout(() => {
-        setCombineColor('green');
-        combineTimeRef.current = Date.now();
-      }, delay);
-      return () => clearTimeout(timer);
-    }
-  }, [screen, combinePhase]);
+   useEffect(() => {
+     if (screen === 'combine' && combinePhase === 1) {
+       const delay = 1500 + Math.random() * 3000;
+       const timer = setTimeout(() => {
+         setCombineColor('green');
+         combineTimeRef.current = Date.now();
+       }, delay);
+       return () => clearTimeout(timer);
+     }
+   }, [screen, combinePhase]);
 
   const handleCombineReflex = () => {
      if (combineColor === 'red') {
@@ -226,11 +213,24 @@ function App() {
     });
     if (Object.values(teamCounts).some(c => c >= 10)) unlockAchievement('one_club_man');
 
-    // Dynasty: two consecutive title-winning seasons.
-    for (let i = 1; i < hist.length; i++) {
-      if (hist[i]?.titleWon && hist[i - 1]?.titleWon) { unlockAchievement('back_to_back'); break; }
+    // Dynasty: three consecutive title-winning seasons with the exact same franchise.
+    let currentStreak = 0;
+    let streakTeam = null;
+    for (let i = 0; i < hist.length; i++) {
+      if (hist[i]?.titleWon && hist[i]?.league === 'NHL') {
+        if (streakTeam === hist[i].team) {
+           currentStreak++;
+           if (currentStreak >= 3) { unlockAchievement('back_to_back'); break; } // Note: keeping 'back_to_back' ID so we don't break local storage
+        } else {
+           currentStreak = 1;
+           streakTeam = hist[i].team;
+        }
+      } else {
+        currentStreak = 0;
+        streakTeam = null;
+      }
     }
-  }, [player.seasonHistory, unlockAchievement]);
+  }, [player.draftTeam, player.ovr, player.rights, player.seasonHistory, player.stats?.seasonsPlayed, unlockAchievement]);
 
   // Retirement-triggered career achievements.
   useEffect(() => {
@@ -239,7 +239,7 @@ function App() {
     const trophyCount = (player.stats?.awards || []).length;
     if (titles >= 3 && trophyCount >= 5) unlockAchievement('hall_of_fame');
     if (player.age > 38 && player.league === 'NHL') unlockAchievement('veteran_retirement');
-  }, [screen]);
+  }, [player.age, player.league, player.stats?.awards, player.stats?.titles, screen, unlockAchievement]);
 
   // Set favicon on mount. Runs once.
   useEffect(() => {
@@ -283,23 +283,44 @@ function App() {
   const isAHL = player.league === 'AHL';
   const lgKey = isAmateur ? 'chl' : isAHL ? 'ahl' : 'nhl';
 
-  // Memoised display name for the player's current club — used in multiple render
-  // spots (dashboard, recap, transfer, contract copy). Recomputes only when the
-  // team ID or league actually changes.
-  const playerTeamDisplayName = useMemo(
-    () => getFullTeamName(player.team, player.league),
-    [player.team, player.league]
-    
-  );
 // SAFE ZONE HOOK FOR PRESS CONFERENCES
-  const pressAnswerKeys = useMemo(() => {
+  const [pressAnswerKeys, setPressAnswerKeys] = useState([]);
+
+  useEffect(() => {
     const q = activePress.questions[activePress.currentQ];
-    if (!q) return [];
+    if (!q) {
+      setTimeout(() => setPressAnswerKeys([]), 0);
+      return;
+    }
     const keys = ['professional', 'passionate', 'humble', 'cocky'].filter(k => q.answers[k]);
-    return keys.sort(() => 0.5 - Math.random());
+    const shuffledKeys = keys.sort(() => 0.5 - Math.random());
+    setTimeout(() => setPressAnswerKeys(shuffledKeys), 0);
   }, [activePress.currentQ, activePress.questions]);
   
-  const handleStart = (isRandomized = false) => {
+const generateTraining = useCallback((pos) => {
+    const activePool = pos === 'G' ? goalieTrainingPool || [] : skaterTrainingPool || [];
+    const commons = activePool.filter(t => t.rarity === 'Common');
+    const rares = activePool.filter(t => t.rarity === 'Rare');
+    const epics = activePool.filter(t => t.rarity === 'Epic');
+
+    const hand = [];
+    while (hand.length < 3) {
+      const roll = Math.random();
+      let selectedPool = commons;
+      if (roll > 0.95 && epics.length) selectedPool = epics;
+      else if (roll > 0.80 && rares.length) selectedPool = rares;
+
+      if (selectedPool.length) {
+        const randomCard = selectedPool[Math.floor(Math.random() * selectedPool.length)];
+        if (!hand.find(c => c.id === randomCard.id)) { hand.push(randomCard); }
+      } else {
+        break; 
+      }
+    }
+    setActiveTrainings(hand);
+  }, []);
+
+  const handleStart = useCallback(() => {
     let lg = player.startLeague;
     let currentNat = player.nat;
 
@@ -327,8 +348,6 @@ function App() {
     if (['LD', 'RD'].includes(player.pos)) { bPhy += 10; bSta += 5; bIq += 5; bSkt -= 5; bSht -= 15; }
     if (player.pos === 'G') { bSht += 10; bSkt += 10; bPhy += 5; bIq -= 5; bSta -= 20; }
 
-    const startOvr = Math.floor((bSht + bSkt + bPhy + bIq + bSta) / 5);
-
     const validReporters = getJournalistsForLeague(lg);
     const randomReporter = validReporters[Math.floor(Math.random() * validReporters.length)];
 
@@ -349,15 +368,23 @@ function App() {
       else arch = 'Two-Way';
     }
 
-    setPlayer(p => ({
-      ...p, team: startTeam.id, league: lg, nat: currentNat, startLeague: lg, teamsPlayedFor: [startTeam.id],
-      shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta, ovr: startOvr,
-      isGenerational: isGen,
-      archetype: arch,
-      storylines: { ...p.storylines, mediaNemesis: isGen ? 1 : 0 },
-      nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null
-    }));
+    setPlayer(p => {
+      const updated = {
+        ...p, team: startTeam.id, league: lg, nat: currentNat, startLeague: lg, teamsPlayedFor: [startTeam.id],
+        shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta,
+        isGenerational: isGen,
+        archetype: arch,
+        storylines: { ...p.storylines, mediaNemesis: isGen ? 1 : 0 },
+        nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null
+      };
+      // Use recomputeOvr (position-weighted) so the starting number matches
+      // what every subsequent handler will compute. The old simple-average
+      // formula gave a different value than recomputeOvr and caused a visible
+      // OVR jump on first training for defensemen and goalies.
+      return { ...updated, ovr: recomputeOvr(updated) };
+    });
     
+     
     generateTraining(player.pos);
 
     if (isGen) {
@@ -369,17 +396,17 @@ function App() {
              label: 'Embrace the Expectations', 
              isRisky: false, 
              feedback: 'You are ready to change a franchise forever. Let the hype begin.', 
-             effect: { idol: 200, ovr: 0, money: 50000 }, // Start with massive hype & endorsement cash
+             effect: { idol: 200, ovr: 0, money: 50000 }, 
              action: 'GEN_REVEAL' 
            }
          ],
-         isOffseasonEvent: true // This perfectly routes to the Pre-Season screen next!
+         isOffseasonEvent: true 
        });
        setScreen('event');
     } else {
        setScreen('preseason');
     }
-  };
+  }, [generateTraining, player.nat, player.pos, player.startLeague]);
 
   const handleDraftDay = (combineBoost = 0) => {
     const totalJuniorPoints = (player.stats?.chl?.goals || 0) + (player.stats?.chl?.assists || 0) + (player.stats?.memCupBoost || 0);
@@ -432,20 +459,22 @@ function App() {
     if (player.league === 'NCAA') unlockAchievement('ncaa_champ');
 
     setSeasonRecap(r => ({ ...r, draftPick: overallPick, draftRound: round, draftedBy: draftedBy, juniorTeam: player.team, juniorLeague: player.league }));
-    setEventImpacts({ idol: idolBoost, money: 0, ovr: 0 });
     setScreen('draft');
   };
 
-  const handleDraftChoice = (choice) => {
+  const handleDraftChoice = useCallback((choice) => {
      const draftedBy = seasonRecap?.draftedBy;
-     if (choice === 'ELC' && draftedBy) {
+     // Ensures it works whether the UI passes a raw string or an event object
+     const actionName = typeof choice === 'string' ? choice : (choice?.action || String(choice));
+
+     if (actionName === 'ELC' && draftedBy) {
        setPlayer(p => ({
          ...p, team: draftedBy.id, league: 'NHL',
          teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])),
          contract: { salary: 925000, years: 3, role: getRole(925000, p) } 
        }));
        setEventFeedback("You signed your ELC and are heading to your first NHL training camp.");
-     } else if (choice === 'EXPLORE_OPTIONS') {
+     } else if (actionName === 'EXPLORE_OPTIONS' || actionName === 'EXPLORE' || actionName === 'DECLINE') {
        let offers = [];
        
        // Generate 2-3 NCAA offers
@@ -493,32 +522,11 @@ function App() {
      } else {
        setEventFeedback(`You decided to return to ${player.league} for another year of development.`);
      }
+     
+      
      generateTraining(player.pos);
      setScreen('preseason');
-  };
-
-  const generateTraining = (pos) => {
-    const activePool = pos === 'G' ? goalieTrainingPool || [] : skaterTrainingPool || [];
-    const commons = activePool.filter(t => t.rarity === 'Common');
-    const rares = activePool.filter(t => t.rarity === 'Rare');
-    const epics = activePool.filter(t => t.rarity === 'Epic');
-
-    const hand = [];
-    while (hand.length < 3) {
-      const roll = Math.random();
-      let selectedPool = commons;
-      if (roll > 0.95 && epics.length) selectedPool = epics;
-      else if (roll > 0.80 && rares.length) selectedPool = rares;
-
-      if (selectedPool.length) {
-        const randomCard = selectedPool[Math.floor(Math.random() * selectedPool.length)];
-        if (!hand.find(c => c.id === randomCard.id)) { hand.push(randomCard); }
-      } else {
-        break; 
-      }
-    }
-    setActiveTrainings(hand);
-  };
+  }, [generateTraining, player.league, player.pos, seasonRecap?.draftedBy]);
 
   const handlePressAnswer = (vibeId) => {
     const newAnswers = [...activePress.answers, vibeId];
@@ -537,7 +545,8 @@ function App() {
     if (hits === 3) unlockAchievement('press_master');
     if (hits === 0) unlockAchievement('press_disaster');
     
-    let idolDelta = 0; let ovrDelta = 0; let mediaDelta = 0; let coachDelta = 0; let resultText = ''; let ratingDelta = 0;
+    let idolDelta, mediaDelta, resultText, ratingDelta;
+    let ovrDelta = 0, coachDelta = 0;
     if (hits === 3) { idolDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; resultText = 'Flawless press conference.'; ratingDelta = 0.3; }
     else if (hits === 2) { idolDelta = 5; mediaDelta = 5; resultText = 'Solid, measured press conference.'; ratingDelta = 0.1; }
     else if (hits === 1) { idolDelta = -5; mediaDelta = -5; resultText = 'Mixed reception at the press conference.'; ratingDelta = -0.1; }
@@ -718,6 +727,43 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
   const advanceToOffseason = () => _advanceToOffseason(ctx);
   const handleTrain        = (t) => _handleTrain(ctx, t);
+  // NEW: Check for demotion before preseason starts!
+  const checkEarlyDemotion = () => {
+    const isUnder20 = player.age < 20;
+    const hasCHLHistory = (player.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
+    const demoteThresh = player.pos === 'G' ? 71 : 64;
+    const needsAHLDevelopment = player.league === 'NHL' && player.ovr < 78 && player.age < 24 && Math.random() < 0.85;
+
+    if (player.league === 'NHL' && (player.ovr < demoteThresh || needsAHLDevelopment)) {
+      if (isUnder20 && hasCHLHistory && Math.random() > 0.5) {
+        // Prospect stays in the NHL past 9 games
+        return null;
+      } else if (isUnder20 && hasCHLHistory) {
+         const lastCHL = (player.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
+         const currentTeam = lastCHL || player.draftTeam || 'UNK';
+         let currentLg = 'OHL';
+         if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
+         else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
+         
+         return { team: currentTeam, lg: currentLg, reason: '9_GAME_RULE' };
+      } else {
+         const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
+         const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
+         
+         // Add waiver logic check
+         const proSeasons = player.stats?.seasonsPlayed || 0;
+         const isRFA = player.age < 27 && proSeasons < 7;
+         const isELC = player.contract?.salary === 925000 || (isRFA && proSeasons < 3);
+
+         if (!isELC && !isRFA && Math.random() < 0.3) {
+             const pool = (nhlTeams || []).filter(t => t.id !== player.team);
+             return { team: pool[Math.floor(Math.random() * pool.length)].id, lg: 'NHL', reason: 'CLAIMED' };
+         }
+         return { team: ahlTeamId, lg: 'AHL', reason: needsAHLDevelopment ? 'DEVELOPMENT' : 'WAIVERS' };
+      }
+    }
+    return null;
+  };
   const runPostSeasonFlow  = (pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) =>
                              _runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings);
   const handleGridClick    = (rIndex, mIndex, cIndex) => _handleGridClick(ctx, rIndex, mIndex, cIndex);
@@ -729,10 +775,34 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
   const proceedFromPlayoffs = () => {
     let totalWins = 0;
+    let playoffGames = 0;
+    
+    // 1. Calculate Total Playoff Games Played
     (playoffs.bracket || []).forEach(r => {
        const pm = r.find(m => m.isPlayerSeries);
-       if (pm) totalWins += pm.wins1; 
+       if (pm) {
+           totalWins += pm.wins1; 
+           playoffGames += (pm.wins1 || 0) + (pm.wins2 || 0);
+       }
     });
+
+    // 2. Generate Playoff Stats Based on OVR
+    let pG = 0, pA = 0, pSaves = 0, pShots = 0, pSho = 0;
+    if (playoffGames > 0) {
+        const impact = player.ovr >= 85 ? 1.1 : player.ovr >= 75 ? 0.75 : 0.45;
+        if (player.pos === 'G') {
+            const savePct = Math.min(0.940, Math.max(0.880, 0.900 + ((player.ovr - 70) * 0.001) + (Math.random() * 0.02 - 0.01)));
+            pShots = playoffGames * (26 + Math.floor(Math.random() * 8));
+            pSaves = Math.floor(pShots * savePct);
+            pSho = Math.max(0, Math.floor((savePct - 0.900) * 50) + Math.floor(Math.random() * 2));
+        } else {
+            const ppg = impact * (0.8 + Math.random() * 0.4);
+            const points = Math.floor(playoffGames * ppg);
+            const goalRatio = ['LD', 'RD'].includes(player.pos) ? 0.25 : 0.45;
+            pG = Math.floor(points * goalRatio);
+            pA = points - pG;
+        }
+    }
 
     const finalRound = playoffs.bracket ? playoffs.bracket[playoffs.bracket.length - 1] : null;
     const finalMatch = finalRound ? finalRound[0] : null;
@@ -745,25 +815,59 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
     const isCupWon = playoffs.overallStatus === 'won_cup';
 
+    // 3. Send Playoff Stats to the Recap Screen
     setSeasonRecap(r => ({
        ...(r || {}),
        playoffWins: totalWins,
+       playoffGames,
+       playoffG: pG,
+       playoffA: pA,
+       playoffSaves: pSaves,
+       playoffShots: pShots,
+       playoffSho: pSho,
        titleWon: isCupWon ? 1 : 0,
        confTitleWon: playoffs.confTitleWon || false,
        confName: playoffs.playerConf === 'East' ? 'Eastern Conference' : 'Western Conference',
        leagueChampion: champion
     }));
     
-    // OVERRIDE: Update the player's seasonHistory log so the club history screen knows they won it!
-    if (isCupWon) {
-        setPlayer(p => {
-            const newHistory = [...(p.seasonHistory || [])];
-            if (newHistory.length > 0) {
-                newHistory[newHistory.length - 1].titleWon = true;
-            }
-            return { ...p, seasonHistory: newHistory };
-        });
-    }
+    // 4. Save Playoff Stats and Career Highs to the Player's Career Totals
+    setPlayer(p => {
+        const lg = playoffs.currentLg;
+        const statBucket = lg === 'AHL' ? 'ahl' : (['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(lg) ? 'chl' : 'nhl');
+        const poBucket = statBucket + 'Playoffs'; 
+        
+        const newHistory = [...(p.seasonHistory || [])];
+        if (newHistory.length > 0) {
+            newHistory[newHistory.length - 1] = {
+               ...newHistory[newHistory.length - 1],
+               titleWon: isCupWon || newHistory[newHistory.length - 1].titleWon,
+               playoffGames,
+               playoffGoals: pG,
+               playoffAssists: pA
+            };
+        }
+
+        const seasonGoals = seasonRecap?.g || 0;
+        const currentHigh = p.stats?.careerHighGoals || 0;
+
+        return { 
+           ...p, 
+           seasonHistory: newHistory,
+           stats: {
+              ...p.stats,
+              careerHighGoals: Math.max(currentHigh, seasonGoals), // Fixes the Gretzky duplicate bug!
+              [poBucket]: {
+                 games: (p.stats[poBucket]?.games || 0) + playoffGames,
+                 goals: (p.stats[poBucket]?.goals || 0) + pG,
+                 assists: (p.stats[poBucket]?.assists || 0) + pA,
+                 saves: (p.stats[poBucket]?.saves || 0) + pSaves,
+                 shots: (p.stats[poBucket]?.shots || 0) + pShots,
+                 shutouts: (p.stats[poBucket]?.shutouts || 0) + pSho
+              }
+           }
+        };
+    });
     
     if (isCupWon && ['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
       setMemCup({ round: 0, status: 'playing' });
@@ -781,24 +885,37 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
   const signContract = (o) => {
     const rivalObj = getPrimaryRival(player.team, player.league);
     if (rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team)) unlockAchievement('betrayal');
-    if (player.draftTeam === o.team && player.team !== o.team) unlockAchievement('return_home');
+    if (player.draftTeam === o.team && player.team !== o.team) {
+       unlockAchievement('return_home');
+       setSeasonEvents(prev => [...prev, { feedback: `You made a triumphant return to ${getFullTeamName(o.team, o.league)}, the team that originally drafted you!`, effect: { idol: 50, ovr: 0, money: 0 } }]);
+    }
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
-    // ... end of signContract function ...
     setPlayer(p => {
       const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
-      return {
-        ...p, team: o.team, league: o.league || 'NHL', idolatry: capIdol(p.idolatry + o.idolHit), teamsPlayedFor: newTeams,
+      const updatedPlayer = {
+        ...p, 
+        team: o.team, 
+        league: o.league || 'NHL', 
+        idolatry: capIdol(p.idolatry + (o.idolHit || 0)), 
+        teamsPlayedFor: newTeams,
         contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc }
       };
+      
+      // Keep exact stats and recompute OVR cleanly using positional weights
+      return {
+        ...updatedPlayer,
+        ovr: recomputeOvr(updatedPlayer)
+      };
     });
+
     generateTraining(player.pos);
     setScreen('preseason');
   };
 
   const handleArbitration = (offer) => {
   // Calculate a fair baseline based purely on current OVR
-  let baseline = 1000000;
+  let baseline;
   if (player.ovr >= 85) baseline = 6500000;
   else if (player.ovr >= 80) baseline = 4000000;
   else if (player.ovr >= 75) baseline = 2250000;
@@ -825,67 +942,22 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     setNegotiation({
       originalOffer: offer,
       currentSalary: offer.salary,
+      currentYears: offer.years || 1,
       gmPatience: 100,
       rounds: 0,
       maxRounds: 5,
       history: [],
       status: 'playing',
-      msg: "You are at the bargaining table. Push for a higher salary, but don't snap the GM's patience!"
+      msg: "You are at the bargaining table. Push for a higher salary or adjust the term, but don't snap the GM's patience!"
     });
     setScreen('negotiation');
   };
 
-  const handleNegotiatePush = (type) => {
-    let damage = 0;
-    let bump = 0;
-    let label = "";
-
-    if (type === 'safe') {
-      damage = Math.floor(Math.random() * 15) + 5; 
-      bump = Math.round(negotiation.originalOffer.salary * 0.03 / 25000) * 25000;
-      label = "Safe Ask";
-    } else if (type === 'hardball') {
-      damage = Math.floor(Math.random() * 30) + 15; 
-      bump = Math.round(negotiation.originalOffer.salary * 0.08 / 25000) * 25000;
-      label = "Hardball";
-    } else if (type === 'bluff') {
-      const success = Math.random() < 0.40;
-      if (success) {
-        damage = 5;
-        bump = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
-        label = "Bold Bluff (Success)";
-      } else {
-        damage = 45;
-        bump = 0;
-        label = "Bold Bluff (Failed)";
-      }
-    }
-
-    const newPatience = negotiation.gmPatience - damage;
-    const newRound = negotiation.rounds + 1;
-
-    if (newPatience <= 0) {
-       const penalty = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
-       setNegotiation(prev => ({
-         ...prev, gmPatience: 0, currentSalary: Math.max(850000, prev.currentSalary - penalty),
-         status: 'busted', history: [...prev.history, { label, success: false }],
-         msg: "❌ The GM slammed the table and slashed the offer!"
-       }));
-    } else {
-       setNegotiation(prev => ({
-         ...prev, gmPatience: newPatience, currentSalary: prev.currentSalary + bump, rounds: newRound,
-         history: [...prev.history, { label, success: bump > 0 }], status: newRound >= prev.maxRounds ? 'maxed' : 'playing',
-         msg: newRound >= prev.maxRounds ? "Final offer reached." : `✅ GM agreed to the ${label}.`
-       }));
-    }
-  };
-
-  const finishNegotiation = (signNow) => {
-    const updatedOffer = { ...negotiation.originalOffer, salary: negotiation.currentSalary, negotiated: true };
+    const finishNegotiation = (signNow) => {
+    const updatedOffer = { ...negotiation.originalOffer, salary: negotiation.currentSalary, years: negotiation.currentYears, negotiated: true };
     if (signNow) {
        signContract(updatedOffer);
     } else {
-       // Save the modified offer back to the Free Agency pool
        setFreeAgencyOffers(prev => prev.map(o => (o.team === updatedOffer.team && o.type === updatedOffer.type) ? updatedOffer : o));
        setScreen('transfer');
     }
@@ -985,18 +1057,19 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame,
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
+    checkEarlyDemotion, // Add this inside the contextValue object!
     combineColor, combinePhase, combineScore, currentYear,
     eventFeedback, finishNegotiation, freeAgencyOffers, handleArbitration,
     handleCombineReflex, handleDraftChoice, handleDraftDay, handleEndMemCup,
     handleEndPress, handleEventChoice, handleGridClick, handleInteractiveResult,
-    handleMinigameChoice, handleNegotiatePush, handleNewGame, handlePressAnswer,
+    handleMinigameChoice, handleNewGame, handlePressAnswer,
     handleStart, handleTrain, hasDemandedTrade, intlResult,
     isJunior, memCup, minigameContext, minigameStarted,
     negotiation, pendingSeasonResult, player, playoffs,
     pressAnswerKeys, proceedFromPlayoffs, proceedToNextScreen, runPostSeasonFlow,
     safeNationalities, seasonEvents, seasonRecap, setActiveEvent,
-    setArbState, setCombineClicks, setCombinePhase, setCombineScore,
-    setEventFeedback, setHasDemandedTrade, setIntlResult, setMemCup,
+    setArbState, setCombinePhase, setCombineScore,
+    setEventFeedback, setNegotiation, setHasDemandedTrade, setIntlResult, setMemCup,
     setMinigameStarted, setPlayer, setPlayoffs, setScreen,
     setSeasonRecap, setShowAchievementsMenu, showAchievementsMenu, signContract,
     startNegotiation, triggerMinigame, unlockAchievement, unlockedAchievements,

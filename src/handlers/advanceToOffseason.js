@@ -7,11 +7,12 @@ import { generateOffers } from './generateOffers';
 export function advanceToOffseason(ctx) {
   const { generateTraining, player, seasonRecap, setActiveEvent, setPlayer, setScreen, safeEuroLeagues, safeJuniorLeagues } = ctx;
 
-    if (player.age >= 41 || (player.age >= 38 && player.ovr < 78)) {
-      setScreen('retirement'); 
-      return; 
+    // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
+    if (player.age >= 40 || (player.age >= 35 && player.ovr < 76)) {
+       setScreen('retirement');
+       return; 
     }
-    if (player.age >= 38 && player.ovr >= 78 && player.league === 'NHL') {
+    if (player.age >= 35 && player.ovr >= 76 && player.league === 'NHL') {
        setActiveEvent({
          title: 'ONE LAST RIDE?',
          desc: `You are ${player.age} years old. Most guys have hung up their skates by now, but you still have gas in the tank. Will you retire a legend, or push for one more year on a veteran-minimum deal?`,
@@ -61,7 +62,6 @@ export function advanceToOffseason(ctx) {
         return;
     }
 
-    const isExpiring = (player.contract?.years || 0) <= 0;
     const newBuffs = (player.buffs || []).map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0);
 
     let currentTeam = player.team;

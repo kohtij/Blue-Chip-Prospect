@@ -4,26 +4,35 @@
 export const leagueLogos = {
   NHL: 'https://assets.nhle.com/logos/nhl/svg/NHL_light.svg',
   AHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/7/7b/American_Hockey_League_logo.svg/250px-American_Hockey_League_logo.svg.png',
+  ECHL: '', // Placeholder
   OHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/07/Ontario_Hockey_League_logo.svg/250px-Ontario_Hockey_League_logo.svg.png',
   WHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/4e/Western_Hockey_League_logo.svg/250px-Western_Hockey_League_logo.svg.png',
   QMJHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f6/QMJHL_logo.svg/250px-QMJHL_logo.svg.png',
   USHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d7/USHL_logo.svg/250px-USHL_logo.svg.png',
   NCAA: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/250px-NCAA_logo.svg.png',
   SHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Swedish_Hockey_League_logo.svg/250px-Swedish_Hockey_League_logo.svg.png',
-  LIIGA: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png'
+  LIIGA: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png',
+  KHL: '', // Placeholder
+  SWISS: '' // Placeholder
 };
 
 export const LEAGUE_CONFIG = {
-  NHL:   { name: 'National Hockey League',           playoffSpots: 16, logo: leagueLogos.NHL,   conferences: ['East','West'], divisions: ['Atlantic','Metropolitan','Central','Pacific'], playoffFormat: 'best-of-7-16' },
-  AHL:   { name: 'American Hockey League',           playoffSpots: 16, logo: leagueLogos.AHL,   conferences: ['East','West'], divisions: ['Atlantic','North','Central','Pacific'],       playoffFormat: 'best-of-7-16' },
-  OHL:   { name: 'Ontario Hockey League',            playoffSpots: 16, logo: leagueLogos.OHL,   conferences: ['East','West'], divisions: ['East','Central','Midwest','West'],           playoffFormat: 'best-of-7-16' },
-  WHL:   { name: 'Western Hockey League',            playoffSpots: 16, logo: leagueLogos.WHL,   conferences: ['East','West'], divisions: ['East','Central','BC','US'],                  playoffFormat: 'best-of-7-16' },
-  QMJHL: { name: 'Quebec Maritimes Junior Hockey League', playoffSpots: 16, logo: leagueLogos.QMJHL, conferences: [],          divisions: ['East','Central','West'],                     playoffFormat: 'best-of-7-16' },
-  USHL:  { name: 'United States Hockey League',      playoffSpots: 12, logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'best-of-5-12' },
-  NCAA:  { name: 'NCAA Division I Hockey',           playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'frozen-four' },
-  SHL:   { name: 'Swedish Hockey League',            playoffSpots: 10, logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-10' },
-  LIIGA: { name: 'Finnish Liiga',                    playoffSpots: 10, logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-10' }
+  NHL:   { name: 'National Hockey League',           games: 84, playoffSpots: 16, logo: leagueLogos.NHL,   conferences: ['East','West'], divisions: ['Atlantic','Metropolitan','Central','Pacific'], playoffFormat: 'best-of-7-16' },
+  AHL:   { name: 'American Hockey League',           games: 72, playoffSpots: 16, logo: leagueLogos.AHL,   conferences: ['East','West'], divisions: ['Atlantic','North','Central','Pacific'],       playoffFormat: 'ahl-16' },
+  ECHL:  { name: 'ECHL',                             games: 72, playoffSpots: 16, logo: leagueLogos.ECHL,  conferences: ['East','West'], divisions: ['North','South','Central','Mountain'],         playoffFormat: 'best-of-7-16' },
+  OHL:   { name: 'Ontario Hockey League',            games: 68, playoffSpots: 16, logo: leagueLogos.OHL,   conferences: ['East','West'], divisions: ['East','Central','Midwest','West'],           playoffFormat: 'best-of-7-16' },
+  WHL:   { name: 'Western Hockey League',            games: 68, playoffSpots: 16, logo: leagueLogos.WHL,   conferences: ['East','West'], divisions: ['East','Central','BC','US'],                  playoffFormat: 'best-of-7-16' },
+  QMJHL: { name: 'Quebec Maritimes Junior Hockey League', games: 64, playoffSpots: 16, logo: leagueLogos.QMJHL, conferences: [],          divisions: ['East','Central','West'],                     playoffFormat: 'best-of-7-16' },
+  USHL:  { name: 'United States Hockey League',      games: 62, playoffSpots: 8,  logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'ushl-8' },
+  NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
+  SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 8,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 8,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
+  SWISS: { name: 'National League',                  games: 52, playoffSpots: 10, logo: leagueLogos.SWISS, conferences: [],              divisions: [], playoffFormat: 'shl-10' }
 };
+
+export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL'];
+export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS'];
 
 export const PLAYOFF_ROUNDS = {
   'best-of-7-16': [
@@ -32,35 +41,29 @@ export const PLAYOFF_ROUNDS = {
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
-  'ahl-23': [
-    { name: 'First Round',       teams: 32, gamesPerMatchup: 3 }, // 32 slots minus 23 teams = 9 Byes
-    { name: 'Division Semis',    teams: 16, gamesPerMatchup: 5 },
-    { name: 'Division Finals',   teams: 8,  gamesPerMatchup: 5 },
-    { name: 'Conference Final',  teams: 4,  gamesPerMatchup: 7 },
-    { name: 'Calder Cup Final',  teams: 2,  gamesPerMatchup: 7 }
+  'ahl-16': [
+    { name: 'Division Semifinals', teams: 16, gamesPerMatchup: 5 },
+    { name: 'Division Finals',     teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Conference Finals',   teams: 4,  gamesPerMatchup: 7 },
+    { name: 'Calder Cup Final',    teams: 2,  gamesPerMatchup: 7 }
   ],
-  'ushl-12': [
-    { name: 'First Round',       teams: 16, gamesPerMatchup: 3 }, // 16 slots minus 12 teams = 4 Byes
+  'ushl-8': [
     { name: 'Conference Semis',  teams: 8,  gamesPerMatchup: 5 },
     { name: 'Conference Finals', teams: 4,  gamesPerMatchup: 5 },
     { name: 'Clark Cup Final',   teams: 2,  gamesPerMatchup: 5 }
   ],
-  'shl-10': [
-    { name: 'Play-In Round',     teams: 16, gamesPerMatchup: 3 }, // 16 slots minus 10 teams = 6 Byes
+  'best-of-7-8': [
     { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
-  'frozen-four': [
-    { name: 'Regional Semifinal', teams: 16, gamesPerMatchup: 1 },
-    { name: 'Regional Final',     teams: 8,  gamesPerMatchup: 1 },
-    { name: 'Frozen Four',        teams: 4,  gamesPerMatchup: 1 },
-    { name: 'National Championship', teams: 2, gamesPerMatchup: 1 }
+  'ncaa-3': [
+    { name: 'Regional Semifinal',    teams: 16, gamesPerMatchup: 3 },
+    { name: 'Regional Final',        teams: 8,  gamesPerMatchup: 3 },
+    { name: 'Frozen Four',           teams: 4,  gamesPerMatchup: 3 },
+    { name: 'National Championship', teams: 2,  gamesPerMatchup: 3 }
   ]
 };
-
-export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL'];
-export const euroLeagues = ['SHL', 'LIIGA'];
 
 // ==========================================
 // NATIONALITIES
@@ -373,9 +376,92 @@ export const liigaTeams = [
 ];
 
 // ==========================================
+// 10. ECHL TEAMS
+// ==========================================
+export const echlTeams = [
+  { id: 'ADK', conf: 'East', div: 'North', city: 'Adirondack', name: 'Thunder', bg: '#C8102E', color: '#000000', rival: 'WOR', logo: '' },
+  { id: 'MNE', conf: 'East', div: 'North', city: 'Maine', name: 'Mariners', bg: '#041E42', color: '#64A70B', rival: 'WOR', logo: '' },
+  { id: 'NOR', conf: 'East', div: 'North', city: 'Norfolk', name: 'Admirals', bg: '#002855', color: '#F2A900', rival: 'REA', logo: '' },
+  { id: 'REA', conf: 'East', div: 'North', city: 'Reading', name: 'Royals', bg: '#4F2683', color: '#B3A369', rival: 'NOR', logo: '' },
+  { id: 'TR',  conf: 'East', div: 'North', city: 'Trois-Rivières', name: 'Lions', bg: '#00205B', color: '#FFFFFF', rival: 'MNE', logo: '' },
+  { id: 'WOR', conf: 'East', div: 'North', city: 'Worcester', name: 'Railers', bg: '#00205B', color: '#708090', rival: 'ADK', logo: '' },
+  { id: 'ATL', conf: 'East', div: 'South', city: 'Atlanta', name: 'Gladiators', bg: '#002D62', color: '#F2A900', rival: 'SC', logo: '' },
+  { id: 'FLA', conf: 'East', div: 'South', city: 'Florida', name: 'Everblades', bg: '#00471B', color: '#00205B', rival: 'ORL', logo: '' },
+  { id: 'GRN', conf: 'East', div: 'South', city: 'Greenville', name: 'Swamp Rabbits', bg: '#002855', color: '#FFB81C', rival: 'SC', logo: '' },
+  { id: 'JAX', conf: 'East', div: 'South', city: 'Jacksonville', name: 'Icemen', bg: '#00205B', color: '#00B2E1', rival: 'ORL', logo: '' },
+  { id: 'ORL', conf: 'East', div: 'South', city: 'Orlando', name: 'Solar Bears', bg: '#00205B', color: '#00B2E1', rival: 'FLA', logo: '' },
+  { id: 'SAV', conf: 'East', div: 'South', city: 'Savannah', name: 'Ghost Pirates', bg: '#000000', color: '#00B2E1', rival: 'JAX', logo: '' },
+  { id: 'SC',  conf: 'East', div: 'South', city: 'South Carolina', name: 'Stingrays', bg: '#041E42', color: '#C8102E', rival: 'ATL', logo: '' },
+  { id: 'CIN', conf: 'West', div: 'Central', city: 'Cincinnati', name: 'Cyclones', bg: '#000000', color: '#C8102E', rival: 'TOL', logo: '' },
+  { id: 'FW',  conf: 'West', div: 'Central', city: 'Fort Wayne', name: 'Komets', bg: '#F26522', color: '#000000', rival: 'TOL', logo: '' },
+  { id: 'IND', conf: 'West', div: 'Central', city: 'Indy', name: 'Fuel', bg: '#C8102E', color: '#000000', rival: 'CIN', logo: '' },
+  { id: 'IOW', conf: 'West', div: 'Central', city: 'Iowa', name: 'Heartlanders', bg: '#000000', color: '#FFB81C', rival: 'KAL', logo: '' },
+  { id: 'KAL', conf: 'West', div: 'Central', city: 'Kalamazoo', name: 'Wings', bg: '#00471B', color: '#C8102E', rival: 'TOL', logo: '' },
+  { id: 'TOL', conf: 'West', div: 'Central', city: 'Toledo', name: 'Walleye', bg: '#00205B', color: '#FFB81C', rival: 'FW', logo: '' },
+  { id: 'WHL', conf: 'West', div: 'Central', city: 'Wheeling', name: 'Nailers', bg: '#000000', color: '#FFB81C', rival: 'CIN', logo: '' },
+  { id: 'ALN', conf: 'West', div: 'Mountain', city: 'Allen', name: 'Americans', bg: '#C8102E', color: '#00205B', rival: 'TUL', logo: '' },
+  { id: 'IDH', conf: 'West', div: 'Mountain', city: 'Idaho', name: 'Steelheads', bg: '#000000', color: '#A2AAAD', rival: 'UTA', logo: '' },
+  { id: 'KC',  conf: 'West', div: 'Mountain', city: 'Kansas City', name: 'Mavericks', bg: '#000000', color: '#F26522', rival: 'WIC', logo: '' },
+  { id: 'RC',  conf: 'West', div: 'Mountain', city: 'Rapid City', name: 'Rush', bg: '#C8102E', color: '#000000', rival: 'IDH', logo: '' },
+  { id: 'TAH', conf: 'West', div: 'Mountain', city: 'Tahoe', name: 'Knight Monsters', bg: '#000000', color: '#B3A369', rival: 'IDH', logo: '' },
+  { id: 'TUL', conf: 'West', div: 'Mountain', city: 'Tulsa', name: 'Oilers', bg: '#00205B', color: '#C8102E', rival: 'WIC', logo: '' },
+  { id: 'UTA', conf: 'West', div: 'Mountain', city: 'Utah', name: 'Grizzlies', bg: '#00471B', color: '#000000', rival: 'IDH', logo: '' },
+  { id: 'WIC', conf: 'West', div: 'Mountain', city: 'Wichita', name: 'Thunder', bg: '#00205B', color: '#A2AAAD', rival: 'TUL', logo: '' }
+];
+
+// ==========================================
+// 11. KHL TEAMS
+// ==========================================
+export const khlTeams = [
+  { id: 'CSKA', conf: 'West', div: 'Tarasov', city: 'Moscow', name: 'CSKA', bg: '#C8102E', color: '#00205B', rival: 'SKA', logo: '' },
+  { id: 'SKA',  conf: 'West', div: 'Bobrov', city: 'St. Petersburg', name: 'SKA', bg: '#00205B', color: '#C8102E', rival: 'CSKA', logo: '' },
+  { id: 'DYN',  conf: 'West', div: 'Tarasov', city: 'Moscow', name: 'Dynamo', bg: '#00539B', color: '#FFFFFF', rival: 'CSKA', logo: '' },
+  { id: 'LOK',  conf: 'West', div: 'Tarasov', city: 'Yaroslavl', name: 'Lokomotiv', bg: '#C8102E', color: '#00205B', rival: 'SKA', logo: '' },
+  { id: 'SPA',  conf: 'West', div: 'Bobrov', city: 'Moscow', name: 'Spartak', bg: '#C8102E', color: '#FFFFFF', rival: 'DYN', logo: '' },
+  { id: 'SEV',  conf: 'West', div: 'Tarasov', city: 'Cherepovets', name: 'Severstal', bg: '#000000', color: '#FFB81C', rival: 'LOK', logo: '' },
+  { id: 'TOR',  conf: 'West', div: 'Bobrov', city: 'Nizhny Novgorod', name: 'Torpedo', bg: '#00205B', color: '#C8102E', rival: 'VIT', logo: '' },
+  { id: 'VIT',  conf: 'West', div: 'Bobrov', city: 'Moscow Region', name: 'Vityaz', bg: '#C8102E', color: '#FFFFFF', rival: 'TOR', logo: '' },
+  { id: 'SOC',  conf: 'West', div: 'Bobrov', city: 'Sochi', name: 'HC Sochi', bg: '#00205B', color: '#FFB81C', rival: 'SKA', logo: '' },
+  { id: 'MIN',  conf: 'West', div: 'Tarasov', city: 'Minsk', name: 'Dinamo', bg: '#00B2E1', color: '#FFFFFF', rival: 'DYN', logo: '' },
+  { id: 'AKB',  conf: 'East', div: 'Kharlamov', city: 'Kazan', name: 'Ak Bars', bg: '#00471B', color: '#C8102E', rival: 'SAL', logo: '' },
+  { id: 'AVA',  conf: 'East', div: 'Chernyshev', city: 'Omsk', name: 'Avangard', bg: '#C8102E', color: '#000000', rival: 'MET', logo: '' },
+  { id: 'MET',  conf: 'East', div: 'Kharlamov', city: 'Magnitogorsk', name: 'Metallurg', bg: '#00205B', color: '#C8102E', rival: 'TRA', logo: '' },
+  { id: 'SAL',  conf: 'East', div: 'Chernyshev', city: 'Ufa', name: 'Salavat Yulaev', bg: '#00471B', color: '#FFFFFF', rival: 'AKB', logo: '' },
+  { id: 'TRA',  conf: 'East', div: 'Kharlamov', city: 'Chelyabinsk', name: 'Traktor', bg: '#000000', color: '#FFFFFF', rival: 'MET', logo: '' },
+  { id: 'AVT',  conf: 'East', div: 'Kharlamov', city: 'Yekaterinburg', name: 'Avtomobilist', bg: '#C8102E', color: '#000000', rival: 'TRA', logo: '' },
+  { id: 'SIB',  conf: 'East', div: 'Chernyshev', city: 'Novosibirsk', name: 'Sibir', bg: '#00539B', color: '#FFFFFF', rival: 'AVA', logo: '' },
+  { id: 'NEF',  conf: 'East', div: 'Kharlamov', city: 'Nizhnekamsk', name: 'Neftekhimik', bg: '#00539B', color: '#FFFFFF', rival: 'AKB', logo: '' },
+  { id: 'AMU',  conf: 'East', div: 'Chernyshev', city: 'Khabarovsk', name: 'Amur', bg: '#F26522', color: '#000000', rival: 'ADM', logo: '' },
+  { id: 'ADM',  conf: 'East', div: 'Chernyshev', city: 'Vladivostok', name: 'Admiral', bg: '#000000', color: '#F26522', rival: 'AMU', logo: '' },
+  { id: 'BAR',  conf: 'East', div: 'Chernyshev', city: 'Astana', name: 'Barys', bg: '#00539B', color: '#FFB81C', rival: 'AVA', logo: '' },
+  { id: 'KUN',  conf: 'East', div: 'Bobrov', city: 'Beijing', name: 'Kunlun Red Star', bg: '#C8102E', color: '#FFB81C', rival: 'AMU', logo: '' },
+  { id: 'LAD',  conf: 'East', div: 'Kharlamov', city: 'Togliatti', name: 'Lada', bg: '#00539B', color: '#FFFFFF', rival: 'NEF', logo: '' }
+];
+
+// ==========================================
+// 12. SWISS LEAGUE (National League)
+// ==========================================
+export const swissTeams = [
+  { id: 'ZSC', city: 'Zürich', name: 'ZSC Lions', bg: '#00205B', color: '#C8102E', rival: 'KLO', logo: '' },
+  { id: 'BERN', city: 'Bern', name: 'SC Bern', bg: '#000000', color: '#FFB81C', rival: 'BIE', logo: '' },
+  { id: 'DAV', city: 'Davos', name: 'HC Davos', bg: '#00539B', color: '#FFB81C', rival: 'ZSC', logo: '' },
+  { id: 'ZUG', city: 'Zug', name: 'EV Zug', bg: '#00205B', color: '#FFFFFF', rival: 'ZSC', logo: '' },
+  { id: 'LUG', city: 'Lugano', name: 'HC Lugano', bg: '#000000', color: '#FFB81C', rival: 'AMB', logo: '' },
+  { id: 'FRI', city: 'Fribourg', name: 'Fribourg-Gottéron', bg: '#000000', color: '#FFFFFF', rival: 'BERN', logo: '' },
+  { id: 'GEN', city: 'Geneva', name: 'Genève-Servette HC', bg: '#862633', color: '#FFB81C', rival: 'LAU', logo: '' },
+  { id: 'LAU', city: 'Lausanne', name: 'Lausanne HC', bg: '#C8102E', color: '#FFFFFF', rival: 'GEN', logo: '' },
+  { id: 'BIE', city: 'Biel', name: 'EHC Biel-Bienne', bg: '#C8102E', color: '#FFB81C', rival: 'BERN', logo: '' },
+  { id: 'AMB', city: 'Ambrì', name: 'HC Ambrì-Piotta', bg: '#00205B', color: '#FFFFFF', rival: 'LUG', logo: '' },
+  { id: 'RAP', city: 'Rapperswil', name: 'SC Rapperswil-Jona Lakers', bg: '#C8102E', color: '#00539B', rival: 'ZSC', logo: '' },
+  { id: 'SCL', city: 'Langnau', name: 'SCL Tigers', bg: '#C8102E', color: '#FFB81C', rival: 'BERN', logo: '' },
+  { id: 'KLO', city: 'Kloten', name: 'EHC Kloten', bg: '#00205B', color: '#C8102E', rival: 'ZSC', logo: '' },
+  { id: 'AJO', city: 'Porrentruy', name: 'HC Ajoie', bg: '#000000', color: '#FFB81C', rival: 'BIE', logo: '' }
+];
+
+// ==========================================
 // HELPER FUNCTIONS
 // ==========================================
-export const euroTeams = [...shlTeams, ...liigaTeams];
+export const euroTeams = [...shlTeams, ...liigaTeams, ...khlTeams, ...swissTeams];
 
 export const getTeamData = (teamId, league) => {
   if (!teamId) return null;
@@ -387,6 +473,7 @@ export const getOpponentPool = (league) => {
   switch (league) {
     case 'NHL': return nhlTeams;
     case 'AHL': return ahlTeams;
+    case 'ECHL': return echlTeams;
     case 'OHL': return ohlTeams;
     case 'WHL': return whlTeams;
     case 'QMJHL': return qmjhlTeams;
@@ -394,6 +481,8 @@ export const getOpponentPool = (league) => {
     case 'NCAA': return ncaaTeams;
     case 'SHL': return shlTeams;
     case 'LIIGA': return liigaTeams;
+    case 'KHL': return khlTeams;
+    case 'SWISS': return swissTeams;
     default: return nhlTeams;
   }
 };

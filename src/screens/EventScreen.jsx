@@ -1,16 +1,32 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 
-// Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function EventScreen() {
   const { activeEvent, handleEventChoice } = useAppContext();
   return (() => {
           const isGenEvent = activeEvent.title === '🌟 THE CHOSEN ONE';
+          const isInjuryEvent = activeEvent.title === '🚑 DEVASTATING INJURY';
+          
+          let panelStyles = 'border-t-[#3b82f6]';
+          let titleColor = 'text-white';
+          
+          if (isGenEvent) {
+             panelStyles = 'border-t-[#F59E0B] shadow-[0_0_40px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#1a1405] to-[#0a0802]';
+             titleColor = 'text-[#F59E0B]';
+          } else if (isInjuryEvent) {
+             panelStyles = 'border-t-[#ef4444] shadow-[0_0_40px_rgba(239,68,68,0.2)] bg-gradient-to-br from-[#1a0505] to-[#0a0202]';
+             titleColor = 'text-[#ef4444]';
+          }
+
           return (
-          <div className={`game-panel p-4 sm:p-10 mt-2 border-t-2 relative overflow-hidden ${isGenEvent ? 'border-t-[#F59E0B] shadow-[0_0_40px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#1a1405] to-[#0a0802]' : 'border-t-[#3b82f6]'}`}>
+          <div className={`game-panel p-4 sm:p-10 mt-2 border-t-2 relative overflow-hidden ${panelStyles}`}>
             {isGenEvent && <div className="bluechip-foil-overlay opacity-60"></div>}
+            {isInjuryEvent && <div className="bluechip-foil-overlay opacity-50 mix-blend-color-dodge" style={{ filter: 'hue-rotate(-45deg) saturate(200%)' }}></div>}
+            
             <div className="relative z-10">
-              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left ${isGenEvent ? 'text-[#F59E0B]' : 'text-white'}`}>🗣 {activeEvent.title}</h2>
+              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left ${titleColor}`}>
+                {isInjuryEvent ? '' : '🗣 '}{activeEvent.title}
+              </h2>
               <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-2xl font-sans text-left">{activeEvent.desc}</p>
               <div className="flex flex-col gap-2 sm:gap-4 font-sans">
                 {(activeEvent.choices || []).map((c, i) => (

@@ -1,11 +1,61 @@
-import React from 'react';
+import  { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
+import { getFullTeamName } from '../utils/appHelpers';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function PreseasonScreen() {
-  const { activeTrainings, currentYear, handleTrain, player } = useAppContext();
+  const { activeTrainings, currentYear, handleTrain, player, setPlayer, checkEarlyDemotion } = useAppContext();
+  const [demotionNotice, setDemotionNotice] = useState(null);
+
+  // Check for demotion as soon as the Preseason loads
+  // Check for demotion as soon as the Preseason loads
+  useEffect(() => {
+    if (checkEarlyDemotion) {
+        const demotion = checkEarlyDemotion();
+        if (demotion) {
+           // Wrap in a timeout to satisfy the strict React compiler
+           setTimeout(() => {
+               setDemotionNotice(demotion);
+               // Immediately update player state so dashboard reflects it!
+               setPlayer(p => {
+                   const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), demotion.team]));
+                   return { ...p, team: demotion.team, league: demotion.lg, teamsPlayedFor: newTeams };
+               });
+           }, 0);
+        }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAcknowledgeDemotion = () => {
+    setDemotionNotice(null);
+  };
+
   return (
           <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#22E748] relative z-20">
+            
+            {/* DEMOTION POPUP BLOCKER */}
+            {demotionNotice && (
+              <div className="absolute inset-0 bg-[#040505]/95 backdrop-blur-md z-50 flex flex-col justify-center items-center p-6 text-center rounded-xl border-4 border-red-500/50">
+                 <h2 className="text-4xl font-black text-red-500 sports-font mb-4 uppercase">
+                    {demotionNotice.reason === 'CLAIMED' ? 'CLAIMED OFF WAIVERS' : demotionNotice.reason === '9_GAME_RULE' ? 'RETURNED TO JUNIORS' : 'SENT DOWN'}
+                 </h2>
+                 <p className="text-xl text-white mb-8 max-w-lg">
+                    {demotionNotice.reason === 'CLAIMED' 
+                        ? `Your GM attempted to send you down, but you were claimed off waivers! You are now playing for the ${getFullTeamName(demotionNotice.team, 'NHL')}.`
+                        : demotionNotice.reason === '9_GAME_RULE' 
+                        ? `After training camp, the front office determined you need one more year of seasoning. You have been returned to the ${getFullTeamName(demotionNotice.team, demotionNotice.lg)}.`
+                        : `The front office has assigned you to the ${getFullTeamName(demotionNotice.team, 'AHL')} (AHL) to start the season.`}
+                 </p>
+                 <button 
+                    onClick={handleAcknowledgeDemotion}
+                    className="bg-red-600 hover:bg-red-500 text-white font-black sports-font text-2xl px-12 py-4 rounded-xl border-2 border-white shadow-lg transition-transform hover:scale-105"
+                 >
+                    ACKNOWLEDGE
+                 </button>
+              </div>
+            )}
+
            <div className="flex flex-col items-start border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
               <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest font-sans border border-[#3b82f6]/30 px-2.5 py-1 rounded bg-[#3b82f6]/10 mb-2">
                 OFF-SEASON DEVELOPMENT
@@ -22,7 +72,7 @@ export default function PreseasonScreen() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleTrain(t);
+                    if (!demotionNotice) handleTrain(t);
                   }}
                   className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[12rem] sm:min-h-[16rem] text-left relative z-30 ${t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
                 >

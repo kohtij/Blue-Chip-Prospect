@@ -1,78 +1,76 @@
-import React, { useEffect, useRef, useState } from 'react';
+import  { useState } from 'react';
 
-// Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const FilmRoomGame = ({ player, onComplete }) => {
-   const [phase, setPhase] = useState('memorize');
-   const doneRef = useRef(false);
+export default function FilmRoomGame({ onComplete }) {
+  const [step, setStep] = useState(0);
+  const [score, setScore] = useState(0);
 
-   // Lazy initialize the game board ONCE so React Strict Mode doesn't regenerate 
-   // the target behind the scenes and cause a false "Wrong" answer.
-   const [gameBoard] = useState(() => {
-      const generatePattern = () => {
-         const p = [];
-         while(p.length < 4) {
-           const r = Math.floor(Math.random() * 9);
-           if(!p.includes(r)) p.push(r);
-         }
-         return p.sort();
-      };
+  const scenarios = [
+    {
+      video: "Opponent's powerplay setup: 1-3-1 Umbrella.",
+      question: "Where is the most vulnerable passing lane you need to cut off?",
+      options: [
+        { text: "Cross-ice through the royal road", isCorrect: true },
+        { text: "Drop pass to the point", isCorrect: false },
+        { text: "Dump into the corner", isCorrect: false }
+      ]
+    },
+    {
+      video: "2-on-1 rush against you.",
+      question: "As the lone defender, what is your primary responsibility?",
+      options: [
+        { text: "Attack the puck carrier immediately", isCorrect: false },
+        { text: "Take away the pass and let the goalie take the shooter", isCorrect: true },
+        { text: "Block the goalie's line of sight", isCorrect: false }
+      ]
+    },
+    {
+      video: "Faceoff in the defensive zone, down by 1, 10 seconds left.",
+      question: "What's the play if we win the draw?",
+      options: [
+        { text: "Freeze the puck against the boards", isCorrect: false },
+        { text: "Fast breakout up the middle", isCorrect: true },
+        { text: "Pull the goalie", isCorrect: false }
+      ]
+    }
+  ];
 
-      const correct = generatePattern();
-      const opts = [correct];
-      while(opts.length < 4) {
-        const wrong = generatePattern();
-        if (!opts.find(o => o.join(',') === wrong.join(','))) opts.push(wrong);
-      }
-      return { target: correct, options: opts.sort(() => 0.5 - Math.random()) };
-   });
+  const handleAnswer = (isCorrect) => {
+    const newScore = score + (isCorrect ? 1 : 0);
+    if (step + 1 >= scenarios.length) {
+      // Finish game: Need 2 out of 3 to win
+      const isWin = newScore >= 2;
+      onComplete(isWin);
+    } else {
+      setScore(newScore);
+      setStep(step + 1);
+    }
+  };
 
-   useEffect(() => {
-      // Higher IQ = more time to memorize the board
-      const showTime = Math.min(5000, 1500 + (player.hockeyIQ * 30));
-      const t = setTimeout(() => { setPhase('recall'); }, showTime);
-      return () => clearTimeout(t);
-   }, [player.hockeyIQ]);
+  const current = scenarios[step];
 
-   const Grid = ({ pattern, onClick, small }) => (
-     <div onClick={onClick} className={`grid grid-cols-3 gap-1 p-2 bg-[#166534] border-4 border-[#14532d] rounded-lg aspect-square shadow-inner ${onClick ? 'cursor-pointer hover:border-[#F59E0B] transition-colors' : ''}`}>
-       {[0,1,2,3,4,5,6,7,8].map(i => (
-         <div key={i} className={`flex items-center justify-center ${small ? 'text-xl' : 'text-3xl'} font-black ${pattern.includes(i) ? 'text-white' : 'text-transparent'}`}>
-           {pattern.includes(i) ? 'X' : '.'}
-         </div>
-       ))}
-     </div>
-   );
-
-   if (phase === 'memorize') {
-     return (
-       <div className="w-full max-w-sm mx-auto text-center">
-         <p className="text-[#F59E0B] font-black sports-font text-2xl sm:text-3xl mb-6 animate-pulse">MEMORIZE THE PLAY!</p>
-         <div className="w-48 h-48 sm:w-64 sm:h-64 mx-auto shadow-2xl">
-           <Grid pattern={gameBoard.target} />
-         </div>
-       </div>
-     );
-   }
-
-   return (
-     <div className="w-full max-w-lg mx-auto text-center">
-       <p className="text-[#3b82f6] font-black sports-font text-xl sm:text-3xl mb-6 uppercase">Which play was it?</p>
-       <div className="grid grid-cols-2 gap-4 sm:gap-6">
-         {gameBoard.options.map((opt, i) => (
-           <Grid 
-             key={i} 
-             pattern={opt} 
-             small 
-             onClick={() => {
-               if (doneRef.current) return;
-               doneRef.current = true;
-               onComplete(opt.join(',') === gameBoard.target.join(','));
-             }} 
-           />
-         ))}
-       </div>
-     </div>
-   );
-};
-
-export default FilmRoomGame;
+  return (
+    <div className="flex flex-col items-center text-center w-full max-w-md mx-auto fade-up">
+      <div className="text-5xl mb-4">📼</div>
+      <h2 className="text-2xl sm:text-3xl font-black text-white sports-font uppercase mb-2">Film Room Analysis</h2>
+      <p className="text-slate-400 font-sans mb-6">Study the tape. Make the right read.</p>
+      
+      <div className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-5 sm:p-6 rounded-xl mb-6 shadow-inner text-left">
+        <p className="text-[#3b82f6] text-[10px] font-bold uppercase tracking-widest mb-2">Scenario {step + 1} of {scenarios.length}</p>
+        <p className="text-white font-sans italic mb-4 text-sm">"{current.video}"</p>
+        <p className="text-base sm:text-lg font-black text-slate-200 sports-font tracking-wide mb-5 leading-tight">{current.question}</p>
+        
+        <div className="flex flex-col gap-3 w-full">
+          {current.options.map((opt, i) => (
+            <button 
+              key={i} 
+              onClick={() => handleAnswer(opt.isCorrect)}
+              className="bg-[#1a2230] hover:bg-[#232d3f] border border-[rgba(255,255,255,0.05)] hover:border-[#3b82f6]/50 text-slate-300 p-4 rounded-xl text-sm font-sans transition-all text-left shadow-md cursor-pointer active:scale-95"
+            >
+              {opt.text}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

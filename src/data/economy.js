@@ -8,13 +8,13 @@ export const shopItems = [
   { id: 'skates', type: 'consumable', name: 'Custom Skates', cost: 1500000, descSkaters: '+4 SKT.', descGoalies: '+4 POS.', duration: 1, effect: { skating: 4 } },
   { id: 'supplements', type: 'consumable', name: 'Legal Supplements', cost: 2000000, descSkaters: '+5 PHY.', descGoalies: '+5 AGI.', duration: 2, effect: { physicality: 5 } },
   { id: 'analyst', type: 'consumable', name: 'Video Analyst', cost: 1200000, desc: '+3 IQ.', duration: 1, effect: { hockeyIQ: 3 } },
-  { id: 'car', type: 'luxury', name: 'Sports Car', cost: 500000, desc: '+5 Fan Status', effect: { idolatry: 5 } },
-  { id: 'house', type: 'luxury', name: 'Penthouse', cost: 3500000, desc: '+25 Fan Status', effect: { idolatry: 25 } },
-  { id: 'jet', type: 'luxury', name: 'Private Jet', cost: 25000000, desc: '+100 Fan Status', effect: { idolatry: 100 } },
-  { id: 'charity_foundation', type: 'luxury', name: 'Charity Foundation', cost: 2500000, desc: 'Establish a massive local foundation. Huge boost to public image.', effect: { idolatry: 800 } },
-  { id: 'hypercar_collection', type: 'luxury', name: 'Hypercar Collection', cost: 3500000, desc: 'A fleet of multi-million dollar cars for your garage.', effect: { idolatry: 400 } },
-  { id: 'private_jet', type: 'luxury', name: 'Private Jet', cost: 7500000, desc: 'Travel in ultimate comfort. Completely negates road-trip fatigue.', effect: { stamina: 5, idolatry: 200 } },
-  { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 12000000, desc: 'Buy an ownership stake in a CHL franchise. Boosts your Hockey IQ and legacy.', effect: { hockeyIQ: 3, idolatry: 500 } }
+  { id: 'car', type: 'luxury', name: 'Sports Car', cost: 500000, desc: '+5 Fan Status', effect: { fanstatus: 5 } },
+  { id: 'house', type: 'luxury', name: 'Penthouse', cost: 3500000, desc: '+25 Fan Status', effect: { fanstatus: 25 } },
+  { id: 'jet', type: 'luxury', name: 'Private Jet', cost: 25000000, desc: '+100 Fan Status', effect: { fanstatus: 100 } },
+  { id: 'charity_foundation', type: 'luxury', name: 'Charity Foundation', cost: 2500000, desc: 'Establish a massive local foundation. Huge boost to public image.', effect: { fanstatus: 800 } },
+  { id: 'hypercar_collection', type: 'luxury', name: 'Hypercar Collection', cost: 3500000, desc: 'A fleet of multi-million dollar cars for your garage.', effect: { fanstatus: 400 } },
+  { id: 'private_jet', type: 'luxury', name: 'Private Jet', cost: 7500000, desc: 'Travel in ultimate comfort. Completely negates road-trip fatigue.', effect: { stamina: 5, fanstatus: 200 } },
+  { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 12000000, desc: 'Buy an ownership stake in a CHL franchise. Boosts your Hockey IQ and legacy.', effect: { hockeyIQ: 3, fanstatus: 500 } }
 ];
 
 export const skaterTrainingPool = [

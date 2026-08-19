@@ -2,8 +2,7 @@
 // Imported by App.jsx and by every extracted screen so no helper is
 // re-declared in multiple places.
 
-import React from 'react';
-import { LEAGUE_CONFIG, getTeamData, getPlayoffRounds, getDeployment } from '../data/teams';
+import { getTeamData, getPlayoffRounds, getDeployment } from '../data/teams';
 import { getAwardImage } from '../data/awards';
 
 export const makeInitialPlayer = () => ({
@@ -112,7 +111,7 @@ export const MASTER_ACHIEVEMENTS = [
   { id: 'first_overall', name: 'Generational', desc: 'Drafted 1st Overall in the NHL Draft', icon: '🌟' },
   { id: 'first_round_pick', name: 'Top Prospect', desc: 'Drafted in the 1st Round of the NHL Draft', icon: '🎯' },
   { id: 'mem_cup', name: 'Junior Legend', desc: 'Win the CHL Memorial Cup', icon: '🏆' },
-  { id: 'ncaa_champ', name: 'College Glory', desc: 'Commit to and play for a top NCAA D1 Hockey program', icon: '🎓' },
+  { id: 'ncaa_route', name: 'College Glory', desc: 'Commit to and play for a top NCAA D1 Hockey program', icon: '🎓' },
   { id: 'transfer_portal', name: 'Portal Hopper', desc: 'Enter the NCAA Transfer Portal to switch universities', icon: '🔄' },
   { id: 'import_draft', name: 'Cross the Pond', desc: 'Move from Europe to North America via the CHL Import Draft', icon: '✈️' },
   { id: 'undrafted_star', name: 'Underdog Story', desc: 'Reach 75+ OVR as an undrafted free agent', icon: '🐺' },
