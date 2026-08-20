@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { LEAGUE_CONFIG, getOpponentPool, getPrimaryRival, ncaaTeams } from '../data/teams';
@@ -9,8 +8,8 @@ export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
   return (() => {
           const titles = getPlayoffTitles(player.league);
-          let narrative = '';
-          let narrativeTitle = '';
+          let narrative;
+          let narrativeTitle;
           let displayRating = (seasonRecap?.rating || 5).toFixed(1);
           
           if (seasonRecap?.titleWon === 1) displayRating = "10.0";
@@ -110,12 +109,24 @@ export default function RecapScreen() {
               </div>
 
               <ul className="space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-lg mb-10 font-sans text-left">
-                <li className="border-l-4 border-[#3b82f6] pl-4 py-1">🏅 {['SHL', 'LIIGA'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in the {player.league}. {
-                  (seasonRecap?.standings === 1) ? 'An absolutely dominant regular season.' :
-                  (seasonRecap?.standings <= playoffSpots) ? 'A solid campaign to secure a playoff berth.' :
-                  (seasonRecap?.standings >= (getOpponentPool(player.league)?.length || 20) - 3) ? 'A miserable rebuilding year for the franchise.' :
-                  'A mediocre year that fell short of expectations.'
-                }</li>
+                <li className="border-l-4 border-[#3b82f6] pl-4 py-1">
+                  {(() => {
+                     const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
+                     if (currentHistory?.tradedTo) {
+                        return (
+                          <>🏅 Started the year with <strong className="text-white">{getFullTeamName(currentHistory.team, player.league)}</strong> ({currentHistory.gamesWithOriginal} GP) before a blockbuster trade to <strong className="text-white">{getFullTeamName(currentHistory.tradedTo, player.league)}</strong> ({currentHistory.gamesWithNew} GP).</>
+                        );
+                     }
+                     return (
+                       <>🏅 {['SHL', 'LIIGA'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in the {player.league}. {
+                         (seasonRecap?.standings === 1) ? 'An absolutely dominant regular season.' :
+                         (seasonRecap?.standings <= playoffSpots) ? 'A solid campaign to secure a playoff berth.' :
+                         (seasonRecap?.standings >= (getOpponentPool(player.league)?.length || 20) - 3) ? 'A miserable rebuilding year for the franchise.' :
+                         'A mediocre year that fell short of expectations.'
+                       }</>
+                     );
+                  })()}
+                </li>
                 
                 {player.pos === 'G' ? (
                   <li className="border-l-4 border-[#22E748] pl-4 py-1">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
@@ -159,7 +170,7 @@ export default function RecapScreen() {
                 {madePlayoffsForNarrative ? (
                   <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-1`}>
                     {seasonRecap?.titleWon === 1 
-                      ? `🏆 Won the ${titles.cupName} Championship!` 
+                      ? `🏆 Won the ${titles.cupName}!` 
                       : seasonRecap?.confTitleWon
                         ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles.final}.`
                         : seasonRecap?.playoffWins === 0 

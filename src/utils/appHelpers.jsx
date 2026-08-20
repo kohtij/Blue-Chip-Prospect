@@ -28,35 +28,45 @@ export const makeInitialPlayer = () => ({
 
 // Role classifier used by generateOffers. Hoisted from inside the function
 // so the definition isn't reallocated on every offer generation.
-export const getRole = (salary, p) => {
-  if (p.pos === 'G') {
-     if (p.ovr >= 85 || salary > 5000000) return 'Franchise Starter';
-     if (p.ovr >= 80 || salary > 3500000) return 'Starter';
-     if (p.ovr >= 75) return '1B / Tandem';
-     return 'Backup';
+export function getRole(salary, player) {
+  const lg = player?.league || 'NHL';
+  const isJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(lg);
+  const isAHL = lg === 'AHL';
+  const ovr = player?.ovr || 50;
+  const pos = player?.pos || 'C';
+
+  // JUNIOR / AMATEUR LEAGUES
+  if (isJunior) {
+    if (pos === 'G') return ovr >= 65 ? 'Elite Prospect' : ovr >= 58 ? 'Starting Goalie' : 'Backup Goalie';
+    if (['LD', 'RD'].includes(pos)) return ovr >= 65 ? 'Top Pair Prospect' : ovr >= 58 ? 'Top 4 Defender' : 'Depth Defender';
+    return ovr >= 65 ? 'Top Line Star' : ovr >= 58 ? 'Top 6 Forward' : 'Depth Forward';
   }
 
-  const isPhysical = p.physicality > p.skating;
-  const isShooter = p.shooting > p.hockeyIQ && p.shooting > p.skating;
-
-  if (['LD', 'RD'].includes(p.pos)) {
-    if (salary > 6000000) return isPhysical ? 'Shutdown Defenceman' : 'Offensive Defenceman';
-    if (salary > 2500000) return 'Top 4 Defender';
-    return isPhysical ? 'Bottom Pair Grinder' : 'Depth Defender';
+  // AHL
+  if (isAHL) {
+    if (pos === 'G') return ovr >= 78 ? 'Elite Starter' : ovr >= 72 ? 'Starting Goalie' : 'Backup Goalie';
+    if (['LD', 'RD'].includes(pos)) return ovr >= 78 ? 'Top Pair Anchor' : ovr >= 70 ? 'Top 4 Defender' : 'Depth Defender';
+    return ovr >= 78 ? 'Top Line Star' : ovr >= 70 ? 'Middle Six Forward' : 'Bottom Six Forward';
   }
 
-  if (salary > 6000000) {
-    if (isPhysical) return 'Power Forward Core';
-    if (isShooter) return 'Elite Sniper Core';
-    return 'Playmaking Core';
+  // NHL / PRO (Default)
+  if (pos === 'G') {
+    if (salary >= 6000000 || ovr >= 86) return 'Franchise Starter';
+    if (salary >= 3500000 || ovr >= 82) return '1A/1B Starter';
+    return 'Backup Goalie';
   }
-  if (salary > 2500000) {
-    if (isPhysical) return 'Middle Six Grinder';
-    return 'Middle Six Two-Way';
+  if (['LD', 'RD'].includes(pos)) {
+    if (salary >= 7000000 || ovr >= 86) return 'Franchise Defenseman';
+    if (salary >= 4000000 || ovr >= 81) return 'Top 4 Defenseman';
+    return 'Bottom Pair / Depth';
   }
-
-  return isPhysical ? '4th Line Grinder' : 'Depth Skater';
-};
+  
+  // Forwards (NHL)
+  if (salary >= 8000000 || ovr >= 87) return 'Franchise Centerpiece';
+  if (salary >= 5000000 || ovr >= 83) return 'Top 6 Forward';
+  if (salary >= 2000000 || ovr >= 79) return 'Middle Six Forward';
+  return 'Bottom Six Grinder';
+}
 
 // Playoff format helpers — resolve per-round win threshold and deck length
 // from LEAGUE_CONFIG so the same code drives best-of-7 series and NCAA single-elim.
@@ -187,29 +197,41 @@ export const PRESS_VIBES = {
 
 export const PRESS_JOURNALISTS = [
   // THE PROFESSIONALS
-  { id: 'professional', name: 'Pierre LeBrun', outlet: 'The Athletic', desc: 'Old-school and institutional. Wants MEASURED and FORMAL answers.', region: 'NA' },
-  { id: 'professional', name: 'Darren Dreger', outlet: 'TSN', desc: 'Mainstream and neutral. Looks for SAFE, MEASURED answers.', region: 'NA' },
-  { id: 'professional', name: 'Emily Kaplan', outlet: 'ESPN', desc: 'Highly respected national reporter. Prefers THOUGHTFUL, PROFESSIONAL answers.', region: 'NA' },
+  { id: 'professional', name: 'Pierre LeBrun', outlet: 'The Athletic', desc: 'Old-school and institutional. Wants MEASURED and FORMAL answers.', region: 'NHL' },
+  { id: 'professional', name: 'Darren Dreger', outlet: 'TSN', desc: 'Mainstream and neutral. Looks for SAFE, MEASURED answers.', region: 'NHL' },
+  { id: 'professional', name: 'Emily Kaplan', outlet: 'ESPN', desc: 'Highly respected national reporter. Prefers THOUGHTFUL, PROFESSIONAL answers.', region: 'NHL' },
   { id: 'professional', name: 'Jari Kurri Jr.', outlet: 'Nordic Sports', desc: 'Respects the fundamental European game. Wants MEASURED answers.', region: 'EU' },
+  { id: 'professional', name: 'Sam Kennedy', outlet: 'Junior Hockey News', desc: 'Follows prospect development closely. Wants MEASURED answers.', region: 'JUNIOR' },
 
   // THE PASSIONATE
-  { id: 'passionate', name: 'Steve Dangle', outlet: 'SDPN', desc: 'Wears his heart on his sleeve. Wants FIRE and PASSION for the city.', region: 'NA' },
+  { id: 'passionate', name: 'Steve Dangle', outlet: 'SDPN', desc: 'Wears his heart on his sleeve. Wants FIRE and PASSION for the city.', region: 'NHL' },
   { id: 'passionate', name: 'Garnet Thorne', outlet: 'Local Beat', desc: 'Fiercely protective of the home team. Wants to see EMOTION and DRIVE.', region: 'ALL' },
   { id: 'passionate', name: 'Lars Bergstrom', outlet: 'SHL Daily', desc: 'Fiercely protective of the local fans. Wants to see EMOTION and PASSION.', region: 'EU' },
+  { id: 'passionate', name: 'Tommy "T-Bone" Jenkins', outlet: 'Campus Radio', desc: 'A wild student broadcaster. Wants FIRE and PASSION.', region: 'JUNIOR' },
   
   // THE HUMBLE
   { id: 'humble', name: 'Sarah Lindqvist', outlet: 'EuroHockey Weekly', desc: 'Values team culture and locker room harmony. Looks for TEAM-FIRST, HUMBLE responses.', region: 'EU' },
-  { id: 'humble', name: 'Dom Luszczyszyn', outlet: 'The Athletic', desc: 'Analytics heavy and realistic. Appreciates SELF-AWARENESS and HUMILITY.', region: 'NA' },
+  { id: 'humble', name: 'Dom Luszczyszyn', outlet: 'The Athletic', desc: 'Analytics heavy and realistic. Appreciates SELF-AWARENESS and HUMILITY.', region: 'NHL' },
+  { id: 'humble', name: 'Coach Davis', outlet: 'Local Prep Times', desc: 'Old-school high school coach turned writer. Wants HUMILITY.', region: 'JUNIOR' },
   
   // THE COCKY
-  { id: 'cocky', name: 'Larry Brooks', outlet: 'NY Post', desc: 'Looking for a controversial headline. Thrives on CONFIDENCE and ARROGANCE.', region: 'NA' },
+  { id: 'cocky', name: 'Larry Brooks', outlet: 'NY Post', desc: 'Looking for a controversial headline. Thrives on CONFIDENCE and ARROGANCE.', region: 'NHL' },
   { id: 'cocky', name: 'Marcus Vance', outlet: 'Puck Digest', desc: 'Hot-take radio host. Wants BOLD PREDICTIONS and COCKY soundbites.', region: 'ALL' },
-  { id: 'cocky', name: 'Tomasz Novotny', outlet: 'EuroIce Tabloid', desc: 'Always searching for drama. Thrives on CONFIDENCE and ARROGANCE.', region: 'EU' }
+  { id: 'cocky', name: 'Tomasz Novotny', outlet: 'EuroIce Tabloid', desc: 'Always searching for drama. Thrives on CONFIDENCE and ARROGANCE.', region: 'EU' },
+  { id: 'cocky', name: 'Buzz Carter', outlet: 'Prospect Watcher', desc: 'Loves hyping up elite prospects. Wants BOLD PREDICTIONS.', region: 'JUNIOR' }
 ];
 
 export const getJournalistsForLeague = (league) => {
    const isEuro = ['SHL', 'LIIGA'].includes(league);
-   return PRESS_JOURNALISTS.filter(j => j.region === 'ALL' || (isEuro ? j.region === 'EU' : j.region === 'NA'));
+   const isJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(league);
+   
+   return PRESS_JOURNALISTS.filter(j => {
+      if (j.region === 'ALL') return true;
+      if (isEuro) return j.region === 'EU';
+      if (isJunior) return j.region === 'JUNIOR' || j.region === 'NA'; // Fallback to NA if needed
+      // If NHL or AHL
+      return j.region === 'NHL' || j.region === 'NA';
+   });
 };
 
 // Small pill for the retirement screen — one per award type, showing the

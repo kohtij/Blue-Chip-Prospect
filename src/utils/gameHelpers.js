@@ -62,24 +62,9 @@ export const CHOICE_REWARD = {
   gamble: { win: { idol: 15, money: 300000 }, loss: { idol: -8 } },
 };
 
-export const applyOvrDelta = (player, delta) => {
-  if (!delta) return player;
-  return {
-    ...player,
-    shooting: cap(player.shooting + delta),
-    skating: cap(player.skating + delta),
-    physicality: cap(player.physicality + delta),
-    hockeyIQ: cap(player.hockeyIQ + delta),
-    stamina: cap(player.stamina + delta),
-  };
-};
-
 export const recomputeOvr = (p) => {
   if (!p) return 50;
 
-  // Dev-only guard: pos is REQUIRED. Falling through to the forward formula
-  // silently misvalues defensemen and goalies. If this fires, the caller is
-  // buggy — pass p.pos through explicitly.
   if (!p.pos && typeof console !== 'undefined') {
     console.warn('[recomputeOvr] called without pos — will default to forward formula. Caller should pass pos.', p);
   }
@@ -95,13 +80,33 @@ export const recomputeOvr = (p) => {
     return Math.round((sht * 0.3) + (skt * 0.3) + (phy * 0.2) + (iq * 0.1) + (sta * 0.1));
   }
 
-  // 2. DEFENSEMEN (LD / RD) - Heavy emphasis on Physicality, Skating & IQ
+  // 2. DEFENSEMEN (LD / RD)
   if (['LD', 'RD'].includes(p.pos)) {
     return Math.round((phy * 0.30) + (skt * 0.25) + (iq * 0.25) + (sta * 0.10) + (sht * 0.10));
   }
 
-  // 3. FORWARDS (C / LW / RW) - Heavy emphasis on Shooting, Skating & IQ
+  // 3. FORWARDS (C / LW / RW)
   return Math.round((sht * 0.30) + (skt * 0.25) + (iq * 0.25) + (phy * 0.10) + (sta * 0.10));
+};
+
+export const applyOvrDelta = (player, delta) => {
+  // SELF-HEAL: If the player's current OVR is out of sync with their raw stats,
+  // it means a previous event buffed their OVR directly without updating their underlying stats.
+  // We must sync their stats to match their current OVR before applying the new event delta!
+  const rawOvr = recomputeOvr(player);
+  const hiddenDelta = (player.ovr || rawOvr) - rawOvr;
+  const totalDelta = (delta || 0) + hiddenDelta;
+
+  if (!totalDelta) return player;
+  
+  return {
+    ...player,
+    shooting: cap(player.shooting + totalDelta),
+    skating: cap(player.skating + totalDelta),
+    physicality: cap(player.physicality + totalDelta),
+    hockeyIQ: cap(player.hockeyIQ + totalDelta),
+    stamina: cap(player.stamina + totalDelta),
+  };
 };
 
 function _computeAwards({ player, rating, g, a, saves, shots, games, standings }) {
@@ -207,15 +212,16 @@ function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifie
     }
   }
 
-  // FATHER TIME NERF: Decline starts at 30, gets real at 32, falls off a cliff at 35.
-  if (newAge >= 30) {
-    const agePenalty = newAge >= 35 ? 2.5 : (newAge >= 32 ? 1.5 : 0.5);
+  // FATHER TIME NERF: Gradual decline starting at 31, accelerating smoothly
+  if (newAge >= 31) {
+    const agePenalty = (newAge - 30) * 0.25; // Scales up: 0.25 at 31, 1.25 at 35, 2.0 at 38
+    
     st.skating     -= Math.floor((4 * agePenalty) * coachModifier);
     st.stamina     -= Math.floor((5 * agePenalty) * coachModifier);
-    st.physicality -= Math.floor((4 * agePenalty) * coachModifier);
+    st.physicality -= Math.floor((3 * agePenalty) * coachModifier);
     
-    // Hand-eye, reflexes, and hockey sense start to slip late in the career
-    if (newAge >= 32) {
+    // Hand-eye and hockey sense hold up longer, slipping later
+    if (newAge >= 33) {
         st.shooting -= Math.floor((2 * agePenalty) * coachModifier);
         st.hockeyIQ -= Math.floor((1 * agePenalty) * coachModifier);
     }
@@ -255,7 +261,8 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
              // Prospect stays in the NHL past 9 games!
           } else if (isUnder20 && hasCHLHistory) {
              const lastCHL = (p.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
-             currentTeam = lastCHL || p.draftTeam || 'UNK';
+             // Do NOT use p.draftTeam here (Chicago = CHI, Chicoutimi = CHI)
+             currentTeam = lastCHL || p.chlRights || 'UNK';
              if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
              else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
              else currentLg = 'OHL';
@@ -466,11 +473,17 @@ export function simulateSeason(player, trainingEffect = {}) {
     ...p,
     age: p.age + 1,
     ovr: nextOvr,
+    shooting: cap(newSht),
+    skating: cap(newSkt),
+    physicality: cap(newPhy),
+    hockeyIQ: cap(newIq),
+    stamina: cap(newSta),
     idolatry: capIdol(p.idolatry + idolGain),
     contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
       value: newVal,
+      earnings: (p.stats.earnings || 0) + (p.contract?.salary || 0), // <-- FIXED!
       peakOvr: newPeakOvr,
       careerHighGoals: Math.max(p.stats.careerHighGoals || 0, g),
       seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,

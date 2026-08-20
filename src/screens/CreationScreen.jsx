@@ -8,10 +8,8 @@ export default function CreationScreen() {
   const { handleStart, player, safeNationalities, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements } = useAppContext();
   
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
+  const [showManualSetup, setShowManualSetup] = useState(false);
   
-  // Lazy initialize so it reads from localStorage exactly once when the screen loads,
-  // bypassing the need for a useEffect entirely!
-  // Since we only read the records on this screen, we can omit the setter function!
   const [savedCareers] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
@@ -20,19 +18,40 @@ export default function CreationScreen() {
     }
   });
 
+  const handleQuickStart = () => {
+    // Randomize League
+    const leagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'];
+    const randomLg = leagues[Math.floor(Math.random() * leagues.length)];
+    // Randomize Nationality
+    const randomNat = safeNationalities[Math.floor(Math.random() * safeNationalities.length)].id;
+    
+    // Temporarily update player state, then start
+    setPlayer(p => {
+       const updated = { ...p, startLeague: randomLg, nat: randomNat, team: null };
+       // We can't guarantee state resolves before handleStart fires, 
+       // so handleStart needs to read the latest state if possible, 
+       // but typically handleStart(true) already generates stats!
+       return updated;
+    });
+
+    // Use a tiny timeout to ensure React batches the state update before starting
+    setTimeout(() => handleStart(true), 50);
+  };
+
   return (
           <div className="min-h-screen flex items-center justify-center p-6 bg-[#040505] text-white">
             <div className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748]">
               <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font text-sm sm:text-base">A HOCKEY GAME</h2>
-              <h1 className="text-5xl sm:text-6xl font-black mb-10 text-white italic sports-font uppercase tracking-tighter">BLUE CHIP PROSPECT</h1>
+              <h1 className="text-5xl sm:text-6xl font-black mb-8 text-white italic sports-font uppercase tracking-tighter">BLUE CHIP PROSPECT</h1>
 
+              {/* CORE INPUTS (Always Visible) */}
               <input
                 type="text" placeholder="Your Last Name"
-                className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-lg mb-6 text-center font-bold focus:border-[#22E748] outline-none transition-all font-sans"
+                className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-lg mb-4 text-center font-bold focus:border-[#22E748] outline-none transition-all font-sans"
                 onChange={(e) => setPlayer({ ...player, name: e.target.value })}
               />
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                 {[
                   { id: 'LW', name: 'Left Wing', num: 13 },
                   { id: 'C', name: 'Center', num: 97 },
@@ -52,66 +71,85 @@ export default function CreationScreen() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-3 w-full">
-                {[
-                  { id: 'OHL', label: 'OHL' },
-                  { id: 'WHL', label: 'WHL' },
-                  { id: 'QMJHL', label: 'QMJHL' },
-                  { id: 'USHL', label: 'USHL (USA)' },
-                  { id: 'SHL', label: 'SHL (SWE)' },
-                  { id: 'LIIGA', label: 'LIIGA (FIN)' }
-                ].map(lg => (
-                  <button
-                    key={lg.id}
-                    onClick={() => setPlayer({ ...player, startLeague: lg.id, team: null })}
-                    className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
+              {/* THE FORK: QUICK START vs MANUAL SETUP */}
+              {!showManualSetup ? (
+                 <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
+                   <button 
+                     onClick={() => setShowManualSetup(true)} 
+                     disabled={!player.name} 
+                     className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all ${
+                       !player.name 
+                         ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
+                         : 'bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02]'
+                     }`}
+                   >
+                     CUSTOMIZE PATH
+                   </button>
+   
+                   <button 
+                     onClick={handleQuickStart} 
+                     disabled={!player.name} 
+                     className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all flex flex-col items-center justify-center gap-1 ${
+                       !player.name 
+                         ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
+                         : 'bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 border border-[#F59E0B]/40 text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.25)] cursor-pointer hover:scale-[1.02]'
+                     }`}
+                   >
+                     <span className="leading-none">🎲 QUICK START</span>
+                     {!player.name ? null : <span className="text-[9px] font-sans font-bold text-[#F59E0B] tracking-widest uppercase opacity-80 leading-none">Random League & Nation</span>}
+                   </button>
+                 </div>
+              ) : (
+                <div className="animate-fade-in">
+                  <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase">Select Junior League</h3>
+                     <button onClick={() => setShowManualSetup(false)} className="text-xs font-bold text-slate-500 hover:text-white uppercase cursor-pointer">Cancel</button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3 mb-6 w-full">
+                    {[
+                      { id: 'OHL', label: 'OHL' },
+                      { id: 'WHL', label: 'WHL' },
+                      { id: 'QMJHL', label: 'QMJHL' },
+                      { id: 'USHL', label: 'USHL (USA)' },
+                      { id: 'SHL', label: 'SHL (SWE)' },
+                      { id: 'LIIGA', label: 'LIIGA (FIN)' }
+                    ].map(lg => (
+                      <button
+                        key={lg.id}
+                        onClick={() => setPlayer({ ...player, startLeague: lg.id, team: null })}
+                        className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
+                      >
+                        <h3 className="text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</h3>
+                      </button>
+                    ))}
+                  </div>
+
+                  <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4 text-left">Select Nationality</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-8">
+                    {safeNationalities.map(n => (
+                      <button
+                        key={n.id}
+                        onClick={() => setPlayer({ ...player, nat: n.id })}
+                        className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.nat === n.id ? 'border-[#22E748] bg-[#22E748]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'} flex items-center justify-center`}
+                      >
+                        <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => handleStart(false)} 
+                    disabled={!player.name} 
+                    className="w-full py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02] mb-4"
                   >
-                    <h3 className="text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</h3>
+                    LACE UP THE SKATES
                   </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-10">
-                {safeNationalities.map(n => (
-                  <button
-                    key={n.id}
-                    onClick={() => setPlayer({ ...player, nat: n.id })}
-                    className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.nat === n.id ? 'border-[#22E748] bg-[#22E748]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'} flex items-center justify-center`}
-                  >
-                    <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm" />
-                  </button>
-                ))}
-              </div>
-
-             {/* START GAME BUTTONS */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
-                <button 
-                  onClick={() => handleStart(false)} 
-                  disabled={!player.name} 
-                  className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all ${
-                    !player.name 
-                      ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
-                      : 'bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02]'
-                  }`}
-                >
-                  LACE UP THE SKATES
-                </button>
-
-                <button 
-                  onClick={() => handleStart(true)} 
-                  disabled={!player.name} 
-                  className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all ${
-                    !player.name 
-                      ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
-                      : 'bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 border border-[#F59E0B]/40 text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.25)] cursor-pointer hover:scale-[1.02]'
-                  }`}
-                >
-                  🎲 QUICK START
-                </button>
-              </div>
+                </div>
+              )}
 
               {/* COLLAPSIBLE LOGS AND ACHIEVEMENTS */}
-              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-8 w-full flex flex-col gap-3">
+              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-6 w-full flex flex-col gap-3">
                 
                 {/* ACHIEVEMENTS BUTTON */}
                 <button 
@@ -236,6 +274,8 @@ export default function CreationScreen() {
                                  <span className="text-[#3b82f6]">{c.games} GP</span>
                                  <span className="text-[#22E748]">{c.points} {c.pos === 'G' ? 'SV%' : 'PTS'}</span>
                                  <span className="text-[#F59E0B]">{c.cups} CUPS</span>
+                                 {/* Safely render awards so it doesn't break older saved careers */}
+                                 {c.awards !== undefined && <span className="text-[#c084fc]">{c.awards} AWARDS</span>}
                                  <span className="text-slate-300 hidden sm:inline">{formatMoney(c.earnings)}</span>
                                </div>
                              </div>

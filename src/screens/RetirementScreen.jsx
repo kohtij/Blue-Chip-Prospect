@@ -27,28 +27,44 @@ export default function RetirementScreen() {
           
           const stints = [];
           (player.seasonHistory || []).forEach(s => {
-            const lastStint = stints[stints.length - 1];
-            if (lastStint && lastStint.team === s.team && lastStint.league === s.league) {
-              lastStint.endYear = s.year;
-              lastStint.games += s.games;
-              lastStint.goals += s.goals;
-              lastStint.assists += s.assists;
-              lastStint.saves += s.saves;
-              if (s.titleWon) lastStint.titles.push(s.year);
-              if (s.awards?.length) lastStint.awards.push(...s.awards.map(a => `${s.year} ${a}`));
+            const processStint = (teamId, gp, isFinalPart) => {
+              const lastStint = stints[stints.length - 1];
+              const ratio = gp / (s.games || 1);
+              const rGoals = Math.round((s.goals || 0) * ratio);
+              const rAssists = Math.round((s.assists || 0) * ratio);
+              const rSaves = Math.round((s.saves || 0) * ratio);
+
+              if (lastStint && lastStint.team === teamId && lastStint.league === s.league) {
+                lastStint.endYear = s.year;
+                lastStint.games += gp;
+                lastStint.goals += rGoals;
+                lastStint.assists += rAssists;
+                lastStint.saves += rSaves;
+                if (isFinalPart) {
+                  if (s.titleWon) lastStint.titles.push(s.year);
+                  if (s.awards?.length) lastStint.awards.push(...s.awards.map(a => `${s.year} ${a}`));
+                }
+              } else {
+                stints.push({
+                  team: teamId,
+                  league: s.league,
+                  startYear: s.year,
+                  endYear: s.year,
+                  games: gp,
+                  goals: rGoals,
+                  assists: rAssists,
+                  saves: rSaves,
+                  titles: (isFinalPart && s.titleWon) ? [s.year] : [],
+                  awards: (isFinalPart && s.awards?.length) ? s.awards.map(a => `${s.year} ${a}`) : []
+                });
+              }
+            };
+
+            if (s.tradedTo) {
+              processStint(s.team, s.gamesWithOriginal || Math.floor((s.games || 82) * 0.75), false);
+              processStint(s.tradedTo, s.gamesWithNew || Math.ceil((s.games || 82) * 0.25), true);
             } else {
-              stints.push({
-                team: s.team,
-                league: s.league,
-                startYear: s.year,
-                endYear: s.year,
-                games: s.games,
-                goals: s.goals,
-                assists: s.assists,
-                saves: s.saves,
-                titles: s.titleWon ? [s.year] : [],
-                awards: s.awards?.length ? s.awards.map(a => `${s.year} ${a}`) : []
-              });
+              processStint(s.team, s.games || 0, true);
             }
           });
 
@@ -59,7 +75,6 @@ export default function RetirementScreen() {
           }
           const primaryTeamName = getFullTeamName(primaryTeam, player.league);
 
-          // Build a mock Arena name based on the primary team city
           const cityWords = primaryTeamName.split(' ');
           const cityName = cityWords.length > 1 ? cityWords[0] : primaryTeamName;
           const arenaName = `${cityName} Arena`;
@@ -105,9 +120,9 @@ export default function RetirementScreen() {
                       <div className="flex items-center gap-4 text-left">
                         <span className="text-4xl sm:text-5xl">💍</span>
                         <div>
-                          <p className="text-xs font-black text-[#F59E0B] uppercase tracking-widest">STANLEY CUP CHAMPION</p>
+                          <p className="text-xs font-black text-[#F59E0B] uppercase tracking-widest">CHAMPIONSHIP MANTLE</p>
                           <h3 className="text-xl sm:text-2xl font-black text-white sports-font">
-                            {stanleyCups}x LORD STANLEY'S CUP
+                            {stanleyCups}x STANLEY CUP CHAMPION
                           </h3>
                         </div>
                       </div>
@@ -135,32 +150,60 @@ export default function RetirementScreen() {
                   <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-2 ml-2 font-sans">
                     NHL CAREER TOTALS
                   </h3>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center mb-6">
-                   <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px]">
-                      <p className="text-2xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-1">
-                        {isGoalie ? (nhlShots > 0 ? (nhlSaves / nhlShots).toFixed(3).replace('0.', '.') : '.000') : nhlGoals}
-                      </p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-6">
+                    {/* REGULAR SEASON */}
+                   <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none mb-2 tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-1 w-full">REGULAR SEASON</p>
+                      <div className="flex gap-4 items-center justify-center w-full">
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-black text-[#22E748] sports-font leading-none mb-1">
+                              {isGoalie ? (nhlShots > 0 ? (nhlSaves / nhlShots).toFixed(3).replace('0.', '.') : '.000') : nhlGoals}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                              {isGoalie ? (nhlGames > 0 ? ((nhlShots - nhlSaves) / nhlGames).toFixed(2) : '0.00') : nhlAssists}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">{nhlGames}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GP</p>
+                          </div>
+                      </div>
                     </div>
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px]">
-                      <p className="text-2xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
-                        {isGoalie ? (nhlGames > 0 ? ((nhlShots - nhlSaves) / nhlGames).toFixed(2) : '0.00') : nhlAssists}
-                      </p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+
+                    {/* PLAYOFFS */}
+                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
+                      <p className="text-[9px] font-bold text-[#F59E0B] uppercase leading-none mb-2 tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-1 w-full">STANLEY CUP PLAYOFFS</p>
+                      <div className="flex gap-4 items-center justify-center w-full">
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                              {isGoalie ? (player.stats?.nhlPlayoffs?.shots > 0 ? (player.stats.nhlPlayoffs.saves / player.stats.nhlPlayoffs.shots).toFixed(3).replace('0.', '.') : '.000') : (player.stats?.nhlPlayoffs?.goals || 0)}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                              {isGoalie ? (player.stats?.nhlPlayoffs?.games > 0 ? ((player.stats.nhlPlayoffs.shots - player.stats.nhlPlayoffs.saves) / player.stats.nhlPlayoffs.games).toFixed(2) : '0.00') : (player.stats?.nhlPlayoffs?.assists || 0)}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">{player.stats?.nhlPlayoffs?.games || 0}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GP</p>
+                          </div>
+                      </div>
                     </div>
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px]">
-                      <p className="text-2xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{nhlGames}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GAMES PLAYED</p>
-                    </div>
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px]">
-                      <p className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font leading-none mb-1">{player.stats?.titles || 0}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">CHAMPIONSHIPS</p>
-                    </div>
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[80px]">
+                    
+                    {/* ECONOMICS */}
+                    <div className="bg-[#101410] p-3 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
                       <p className="text-xl sm:text-2xl font-black text-[#3b82f6] sports-font leading-none mb-1">{formatMoney(player.stats?.value || 50000)}</p>
                       <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">PEAK VALUE</p>
                     </div>
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[80px]">
+                    <div className="bg-[#101410] p-3 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
                       <p className="text-xl sm:text-2xl font-black text-[#22E748] sports-font leading-none mb-1">{formatMoney(player.stats?.earnings || 0)}</p>
                       <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">CAREER EARNINGS</p>
                     </div>
@@ -207,9 +250,12 @@ export default function RetirementScreen() {
                            const cupName = r.awards?.find(a => a.includes('Cup') || a.includes('Championship') || a.includes('Title')) || (r.league === 'NHL' ? 'Stanley Cup' : 'Championship');
                            const cleanCupName = cupName.replace(/^\d{4}\s/, ''); 
                            return (
-                             <div key={`ring-${idx}`} className="bg-[#101410] border border-[#F59E0B]/40 rounded-xl p-3 flex items-center gap-3 transition-transform hover:scale-[1.02]">
-                               <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center">
+                             <div key={`ring-${idx}`} className="bg-[#101410] border border-[#F59E0B]/40 rounded-xl p-3 flex items-center gap-3 transition-transform hover:scale-[1.02] relative">
+                               <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center relative">
                                  <TeamLogo teamId={r.team || player.team} league={r.league || 'NHL'} isAHL={r.league === 'AHL'} />
+                                 <div className="absolute -bottom-2 -right-2">
+                                     <TrophyImage league={r.league || 'NHL'} className="w-6 h-6 drop-shadow-md" />
+                                 </div>
                                </div>
                                <div className="min-w-0 flex-1">
                                  <p className="text-white font-black sports-font leading-tight text-xs sm:text-sm truncate">{cleanCupName}</p>
@@ -261,18 +307,21 @@ export default function RetirementScreen() {
                                   🏆 {stint.titles.length}x {stint.league === 'NHL' ? 'Stanley Cup' : 'Championship'} ({stint.titles.join(', ')})
                                 </span>
                               )}
-                              {stint.awards.map((aw, aIdx) => {
+                              {stint.awards
+                                .filter(aw => !(aw.includes('All-Star') && stint.awards.some(other => other.includes('1st Team') && other !== aw)))
+                                .map((aw, aIdx) => {
                                 let colors = 'bg-slate-800 border-slate-600 text-slate-300';
-                                if (aw.includes('MVP') || aw.includes('Hart') || aw.includes('Smythe')) colors = 'bg-[#c084fc]/10 border-[#c084fc]/40 text-[#c084fc]';
-                                else if (aw.includes('Vezina') || aw.includes('Norris') || aw.includes('Ross') || aw.includes('Richard') || aw.includes('Calder')) colors = 'bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6]';
-                                const cleanAward = aw.replace(' Trophy', '').replace(' Memorial', '').replace(/\s*\(.+?\)\s*$/, '').trim();
+                                if (aw.includes('MVP') || aw.includes('Hart') || aw.includes('Smythe') || aw.includes('Presidents')) colors = 'bg-[#c084fc]/10 border-[#c084fc]/40 text-[#c084fc]';
+                                else if (aw.includes('Vezina') || aw.includes('Norris') || aw.includes('Ross') || aw.includes('Richard') || aw.includes('Calder') || aw.includes('All-Star') || aw.includes('American')) colors = 'bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6]';
+                                
+                                const cleanAward = aw.replace(/^\d{4}\s/, '').replace(' Trophy', '').replace(' Memorial', '').replace(/\s*\(.+?\)\s*$/, '').trim();
                                 const trophyImg = getAwardImage(cleanAward);
                                 return (
                                   <span key={aIdx} className={`inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold pr-2 ${trophyImg ? 'pl-1' : 'pl-2'} py-0.5 rounded border uppercase tracking-wider font-sans ${colors}`}>
                                     {trophyImg ? (
                                         <img src={trophyImg} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain drop-shadow-[0_0_3px_rgba(0,0,0,0.8)]" loading="lazy" />
                                     ) : (
-                                        <span className="text-[10px]">🥇</span>
+                                        <span className="text-[10px]">{cleanAward.includes('All-Star') || cleanAward.includes('American') ? '⭐' : '🥇'}</span>
                                     )}
                                     <span className="whitespace-nowrap">{cleanAward}</span>
                                   </span>
@@ -289,9 +338,7 @@ export default function RetirementScreen() {
                 <div className="text-center pt-4">
                   <button 
                     onClick={() => {
-                      // SAVE THE CAREER TO LOCAL STORAGE
                       const savedCareers = JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
-                      
                       const nhlGames = player.stats?.nhl?.games || 0;
                       const nhlGoals = player.stats?.nhl?.goals || 0;
                       const nhlAssists = player.stats?.nhl?.assists || 0;
@@ -299,6 +346,11 @@ export default function RetirementScreen() {
                       const nhlSaves = player.stats?.nhl?.saves || 0;
                       const nhlShots = player.stats?.nhl?.shots || 0;
                       const svPct = nhlShots > 0 ? (nhlSaves / nhlShots).toFixed(3).replace('0.', '.') : '.000';
+
+                      // Count only individual hardware (exclude All-Star/All-American team nods)
+                      const totalIndividualAwards = Object.values(aggregatedAwards)
+                        .filter(aw => !aw.name.includes('All-Star') && !aw.name.includes('All-American') && !aw.name.includes('Team'))
+                        .reduce((sum, aw) => sum + aw.count, 0);
 
                       const newCareer = {
                         id: Date.now(),
@@ -308,6 +360,7 @@ export default function RetirementScreen() {
                         games: nhlGames,
                         points: isGoalie ? svPct : nhlPoints,
                         cups: (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length,
+                        awards: totalIndividualAwards, // <-- ADDED THIS!
                         earnings: player.stats?.earnings || 0,
                         team: primaryTeamName,
                         logo: primaryTeam,
@@ -315,7 +368,6 @@ export default function RetirementScreen() {
                       };
                       
                       localStorage.setItem('hockey_career_history', JSON.stringify([newCareer, ...savedCareers]));
-                      
                       handleNewGame();
                     }} 
                     className="btn-primary w-full sm:w-auto py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest uppercase shadow-2xl"

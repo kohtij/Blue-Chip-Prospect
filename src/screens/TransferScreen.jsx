@@ -1,12 +1,28 @@
 import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { getPrimaryRival } from '../data/teams';
+import { getPrimaryRival, nhlTeams } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 
 // Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
 export default function TransferScreen() {
   const { freeAgencyOffers, handleArbitration, player, signContract, startNegotiation } = useAppContext();
+
+  // Determine the actual team that owns the contract (NHL parent if on a pro deal in the AHL)
+  let owningTeam = player.team;
+  let owningLeague = player.league;
+  
+  if (owningLeague === 'AHL' && (player.contract?.salary || 0) >= 500000) {
+     const parent = (nhlTeams || []).find(t => t.ahlId === player.team);
+     if (parent) {
+         owningTeam = parent.id;
+         owningLeague = 'NHL';
+     }
+  }
+  
+  const owningTeamName = getFullTeamName(owningTeam, owningLeague);
+  const teamDidNotOffer = !freeAgencyOffers.some(o => o.team === owningTeam);
+
   return (
           <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6]">
             <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mb-4 text-center sports-font tracking-tighter">
@@ -19,10 +35,10 @@ export default function TransferScreen() {
                   ? "You are exploring alternative developmental paths. Review scholarship offers from the NCAA or professional contracts from Europe."
                   : freeAgencyOffers.some(o => o.type === 'QUALIFYING OFFER' || o.type === 'RFA EXTENSION')
                     ? "You are a Restricted Free Agent. Your current club retains your rights, but rival teams can submit Offer Sheets."
-                    : !freeAgencyOffers.some(o => o.team === player.team)
+                    : teamDidNotOffer
                         ? (['NHL', 'AHL'].includes(player.league) && player.age < 27 && (player.stats?.seasonsPlayed || 0) < 7
-                            ? `The ${getFullTeamName(player.team, player.league)} elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent testing the open market.`
-                            : `The ${getFullTeamName(player.team, player.league)} elected not to offer you a new contract. You are now testing the open market looking for a new home.`)
+                            ? `The ${owningTeamName} elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent testing the open market.`
+                            : `The ${owningTeamName} elected not to offer you a new contract. You are now testing the open market looking for a new home.`)
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
             </p>
             
@@ -81,15 +97,31 @@ export default function TransferScreen() {
                       </div>
 
                       {/* DETAILS */}
-                      <div className="flex flex-col gap-1.5 z-10 relative mb-6 text-[11px] sm:text-xs font-sans text-slate-300">
-                         <p className="flex items-start gap-2">
-                           <span><strong className="text-white uppercase tracking-wider">{o.role}</strong> · {o.state === 'Current Club' ? 'Staying Put' : (o.state || 'Pro Roster')}</span>
+                      <div className="flex flex-col gap-1.5 z-10 relative mb-4 text-[11px] sm:text-xs font-sans text-slate-300">
+                         <p className="flex flex-col gap-0.5">
+                           <span><strong className="text-white uppercase tracking-wider">{o.role}</strong></span>
+                           <span className="flex items-center gap-1.5 mt-1">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
+                                 o.state === 'Contender' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
+                                 o.state === 'Competitor' ? 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]/30' :
+                                 o.state === 'Outsider' ? 'bg-slate-700/30 text-slate-300 border-slate-600/50' :
+                                 o.state === 'Rebuilder' ? 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30' :
+                                 'bg-[#22E748]/10 text-[#22E748] border-[#22E748]/30'
+                              }`}>
+                                 {o.state === 'Current Club' ? 'Staying Put' : o.state}
+                              </span>
+                              {o.standing && (
+                                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                    Projected #{o.standing}
+                                 </span>
+                              )}
+                           </span>
                          </p>
                          {o.idolHit !== 0 && (
                            <p className="flex items-start gap-2">
                              <span className="leading-none mt-0.5">{o.idolHit > 0 ? '📈' : '📉'}</span>
                              <span className={o.idolHit > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
-                               Fan Impact: <strong className="font-black tracking-wider">{o.idolHit > 0 ? '+' : ''}{o.idolHit} IDOLATRY</strong>
+                               Fan Impact: <strong className="font-black tracking-wider">{o.idolHit > 0 ? '+' : ''}{o.idolHit} FANS</strong>
                              </span>
                            </p>
                          )}
@@ -100,6 +132,22 @@ export default function TransferScreen() {
                            </p>
                          )}
                       </div>
+
+                      {/* DYNAMIC PERKS & FLAWS */}
+                      {(o.perks?.length > 0 || o.flaws?.length > 0) && (
+                        <div className="flex flex-col gap-1.5 mb-6 z-10 relative border-t border-[rgba(255,255,255,0.065)] pt-3">
+                           {o.perks?.map((p, pIdx) => (
+                              <span key={`perk-${pIdx}`} className={`text-[9px] sm:text-[10px] px-2 py-1 rounded font-black tracking-widest uppercase border leading-none self-start ${p.color || 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'}`}>
+                                 {p.text}
+                              </span>
+                           ))}
+                           {o.flaws?.map((f, fIdx) => (
+                              <span key={`flaw-${fIdx}`} className="text-[9px] sm:text-[10px] px-2 py-1 rounded font-black tracking-widest uppercase border leading-none self-start text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30">
+                                 {f.text}
+                              </span>
+                           ))}
+                        </div>
+                      )}
 
                       {/* ACTIONS */}
                     <div className="mt-auto flex flex-col gap-2 z-10 relative">

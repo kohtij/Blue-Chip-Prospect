@@ -1,11 +1,10 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
 import { getPlayoffRounds } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
 
-// Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
 export default function PlayoffsScreen() {
   const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setEventFeedback, setPlayer, setPlayoffs, setScreen } = useAppContext();
   return (() => {
@@ -23,9 +22,7 @@ export default function PlayoffsScreen() {
           return (
             <div className="game-panel p-3 sm:p-6 mt-2 border-t-2 border-t-[#F59E0B] flex flex-col items-center relative">
               
-              {/* DYNAMIC LEAGUE PLAYOFF HEADER */}
-              
-             {/* CONFERENCE HEADERS — only shown for leagues that actually have 2 confs */}
+             {/* CONFERENCE HEADERS */}
               <div className="flex justify-between w-full max-w-5xl px-2 mb-4 text-xs sm:text-sm md:text-base font-black sports-font uppercase tracking-wider">
                 {playoffs.hasConfs ? (
                   <>
@@ -43,7 +40,7 @@ export default function PlayoffsScreen() {
                 <div className="flex items-stretch gap-1.5 sm:gap-2 w-max mx-auto px-2 min-h-[250px]">
                   {playoffs.hasConfs ? (
                     <>
-                      {/* WESTERN CONFERENCE (LEFT) */}
+                      {/* WESTERN CONFERENCE */}
                       <div className="flex gap-1.5 sm:gap-2">
                         {playoffs.bracket.slice(0, playoffs.bracket.length - 1).map((round, rIdx) => (
                           <div key={`left-${rIdx}`} className="flex flex-col gap-1 w-[80px] sm:w-[95px] shrink-0">
@@ -73,7 +70,7 @@ export default function PlayoffsScreen() {
                         ))}
                       </div>
 
-                      {/* CHAMPIONSHIP FINAL (CENTER) */}
+                      {/* CHAMPIONSHIP FINAL */}
                       <div className="flex flex-col justify-center gap-2 w-[90px] sm:w-[120px] shrink-0 relative px-0.5">
                         <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none mix-blend-screen">
                           <TrophyImage league={playoffs.currentLg} className="w-20 h-20 sm:w-24 sm:h-24 mt-4" />
@@ -99,7 +96,7 @@ export default function PlayoffsScreen() {
                         })}
                       </div>
 
-                      {/* EASTERN CONFERENCE (RIGHT REVERSED) */}
+                      {/* EASTERN CONFERENCE */}
                       <div className="flex flex-row-reverse gap-1.5 sm:gap-2">
                         {playoffs.bracket.slice(0, playoffs.bracket.length - 1).map((round, rIdx) => (
                           <div key={`right-${rIdx}`} className="flex flex-col gap-1 w-[80px] sm:w-[95px] shrink-0">
@@ -130,7 +127,7 @@ export default function PlayoffsScreen() {
                       </div>
                     </>
                   ) : (
-                    /* SINGLE-BRACKET LAYOUT (QMJHL, NCAA Frozen Four, SHL, Liiga) */
+                    /* SINGLE-BRACKET LAYOUT */
                     <div className="flex gap-1.5 sm:gap-2">
                       {playoffs.bracket.map((round, rIdx) => (
                         <div key={`single-${rIdx}`} className="flex flex-col gap-1 w-[80px] sm:w-[95px] shrink-0">
@@ -167,18 +164,18 @@ export default function PlayoffsScreen() {
               {activeMatch && (
                  <div className="max-w-sm sm:max-w-md w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-5 sm:p-6 rounded-xl text-center shadow-lg mx-auto mb-4 shrink-0">
 
-                    {/* TOP STATUS LINE — always occupies the same slot so the grid below never shifts */}
-                    <div className="mb-6 flex flex-col items-center">
-                      
+                    <div className="mb-6 flex flex-col items-center w-full">
                       {activeMatch.status === 'playing' && (
                         <>
                           <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest mb-3 font-sans">
                              ROUND {playoffs.activeRoundIndex + 1} MATCHUP
                           </p>
                           <TeamLogo teamId={activeMatch.team2?.id || 'UNK'} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="large" />
-                          <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
-                             VS. {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
-                          </p>
+                          <div className="mt-3 h-[48px] sm:h-[56px] flex items-start justify-center w-full overflow-hidden px-2">
+                            <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight line-clamp-2">
+                               VS. {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
+                            </p>
+                          </div>
                         </>
                       )}
                       
@@ -188,9 +185,11 @@ export default function PlayoffsScreen() {
                              ⚡ SERIES VICTORY! ({activeMatch.wins1}-{activeMatch.wins2})
                           </p>
                           <TeamLogo teamId={activeMatch.team2?.id || 'UNK'} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="large" />
-                          <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
-                             DEFEATED {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
-                          </p>
+                          <div className="mt-3 h-[48px] sm:h-[56px] flex items-start justify-center w-full overflow-hidden px-2">
+                            <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight line-clamp-2">
+                               DEFEATED {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
+                            </p>
+                          </div>
                         </>
                       )}
                       
@@ -200,14 +199,15 @@ export default function PlayoffsScreen() {
                              💔 ELIMINATED ({activeMatch.wins1}-{activeMatch.wins2})
                           </p>
                           <TeamLogo teamId={activeMatch.team2?.id || 'UNK'} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="large" />
-                          <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight mt-3">
-                             DEFEATED BY {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
-                          </p>
+                          <div className="mt-3 h-[48px] sm:h-[56px] flex items-start justify-center w-full overflow-hidden px-2">
+                            <p className="text-base sm:text-xl text-slate-300 font-bold uppercase sports-font text-balance leading-tight line-clamp-2">
+                               DEFEATED BY {['SHL', 'LIIGA'].includes(playoffs.currentLg) ? '' : 'THE '}{getFullTeamName(activeMatch.team2?.id, playoffs.currentLg)}
+                            </p>
+                          </div>
                         </>
                       )}
                     </div>
 
-                    {/* 9-CARD GRID — stays in the same place whether the series is playing, won, or lost */}
                     <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
                       {(activeMatch.deck || []).map((item, cIndex) => {
                         const isRevealed = (activeMatch.revealed || []).includes(cIndex);
@@ -238,22 +238,24 @@ export default function PlayoffsScreen() {
                       })}
                     </div>
 
-                    {/* BOTTOM AREA — hint while playing, advance button once the series is won. Below the grid, so winning never shifts the cards. */}
-                    {activeMatch.status === 'playing' && (() => {
-                      const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
-                      const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
-                      return (
-                        <p className="text-xs sm:text-sm text-slate-400 font-sans mt-2">Select a card to play the next game ({formatText})</p>
-                      );
-                    })()}
-                    {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
-                      <button
-                        onClick={advancePlayoffRound}
-                        className="btn-primary w-full py-3.5 mt-2 rounded-lg font-black sports-font text-sm sm:text-base uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
-                      >
-                        ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
-                      </button>
-                    )}
+                    {/* BOTTOM AREA — fixed height container so winning never shifts the cards */}
+                    <div className="h-[52px] mt-2 flex flex-col justify-end w-full">
+                      {activeMatch.status === 'playing' && (() => {
+                        const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
+                        const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
+                        return (
+                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full">Select a card to play the next game ({formatText})</p>
+                        );
+                      })()}
+                      {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
+                        <button
+                          onClick={advancePlayoffRound}
+                          className="btn-primary w-full h-full rounded-lg font-black sports-font text-sm sm:text-base uppercase tracking-wider transition-transform hover:scale-105 cursor-pointer shadow-lg"
+                        >
+                          ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
+                        </button>
+                      )}
+                    </div>
                  </div>
               )}
 

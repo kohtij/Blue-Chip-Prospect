@@ -1,8 +1,9 @@
-import  { useState } from 'react';
+import { useState } from 'react';
 
 export default function FilmRoomGame({ onComplete }) {
   const [step, setStep] = useState(0);
   const [score, setScore] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
 
   const scenarios = [
     {
@@ -37,15 +38,50 @@ export default function FilmRoomGame({ onComplete }) {
   const handleAnswer = (isCorrect) => {
     const newScore = score + (isCorrect ? 1 : 0);
     if (step + 1 >= scenarios.length) {
-      // Finish game: Need 2 out of 3 to win
-      const isWin = newScore >= 2;
-      onComplete(isWin);
+      setScore(newScore);
+      setIsFinished(true); // Enter the results phase instead of instantly closing!
     } else {
       setScore(newScore);
       setStep(step + 1);
     }
   };
 
+  // ==========================================
+  // RESULTS PHASE
+  // ==========================================
+  if (isFinished) {
+    const isWin = score >= 2;
+    return (
+      <div className="flex flex-col items-center text-center w-full max-w-md mx-auto fade-up">
+        <div className="text-5xl mb-4">{isWin ? '🧠' : '🤦‍♂️'}</div>
+        <h2 className="text-2xl sm:text-3xl font-black text-white sports-font uppercase mb-2">Tape Reviewed</h2>
+        <p className="text-slate-400 font-sans mb-6">The coaching staff evaluates your hockey IQ...</p>
+        
+        <div className={`w-full border p-6 rounded-xl mb-8 shadow-inner text-center ${isWin ? 'bg-[#22E748]/10 border-[#22E748]/30' : 'bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Final Score</p>
+            <div className={`text-6xl font-black sports-font mb-4 ${isWin ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+               {score} <span className="text-3xl text-slate-500">/ {scenarios.length}</span>
+            </div>
+            <p className="text-sm font-sans text-white italic">
+               {score === 3 ? "Flawless reads. The coach is thrilled with your preparation." : 
+                score === 2 ? "A solid session. You made the right read when it counted." : 
+                "You looked completely lost out there. Back to the drawing board."}
+            </p>
+        </div>
+        
+        <button 
+          onClick={() => onComplete(isWin)}
+          className="w-full btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg"
+        >
+          FINISH FILM SESSION ➔
+        </button>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // GAMEPLAY PHASE
+  // ==========================================
   const current = scenarios[step];
 
   return (

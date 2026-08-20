@@ -25,6 +25,7 @@ import MinigameScreen from './screens/MinigameScreen';
 import EventResultScreen from './screens/EventResultScreen';
 import MemorialCupScreen from './screens/MemorialCupScreen';
 import NegotiationScreen from './screens/NegotiationScreen';
+import AllStarScreen from './screens/AllStarScreen';
 
 // Extracted shared components
 import TeamLogo from './components/TeamLogo';
@@ -1188,7 +1189,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
           <PressResultScreen />
         )}
 
-{screen === 'combine' && (
+        {screen === 'combine' && (
           <CombineScreen />
         )}
 
@@ -1240,6 +1241,10 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         
         {screen === 'negotiation' && (
           <NegotiationScreen />
+        )}
+
+        {screen === 'all-star' && (
+          <AllStarScreen />
         )}
 
         </div>

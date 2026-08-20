@@ -1,5 +1,3 @@
-// Extracted from App.jsx.
-// Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { ahlTeams, liigaTeams, nhlTeams, shlTeams } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { getTransferImpact } from '../utils/gameHelpers';
@@ -8,15 +6,10 @@ import { getRole } from '../utils/appHelpers';
 export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null) {
   const { currentYear, isAmateur, player, setEventFeedback, setFreeAgencyOffers, setScreen } = ctx;
 
-
-    // The team currently generating an extension/qualifying offer.
-    // Falls back to overrideTeam when specified (e.g. a specific team acting).
     let actingTeam = overrideTeam || player.team;
     let actingLeague = player.league;
-
     const isNHLContract = (player.contract?.salary || 0) >= 500000;
 
-    // If an AHL player is on an NHL contract, the NHL parent club handles their extension/RFA rights
     if (actingLeague === 'AHL' && isNHLContract) {
        const parent = (nhlTeams || []).find(t => t.ahlId === actingTeam);
        if (parent) {
@@ -25,8 +18,6 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
        }
     }
 
-    // Salary multiplier from the Super Agent shop item — read from economy.js
-    // so tweaks to the item's effect actually change contract sizes.
     const agentItem = shopItems.find(i => i.id === 'agent');
     const agentModifier = agentItem?.effect?.salaryModifier ?? 1.15;
     const multi = (player.inventory || []).includes('agent') ? agentModifier : 1.0;
@@ -42,13 +33,12 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
       baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
       maxYears = 3; 
     } else if (actingLeague === 'NHL') {
-      // Look at entire career history for major awards, not just last season
       const careerAwards = player.stats?.awards || [];
       const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
 
       if (player.ovr >= 85 || isSuperstar) {
         baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi;
-        maxYears = 8; // Franchise max length
+        maxYears = 8;
       } else if (player.ovr >= 80) {
         baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi;
         maxYears = 5;
@@ -60,13 +50,11 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
         maxYears = 2;
       }
 
-      // 🏆 MVP CONTRACT OVERRIDE: Superstars get the max length and massive money
       if (isSuperstar) {
          baseSalary = Math.max(baseSalary, 10500000 * multi);
          maxYears = Math.max(maxYears, 8);
       }
 
-      // 🛑 UFA AGE PENALTY: Limit term for aging veterans regardless of how good they are
       if (player.age >= 37) {
          maxYears = Math.min(maxYears, 1);
       } else if (player.age >= 35) {
@@ -91,14 +79,13 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
          setEventFeedback(isRFA ? "Your team elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent." : "Your team elected not to extend your contract. You are now a UFA.");
          teamDidNotExtend = true;
       } else if (!isRFA && Math.random() > 0.70 && player.ovr < 85) {
-         // 30% chance for non-superstar UFAs to be let go by their current team
          setEventFeedback("Your current team has decided to move in a different direction and will not offer you an extension. You are heading to the open market.");
          teamDidNotExtend = true;
       } else {
          offers.push({
-                   team: actingTeam,
-                   league: actingLeague,
-                   type: isRFA ? (player.ovr >= 82 ? 'RFA EXTENSION' : 'QUALIFYING OFFER') : 'EXTENSION',
+           team: actingTeam,
+           league: actingLeague,
+           type: isRFA ? (player.ovr >= 82 ? 'RFA EXTENSION' : 'QUALIFYING OFFER') : 'EXTENSION',
            salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary,
            years: isRFA && player.ovr < 82 ? 1 : maxYears,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : getRole(baseSalary, player),
@@ -109,7 +96,6 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
     }
 
     if (isRFA && !teamDidNotExtend && !isTradeRequest && !isAmateurGraduating) {
-      
       if (player.ovr >= 82 && Math.random() < 0.25) {
         const pool = (nhlTeams || []).filter(t => t.id !== actingTeam);
         if (pool.length > 0) {
@@ -143,17 +129,26 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
           if (t !== actingTeam && !offers.find(o => o.team === t)) {
             let offerSalary = Math.round((baseSalary * (0.85 + (Math.random() * 0.35))) / 25000) * 25000; 
             
-            // DYNAMIC TEAM STATES (Money vs. Winning)
-            const stateRoll = Math.random();
-            let teamState = 'Middle of the Pack';
+            let teamState;
+            let projectedStanding = null;
+
             if (targetLg === 'NHL') {
-                if (stateRoll > 0.66) {
+                projectedStanding = Math.floor(Math.random() * 32) + 1;
+                
+                if (projectedStanding <= 8) {
                     teamState = 'Contender';
-                    offerSalary = Math.round((offerSalary * 0.85) / 25000) * 25000; // Cup discount
-                } else if (stateRoll < 0.33) {
-                    teamState = 'Rebuilding';
-                    offerSalary = Math.round((offerSalary * 1.20) / 25000) * 25000; // Overpay tax
+                    offerSalary = Math.round((offerSalary * 0.85) / 25000) * 25000;
+                } else if (projectedStanding <= 16) {
+                    teamState = 'Competitor';
+                } else if (projectedStanding <= 24) {
+                    teamState = 'Outsider';
+                    offerSalary = Math.round((offerSalary * 1.10) / 25000) * 25000;
+                } else {
+                    teamState = 'Rebuilder';
+                    offerSalary = Math.round((offerSalary * 1.20) / 25000) * 25000;
                 }
+            } else {
+                teamState = 'Development Roster';
             }
 
             if (targetLg !== 'NHL') {
@@ -173,6 +168,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
               role: targetLg === 'NHL' ? getRole(offerSalary, player) : 'Pro Roster',
               idolHit: getTransferImpact(actingTeam, t),
               state: teamState,
+              standing: projectedStanding,
               nmc: getsNMC
             });
           }
@@ -180,7 +176,6 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
       }
     }
     
-// Guarantee fallback offers if no teams met criteria
     if (offers.length === 0) {
       offers = [{
         team: (ahlTeams && ahlTeams.length > 0) ? ahlTeams[0].id : 'UNK',

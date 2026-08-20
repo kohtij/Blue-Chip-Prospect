@@ -170,9 +170,10 @@ export function advanceToOffseason(ctx) {
          }
     }
 
-    const isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA' || safeEuroLeagues.includes(currentLeague);
+    // Euro Leagues are PRO leagues, not amateurs!
+    const isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
     
-    if (player.age === 18 && isCurrentlyAmateur && !player.rights) {
+    if (player.age === 18 && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
       setScreen('combine');
       return;
     }

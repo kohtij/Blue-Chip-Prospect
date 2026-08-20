@@ -102,7 +102,11 @@ export default function IntlMinigameScreen() {
 
   return (
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
-      <h2 className="text-4xl sm:text-5xl font-black mb-4 text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight">🌍 {tourneyName} 🌍</h2>
+      <h2 className="flex justify-center items-center gap-3 text-4xl sm:text-5xl font-black mb-4 text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center">
+        <span className="shrink-0">🌍</span>
+        <span>{tourneyName}</span>
+        <span className="shrink-0">🌍</span>
+      </h2>
       <p className="text-base sm:text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-left">
         You are representing <span className="font-black text-white flex items-center gap-2">{countryName} <img src={nat?.img} alt={player.nat} className="w-6 h-4 object-cover rounded-[2px] border border-slate-600" /></span> in the Gold Medal game!
       </p>
@@ -121,9 +125,9 @@ export default function IntlMinigameScreen() {
                       onClick={() => handlePrepChoice(c)}
                       className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-2 shadow-lg group"
                     >
-                      <div className="flex justify-between items-center w-full">
-                         <h4 className="text-sm sm:text-base font-bold sports-font uppercase group-hover:text-[#3b82f6] transition-colors">{c.label}</h4>
-                         <div className="flex items-center gap-2">
+                      <div className="flex justify-between items-start sm:items-center w-full gap-4">
+                         <h4 className="text-sm sm:text-base font-bold sports-font uppercase group-hover:text-[#3b82f6] transition-colors text-left leading-tight">{c.label}</h4>
+                         <div className="flex items-center gap-2 shrink-0 mt-1 sm:mt-0">
                            {c.isRisky ? (
                               <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>
                            ) : (
@@ -217,8 +221,15 @@ export default function IntlMinigameScreen() {
                 </span>
               ) : null}
             </div>
+            
+            {/* DRAFT STOCK EVOLUTION (Only for undrafted prospects!) */}
+            {player.age <= 18 && !player.rights && minigameContext === 'wjc' && (
+               <p className={`mt-6 text-sm sm:text-base font-black sports-font uppercase tracking-widest ${intlResult.isWin ? 'text-[#3b82f6]' : 'text-[#ef4444]'}`}>
+                 {intlResult.isWin ? "📈 SCOUTS ARE BUZZING. YOUR DRAFT STOCK IS RISING!" : "📉 SCOUTS NOTICED THE STRUGGLES. DRAFT STOCK TOOK A HIT."}
+               </p>
+            )}
           </div>
-
+            
           <button
             onClick={() => { setIntlResult(null); proceedToNextScreen(activeEvent, minigameContext, player); }}
             className="btn-primary py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest w-full mt-6 shadow-2xl"

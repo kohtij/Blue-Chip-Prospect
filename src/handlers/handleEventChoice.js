@@ -48,6 +48,15 @@ export function handleEventChoice(ctx, choice) {
     const { teamObj } = choice.actionData;
     updated.team = teamObj.id;
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamObj.id]));
+    
+    // Retroactively update the current season's history to reflect the trade!
+    if (updated.seasonHistory && updated.seasonHistory.length > 0) {
+       const currentSeason = updated.seasonHistory[updated.seasonHistory.length - 1];
+       currentSeason.tradedTo = teamObj.id;
+       // The Trade Deadline is roughly 75% through the season
+       currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
+       currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
+    }
   } else if (choice.action === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
   } else if (choice.action === 'ACCEPT_IMPORT_DRAFT') {
