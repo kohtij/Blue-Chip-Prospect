@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
@@ -9,6 +9,7 @@ export default function CreationScreen() {
   
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
+  const [isQuickStarting, setIsQuickStarting] = useState(false);
     
   const [savedCareers] = useState(() => {
     try {
@@ -17,6 +18,13 @@ export default function CreationScreen() {
       return [];
     }
   });
+
+  // This catches the state update and fires the game start!
+  useEffect(() => {
+    if (isQuickStarting && player.startLeague && player.nat) {
+      handleStart();
+    }
+  }, [isQuickStarting, player.startLeague, player.nat, handleStart]);
 
   const handleQuickStart = () => {
     // Randomize League
@@ -27,6 +35,7 @@ export default function CreationScreen() {
     
     // Update player state, then flip the flag to trigger the useEffect
     setPlayer(p => ({ ...p, startLeague: randomLg, nat: randomNat, team: null }));
+    setIsQuickStarting(true);
   };
 
   return (
@@ -122,44 +131,44 @@ export default function CreationScreen() {
                   </div>
 
                   <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3 text-left">Select Nationality</h3>
-<div className="flex flex-col gap-4 mb-8">
-  {[
-    { tier: 1, title: 'TIER 1: SUPERPOWERS' },
-    { tier: 2, title: 'TIER 2: CONTENDERS' },
-    { tier: 3, title: 'TIER 3: TOP DIVISION' },
-    { tier: 4, title: 'TIER 4: DEVELOPING' }
-  ].map(group => {
-    const tierNations = safeNationalities.filter(n => n.tier === group.tier);
-    if (tierNations.length === 0) return null;
-    
-    return (
-      <div key={group.tier}>
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 text-left">
-          {group.title}
-        </p>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {tierNations.map(n => (
-            <button
-              key={n.id}
-              onClick={() => setPlayer({ ...player, nat: n.id })}
-              className={`p-2 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
-                player.nat === n.id 
-                  ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]' 
-                  : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
-              }`}
-              title={n.name}
-            >
-              <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-              <span className={`text-[9px] font-bold font-sans uppercase tracking-widest ${player.nat === n.id ? 'text-[#22E748]' : 'text-slate-400'}`}>
-                {n.id}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  })}
-</div>
+                  <div className="flex flex-col gap-4 mb-8">
+                    {[
+                      { tier: 1, title: 'TIER 1: SUPERPOWERS' },
+                      { tier: 2, title: 'TIER 2: CONTENDERS' },
+                      { tier: 3, title: 'TIER 3: TOP DIVISION' },
+                      { tier: 4, title: 'TIER 4: DEVELOPING' }
+                    ].map(group => {
+                      const tierNations = safeNationalities.filter(n => n.tier === group.tier);
+                      if (tierNations.length === 0) return null;
+                      
+                      return (
+                        <div key={group.tier}>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 text-left">
+                            {group.title}
+                          </p>
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            {tierNations.map(n => (
+                              <button
+                                key={n.id}
+                                onClick={() => setPlayer({ ...player, nat: n.id })}
+                                className={`p-2 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                                  player.nat === n.id 
+                                    ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]' 
+                                    : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
+                                }`}
+                                title={n.name}
+                              >
+                                <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+                                <span className={`text-[9px] font-bold font-sans uppercase tracking-widest ${player.nat === n.id ? 'text-[#22E748]' : 'text-slate-400'}`}>
+                                  {n.id}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   <button 
                     onClick={() => handleStart(false)} 
