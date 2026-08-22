@@ -3,9 +3,9 @@ import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { LEAGUE_CONFIG, getOpponentPool, getPrimaryRival, ncaaTeams } from '../data/teams';
 import { capIdol, formatMoney } from '../utils/gameHelpers';
 
-// Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
 export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
+  
   return (() => {
           const titles = getPlayoffTitles(player.league);
           let narrative;
@@ -85,6 +85,18 @@ export default function RecapScreen() {
 
           return (
             <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6]">
+              <style>{`
+                @keyframes subtleFadeUp {
+                  0% { opacity: 0; transform: translateY(12px); }
+                  100% { opacity: 1; transform: translateY(0); }
+                }
+                .recap-list > li {
+                  opacity: 0;
+                  animation: subtleFadeUp 0.5s ease-out forwards;
+                }
+                ${Array.from({length: 25}).map((_, i) => `.recap-list > li:nth-child(${i + 1}) { animation-delay: ${(i * 0.15) + 0.1}s; }`).join('\n')}
+              `}</style>
+
               <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
                 <h2 className="text-[#3b82f6] font-bold tracking-widest uppercase text-sm sm:text-lg sports-font">THE RINK REPORT</h2>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs sm:text-sm">
@@ -108,7 +120,7 @@ export default function RecapScreen() {
                 <p className="text-base sm:text-lg text-slate-400 font-sans italic text-left m-0">"{narrative}"</p>
               </div>
 
-              <ul className="space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-lg mb-10 font-sans text-left">
+              <ul className="recap-list space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-lg mb-10 font-sans text-left">
                 <li className="border-l-4 border-[#3b82f6] pl-4 py-1">
                   {(() => {
                      const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
@@ -120,7 +132,7 @@ export default function RecapScreen() {
                      return (
                        <>🏅 {['SHL', 'LIIGA'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in the {player.league}. {
                          (seasonRecap?.standings === 1) ? 'An absolutely dominant regular season.' :
-                         (seasonRecap?.standings <= playoffSpots) ? 'A solid campaign to secure a playoff berth.' :
+                         (seasonRecap?.madePlayoffs) ? 'A solid campaign to secure a playoff berth.' :
                          (seasonRecap?.standings >= (getOpponentPool(player.league)?.length || 20) - 3) ? 'A miserable rebuilding year for the franchise.' :
                          'A mediocre year that fell short of expectations.'
                        }</>
@@ -149,39 +161,28 @@ export default function RecapScreen() {
                     'Struggled to consistently generate offense.'
                   }</li>
                 )}
-                {/* RECORD CHASING */}
-                {player.league === 'NHL' && seasonRecap?.g >= 92 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
-                    👑 BROKE GRETZKY'S SINGLE-SEASON GOAL RECORD (92)!
-                  </li>
-                )}
-                {player.league === 'NHL' && (seasonRecap?.g + seasonRecap?.a) >= 215 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
-                    👑 BROKE GRETZKY'S SINGLE-SEASON POINTS RECORD (215)!
-                  </li>
-                )}
-                {player.league === 'NHL' && player.pos === 'G' && seasonRecap?.sho >= 15 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
-                    👑 BROKE TONY ESPOSITO'S SINGLE-SEASON SHUTOUT RECORD (15)!
-                  </li>
-                )}
 
-                {/* DYNAMIC LEAGUE TROPHY NARRATIVE */}
                 {madePlayoffsForNarrative ? (
-                  <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-1`}>
-                    {seasonRecap?.titleWon === 1 
-                      ? `🏆 Won the ${titles.cupName}!` 
-                      : seasonRecap?.confTitleWon
-                        ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles.final}.`
-                        : seasonRecap?.playoffWins === 0 
-                          ? '🧹 Swept in the first round.' 
-                          : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
-                  </li>
+                  <>
+                    <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-1`}>
+                      {seasonRecap?.titleWon === 1 
+                        ? `🏆 Won the ${titles.cupName}!` 
+                        : seasonRecap?.confTitleWon
+                          ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles.final}.`
+                          : seasonRecap?.playoffWins === 0 
+                            ? '🧹 Swept in the first round.' 
+                            : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
+                    </li>
+                    {seasonRecap?.memCupStatus === 'won' && (
+                       <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
+                         🏆 CONQUERED THE NATION AND WON THE MEMORIAL CUP!
+                       </li>
+                    )}
+                  </>
                 ) : (
                   <li className="border-l-4 border-slate-600 pl-4 py-1">⛳ Missed the playoffs.</li>
                 )}
 
-                {/* RECORD CHASING */}
                 {player.league === 'NHL' && seasonRecap?.g >= 92 && (
                   <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
                     👑 BROKE GRETZKY'S SINGLE-SEASON GOAL RECORD (92)!
@@ -209,12 +210,11 @@ export default function RecapScreen() {
                   </li>
                 )}
 
-                {/* SEASON EVENTS LOGGER */}
                 {seasonEvents.map((ev, i) => {
                    return (
-                     <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-1.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                       <span className="text-slate-300 leading-snug">📰 {ev.feedback}</span>
-                       <div className="flex flex-wrap items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
+                     <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-1.5 block">
+                       <span className="text-slate-300 leading-relaxed">📰 {ev.feedback}</span>
+                       <span className="inline-flex flex-wrap items-center gap-1.5 ml-2 align-middle relative -top-[1px]">
                          {ev.effect?.ovr !== undefined && ev.effect.ovr !== 0 && (
                            <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.ovr > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
                              {ev.effect.ovr > 0 ? '+' : ''}{ev.effect.ovr} OVR
@@ -230,35 +230,26 @@ export default function RecapScreen() {
                              {ev.effect.money > 0 ? '+' : '-'}{formatMoney(Math.abs(ev.effect.money))}
                            </span>
                          )}
-                       </div>
+                       </span>
                      </li>
                    );
                 })}
               </ul>
 
-              {/* STICKY FOOTER ACTION BUTTONS */}
-              <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#040505] via-[#040505] to-transparent z-40 mt-8 flex flex-col sm:flex-row gap-4">
+              <div className="w-full pt-8 pb-2 mt-8 border-t border-[rgba(255,255,255,0.05)] flex flex-col sm:flex-row gap-4">
                 <button onClick={advanceToOffseason} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-2xl">
                   PROCEED TO OFFSEASON
                 </button>
                 
                 {player.league === 'NCAA' && (
                    <button onClick={() => {
-                       // 1. Unlock the achievement
                        unlockAchievement('transfer_portal'); 
-                       
-                       // 2. Take the immediate PR hit for leaving
-                       setPlayer(p => ({
-                           ...p,
-                           idolatry: capIdol(p.idolatry - 15)
-                       }));
+                       setPlayer(p => ({ ...p, idolatry: capIdol(p.idolatry - 15) }));
 
-                       // 3. Generate 3 random programs
                        let pool = ncaaTeams?.filter(t => t.id !== player.team) || [];
                        pool = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
                        if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Program' }];
 
-                       // 4. Build dynamic offers with perks/flaws
                        const offeredTeams = pool.map(t => {
                            const possiblePerks = [
                                { text: '📈 Elite Coaching (+2 OVR)', ovr: 2, idol: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
@@ -273,8 +264,8 @@ export default function RecapScreen() {
                                { text: '⚠️ Strict System (-5 Fans)', ovr: 0, idol: -5, money: 0 }
                            ];
 
-                           const perkCount = Math.floor(Math.random() * 2) + 1; // 1 to 2 perks
-                           const flawCount = Math.floor(Math.random() * 2);     // 0 to 1 flaw
+                           const perkCount = Math.floor(Math.random() * 2) + 1; 
+                           const flawCount = Math.floor(Math.random() * 2);     
 
                            const selectedPerks = [...possiblePerks].sort(() => 0.5 - Math.random()).slice(0, perkCount);
                            const selectedFlaws = [...possibleFlaws].sort(() => 0.5 - Math.random()).slice(0, flawCount);

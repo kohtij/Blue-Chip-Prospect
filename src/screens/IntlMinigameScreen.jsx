@@ -102,7 +102,7 @@ export default function IntlMinigameScreen() {
 
   return (
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
-      <h2 className="flex justify-center items-center gap-3 text-4xl sm:text-5xl font-black mb-4 text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center">
+      <h2 className="flex justify-center items-center gap-1 text-4xl sm:text-5xl font-black mb-4 text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center">
         <span className="shrink-0">🌍</span>
         <span>{tourneyName}</span>
         <span className="shrink-0">🌍</span>

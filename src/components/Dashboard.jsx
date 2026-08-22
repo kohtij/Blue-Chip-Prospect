@@ -169,16 +169,16 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop }) =
             <div className="mt-4 md:mt-5 w-full space-y-1.5">
               <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide">
                 <span className="text-slate-400">Fan Status</span>
-                <span className="text-slate-400"> {tier.label} · {Math.floor(((Number(player.fanstatus) || 0) / 1000) * 100)}/100</span>
+                <span className="text-slate-400"> {tier.label} · {Math.floor(((Number(player.idolatry) || 0) / 1000) * 100)}/100</span>
               </div>
               <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((Number(player.fanstatus) || 0) / 1000) * 100)}%`, background: getBarColor(Number(player.fanstatus) || 0) }}></div>
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((Number(player.idolatry) || 0) / 1000) * 100)}%`, background: getBarColor(Number(player.idolatry) || 0) }}></div>
               </div>
               <div className="relative h-3.5 md:h-4">
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanstatus) || 0) >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
               </div>
               <p className="text-[9px] md:text-[10px] font-bold leading-none text-slate-400 mt-1 md:mt-1.5">
                 {tier.req > 0 ? `You're ${tier.req} pts short of ${tier.nextLabel}` : <span className="text-[#F59E0B]">Max Icon Status 🏆</span>}

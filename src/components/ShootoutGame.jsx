@@ -1,21 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState, useRef } from 'react';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const ShootoutGame = ({ player, onComplete }) => {
   const [activeZone, setActiveZone] = useState(null);
   const [timeLeft, setTimeLeft] = useState(5000);
+  const [jitter, setJitter] = useState({ x: 0, y: 0 });
+  const poolRef = useRef([]);
 
   useEffect(() => {
-    // Higher shooting stat = weak spot stays open longer. 
-    const speed = Math.max(400, 1000 - (player.shooting * 4)); 
-    const zoneInterval = setInterval(() => {
-      setActiveZone(Math.floor(Math.random() * 5));
-    }, speed);
+    let timeoutId;
+
+    const getNextZone = () => {
+      if (poolRef.current.length === 0) {
+        poolRef.current = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+      }
+      return poolRef.current.pop();
+    };
+
+    const triggerNextZone = () => {
+      const nextZ = getNextZone();
+      setActiveZone(nextZ);
+
+      // Add small pixel-level position jitter (-10px to +10px)
+      const jX = Math.floor(Math.random() * 21) - 10;
+      const jY = Math.floor(Math.random() * 21) - 10;
+      setJitter({ x: jX, y: jY });
+
+      // Vary timing between shots (base speed + ±100ms randomization)
+      const baseSpeed = Math.max(400, 1000 - (player.shooting * 4));
+      const randomOffset = Math.floor(Math.random() * 201) - 100;
+      const speed = Math.max(300, baseSpeed + randomOffset);
+
+      timeoutId = setTimeout(triggerNextZone, speed);
+    };
+
+    triggerNextZone();
 
     const timer = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 100) {
-          clearInterval(zoneInterval);
+          clearTimeout(timeoutId);
           clearInterval(timer);
           onComplete(false); // Time ran out
           return 0;
@@ -24,7 +48,10 @@ const ShootoutGame = ({ player, onComplete }) => {
       });
     }, 100);
 
-    return () => { clearInterval(zoneInterval); clearInterval(timer); };
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(timer);
+    };
   }, [player, onComplete]);
 
   const zones = [
@@ -47,6 +74,7 @@ const ShootoutGame = ({ player, onComplete }) => {
         <button
           key={z.id}
           onClick={() => { if (activeZone === z.id) onComplete(true); }}
+          style={activeZone === z.id ? { marginTop: `${jitter.y}px`, marginLeft: `${jitter.x}px` } : {}}
           className={`absolute rounded-full border-4 transition-colors font-black sports-font text-[10px] sm:text-xs leading-none z-10 ${
             activeZone === z.id 
               ? 'bg-[#22E748]/90 border-[#22E748] text-white shadow-[0_0_20px_#22E748] scale-110 cursor-pointer animate-pulse' 

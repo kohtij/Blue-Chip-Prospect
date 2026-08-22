@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { getOpponentPool, ncaaTeams, ohlTeams } from '../data/teams';
+import { getOpponentPool, ncaaTeams, ohlTeams, nhlTeams } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 
@@ -66,6 +66,15 @@ export function advanceToOffseason(ctx) {
 
     let currentTeam = player.team;
     let currentLeague = player.league;
+    
+    // Always report to NHL Training Camp if you are on an NHL contract
+    if (currentLeague === 'AHL' && (player.contract?.salary || 0) >= 500000) {
+        const parent = (nhlTeams || []).find(t => t.ahlId === currentTeam);
+        if (parent) {
+            currentTeam = parent.id;
+            currentLeague = 'NHL';
+        }
+    }
 
     setPlayer(p => ({ ...p, team: currentTeam, league: currentLeague, buffs: newBuffs }));
 
@@ -296,7 +305,42 @@ export function advanceToOffseason(ctx) {
           setScreen('event');
           return;
       }
+// ==========================================
+      // RANDOM CAREER TRAJECTORY EVENTS (3% Chance)
+      // ==========================================
+      const eventRoll = Math.random();
+      
+      // LATE BLOOMER BREAKOUT
+      if (currentLeague === 'NHL' && player.age >= 22 && player.age <= 28 && eventRoll < 0.03 && !player.storylines?.hadBreakout) {
+          setPlayer(p => ({ ...p, storylines: { ...p.storylines, hadBreakout: true } }));
+          setActiveEvent({
+              title: '🔥 LATE BLOOMER BREAKOUT',
+              desc: `Something clicked this offseason. The game has slowed down, your body feels elite, and you are dominating informal scrimmages. The media is predicting a massive breakout year.`,
+              choices: [
+                  { label: 'Embrace the Spotlight', isRisky: false, feedback: 'You are ready to take the league by storm.', effect: { idol: 50, ovr: 4, money: 0 } },
+                  { label: 'Keep Your Head Down', isRisky: false, feedback: 'You remain humble, focusing purely on the ice.', effect: { idol: 10, ovr: 5, money: 0 } }
+              ],
+              isOffseasonEvent: true
+          });
+          setScreen('event');
+          return;
+      }
 
+      // FLUKE REGRESSION
+      if (currentLeague === 'NHL' && player.ovr >= 80 && player.age < 30 && eventRoll > 0.97 && !player.storylines?.hadFluke) {
+          setPlayer(p => ({ ...p, storylines: { ...p.storylines, hadFluke: true } }));
+          setActiveEvent({
+              title: '📉 OFF-YEAR REGRESSION',
+              desc: `You spent the summer enjoying your wealth instead of training. You arrived at camp out of shape, and critics are calling last season a total fluke.`,
+              choices: [
+                  { label: 'Ignore the Haters', isRisky: false, feedback: 'You brushed off the media, but your game is noticeably sluggish.', effect: { idol: -20, ovr: -3, money: 0 } },
+                  { label: 'Hire a Private Trainer ($250k)', isRisky: false, feedback: 'You spent a fortune to get back in shape, limiting the damage.', effect: { idol: 10, ovr: -1, money: -250000 } }
+              ],
+              isOffseasonEvent: true
+          });
+          setScreen('event');
+          return;
+      }
       generateTraining(player.pos);
       setScreen('preseason');
     }

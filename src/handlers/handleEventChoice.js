@@ -2,9 +2,13 @@ import { capIdol, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
 import { getRole } from '../utils/appHelpers';
 
 export function handleEventChoice(ctx, choice) {
-  const {
-    activeEvent, player, setEventFeedback, setPlayer, setScreen, setSeasonEvents, unlockAchievement, triggerMinigame
+  const { 
+    player, setPlayer, setSeasonEvents, setScreen, 
+    activeEvent, minigameContext, proceedToNextScreen,
+    unlockAchievement, triggerMinigame, generateTraining, setActiveEvent 
   } = ctx;
+
+  if (!activeEvent) return;
 
   let outcomeEffect;
   let outcomeFeedback;
@@ -24,62 +28,66 @@ export function handleEventChoice(ctx, choice) {
     return; 
   }
 
-  // Silently log the event for the Season Recap
   setSeasonEvents(prev => [...prev, { feedback: outcomeFeedback, effect: outcomeEffect || {} }]);
   
   let updated = { ...player };
+  const actionStr = choice.action || ''; // <-- FIXED: Added missing definition
   
-  if (choice.action === 'VETERAN_EXTENSION') updated.contract = { salary: 850000, years: 1 };
-  else if (choice.action === 'BECOME_UFA') updated.rights = null;
-  else if (choice.action === 'JOIN_NCAA') {
-    updated.team = choice.actionData; updated.league = 'NCAA';
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData]));
+  if (actionStr === 'VETERAN_EXTENSION') updated.contract = { salary: 850000, years: 1 };
+  else if (actionStr === 'BECOME_UFA') updated.rights = null;
+  else if (actionStr === 'JOIN_NCAA') {
+    const teamId = choice.actionData?.id || choice.actionData;
+    updated.team = teamId; updated.league = 'NCAA';
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
     if ((choice.perks || []).some(perk => perk.text && perk.text.includes('NIL'))) unlockAchievement('big_nil');
-  } else if (choice.action === 'JOIN_CHL') {
-    updated.team = choice.actionData; updated.league = 'OHL';
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData]));
+  } else if (actionStr === 'JOIN_CHL') {
+    const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData;
+    const lg = choice.actionData?.league || 'OHL';
+    updated.team = teamId; updated.league = lg;
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
     unlockAchievement('import_draft');
-  } else if (choice.action === 'SIGN_ELC') {
+  } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
     updated.contract = { salary: 925000, years: 3, role: getRole(925000, player) };
-  } else if (choice.action === 'DEMOTE') {
+  } else if (actionStr === 'DEMOTE') {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
-  } else if (choice.action === 'ACCEPT_TRADE_DEADLINE') {
-    const { teamObj } = choice.actionData;
-    updated.team = teamObj.id;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamObj.id]));
+  } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {
+    const teamId = choice.actionData?.teamObj?.id || choice.actionData?.team?.id || choice.actionData;
+    updated.team = teamId;
+    updated.league = choice.actionData?.lg || player.league;
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
     
-    // Retroactively update the current season's history to reflect the trade!
     if (updated.seasonHistory && updated.seasonHistory.length > 0) {
        const currentSeason = updated.seasonHistory[updated.seasonHistory.length - 1];
-       currentSeason.tradedTo = teamObj.id;
-       // The Trade Deadline is roughly 75% through the season
+       currentSeason.tradedTo = teamId;
        currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
        currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
     }
-  } else if (choice.action === 'CHANGE_POSITION') {
+  } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
-  } else if (choice.action === 'ACCEPT_IMPORT_DRAFT') {
-    const { teamObj, league } = choice.actionData;
-    updated.team = teamObj.id; updated.league = league;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamObj.id]));
-    updated.chlRights = teamObj.id; updated.chlRightsLeague = league;
-  } else if (choice.action === 'DECLINE_IMPORT_DRAFT') {
-    const { teamObj, league } = choice.actionData;
-    updated.chlRights = teamObj.id; updated.chlRightsLeague = league;
-  } else if (choice.action === 'DEMOTE_TO_JUNIORS') {
+  } else if (actionStr === 'ACCEPT_IMPORT_DRAFT') {
+    const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData?.team || 'UNK';
+    const lg = choice.actionData?.league || 'OHL';
+    updated.team = teamId; updated.league = lg;
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
+    updated.chlRights = teamId; updated.chlRightsLeague = lg;
+    unlockAchievement('import_draft');
+  } else if (actionStr === 'DECLINE_IMPORT_DRAFT') {
+    const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData?.team || 'UNK';
+    const lg = choice.actionData?.league || 'OHL';
+    updated.chlRights = teamId; updated.chlRightsLeague = lg;
+  } else if (actionStr === 'DEMOTE_TO_JUNIORS') {
     const targetJuniorTeam = player.chlRights || player.juniorTeam || 'UNK';
     const targetJuniorLeague = player.chlRightsLeague || player.juniorLeague || 'OHL';
     updated.team = targetJuniorTeam; updated.league = targetJuniorLeague;
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), targetJuniorTeam]));
-  } else if (choice.action === 'ACCEPT_ARBITRATION') {
+  } else if (actionStr === 'ACCEPT_ARBITRATION') {
     updated.team = choice.actionData.team; updated.league = 'NHL';
     updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role };
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
-  } else if (choice.action === 'INTL_SAFE') {
+  } else if (actionStr === 'INTL_SAFE') {
      // Safe approach just processes the standard outcome and ends the event.
-  } else if (choice.action === 'INTL_RISKY') {
-     // Risky approach means the player wants to play the interactive minigame!
+  } else if (actionStr === 'INTL_RISKY') {
      triggerMinigame(ctx.minigameContext || 'wjc');
      return;
   }
@@ -96,12 +104,23 @@ export function handleEventChoice(ctx, choice) {
       media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (outcomeEffect?.rel?.media || 0)))
     }
   };
+
+  if (finalPlayer.team !== player.team) {
+     finalPlayer.relationships = { coach: 50, teammates: 50, media: 50 };
+  }
   
-  // Commit the fully built state
   setPlayer(finalPlayer);
 
-  // CRITICAL FIX: Do NOT clear activeEvent here. EventResultScreen needs it 
-  // to route correctly. proceedToNextScreen will clear it later.
-  setEventFeedback(outcomeFeedback || "You made your decision.");
-  setScreen('event-result');
+  // FIXED: Removed the unused `isMajorRouting` constant completely
+
+  if (actionStr.includes('MINIGAME')) {
+      triggerMinigame(minigameContext || 'season');
+  } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
+      setActiveEvent(null);
+      setScreen('preseason');
+      if (generateTraining) generateTraining(finalPlayer.pos);
+  } else {
+      setActiveEvent(null);
+      proceedToNextScreen(activeEvent, minigameContext, finalPlayer);
+  }
 }

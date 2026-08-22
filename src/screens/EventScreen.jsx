@@ -3,6 +3,8 @@ import { useAppContext } from '../AppContext';
 
 export default function EventScreen() {
   const { activeEvent, handleEventChoice } = useAppContext();
+  if (!activeEvent) return null;
+  
   return (() => {
           const isGenEvent = activeEvent.title === '🌟 THE CHOSEN ONE';
           const isInjuryEvent = activeEvent.title === '🚑 DEVASTATING INJURY';
@@ -22,6 +24,18 @@ export default function EventScreen() {
              titleColor = 'text-slate-300';
           }
 
+          // A lightweight Markdown parser for bold text (**text**)
+          const renderDesc = (text) => {
+             if (!text) return null;
+             const parts = text.split(/(\*\*.*?\*\*)/g);
+             return parts.map((part, i) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                   return <strong key={i} className="text-white font-black">{part.slice(2, -2)}</strong>;
+                }
+                return part;
+             });
+          };
+
           return (
           <div className={`game-panel p-4 sm:p-10 mt-2 border-t-2 relative overflow-hidden ${panelStyles}`}>
             {isGenEvent && <div className="bluechip-foil-overlay opacity-60"></div>}
@@ -32,7 +46,9 @@ export default function EventScreen() {
               <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left ${titleColor}`}>
                 {isInjuryEvent ? '' : '🗣 '}{activeEvent.title}
               </h2>
-              <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-2xl font-sans text-left">{activeEvent.desc}</p>
+              <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-2xl font-sans text-left">
+                {renderDesc(activeEvent.desc)}
+              </p>
               <div className="flex flex-col gap-2 sm:gap-4 font-sans">
                 {(activeEvent.choices || []).map((c, i) => (
                   <button key={i} onClick={() => handleEventChoice(c)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-2 shadow-lg">

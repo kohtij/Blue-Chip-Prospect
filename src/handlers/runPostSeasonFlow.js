@@ -36,7 +36,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // STORYLINE 1: THE MEDIA NEMESIS
     // ==========================================
     const nemesisStage = player.storylines?.mediaNemesis || 0;
-    const mediaTrust = player.relationships?.media || 50;
+    
     
     // Organic Trigger: Bad media relations early in career
 
@@ -256,7 +256,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🚑 DEVASTATING INJURY',
             desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over, and doctors are questioning if you'll ever have the same speed again.`,
             choices: [
-                { label: 'Begin Recovery', isRisky: false, feedback: 'The surgery was successful, but the road back is going to be incredibly difficult. You lost a significant step (-3 OVR).', effect: { idol: 15, ovr: -3, money: 0 } }
+                { label: 'Begin Recovery', isRisky: false, feedback: 'The surgery was successful, but the road back is going to be incredibly difficult. You lost a significant step.', effect: { idol: 15, ovr: -3, money: 0 } }
             ],
             madePlayoffs: false // Forces you to miss the playoffs regardless of team standings!
         });
@@ -271,8 +271,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🏥 THE REHABILITATION',
             desc: `It's been a grueling offseason of rehab. Your physical therapists have presented you with two options: a standard team-covered recovery plan, or flying to Germany for cutting-edge, experimental treatments out of your own pocket.`,
             choices: [
-                { label: 'Experimental Rehab ($100k)', isRisky: true, successChance: 0.75, successFeedback: 'The treatment worked miracles! You actually feel faster and stronger than you did before the injury (+4 OVR).', successEffect: { idol: 20, ovr: 4, money: -100000 }, failFeedback: 'The experimental treatment was a bust. You lost the money and still feel a step slow.', failEffect: { idol: 0, ovr: 1, money: -100000 } },
-                { label: 'Standard Rehab (Free)', isRisky: false, feedback: 'You played it safe. You are medically cleared to play, but you definitely lost a step physically (+1 OVR recovery).', effect: { idol: 0, ovr: 1, money: 0 } }
+                { label: 'Experimental Rehab ($100k)', isRisky: true, successChance: 0.75, successFeedback: 'The treatment worked miracles! You actually feel faster and stronger than you did before the injury.', successEffect: { idol: 20, ovr: 4, money: -100000 }, failFeedback: 'The experimental treatment was a bust. You lost the money and still feel a step slow.', failEffect: { idol: 0, ovr: 1, money: -100000 } },
+                { label: 'Standard Rehab (Free)', isRisky: false, feedback: 'You played it safe. You are medically cleared to play, but you definitely lost a step physically.', effect: { idol: 0, ovr: 1, money: 0 } }
             ],
             madePlayoffs
         });
@@ -307,7 +307,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                 {
                     label: 'Accept the Move (Team Player)',
                     isRisky: false,
-                    feedback: 'You put the team first and shifted to the wing. The coach loved your unselfishness, but you had to learn a new system on the fly (-1 OVR).',
+                    feedback: 'You put the team first and shifted to the wing. The coach loved your unselfishness, but you had to learn a new system on the fly.',
                     effect: { idol: 10, ovr: -1, rel: { coach: 25 } },
                     action: 'CHANGE_POSITION',
                     actionData: Math.random() > 0.5 ? 'LW' : 'RW'

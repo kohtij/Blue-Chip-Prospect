@@ -1,25 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getTeamData, nhlTeams } from '../data/teams';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) => {
   const [imgError, setImgError] = useState(false);
+  const [prevTeamId, setPrevTeamId] = useState(teamId);
 
-  // RESET ERROR STATE WHEN CHANGING TEAMS
-  useEffect(() => {
+  // RESET ERROR STATE WHEN CHANGING TEAMS (React 18+ safe pattern)
+  if (teamId !== prevTeamId) {
+    setPrevTeamId(teamId);
     setImgError(false);
-  }, [teamId]);
+  }
 
   const isNHL = league === 'NHL' && !isAHL && (nhlTeams || []).some(t => t.id === teamId);  
   let team = getTeamData(teamId, league);
   const finalLogoUrl = team ? team.logo : null;
 
-  // Standardized container sizing across components
+  // Standardized container sizing across components (SCALED UP)
   const containerSize = size === "small" 
-    ? "w-8 h-8 sm:w-10 sm:h-10" 
+    ? "w-10 h-10 sm:w-12 sm:h-12" 
     : size === "large" 
-      ? "w-12 h-12 sm:w-16 sm:h-16" 
-      : "w-10 h-10 sm:w-14 sm:h-14";
+      ? "w-16 h-16 sm:w-24 sm:h-24" 
+      : "w-12 h-12 sm:w-16 sm:h-16";
 
   if (isNHL && !imgError) {
     return (

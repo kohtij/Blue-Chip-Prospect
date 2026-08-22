@@ -75,24 +75,18 @@ export const recomputeOvr = (p) => {
   const iq  = p.hockeyIQ || 50;
   const sta = p.stamina || 50;
 
-  // 1. GOALIES
   if (p.pos === 'G') {
     return Math.round((sht * 0.3) + (skt * 0.3) + (phy * 0.2) + (iq * 0.1) + (sta * 0.1));
   }
 
-  // 2. DEFENSEMEN (LD / RD)
   if (['LD', 'RD'].includes(p.pos)) {
     return Math.round((phy * 0.30) + (skt * 0.25) + (iq * 0.25) + (sta * 0.10) + (sht * 0.10));
   }
 
-  // 3. FORWARDS (C / LW / RW)
   return Math.round((sht * 0.30) + (skt * 0.25) + (iq * 0.25) + (phy * 0.10) + (sta * 0.10));
 };
 
 export const applyOvrDelta = (player, delta) => {
-  // SELF-HEAL: If the player's current OVR is out of sync with their raw stats,
-  // it means a previous event buffed their OVR directly without updating their underlying stats.
-  // We must sync their stats to match their current OVR before applying the new event delta!
   const rawOvr = recomputeOvr(player);
   const hiddenDelta = (player.ovr || rawOvr) - rawOvr;
   const totalDelta = (delta || 0) + hiddenDelta;
@@ -117,7 +111,6 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings }
   const svPct = saves / (shots || 1);
   const careerHighGoals = player.stats?.careerHighGoals || 0;
 
-  // 🏆 REGULAR SEASON CHAMPION TROPHIES
   if (standings === 1) {
     switch (player.league) {
       case 'NHL': awards.push("Presidents' Trophy"); break;
@@ -202,7 +195,6 @@ function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifie
     physicality: trainingEffect.physicality || 0
   };
 
-  // PLATEAU: Upgrades stop naturally around 28
   if (newAge <= 28) {
     const pointsToDistribute = rating >= 8.5 ? 2 : rating >= 7.0 ? 1 : 0;
     const statsToUpgrade = ['shooting', 'skating', 'stamina', 'hockeyIQ', 'physicality'];
@@ -212,15 +204,13 @@ function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifie
     }
   }
 
-  // FATHER TIME NERF: Gradual decline starting at 31, accelerating smoothly
   if (newAge >= 31) {
-    const agePenalty = (newAge - 30) * 0.25; // Scales up: 0.25 at 31, 1.25 at 35, 2.0 at 38
+    const agePenalty = (newAge - 30) * 0.25; 
     
     st.skating     -= Math.floor((4 * agePenalty) * coachModifier);
     st.stamina     -= Math.floor((5 * agePenalty) * coachModifier);
     st.physicality -= Math.floor((3 * agePenalty) * coachModifier);
     
-    // Hand-eye and hockey sense hold up longer, slipping later
     if (newAge >= 33) {
         st.shooting -= Math.floor((2 * agePenalty) * coachModifier);
         st.hockeyIQ -= Math.floor((1 * agePenalty) * coachModifier);
@@ -248,20 +238,16 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
       }
       currentLg = 'NHL';
     } else {
-      // DEVELOPMENT DEMOTION: Move prospect demotions into the pre-processor
       const isUnder20 = p.age < 20;
       const hasCHLHistory = (p.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
       const needsAHLDevelopment = currentLg === 'NHL' && p.ovr < 78 && p.age < 24 && Math.random() < 0.85;
 
       if (p.ovr < demoteThresh || needsAHLDevelopment) {
         if (currentLg === 'NHL') {
-          
-          // 9-Game CHL Rule
           if (isUnder20 && hasCHLHistory && Math.random() > 0.5) {
              // Prospect stays in the NHL past 9 games!
           } else if (isUnder20 && hasCHLHistory) {
              const lastCHL = (p.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
-             // Do NOT use p.draftTeam here (Chicago = CHI, Chicoutimi = CHI)
              currentTeam = lastCHL || p.chlRights || 'UNK';
              if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
              else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
@@ -269,13 +255,11 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
              isDemoted = true;
              waiverEvent = '9_GAME_RULE';
           } else {
-             // Send to AHL
              const parentNhlTeam = nhlTeams.find(t => t.id === currentTeam);
              if (parentNhlTeam && parentNhlTeam.ahlId) currentTeam = parentNhlTeam.ahlId;
              currentLg = 'AHL';
              isDemoted = true;
              
-             // Waiver logic
              const proSeasons = p.stats?.seasonsPlayed || 0;
              const isRFA = p.age < 27 && proSeasons < 7;
              const isELC = p.contract?.salary === 925000 || (isRFA && proSeasons < 3);
@@ -359,7 +343,6 @@ export function simulateSeason(player, trainingEffect = {}) {
   if (p.isGenerational) playerImpact += 0.20;
 
   const finalTeamFactor = Math.min(0.95, Math.max(0.05, randomTeamFactor + playerImpact));
-  // TEAM QUALITY NERF: Widened range (0.67 to 1.20) so bad teams brutally drag down your production
   const teamStrength = 0.65 + (finalTeamFactor * 0.55); 
 
   let standings = Math.max(1, Math.min(teamCount, Math.round(teamCount - (finalTeamFactor * teamCount) + 1)));
@@ -399,7 +382,6 @@ export function simulateSeason(player, trainingEffect = {}) {
           aRaw = games * apg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
           pm = Math.floor((teamStrength - 1) * 50 + ((simPhy + simIq) - 130) * 0.2 + (Math.random() * 10 - 5));
       } else {
-          // Wingers: Nerfed base multiplier slightly
           const gpg = Math.max(0, (simSht - 50) * 0.009 + (simSkt - 50) * 0.002); 
           const apg = Math.max(0, (simIq - 50) * 0.008 + (simSkt - 50) * 0.004);
           gRaw = games * gpg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
@@ -407,7 +389,6 @@ export function simulateSeason(player, trainingEffect = {}) {
           pm = Math.floor((teamStrength - 1) * 50 + ((simSkt + simSht) - 130) * 0.2 + (Math.random() * 10 - 5));
       }
 
-      // THE GRETZKY NERF: Logarithmic diminishing returns on extreme scoring
       if (currentLg === 'NHL') {
           g = Math.floor(gRaw > 55 ? 55 + (gRaw - 55) * 0.35 : gRaw);
           a = Math.floor(aRaw > 75 ? 75 + (aRaw - 75) * 0.40 : aRaw);
@@ -434,7 +415,7 @@ export function simulateSeason(player, trainingEffect = {}) {
     a = Math.floor(a * 0.7);
   }
 
-  const awards = _computeAwards({ player, rating, g, a, saves, shots, games });
+  const awards = _computeAwards({ player, rating, g, a, saves, shots, games, standings });
   const offPercent = p.pos === 'G' ? 0 : Math.min(100, Math.round(((g + a) / ((g * 2) + 40)) * 100));
   const newAge = p.age + 1;
   
@@ -457,13 +438,10 @@ export function simulateSeason(player, trainingEffect = {}) {
     : ((g * 110000) + (a * 45000) + (pm * 15000) + (games * 8000));
   
   const maxVal = currentLg === 'NHL' ? 20000000 : currentLg === 'AHL' ? 3000000 : 500000;
- const decayedValue = Math.floor((p.stats.value || 50000) * 0.65);
+  const decayedValue = Math.floor((p.stats.value || 50000) * 0.65);
   let newVal = Math.min(maxVal, Math.max(50000, decayedValue + valIncrease));
   
   if (coachModifier < 1) newVal = Math.max(50000, newVal - 500000);
-  // CRITICAL: pass `pos` — otherwise recomputeOvr's position check fails and
-  // it falls through to the forward-formula default, silently misvaluing
-  // defensemen and goalies every time simulateSeason runs (i.e. every training).
   const nextOvr = recomputeOvr({ pos: p.pos, shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
   const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 
@@ -471,6 +449,10 @@ export function simulateSeason(player, trainingEffect = {}) {
 
   const updatedPlayer = {
     ...p,
+    team: currentTeam,
+    league: currentLg,
+    teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), currentTeam])),
+    relationships: (currentTeam !== p.team) ? { coach: 50, teammates: 50, media: 50 } : p.relationships,
     age: p.age + 1,
     ovr: nextOvr,
     shooting: cap(newSht),
@@ -483,7 +465,7 @@ export function simulateSeason(player, trainingEffect = {}) {
     stats: {
       ...p.stats,
       value: newVal,
-      earnings: (p.stats.earnings || 0) + (p.contract?.salary || 0), // <-- FIXED!
+      earnings: (p.stats.earnings || 0) + (p.contract?.salary || 0), 
       peakOvr: newPeakOvr,
       careerHighGoals: Math.max(p.stats.careerHighGoals || 0, g),
       seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,

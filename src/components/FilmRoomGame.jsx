@@ -1,50 +1,41 @@
-import { useState } from 'react';
+import { useState, } from 'react';
+
+// Massive pool of questions pulled outside the component
+const MASTER_SCENARIOS = [
+  { video: "Opponent's powerplay setup: 1-3-1 Umbrella.", question: "Where is the most vulnerable passing lane you need to cut off?", options: [{ text: "Cross-ice through the royal road", isCorrect: true }, { text: "Drop pass to the point", isCorrect: false }, { text: "Dump into the corner", isCorrect: false }] },
+  { video: "2-on-1 rush against you.", question: "As the lone defender, what is your primary responsibility?", options: [{ text: "Attack the puck carrier immediately", isCorrect: false }, { text: "Take away the pass and let the goalie take the shooter", isCorrect: true }, { text: "Block the goalie's line of sight", isCorrect: false }] },
+  { video: "Faceoff in the defensive zone, down by 1, 10 seconds left.", question: "What's the play if we win the draw?", options: [{ text: "Freeze the puck against the boards", isCorrect: false }, { text: "Fast breakout up the middle", isCorrect: true }, { text: "Pull the goalie", isCorrect: false }] },
+  { video: "3-on-2 odd man rush entering the offensive zone.", question: "As the puck carrier, what is the highest percentage play?", options: [{ text: "Drive the net and shoot low for a rebound", isCorrect: true }, { text: "Stop up at the blue line and wait", isCorrect: false }, { text: "Force a saucer pass through the triangle", isCorrect: false }] },
+  { video: "Penalty Kill: 5-on-3 down low.", question: "What is your positional structure?", options: [{ text: "Aggressive box chasing the puck", isCorrect: false }, { text: "Tight collapsing triangle protecting the crease", isCorrect: true }, { text: "Man-to-man coverage everywhere", isCorrect: false }] },
+  { video: "Offensive Zone: Low-to-high cycle.", question: "Where should the weak-side forward position themselves?", options: [{ text: "In the high slot finding the soft spot", isCorrect: true }, { text: "Glued to the boards", isCorrect: false }, { text: "Behind the opponent's net", isCorrect: false }] },
+  { video: "Neutral Zone: Opponent is running a 1-3-1 trap.", question: "How do you break it?", options: [{ text: "Skate directly into the three-man wall", isCorrect: false }, { text: "Soft chip-and-chase to the corners", isCorrect: true }, { text: "Drop pass to the goalie", isCorrect: false }] },
+  { video: "Defensive Zone Breakout: Under heavy forecheck pressure.", question: "What is the safest exit strategy?", options: [{ text: "Reverse it off the glass and out", isCorrect: true }, { text: "Pass it blindly up the middle", isCorrect: false }, { text: "Try to deke the F1 forechecker", isCorrect: false }] },
+  { video: "6-on-5 (Goalie Pulled), defending a 1-goal lead.", question: "What is the number one priority?", options: [{ text: "Try to score on the empty net", isCorrect: false }, { text: "Block shooting lanes and protect the house", isCorrect: true }, { text: "Pinch at the blue line", isCorrect: false }] },
+  { video: "Forechecking: You are F1 entering the zone.", question: "What is your objective?", options: [{ text: "Take the body and separate man from puck", isCorrect: true }, { text: "Wave your stick and peel off", isCorrect: false }, { text: "Skate to the bench for a change", isCorrect: false }] }
+];
 
 export default function FilmRoomGame({ onComplete }) {
   const [step, setStep] = useState(0);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-
-  const scenarios = [
-    {
-      video: "Opponent's powerplay setup: 1-3-1 Umbrella.",
-      question: "Where is the most vulnerable passing lane you need to cut off?",
-      options: [
-        { text: "Cross-ice through the royal road", isCorrect: true },
-        { text: "Drop pass to the point", isCorrect: false },
-        { text: "Dump into the corner", isCorrect: false }
-      ]
-    },
-    {
-      video: "2-on-1 rush against you.",
-      question: "As the lone defender, what is your primary responsibility?",
-      options: [
-        { text: "Attack the puck carrier immediately", isCorrect: false },
-        { text: "Take away the pass and let the goalie take the shooter", isCorrect: true },
-        { text: "Block the goalie's line of sight", isCorrect: false }
-      ]
-    },
-    {
-      video: "Faceoff in the defensive zone, down by 1, 10 seconds left.",
-      question: "What's the play if we win the draw?",
-      options: [
-        { text: "Freeze the puck against the boards", isCorrect: false },
-        { text: "Fast breakout up the middle", isCorrect: true },
-        { text: "Pull the goalie", isCorrect: false }
-      ]
-    }
-  ];
+  // Lazy initialize: shuffles and picks 3 questions exactly ONCE on mount
+  const [scenarios] = useState(() => {
+    const shuffled = [...MASTER_SCENARIOS].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3);
+  });
 
   const handleAnswer = (isCorrect) => {
     const newScore = score + (isCorrect ? 1 : 0);
     if (step + 1 >= scenarios.length) {
       setScore(newScore);
-      setIsFinished(true); // Enter the results phase instead of instantly closing!
+      setIsFinished(true);
     } else {
       setScore(newScore);
       setStep(step + 1);
     }
   };
+
+  if (scenarios.length === 0) return null; // Wait for shuffle
 
   // ==========================================
   // RESULTS PHASE

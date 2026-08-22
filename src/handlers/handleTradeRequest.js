@@ -1,9 +1,5 @@
-// Extracted from screens/TradeDeadlineScreen.jsx.
-// The deadline trade-request flow: player asks out, team accepts or rejects
-// based on OVR-scaled success chance. On accept: 3 randomized destination
-// choices are offered via an ACCEPT_TRADE_DEADLINE event. On reject: single
-// "eat it" event with a stat penalty.
-import { getOpponentPool } from '../data/teams';
+import { getOpponentPool, nhlTeams } from '../data/teams';
+import { getFullTeamName } from '../utils/appHelpers';
 
 export function handleTradeRequest(ctx, { res, playoffSpots }) {
   const {
@@ -15,12 +11,20 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
   setHasDemandedTrade(true);
   unlockAchievement('trade_demanded');
 
-  // OVR-scaled odds: floor 35% for mid-tier, cap 85% for stars.
   const successChance = Math.min(0.85, Math.max(0.35, 0.35 + ((player.ovr - 60) / 40)));
   const isSuccess = Math.random() < successChance;
 
   if (isSuccess) {
-    let pool = getOpponentPool(res.currentLg)?.filter(t => t.id !== res.currentTeam) || [];
+    const isAHL = res.currentLg === 'AHL';
+    const tradeLg = isAHL ? 'NHL' : res.currentLg;
+    
+    let parentTeam = res.currentTeam;
+    if (isAHL) {
+        const pTeam = (nhlTeams||[]).find(t => t.ahlId === res.currentTeam);
+        if (pTeam) parentTeam = pTeam.id;
+    }
+
+    let pool = getOpponentPool(tradeLg)?.filter(t => t.id !== parentTeam) || [];
     pool = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
     if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
 
@@ -31,14 +35,27 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
         : Math.floor(Math.random() * 8) + playoffSpots + 1;
       const teamInPlayoffs = teamStandings <= playoffSpots;
 
+      let displayLabel = `Accept Trade to ${teamObj.name}`;
+      let feedback = `The trade went through! You were dealt to ${teamObj.name}.`;
+      let targetTeamObj = teamObj;
+      let targetLg = tradeLg;
+      
+      if (isAHL && teamObj.ahlId) {
+          const ahlName = getFullTeamName(teamObj.ahlId, 'AHL');
+          displayLabel = `Accept Trade to ${teamObj.name} (Assigned to ${ahlName})`;
+          feedback = `Traded to the ${teamObj.name} and assigned to their AHL affiliate, the ${ahlName}.`;
+          targetTeamObj = { id: teamObj.ahlId, name: ahlName };
+          targetLg = 'AHL';
+      }
+
       return {
-        label: `Accept Trade to ${teamObj.name}`,
+        label: displayLabel,
         subLabel: `📈 Rank #${teamStandings} (${teamInPlayoffs ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS'})`,
         isRisky: false,
-        feedback: `The trade went through! You were dealt to ${teamObj.name}.`,
+        feedback,
         effect: { idol: -20, ovr: 0, money: 0 },
         action: 'ACCEPT_TRADE_DEADLINE',
-        actionData: { teamObj, teamStandings, madePlayoffs: teamInPlayoffs }
+        actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings, madePlayoffs: teamInPlayoffs }
       };
     });
 

@@ -1,4 +1,4 @@
-import { ahlTeams, liigaTeams, nhlTeams, shlTeams } from '../data/teams';
+import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { getTransferImpact } from '../utils/gameHelpers';
 import { getRole } from '../utils/appHelpers';
@@ -70,7 +70,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
     baseSalary = Math.max(leagueMinimum, Math.round(baseSalary / 25000) * 25000);
     let offers = [];
     
-    const isRFA = actingLeague === 'NHL' && player.age < 27 && (player.stats?.seasonsPlayed || 0) < 7;
+    const isRFA = actingLeague === 'NHL' && player.age < 27;
     const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(actingLeague);
     
     let teamDidNotExtend = false;
@@ -115,13 +115,57 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
         let pool = nhlTeams || [];
         let targetLg = 'NHL';
         
+        const isUnder18 = player.age < 18;
+
         if (player.ovr < 65) {
+            if (player.ovr < 55) {
+               pool = isUnder18 ? (shlTeams || []) : (sphlTeams || []);
+               targetLg = isUnder18 ? 'SHL' : 'SPHL';
+            } else if (player.ovr < 60) {
+               pool = isUnder18 ? (liigaTeams || []) : (echlTeams || []);
+               targetLg = isUnder18 ? 'LIIGA' : 'ECHL';
+            } else {
+               const roll = Math.random();
+               if (isUnder18) {
+                   pool = roll > 0.50 ? (shlTeams || []) : 
+                          roll > 0.25 ? (liigaTeams || []) : 
+                          roll > 0.10 ? (czechTeams || []) : (slovakTeams || []);
+                   targetLg = pool === shlTeams ? 'SHL' : 
+                              pool === liigaTeams ? 'LIIGA' : 
+                              pool === czechTeams ? 'CZECH' : 'SLOVAK';
+               } else {
+                   pool = roll > 0.75 ? (ahlTeams || []) : 
+                          roll > 0.60 ? (shlTeams || []) : 
+                          roll > 0.45 ? (liigaTeams || []) : 
+                          roll > 0.25 ? (czechTeams || []) : (slovakTeams || []);
+                   targetLg = pool === ahlTeams ? 'AHL' : 
+                              pool === shlTeams ? 'SHL' : 
+                              pool === liigaTeams ? 'LIIGA' : 
+                              pool === czechTeams ? 'CZECH' : 'SLOVAK';
+               }
+            }
+        } else if (player.ovr < 75 && i === offerCount - 1) {
             const roll = Math.random();
-            pool = roll > 0.5 ? (ahlTeams || []) : (roll > 0.25 ? (shlTeams || []) : (liigaTeams || []));
-            targetLg = roll > 0.5 ? 'AHL' : (roll > 0.25 ? 'SHL' : 'LIIGA');
-        } else if (player.ovr < 70 && i === offerCount - 1) {
-            pool = Math.random() > 0.5 ? (ahlTeams || []) : (shlTeams || []);
-            targetLg = pool === ahlTeams ? 'AHL' : 'SHL';
+            if (roll > 0.6) {
+                pool = khlTeams || [];
+                targetLg = 'KHL';
+            } else if (roll > 0.3) {
+                pool = swissTeams || [];
+                targetLg = 'SWISS';
+            } else {
+                pool = isUnder18 ? (shlTeams || []) : (ahlTeams || []);
+                targetLg = isUnder18 ? 'SHL' : 'AHL';
+            }
+        }
+
+        if (targetLg === 'NHL' && player.rights) {
+            const playedProNA = (player.teamsPlayedFor || []).some(tId => 
+                (nhlTeams || []).some(nhl => nhl.id === tId) || 
+                (ahlTeams || []).some(ahl => ahl.id === tId)
+            );
+            if (!playedProNA) {
+                pool = pool.filter(t => t.id === player.rights);
+            }
         }
 
         if (pool.length > 0) {
@@ -176,10 +220,30 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
       }
     }
     
+    // RUSSIAN FACTOR KHL MEGADEAL INJECTION
+    if (player.storylines?.russianFactorChoice === 'KHL' && !offers.some(o => o.league === 'KHL')) {
+      const khlPool = khlTeams || [];
+      const randomKhlTeam = khlPool[Math.floor(Math.random() * khlPool.length)]?.id || 'CSKA';
+      
+      offers.push({
+        team: randomKhlTeam,
+        league: 'KHL',
+        type: 'FREE AGENCY',
+        salary: 2200000,
+        years: 2,
+        role: '1st Line Core',
+        idolHit: 30,
+        state: 'KHL Megadeal'
+      });
+    }
+
     if (offers.length === 0) {
+      const isUnder18 = player.age < 18;
+      const fallbackPool = isUnder18 ? (shlTeams || []) : (ahlTeams || []);
+      const fallbackLg = isUnder18 ? 'SHL' : 'AHL';
       offers = [{
-        team: (ahlTeams && ahlTeams.length > 0) ? ahlTeams[0].id : 'UNK',
-        league: 'AHL',
+        team: (fallbackPool && fallbackPool.length > 0) ? fallbackPool[0].id : 'UNK',
+        league: fallbackLg,
         type: 'FREE AGENCY',
         salary: 85000,
         years: 1,

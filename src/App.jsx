@@ -1,7 +1,7 @@
 import  { useState, useEffect, useCallback, useRef } from 'react';
 
 import {
-  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, ncaaTeams,
+  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, ncaaTeams, echlTeams,
   nationalities, juniorLeagues, euroLeagues, getPrimaryRival
 } from './data/teams';
 import { shopItems, skaterTrainingPool, goalieTrainingPool } from './data/economy';
@@ -22,7 +22,6 @@ import DraftScreen from './screens/DraftScreen';
 import PreseasonScreen from './screens/PreseasonScreen';
 import EventScreen from './screens/EventScreen';
 import MinigameScreen from './screens/MinigameScreen';
-import EventResultScreen from './screens/EventResultScreen';
 import MemorialCupScreen from './screens/MemorialCupScreen';
 import NegotiationScreen from './screens/NegotiationScreen';
 import AllStarScreen from './screens/AllStarScreen';
@@ -114,7 +113,6 @@ function App() {
   const [minigameContext, setMinigameContext] = useState('season');
   // Silent per-season log. Every event/minigame/press outcome pushes its
   // feedback + effect here; the Season Recap reads it under "Notable Moments".
-  // This replaces the old per-interaction Verdict screen for flavor events.
   const [seasonEvents, setSeasonEvents] = useState([]);
   // Holds the International Duty outcome so it renders inline on that same
   // screen (cause + effect together) instead of routing to the Verdict screen.
@@ -325,6 +323,12 @@ const generateTraining = useCallback((pos) => {
     let lg = player.startLeague;
     let currentNat = player.nat;
 
+    // 🎲 NEW: Intercept 'RANDOM' and explicitly assign a starting league
+    if (!lg || lg === 'RANDOM' || lg === 'ANY') {
+       const possibleLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'];
+       lg = possibleLeagues[Math.floor(Math.random() * possibleLeagues.length)];
+    }
+
     let pool = ohlTeams || [];
     if (lg === 'WHL') pool = whlTeams || [];
     if (lg === 'QMJHL') pool = qmjhlTeams || [];
@@ -417,11 +421,11 @@ const generateTraining = useCallback((pos) => {
 
     const effectiveOvr = player.ovr + combineBoost;
 
-    // 1. DRAFT TIERS WITH POSITIONAL BIAS
-    // Goalies require a generational 72+ OVR to go 1st overall. Skaters need 66+.
-    const isFirstOverall = (player.pos !== 'G' && effectiveOvr >= 66) || (player.pos === 'G' && effectiveOvr >= 72) || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 180);
-    const isElite = effectiveOvr >= 64 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 140);
-    const isGreat = effectiveOvr >= 61 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 100);
+    // 1. DRAFT TIERS WITH POSITIONAL BIAS (Significantly Harder!)
+    // Goalies require a generational 74+ OVR to go 1st overall. Skaters need 70+.
+    const isFirstOverall = (player.pos !== 'G' && effectiveOvr >= 70) || (player.pos === 'G' && effectiveOvr >= 74) || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 200);
+    const isElite = effectiveOvr >= 67 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 160);
+    const isGreat = effectiveOvr >= 64 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 120);
     // 2. ASSIGN PICKS
     if (isFirstOverall) {
       overallPick = 1; 
@@ -585,14 +589,16 @@ const generateTraining = useCallback((pos) => {
   };
 
 const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
+    // eslint-disable-next-line react-hooks/purity
     const isWin = Math.random() < successChance;
     const msg = isWin ? successMsg : failMsg;
 
     if (minigameContext === 'memcup') {
       if (isWin) {
-        if (memCup.round === 0) setMemCup({ round: 1, status: 'playing', lastFeedback: `${msg} You won the Semi-Final!` });
-        else {
-          setMemCup({ round: 1, status: 'won', lastFeedback: `${msg} You won the Memorial Cup!` });
+        // FIXED: Properly progress to the "semi_won" screen instead of skipping straight to the final
+        setMemCup(prev => ({ ...prev, status: prev.round === 0 ? 'semi_won' : 'won', lastFeedback: msg }));
+        
+        if (memCup.round === 1) {
           setPlayer(p => {
               const nextP = { ...p, stats: { ...p.stats, memCupBoost: 50, titles: (p.stats.titles || 0) + 1 } };
               if (nextP.seasonHistory && nextP.seasonHistory.length > 0) {
@@ -607,10 +613,12 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
           });
           unlockAchievement('mem_cup');
         }
-      } else setMemCup({ ...memCup, status: 'lost', lastFeedback: msg });
-      setEventFeedback(msg);
-      setScreen('event-result');
-      return;
+      } else {
+        setMemCup(prev => ({ ...prev, status: 'lost', lastFeedback: msg }));
+      }
+      
+      proceedToNextScreen(activeEvent, minigameContext, player);
+      return; // FIXED: Early return prevents the Verdict Toast from overlapping the tournament screen!
     }
 
     if (minigameContext === 'wjc' || minigameContext === 'olympics') {
@@ -632,9 +640,8 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
-      // Stay on the International Duty screen and show the outcome inline.
       setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
-      return;
+      return; // FIXED: Early return prevents the Verdict Toast from overlapping!
     }
 
     const payout = reward || { win: { idol: 5 }, loss: { idol: -2 } };
@@ -655,8 +662,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
     setPlayer(updatedPlayer);
     setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: outcome.idol || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 } }]);
-    setEventFeedback(msg);
-    setScreen('event-result');
+    proceedToNextScreen(activeEvent, minigameContext, player);
   };
 
   const handleInteractiveResult = (isWin, reward, successMsg, failMsg) => {
@@ -691,12 +697,37 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
             unlockAchievement('mem_cup');
         }
         setMemCup(prev => ({ ...prev, status: isWin ? (prev.round === 0 ? 'semi_won' : 'won') : 'lost', lastFeedback: msg }));
+        
+        setPlayer(updatedPlayer);
+        setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
+        proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
+        return; // FIXED: Early return to suppress toast!
+    }
+
+    if (minigameContext === 'wjc' || minigameContext === 'olympics') {
+      const nat = safeNationalities.find(n => n.id === player.nat);
+      const countryName = nat?.sentenceName || nat?.name || 'your country';
+      let resultMsg, resultEffect;
+
+      if (isWin) {
+        unlockAchievement('gold_medal');
+        updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
+        resultMsg = `${msg} You secured Gold for ${countryName}!`;
+        resultEffect = { idol: 50, ovr: payout.ovr || 0 };
+      } else {
+        updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
+        resultMsg = `${msg} A devastating loss for ${countryName}.`;
+        resultEffect = { idol: -5 };
+      }
+      setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
+      setPlayer(updatedPlayer);
+      setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
+      return; // FIXED: Early return to suppress toast!
     }
 
     setPlayer(updatedPlayer);
     setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
-    setEventFeedback(msg);
-    setScreen('event-result');
+    proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
 
   const advancePlayoffRound = () => {
@@ -716,7 +747,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
   const ctx = {
     // App state
     player, playoffs, seasonRecap, isAmateur, currentYear,
-    safeEuroLeagues, safeJuniorLeagues,
+    safeEuroLeagues, safeJuniorLeagues, activeEvent, minigameContext,
     // Setters
     setActiveEvent, setActivePress, setEventFeedback, setFreeAgencyOffers,
     setHasDemandedTrade, setIntlResult, setMinigameContext, setPendingPlayoffs,
@@ -728,16 +759,34 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
   const advanceToOffseason = () => _advanceToOffseason(ctx);
   const handleTrain        = (t) => _handleTrain(ctx, t);
-  // NEW: Check for demotion before preseason starts!
   const checkEarlyDemotion = () => {
     const isUnder20 = player.age < 20;
+    const isTop10Pick = seasonRecap?.draftPick <= 10;
     const hasCHLHistory = (player.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
     const demoteThresh = player.pos === 'G' ? 71 : 64;
-    const needsAHLDevelopment = player.league === 'NHL' && player.ovr < 78 && player.age < 24 && Math.random() < 0.85;
+    
+    const lastSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
+    const wonRecentTitle = lastSeason?.titleWon === true || (lastSeason?.awards || []).some(a => a.includes('Cup') || a.includes('Championship'));
+    if (wonRecentTitle) return null;
 
+    const proSeasons = player.stats?.seasonsPlayed || 0;
+    const needsAHLDevelopment = player.league === 'NHL' && player.ovr < 78 && player.age < 24 && proSeasons < 3 && Math.random() < (isTop10Pick ? 0.25 : 0.85);
+    
+    const echlDemoteThresh = player.pos === 'G' ? 65 : 59;
+    if (player.league === 'AHL' && player.ovr < echlDemoteThresh && Math.random() < 0.70) {
+        const pool = echlTeams || [];
+        const echlTeamId = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)].id : 'UNK';
+        return { team: echlTeamId, lg: 'ECHL', reason: 'ECHL_REASSIGNMENT' };
+    }
+
+    // NHL ➔ AHL / JUNIOR DEMOTION
     if (player.league === 'NHL' && (player.ovr < demoteThresh || needsAHLDevelopment)) {
+      // Top 10 picks under 20 are almost always kept in the NHL to sell tickets and develop
+      if (isTop10Pick && isUnder20) {
+          return null; 
+      }
+
       if (isUnder20 && hasCHLHistory && Math.random() > 0.5) {
-        // Prospect stays in the NHL past 9 games
         return null;
       } else if (isUnder20 && hasCHLHistory) {
          const lastCHL = (player.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
@@ -751,7 +800,6 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
          const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
          const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
          
-         // Add waiver logic check
          const proSeasons = player.stats?.seasonsPlayed || 0;
          const isRFA = player.age < 27 && proSeasons < 7;
          const isELC = player.contract?.salary === 925000 || (isRFA && proSeasons < 3);
@@ -765,6 +813,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     }
     return null;
   };
+
   const runPostSeasonFlow  = (pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) =>
                              _runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings);
   const handleGridClick    = (rIndex, mIndex, cIndex) => _handleGridClick(ctx, rIndex, mIndex, cIndex);
@@ -1008,6 +1057,11 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
        else { generateTraining(currentPlayer.pos); setScreen('preseason'); }
        return;
     }
+    
+    if (currentEvent?.isSeasonEvent) {
+       setScreen('preseason');
+       return;
+    }
 
     if (currentMgContext === 'memcup') {
       setScreen('memorial-cup');
@@ -1025,6 +1079,13 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         setScreen('recap');
       }
       return;
+    }
+    
+    // FIXED: The ultimate fallback for unflagged mid-season flavor events (like Sponsorships).
+    // If we haven't generated a recap yet, we are still mid-season and should return to the dashboard!
+    if (!seasonRecap && !pendingPlayoffs) {
+       setScreen('preseason');
+       return;
     }
 
     let madePlayoffsFlag = seasonRecap?.madePlayoffs;
@@ -1045,6 +1106,11 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     }
   };
 
+  // ctx was built before proceedToNextScreen existed (function-scope TDZ),
+  // so it can't be in the object literal above. Attach it now that it's
+  // declared. See earlier commit for full explanation.
+  ctx.proceedToNextScreen = proceedToNextScreen;
+
   const tier = getIdolTier(player.idolatry);
 
 
@@ -1058,7 +1124,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame,
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
-    checkEarlyDemotion, // Add this inside the contextValue object!
+    checkEarlyDemotion,
     combineColor, combinePhase, combineScore, currentYear,
     eventFeedback, finishNegotiation, freeAgencyOffers, handleArbitration,
     handleCombineReflex, handleDraftChoice, handleDraftDay, handleEndMemCup,
@@ -1223,9 +1289,6 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
         {screen === 'minigame' && (
           <MinigameScreen />
-        )}
-        {screen === 'event-result' && (
-          <EventResultScreen />
         )}
         {screen === 'playoffs' && (
           <PlayoffsScreen />

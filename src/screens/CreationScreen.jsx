@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useAppContext } from '../AppContext';
+import { useState, useEffect } from 'react';import { useAppContext } from '../AppContext';
 import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
@@ -9,6 +8,7 @@ export default function CreationScreen() {
   
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
+  const [isStarting, setIsStarting] = useState(false); // <-- NEW STATE FLAG
   
   const [savedCareers] = useState(() => {
     try {
@@ -18,6 +18,14 @@ export default function CreationScreen() {
     }
   });
 
+  // NEW: React will only fire this AFTER the state has fully updated!
+  useEffect(() => {
+    if (isStarting) {
+      handleStart(true);
+      setIsStarting(false);
+    }
+  }, [isStarting, handleStart]);
+
   const handleQuickStart = () => {
     // Randomize League
     const leagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'];
@@ -25,17 +33,9 @@ export default function CreationScreen() {
     // Randomize Nationality
     const randomNat = safeNationalities[Math.floor(Math.random() * safeNationalities.length)].id;
     
-    // Temporarily update player state, then start
-    setPlayer(p => {
-       const updated = { ...p, startLeague: randomLg, nat: randomNat, team: null };
-       // We can't guarantee state resolves before handleStart fires, 
-       // so handleStart needs to read the latest state if possible, 
-       // but typically handleStart(true) already generates stats!
-       return updated;
-    });
-
-    // Use a tiny timeout to ensure React batches the state update before starting
-    setTimeout(() => handleStart(true), 50);
+    // Update player state, then flip the flag to trigger the useEffect
+    setPlayer(p => ({ ...p, startLeague: randomLg, nat: randomNat, team: null }));
+    setIsStarting(true);
   };
 
   return (
@@ -77,26 +77,31 @@ export default function CreationScreen() {
                    <button 
                      onClick={() => setShowManualSetup(true)} 
                      disabled={!player.name} 
-                     className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all ${
+                     className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all flex flex-col items-center justify-center gap-1.5 ${
                        !player.name 
                          ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
                          : 'bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02]'
                      }`}
                    >
-                     CUSTOMIZE PATH
+                     <span className="leading-none">CUSTOMIZE PATH</span>
+                     <span className="text-[9px] font-sans font-bold uppercase tracking-widest leading-none opacity-80">
+                       Manual Setup
+                     </span>
                    </button>
    
                    <button 
                      onClick={handleQuickStart} 
                      disabled={!player.name} 
-                     className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all flex flex-col items-center justify-center gap-1 ${
+                     className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all flex flex-col items-center justify-center gap-1.5 ${
                        !player.name 
                          ? 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed shadow-none' 
                          : 'bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 border border-[#F59E0B]/40 text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.25)] cursor-pointer hover:scale-[1.02]'
                      }`}
                    >
                      <span className="leading-none">🎲 QUICK START</span>
-                     {!player.name ? null : <span className="text-[9px] font-sans font-bold text-[#F59E0B] tracking-widest uppercase opacity-80 leading-none">Random League & Nation</span>}
+                     <span className="text-[9px] font-sans font-bold uppercase tracking-widest leading-none opacity-80">
+                       Random League & Nation
+                     </span>
                    </button>
                  </div>
               ) : (

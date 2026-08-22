@@ -146,6 +146,16 @@ export default function ArbitrationScreen() {
                   </div>
                   <div className="text-xs text-slate-400 font-sans">Aggressively compare yourself to the highest-paid players in the league. <span className="text-red-400 font-bold">High risk of backfiring.</span></div>
                 </button>
+
+                {/* NEW: Early Settle Button (Only shows after 1st argument) */}
+                {arbState.rounds < 3 && (
+                  <button
+                    onClick={() => setArbState(prev => ({ ...prev, rounds: 0 }))}
+                    className="w-full mt-4 bg-transparent border-2 border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-white py-3 rounded-xl sports-font tracking-widest uppercase transition-all"
+                  >
+                    REST YOUR CASE (SETTLE NOW)
+                  </button>
+                )}
               </div>
             </div>
           ) : (

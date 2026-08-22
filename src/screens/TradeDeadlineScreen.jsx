@@ -1,10 +1,9 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { LEAGUE_CONFIG, getOpponentPool } from '../data/teams';
+import { LEAGUE_CONFIG, getOpponentPool, nhlTeams } from '../data/teams';
 import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTradeRequest';
 
-// Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
 export default function TradeDeadlineScreen() {
   const { advanceToOffseason, hasDemandedTrade, pendingSeasonResult, player, runPostSeasonFlow, setActiveEvent, setHasDemandedTrade, setScreen, setSeasonRecap, unlockAchievement } = useAppContext();
   return (() => {
@@ -35,22 +34,42 @@ export default function TradeDeadlineScreen() {
              if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
              const isElite = player.ovr >= eliteThreshold;
 
-             // 40% chance if elite/expiring on a bad team. 5% random hockey trade otherwise. NTDP players cannot be traded.
              const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
 
              if (['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < tradeChance) {
-                  let pool = (getOpponentPool(currentLg) || []).filter(t => t.id !== res.currentTeam && t.id !== 'NTDP');
+                  const isAHL = currentLg === 'AHL';
+                  let tradeLg = isAHL ? 'NHL' : currentLg;
+                  
+                  let pool = (getOpponentPool(tradeLg) || []).filter(t => t.id !== res.currentTeam && t.id !== 'NTDP');
+                  if (isAHL) {
+                     const pTeam = (nhlTeams||[]).find(t => t.ahlId === res.currentTeam);
+                     if (pTeam) pool = pool.filter(t => t.id !== pTeam.id);
+                  }
+
                   if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
                   
                   const destTeam = pool[Math.floor(Math.random() * pool.length)];
                   const destStandings = Math.floor(Math.random() * (playoffSpots - 2)) + 1; 
+
+                  let targetTeamObj = destTeam;
+                  let targetLg = tradeLg;
+                  let eventDesc = `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the **${getFullTeamName(destTeam.id, tradeLg)}**.`;
+                  let feedback = `You packed your bags and joined your new squad.`;
+                  
+                  if (isAHL && destTeam.ahlId) {
+                      const ahlName = getFullTeamName(destTeam.ahlId, 'AHL');
+                      targetTeamObj = { id: destTeam.ahlId, name: ahlName };
+                      targetLg = 'AHL';
+                      eventDesc = `Your NHL parent club decided to cash in on your value and shipped your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have immediately been assigned to their AHL affiliate, the **${ahlName}**.`;
+                      feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
+                  }
                   
                   if (player.contract?.nmc) {
                       setActiveEvent({
                          title: 'WAIVE YOUR NMC?',
-                         desc: `Your GM called you in. The team is struggling, and they have a massive trade package lined up from the ${getFullTeamName(destTeam.id, currentLg)}. You hold a No-Movement Clause. Will you waive it?`,
+                         desc: `Your GM called you in. The team is struggling, and they have a massive trade package lined up from the **${getFullTeamName(destTeam.id, tradeLg)}**. You hold a No-Movement Clause. Will you waive it?`,
                          choices: [
-                            { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { idol: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                            { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { idol: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
                             { label: 'Enforce NMC (Veto Trade)', isRisky: false, feedback: 'You invoked your NMC. The GM was frustrated, but you are staying put.', effect: { idol: 20, ovr: 0, rel: { coach: -15 } } }
                          ],
                          isTradeDeadlineEvent: true
@@ -58,10 +77,10 @@ export default function TradeDeadlineScreen() {
                   } else {
                       setActiveEvent({
                          title: '11TH HOUR BLOCKBUSTER!',
-                         desc: `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the ${getFullTeamName(destTeam.id, currentLg)}.`,
+                         desc: eventDesc,
                          choices: [
-                            { label: 'Embrace the fresh start', isRisky: false, feedback: 'You packed your bags and joined your new squad.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                            { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                            { label: 'Embrace the fresh start', isRisky: false, feedback: feedback, effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                            { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
                          ],
                          isTradeDeadlineEvent: true
                       });
@@ -82,8 +101,6 @@ export default function TradeDeadlineScreen() {
 
           return (
   <div className="w-full max-w-[420px] md:max-w-4xl lg:max-w-5xl mx-auto game-panel p-5 sm:p-8 mt-2 text-center">
-    
-    {/* TITLE & HEADER */}
     <h2 className="text-3xl sm:text-4xl font-black tracking-wide mb-1 text-white sports-font uppercase">
       TRADE DEADLINE
     </h2>
@@ -91,7 +108,6 @@ export default function TradeDeadlineScreen() {
       The trade deadline is 24 hours away. The media is swarming.
     </p>
 
-    {/* TEAM OUTLOOK PANEL */}
     <div className="bg-[#101410] border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 rounded-xl mb-6 max-w-lg mx-auto text-left flex items-center justify-between shadow-lg">
       <div>
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
@@ -112,7 +128,6 @@ export default function TradeDeadlineScreen() {
       </div>
     </div>
 
-    {/* ACTION BUTTONS */}
     <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md sm:max-w-lg mx-auto">
       <button 
         onClick={handleSkip} 
