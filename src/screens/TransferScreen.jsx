@@ -4,11 +4,62 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { getPrimaryRival, nhlTeams } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 
-// Extracted from App.jsx. Auto-generated with JSX-aware external analysis.
-export default function TransferScreen() {
-  const { freeAgencyOffers, handleArbitration, player, signContract, startNegotiation } = useAppContext();
+// 4. OFFER SHEET COMPENSATION MATH
+const getCompensation = (salary) => {
+    if (salary < 1500000) return 'None';
+    if (salary < 2300000) return '3rd Round Pick';
+    if (salary < 4600000) return '2nd Round Pick';
+    if (salary < 6900000) return '1st & 3rd Round Picks';
+    if (salary < 9200000) return '1st, 2nd & 3rd Round Picks';
+    if (salary < 11500000) return 'Two 1sts, 2nd & 3rd';
+    return 'Four 1st Round Picks';
+};
 
-  // Determine the actual team that owns the contract (NHL parent if on a pro deal in the AHL)
+export default function TransferScreen() {
+  const { freeAgencyOffers, player, signContract, startNegotiation, setActiveEvent, setScreen } = useAppContext();
+
+  // 3. STAT-BASED SALARY ARBITRATION
+  const triggerArbitration = (offer) => {
+      const lastSeason = player.seasonHistory?.[player.seasonHistory.length - 1] || {};
+      const isGoalie = player.pos === 'G';
+      
+      let statValue;
+      if (isGoalie) {
+          const sv = lastSeason.shots > 0 ? lastSeason.saves / lastSeason.shots : 0;
+          if (sv >= 0.920) statValue = 7000000;
+          else if (sv >= 0.910) statValue = 5000000;
+          else if (sv >= 0.900) statValue = 3500000;
+          else statValue = offer.salary; 
+      } else {
+          const pts = (lastSeason.goals || 0) + (lastSeason.assists || 0);
+          if (pts >= 90) statValue = 9500000;
+          else if (pts >= 70) statValue = 7500000;
+          else if (pts >= 50) statValue = 5500000;
+          else if (pts >= 30) statValue = 3000000;
+          else statValue = offer.salary; 
+      }
+
+      const awardedSalary = Math.max(offer.salary, statValue);
+      const awardedYears = Math.random() > 0.5 ? 1 : 2; // Arbitration deals are strictly 1 or 2 years
+
+      setActiveEvent({
+          title: '⚖️ SALARY ARBITRATION',
+          desc: `The independent arbitrator reviewed your recent on-ice performance and ruled on the team's qualifying offer. You have been awarded a ${awardedYears}-year contract worth $${(awardedSalary / 1000000).toFixed(2)}M per year. This ruling is binding.`,
+          choices: [
+              {
+                  label: 'Accept Ruling',
+                  isRisky: false,
+                  feedback: 'You signed the arbitrated contract.',
+                  effect: { idol: 10, ovr: 0, money: 0 },
+                  action: 'ACCEPT_ARBITRATION',
+                  actionData: { team: offer.team, salary: awardedSalary, years: awardedYears, role: 'Pro Roster' }
+              }
+          ],
+          isOffseasonEvent: true
+      });
+      setScreen('event');
+  };
+
   let owningTeam = player.team;
   let owningLeague = player.league;
   
@@ -50,7 +101,7 @@ export default function TransferScreen() {
                 const hasPlayedFor = (player.teamsPlayedFor || []).includes(o.team);
                 const isLovedStatus = player.idolatry >= 400;
                 const isReturnHome = isDraftTeam && player.team !== o.team && hasPlayedFor && isLovedStatus;
-                const isExtension = o.state === 'Current Club';
+                const isExtension = o.state === 'Current Club' || o.state === 'Two-Way Contract';
 
                 let topBorder = 'border-[rgba(255,255,255,0.065)]';
                 if (isExtension) { topBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]'; }
@@ -61,20 +112,16 @@ export default function TransferScreen() {
                 return (
                   <div key={i} className={`bg-[#0a0d0a] border ${topBorder} rounded-xl relative overflow-hidden flex flex-col transition-all hover:scale-[1.02] shadow-lg group`}>
                     
-                    {/* TOP BANNERS */}
-                    {isExtension && <div className="bg-[#22E748] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">✅ EXTENSION OFFER</div>}
-                    {isRival && <div className="bg-[#ef4444] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">🔥 ARCH-RIVAL OFFER</div>}
+                    {isExtension && <div className="bg-[#22E748] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">✅ {o.type === 'QUALIFYING OFFER' ? 'QUALIFYING OFFER' : 'EXTENSION OFFER'}</div>}
+                    {isRival && <div className="bg-[#ef4444] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">⚔️ ARCH-RIVAL OFFER</div>}
                     {isReturnHome && !isRival && <div className="bg-[#F59E0B] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">🏠 RETURNING HOME</div>}
                     {o.type === 'OFFER SHEET' && <div className="bg-[#c084fc] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">📝 OFFER SHEET</div>}
 
-                    {/* INTERNAL CONTENT WRAPPER */}
                     <div className="p-4 sm:p-5 flex flex-col flex-1">
-                      {/* WATERMARK */}
                       <div className="absolute top-1/2 right-[-10%] -translate-y-1/2 opacity-[0.04] group-hover:opacity-[0.08] pointer-events-none grayscale mix-blend-screen transition-opacity">
                          <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" className="scale-[3]" />
                       </div>
 
-                      {/* HEADER */}
                       <div className="flex items-center gap-3 mb-4 z-10 relative">
                          <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="small" />
                          <div className="min-w-0 flex-1">
@@ -83,12 +130,11 @@ export default function TransferScreen() {
                          </div>
                       </div>
 
-                      {/* SALARY (Custom 2-Decimal Formatter) */}
                       <div className="flex flex-col z-10 relative mb-4">
                          <div className="flex items-baseline gap-1">
                            <span className="text-3xl sm:text-4xl font-black text-[#22E748] sports-font tracking-tighter drop-shadow-md">
-                             {o.salary >= 1000000 ? `$${(o.salary / 1000000).toFixed(2)}M` : `$${(o.salary / 1000).toFixed(0)}K`}
-                           </span>
+                            {o.salary >= 1000000 ? `$${(o.salary / 1000000).toFixed(1)}M` : `$${(o.salary / 1000).toFixed(0)}K`}
+                          </span>
                            <span className="text-[10px] sm:text-[11px] font-black text-[#22E748]/80 uppercase tracking-widest">/{o.type === 'SCHOLARSHIP' ? 'NIL' : 'YR'}</span>
                          </div>
                          <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-0.5">
@@ -96,7 +142,6 @@ export default function TransferScreen() {
                          </span>
                       </div>
 
-                      {/* DETAILS */}
                       <div className="flex flex-col gap-1.5 z-10 relative mb-4 text-[11px] sm:text-xs font-sans text-slate-300">
                          <p className="flex flex-col gap-0.5">
                            <span><strong className="text-white uppercase tracking-wider">{o.role}</strong></span>
@@ -131,9 +176,14 @@ export default function TransferScreen() {
                              <span className="text-[#c084fc] font-bold uppercase tracking-wider">No-Movement Clause</span>
                            </p>
                          )}
+                         {o.type === 'OFFER SHEET' && (
+                           <p className="flex items-start gap-2">
+                             <span className="text-[#c084fc] leading-none mt-0.5">⚠️</span>
+                             <span className="text-[#c084fc] font-bold uppercase tracking-wider">Comp: {getCompensation(o.salary)}</span>
+                           </p>
+                         )}
                       </div>
 
-                      {/* DYNAMIC PERKS & FLAWS */}
                       {(o.perks?.length > 0 || o.flaws?.length > 0) && (
                         <div className="flex flex-col gap-1.5 mb-6 z-10 relative border-t border-[rgba(255,255,255,0.065)] pt-3">
                            {o.perks?.map((p, pIdx) => (
@@ -149,7 +199,6 @@ export default function TransferScreen() {
                         </div>
                       )}
 
-                      {/* ACTIONS */}
                     <div className="mt-auto flex flex-col gap-2 z-10 relative">
                        <button 
                          onClick={() => signContract(o)} 
@@ -165,7 +214,7 @@ export default function TransferScreen() {
                          {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && o.type !== 'SCHOLARSHIP')) && (
                      <div className="flex gap-2 mt-1">
                        {o.type === 'QUALIFYING OFFER' && (
-                         <button onClick={() => handleArbitration(o)} className="flex-1 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
+                         <button onClick={() => triggerArbitration(o)} className="flex-1 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
                            ARBITRATION
                          </button>
                        )}

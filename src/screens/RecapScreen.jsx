@@ -211,9 +211,10 @@ export default function RecapScreen() {
                 )}
 
                 {seasonEvents.map((ev, i) => {
-                   return (
-                     <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-1.5 block">
-                       <span className="text-slate-300 leading-relaxed">📰 {ev.feedback}</span>
+                  if (!ev || !ev.feedback) return null; // Prevents blank newspaper lines!
+                  return (
+                    <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-1.5 block">
+                      <span className="text-slate-300 leading-relaxed">📰 {ev.feedback}</span>
                        <span className="inline-flex flex-wrap items-center gap-1.5 ml-2 align-middle relative -top-[1px]">
                          {ev.effect?.ovr !== undefined && ev.effect.ovr !== 0 && (
                            <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.ovr > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>

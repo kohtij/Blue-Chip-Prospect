@@ -6,12 +6,32 @@ import AllStarHardestShot from '../components/AllStarHardestShot';
 import AllStarFastestSkater from '../components/AllStarFastestSkater';
 import AllStarSaveStreak from '../components/AllStarSaveStreak';
 
-const CITIES = ['Las Vegas', 'Montreal', 'Nashville', 'Toronto', 'Tampa Bay', 'New York', 'Los Angeles'];
+const getHostCities = (league) => {
+    switch(league) {
+        case 'NHL': return ['Las Vegas', 'Montreal', 'Nashville', 'Toronto', 'Tampa Bay', 'New York', 'Los Angeles', 'Chicago', 'Boston', 'Dallas', 'Denver'];
+        case 'AHL': return ['Hershey', 'Coachella Valley', 'Chicago', 'Laval', 'Springfield', 'Syracuse', 'Grand Rapids'];
+        case 'OHL': return ['London', 'Saginaw', 'Kitchener', 'Oshawa', 'Guelph', 'Windsor'];
+        case 'WHL': return ['Kamloops', 'Moose Jaw', 'Kelowna', 'Portland', 'Saskatoon', 'Red Deer'];
+        case 'QMJHL': return ['Halifax', 'Quebec City', 'Rouyn-Noranda', 'Moncton', 'Gatineau'];
+        case 'USHL': return ['Fargo', 'Dubuque', 'Green Bay', 'Sioux City', 'Omaha'];
+        case 'NCAA': return ['Boston', 'St. Paul', 'Tampa', 'Detroit', 'Pittsburgh', 'Buffalo'];
+        case 'SHL': return ['Stockholm', 'Gothenburg', 'Karlstad', 'Skellefteå', 'Växjö'];
+        case 'LIIGA': return ['Helsinki', 'Tampere', 'Oulu', 'Turku', 'Rauma'];
+        default: return ['The Host City'];
+    }
+};
 
 export default function AllStarScreen() {
   const { player, setPlayer, setScreen } = useAppContext();
   
-  const [city] = useState(() => CITIES[Math.floor(Math.random() * CITIES.length)]);
+  // Use the league the player earned the nod in, not just their current active league
+  const asgLeague = player.currentAsg || player.league;
+  
+  const [city] = useState(() => {
+     const pool = getHostCities(asgLeague);
+     return pool[Math.floor(Math.random() * pool.length)];
+  });
+  
   const isCaptain = player.ovr >= 90 || player.idolatry >= 600;
 
   const [phase, setPhase] = useState('intro'); 
@@ -24,6 +44,19 @@ export default function AllStarScreen() {
      const games = ['accuracy', 'hardestShot', 'fastestSkater'];
      return games[(player.stats?.seasonsPlayed || 0) % games.length];
   });
+
+  const handleDecline = () => {
+     setPlayer(p => ({ 
+         ...p, 
+         stamina: Math.min(100, p.stamina + 1),
+         idolatry: Math.max(0, p.idolatry - 5),
+         relationships: {
+             ...p.relationships,
+             media: Math.max(0, (p.relationships?.media || 50) - 15)
+         }
+     }));
+     setPhase('declined');
+  };
 
   const handleCaptainDraft = (strategy) => {
      setCaptainStrategy(strategy);
@@ -82,7 +115,7 @@ export default function AllStarScreen() {
     setScreen('trade-deadline');
   };
 
-  const eventName = player.league === 'NCAA' ? 'NCAA All-American Game' : `${player.league} All-Star Game`;
+  const eventName = asgLeague === 'NCAA' ? 'NCAA All-American Game' : `${asgLeague} All-Star Game`;
 
   return (
     <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6] text-center flex flex-col items-center min-h-[500px]">
@@ -97,7 +130,7 @@ export default function AllStarScreen() {
       </div>
 
       {phase === 'intro' && (
-         <div className="max-w-2xl w-full mt-2 animate-fade-in">
+         <div className="max-w-2xl w-full mt-2 animate-fade-in flex flex-col gap-4">
            {isCaptain ? (
               <div className="bg-[#101410] border border-[#F59E0B]/30 p-8 rounded-xl shadow-[0_0_30px_rgba(245,158,11,0.1)]">
                  <h3 className="text-2xl font-black text-[#F59E0B] sports-font uppercase mb-3">🎖️ {player.league === 'NCAA' ? 'ALL-AMERICAN' : 'ALL-STAR'} CAPTAIN</h3>
@@ -118,9 +151,28 @@ export default function AllStarScreen() {
                  </button>
               </div>
            )}
+           
+           {/* DECLINE OPTION FOR VETERANS */}
+           {player.age >= 32 && (
+              <button onClick={handleDecline} className="bg-[#101410] border border-slate-700 text-slate-400 py-3 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest hover:text-white hover:border-slate-500 transition-colors cursor-pointer w-full mx-auto block shadow-md">
+                 DECLINE INVITE (REST +10 STAMINA)
+              </button>
+           )}
          </div>
       )}
 
+      {phase === 'declined' && (
+         <div className="max-w-2xl w-full mt-2 animate-fade-in bg-[#101410] border border-[#ef4444]/40 p-8 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.15)] flex flex-col items-center">
+            <h3 className="text-3xl font-black text-[#ef4444] sports-font uppercase mb-4">INVITATION DECLINED</h3>
+            <p className="text-lg text-slate-300 mb-6 font-sans">
+              You chose to rest your body instead of attending the All-Star weekend. Per league rules, you have been handed an automatic <strong>1-game suspension</strong>. The media is questioning your dedication, but you secured some much-needed rest (+1 Stamina).
+            </p>
+            <button onClick={() => setScreen('trade-deadline')} className="btn-primary w-full py-4 rounded-xl font-black sports-font tracking-widest text-lg uppercase transition-transform hover:scale-105 cursor-pointer">
+              SERVE SUSPENSION & RETURN
+            </button>
+         </div>
+      )}
+      
       {phase === 'red-carpet' && (
         <div className="max-w-3xl w-full mt-2 animate-fade-in">
           {!carpetFeedback ? (
@@ -162,12 +214,12 @@ export default function AllStarScreen() {
                  )}
                  {carpetFeedback.mediaHit !== 0 && (
                     <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.mediaHit > 0 ? 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                      {carpetFeedback.mediaHit > 0 ? '+' : ''}{carpetFeedback.mediaHit} MEDIA
+                      {carpetFeedback.mediaHit > 0 ? '+' : ''}{carpetFeedback.mediaHit} MEDIA TRUST
                     </span>
                  )}
                  {carpetFeedback.coachHit !== 0 && (
                     <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.coachHit > 0 ? 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                      {carpetFeedback.coachHit > 0 ? '+' : ''}{carpetFeedback.coachHit} COACH
+                      {carpetFeedback.coachHit > 0 ? '+' : ''}{carpetFeedback.coachHit} COACH TRUST
                     </span>
                  )}
                </div>
@@ -192,7 +244,6 @@ export default function AllStarScreen() {
         <div className="max-w-2xl w-full mt-2 animate-fade-in bg-[#101410] border border-[#22E748]/40 p-8 rounded-xl shadow-[0_0_30px_rgba(34,231,72,0.15)] flex flex-col items-center">
            
            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">SKILLS COMPETITION RESULT</p>
-           {/* Fixed line wrapping squish here! */}
            <p className="text-3xl font-black text-white mb-4 sports-font uppercase text-center leading-snug">{skillsFeedback.msg}</p>
            
            <div className="bg-[#1a2230] border border-slate-700 w-full py-4 rounded-lg flex justify-center divide-x divide-slate-600 mb-6">
@@ -224,7 +275,7 @@ export default function AllStarScreen() {
              )}
              {carpetFeedback.mediaHit > 0 && (
                <span className="font-black sports-font tracking-widest text-sm px-4 py-2 rounded border text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30">
-                 +{carpetFeedback.mediaHit} MEDIA
+                 +{carpetFeedback.mediaHit} MEDIA TRUST
                </span>
              )}
            </div>

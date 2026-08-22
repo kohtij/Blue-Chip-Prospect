@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';import { useAppContext } from '../AppContext';
+import { useState } from 'react';
+import { useAppContext } from '../AppContext';
 import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
@@ -8,8 +9,7 @@ export default function CreationScreen() {
   
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
-  const [isStarting, setIsStarting] = useState(false); // <-- NEW STATE FLAG
-  
+    
   const [savedCareers] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
@@ -17,14 +17,6 @@ export default function CreationScreen() {
       return [];
     }
   });
-
-  // NEW: React will only fire this AFTER the state has fully updated!
-  useEffect(() => {
-    if (isStarting) {
-      handleStart(true);
-      setIsStarting(false);
-    }
-  }, [isStarting, handleStart]);
 
   const handleQuickStart = () => {
     // Randomize League
@@ -35,7 +27,6 @@ export default function CreationScreen() {
     
     // Update player state, then flip the flag to trigger the useEffect
     setPlayer(p => ({ ...p, startLeague: randomLg, nat: randomNat, team: null }));
-    setIsStarting(true);
   };
 
   return (
@@ -130,18 +121,45 @@ export default function CreationScreen() {
                     ))}
                   </div>
 
-                  <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4 text-left">Select Nationality</h3>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-8">
-                    {safeNationalities.map(n => (
-                      <button
-                        key={n.id}
-                        onClick={() => setPlayer({ ...player, nat: n.id })}
-                        className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.nat === n.id ? 'border-[#22E748] bg-[#22E748]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'} flex items-center justify-center`}
-                      >
-                        <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm" />
-                      </button>
-                    ))}
-                  </div>
+                  <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3 text-left">Select Nationality</h3>
+<div className="flex flex-col gap-4 mb-8">
+  {[
+    { tier: 1, title: 'TIER 1: SUPERPOWERS' },
+    { tier: 2, title: 'TIER 2: CONTENDERS' },
+    { tier: 3, title: 'TIER 3: TOP DIVISION' },
+    { tier: 4, title: 'TIER 4: DEVELOPING' }
+  ].map(group => {
+    const tierNations = safeNationalities.filter(n => n.tier === group.tier);
+    if (tierNations.length === 0) return null;
+    
+    return (
+      <div key={group.tier}>
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 text-left">
+          {group.title}
+        </p>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {tierNations.map(n => (
+            <button
+              key={n.id}
+              onClick={() => setPlayer({ ...player, nat: n.id })}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                player.nat === n.id 
+                  ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]' 
+                  : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
+              }`}
+              title={n.name}
+            >
+              <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+              <span className={`text-[9px] font-bold font-sans uppercase tracking-widest ${player.nat === n.id ? 'text-[#22E748]' : 'text-slate-400'}`}>
+                {n.id}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  })}
+</div>
 
                   <button 
                     onClick={() => handleStart(false)} 

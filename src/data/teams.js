@@ -14,6 +14,8 @@ export const leagueLogos = {
   LIIGA: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png',
   KHL: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/kontinental_hockey_league.png',
   SWISS: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/national_league.png',
+  DEL: 'https://upload.wikimedia.org/wikipedia/en/thumb/7/74/Deutsche_Eishockey_Liga_logo.svg/250px-Deutsche_Eishockey_Liga_logo.svg.png',
+  ICEHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f6/ICE_Hockey_League_logo.svg/250px-ICE_Hockey_League_logo.svg.png',
   BCHL: '',
   SPHL: '',
   CZECH: '',
@@ -33,14 +35,17 @@ export const LEAGUE_CONFIG = {
   LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 8,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
   SWISS: { name: 'National League',                  games: 52, playoffSpots: 10, logo: leagueLogos.SWISS, conferences: [],              divisions: [], playoffFormat: 'shl-10' },
-  BCHL:  { name: 'British Columbia Hockey League', games: 54, playoffSpots: 16, logo: leagueLogos.BCHL, conferences: ['Coastal', 'Interior'], divisions: [], playoffFormat: 'best-of-7-16' },
+  DEL:   { name: 'Deutsche Eishockey Liga',          games: 52, playoffSpots: 8,  logo: leagueLogos.DEL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  ICEHL: { name: 'ICE Hockey League',                games: 52, playoffSpots: 8,  logo: leagueLogos.ICEHL, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  BCHL:  { name: 'British Columbia Hockey League',   games: 54, playoffSpots: 16, logo: leagueLogos.BCHL,  conferences: ['Coastal', 'Interior'], divisions: [], playoffFormat: 'best-of-7-16' },
   SPHL:  { name: 'Southern Professional Hockey League', games: 56, playoffSpots: 8, logo: leagueLogos.SPHL, conferences: [], divisions: [], playoffFormat: 'best-of-7-8' },
-  CZECH: { name: 'Czech Extraliga', games: 52, playoffSpots: 12, logo: leagueLogos.CZECH, conferences: [], divisions: [], playoffFormat: 'best-of-7-12' },
-  SLOVAK: { name: 'Slovak Extraliga', games: 50, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [], divisions: [], playoffFormat: 'shl-10' }
+  CZECH: { name: 'Czech Extraliga',                  games: 52, playoffSpots: 12, logo: leagueLogos.CZECH, conferences: [],              divisions: [], playoffFormat: 'best-of-7-12' },
+  SLOVAK: { name: 'Slovak Extraliga',                games: 50, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [],             divisions: [], playoffFormat: 'shl-10' }
 };
 
 export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL'];
-export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'CZECH', 'SLOVAK'];
+// Added DEL and ICEHL to professional Euro loop
+export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
 
 export const PLAYOFF_ROUNDS = {
   'best-of-7-16': [
@@ -65,6 +70,18 @@ export const PLAYOFF_ROUNDS = {
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
+  'best-of-7-12': [
+    { name: 'Pre-Playoffs',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
+  ],
+  'shl-10': [
+    { name: 'Play-In Round',     teams: 4,  gamesPerMatchup: 3 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
+  ],
   'ncaa-3': [
     { name: 'Regional Semifinal',    teams: 16, gamesPerMatchup: 3 },
     { name: 'Regional Final',        teams: 8,  gamesPerMatchup: 3 },
@@ -74,16 +91,40 @@ export const PLAYOFF_ROUNDS = {
 };
 
 // ==========================================
-// NATIONALITIES
+// NATIONALITIES (Ranked by IIHF Strength)
 // ==========================================
 export const nationalities = [
-  { id: 'CAN', name: 'Canada', sentenceName: 'Canada', img: 'https://flagcdn.com/w40/ca.png' },
-  { id: 'USA', name: 'United States', sentenceName: 'the United States', img: 'https://flagcdn.com/w40/us.png' },
-  { id: 'SWE', name: 'Sweden', sentenceName: 'Sweden', img: 'https://flagcdn.com/w40/se.png' },
-  { id: 'FIN', name: 'Finland', sentenceName: 'Finland', img: 'https://flagcdn.com/w40/fi.png' },
-  { id: 'CZE', name: 'Czechia', sentenceName: 'Czechia', img: 'https://flagcdn.com/w40/cz.png' },
-  { id: 'SVK', name: 'Slovakia', sentenceName: 'Slovakia', img: 'https://flagcdn.com/w40/sk.png' },
-  { id: 'RUS', name: 'Russia', sentenceName: 'Russia', img: 'https://flagcdn.com/w40/ru.png' }
+  // TIER 1: The Superpowers (Medal Contenders)
+  { id: 'CAN', name: 'Canada', sentenceName: 'Canada', img: 'https://flagcdn.com/w40/ca.png', iihfRank: 1, tier: 1 },
+  { id: 'USA', name: 'United States', sentenceName: 'the United States', img: 'https://flagcdn.com/w40/us.png', iihfRank: 4, tier: 1 },
+  { id: 'SWE', name: 'Sweden', sentenceName: 'Sweden', img: 'https://flagcdn.com/w40/se.png', iihfRank: 5, tier: 1 },
+  { id: 'FIN', name: 'Finland', sentenceName: 'Finland', img: 'https://flagcdn.com/w40/fi.png', iihfRank: 3, tier: 1 },
+  { id: 'RUS', name: 'Russia', sentenceName: 'Russia', img: 'https://flagcdn.com/w40/ru.png', iihfRank: 2, tier: 1 },
+  { id: 'SUI', name: 'Switzerland', sentenceName: 'Switzerland', img: 'https://flagcdn.com/w40/ch.png', iihfRank: 6, tier: 1 },
+  { id: 'CZE', name: 'Czechia', sentenceName: 'Czechia', img: 'https://flagcdn.com/w40/cz.png', iihfRank: 7, tier: 1 },
+  
+  // TIER 2: Strong Contenders (Upset Potential)
+  { id: 'GER', name: 'Germany', sentenceName: 'Germany', img: 'https://flagcdn.com/w40/de.png', iihfRank: 8, tier: 2 },
+  { id: 'SVK', name: 'Slovakia', sentenceName: 'Slovakia', img: 'https://flagcdn.com/w40/sk.png', iihfRank: 9, tier: 2 },
+  { id: 'LAT', name: 'Latvia', sentenceName: 'Latvia', img: 'https://flagcdn.com/w40/lv.png', iihfRank: 10, tier: 2 },
+  
+  // TIER 3: Top Division Regulars (Fighting Relegation)
+  { id: 'DNK', name: 'Denmark', sentenceName: 'Denmark', img: 'https://flagcdn.com/w40/dk.png', iihfRank: 11, tier: 3 },
+  { id: 'NOR', name: 'Norway', sentenceName: 'Norway', img: 'https://flagcdn.com/w40/no.png', iihfRank: 12, tier: 3 },
+  { id: 'AUT', name: 'Austria', sentenceName: 'Austria', img: 'https://flagcdn.com/w40/at.png', iihfRank: 13, tier: 3 },
+  { id: 'FRA', name: 'France', sentenceName: 'France', img: 'https://flagcdn.com/w40/fr.png', iihfRank: 14, tier: 3 },
+  { id: 'KAZ', name: 'Kazakhstan', sentenceName: 'Kazakhstan', img: 'https://flagcdn.com/w40/kz.png', iihfRank: 15, tier: 3 },
+  { id: 'BLR', name: 'Belarus', sentenceName: 'Belarus', img: 'https://flagcdn.com/w40/by.png', iihfRank: 16, tier: 3 },
+  
+  // TIER 4: Lower Divisions (Development Programs)
+  { id: 'GBR', name: 'United Kingdom', sentenceName: 'the United Kingdom', img: 'https://flagcdn.com/w40/gb.png', iihfRank: 17, tier: 4 },
+  { id: 'SVN', name: 'Slovenia', sentenceName: 'Slovenia', img: 'https://flagcdn.com/w40/si.png', iihfRank: 18, tier: 4 },
+  { id: 'ITA', name: 'Italy', sentenceName: 'Italy', img: 'https://flagcdn.com/w40/it.png', iihfRank: 19, tier: 4 },
+  { id: 'KOR', name: 'South Korea', sentenceName: 'South Korea', img: 'https://flagcdn.com/w40/kr.png', iihfRank: 20, tier: 4 },
+  { id: 'UKR', name: 'Ukraine', sentenceName: 'Ukraine', img: 'https://flagcdn.com/w40/ua.png', iihfRank: 21, tier: 4 },
+  { id: 'JPN', name: 'Japan', sentenceName: 'Japan', img: 'https://flagcdn.com/w40/jp.png', iihfRank: 22, tier: 4 },
+  { id: 'CHN', name: 'China', sentenceName: 'China', img: 'https://flagcdn.com/w40/cn.png', iihfRank: 23, tier: 4 },
+  { id: 'AUS', name: 'Australia', sentenceName: 'Australia', img: 'https://flagcdn.com/w40/au.png', iihfRank: 24, tier: 4 },
 ];
 
 // ==========================================
@@ -521,6 +562,45 @@ export const slovakTeams = [
 ];
 
 // ==========================================
+// 17. DEL (GERMANY)
+// ==========================================
+export const delTeams = [
+  { id: 'BER', city: 'Berlin', name: 'Eisbären', bg: '#00205B', color: '#C8102E', rival: 'RBM' },
+  { id: 'RBM', city: 'München', name: 'Red Bull', bg: '#00205B', color: '#E32636', rival: 'BER' },
+  { id: 'MAN', city: 'Mannheim', name: 'Adler', bg: '#00205B', color: '#FFFFFF', rival: 'KOL' },
+  { id: 'KOL', city: 'Köln', name: 'Haie', bg: '#C8102E', color: '#000000', rival: 'DEG' },
+  { id: 'DEG', city: 'Düsseldorf', name: 'EG', bg: '#FFB81C', color: '#C8102E', rival: 'KOL' },
+  { id: 'ING', city: 'Ingolstadt', name: 'ERC', bg: '#00205B', color: '#FFFFFF', rival: 'AUG' },
+  { id: 'STR', city: 'Straubing', name: 'Tigers', bg: '#00205B', color: '#FFFFFF', rival: 'NUR' },
+  { id: 'WOL', city: 'Wolfsburg', name: 'Grizzlys', bg: '#F26522', color: '#000000', rival: 'BRE' },
+  { id: 'BRE', city: 'Bremerhaven', name: 'Pinguins', bg: '#C8102E', color: '#000000', rival: 'WOL' },
+  { id: 'NUR', city: 'Nürnberg', name: 'Ice Tigers', bg: '#C8102E', color: '#00205B', rival: 'STR' },
+  { id: 'AUG', city: 'Augsburg', name: 'Panther', bg: '#00471B', color: '#C8102E', rival: 'ING' },
+  { id: 'SWW', city: 'Schwenningen', name: 'Wild Wings', bg: '#00205B', color: '#FFFFFF', rival: 'MAN' },
+  { id: 'FRA', city: 'Frankfurt', name: 'Löwen', bg: '#F26522', color: '#000000', rival: 'MAN' },
+  { id: 'ISE', city: 'Iserlohn', name: 'Roosters', bg: '#00205B', color: '#FFFFFF', rival: 'DEG' }
+];
+
+// ==========================================
+// 18. ICEHL (AUSTRIA & CENTRAL EUROPE)
+// ==========================================
+export const icehlTeams = [
+  { id: 'RBS', city: 'Salzburg', name: 'Red Bull', bg: '#00205B', color: '#E32636', rival: 'VIC' },
+  { id: 'KAC', city: 'Klagenfurt', name: 'EC-KAC', bg: '#C8102E', color: '#FFFFFF', rival: 'VSV' },
+  { id: 'VSV', city: 'Villach', name: 'EC VSV', bg: '#00205B', color: '#FFFFFF', rival: 'KAC' },
+  { id: 'VIC', city: 'Vienna', name: 'Capitals', bg: '#FFB81C', color: '#000000', rival: 'RBS' },
+  { id: 'HCB', city: 'Bolzano', name: 'Foxes', bg: '#C8102E', color: '#FFFFFF', rival: 'PUS' },
+  { id: 'PUS', city: 'Bruneck', name: 'Pustertal', bg: '#FFB81C', color: '#000000', rival: 'HCB' },
+  { id: 'INN', city: 'Innsbruck', name: 'Die Haie', bg: '#C8102E', color: '#000000', rival: 'PIO' },
+  { id: 'BWL', city: 'Linz', name: 'Black Wings', bg: '#000000', color: '#F26522', rival: 'VIC' },
+  { id: 'G99', city: 'Graz', name: '99ers', bg: '#F26522', color: '#000000', rival: 'BWL' },
+  { id: 'PIO', city: 'Vorarlberg', name: 'Pioneers', bg: '#C8102E', color: '#FFFFFF', rival: 'INN' },
+  { id: 'OLI', city: 'Ljubljana', name: 'Olimpija', bg: '#00471B', color: '#FFFFFF', rival: 'FEH' },
+  { id: 'FEH', city: 'Székesfehérvár', name: 'AV19', bg: '#00205B', color: '#FFFFFF', rival: 'OLI' },
+  { id: 'ASI', city: 'Asiago', name: 'Hockey', bg: '#FFB81C', color: '#C8102E', rival: 'HCB' }
+];
+
+// ==========================================
 // HELPER FUNCTIONS
 // ==========================================
 
@@ -544,6 +624,8 @@ export const getOpponentPool = (league) => {
     case 'LIIGA': return liigaTeams;
     case 'KHL': return khlTeams;
     case 'SWISS': return swissTeams;
+    case 'DEL': return delTeams;
+    case 'ICEHL': return icehlTeams;
     case 'BCHL': return bchlTeams;
     case 'SPHL': return sphlTeams;
     case 'CZECH': return czechTeams;

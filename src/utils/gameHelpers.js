@@ -205,7 +205,7 @@ function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifie
   }
 
   if (newAge >= 31) {
-    const agePenalty = (newAge - 30) * 0.25; 
+    const agePenalty = (newAge - 30) * 0.40; 
     
     st.skating     -= Math.floor((4 * agePenalty) * coachModifier);
     st.stamina     -= Math.floor((5 * agePenalty) * coachModifier);
@@ -403,6 +403,9 @@ export function simulateSeason(player, trainingEffect = {}) {
     : Math.min(10, Math.max(1, 5.0 + (g + a + pm * 0.5) / games * 5));
   rating = Number(rating.toFixed(1));
 
+  // Lock in the league you actually played in before any mid-season call-ups happen
+  let playedLg = currentLg;
+
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
     currentLg = 'NHL';
     const currentAhlTeam = ahlTeams.find(t => t.id === currentTeam);
@@ -415,7 +418,9 @@ export function simulateSeason(player, trainingEffect = {}) {
     a = Math.floor(a * 0.7);
   }
 
-  const awards = _computeAwards({ player, rating, g, a, saves, shots, games, standings });
+  // Pass the locked-in playedLg to computeAwards so you get AHL awards, not NHL ones
+  const tempPlayer = { ...player, league: playedLg };
+  const awards = _computeAwards({ player: tempPlayer, rating, g, a, saves, shots, games, standings });
   const offPercent = p.pos === 'G' ? 0 : Math.min(100, Math.round(((g + a) / ((g * 2) + 40)) * 100));
   const newAge = p.age + 1;
   
@@ -429,9 +434,10 @@ export function simulateSeason(player, trainingEffect = {}) {
   const newIq = p.hockeyIQ + st.hockeyIQ;
   const newPhy = p.physicality + st.physicality;
 
+  // Use playedLg to calculate fan gains properly
   const idolGain = isJuniorLg
     ? Math.floor((g + a) / 20)
-    : (currentLg === 'AHL' ? Math.floor((g + a + (sho * 5)) / 15) : Math.floor((g + a + (sho * 5)) / 3));
+    : (playedLg === 'AHL' ? Math.floor((g + a + (sho * 5)) / 15) : Math.floor((g + a + (sho * 5)) / 3));
 
   let valIncrease = p.pos === 'G' 
     ? ((sho * 350000) + (saves * 600) + (games * 10000))
@@ -445,14 +451,17 @@ export function simulateSeason(player, trainingEffect = {}) {
   const nextOvr = recomputeOvr({ pos: p.pos, shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
   const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 
-  const statBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLg) ? 'chl' : (currentLg === 'AHL' ? 'ahl' : 'nhl');
+  // Safely route stats to the correct bucket based on the league you ACTUALLY played in
+  const statBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(playedLg) ? 'chl' : (playedLg === 'AHL' ? 'ahl' : 'nhl');
 
   const updatedPlayer = {
     ...p,
     team: currentTeam,
     league: currentLg,
+    currentAsg: rating >= 8.5 ? playedLg : null,
     teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), currentTeam])),
     relationships: (currentTeam !== p.team) ? { coach: 50, teammates: 50, media: 50 } : p.relationships,
+    storylines: (currentTeam !== p.team) ? { ...(p.storylines || {}), lockerRoom: 0 } : p.storylines,
     age: p.age + 1,
     ovr: nextOvr,
     shooting: cap(newSht),

@@ -169,10 +169,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop }) =
             <div className="mt-4 md:mt-5 w-full space-y-1.5">
               <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide">
                 <span className="text-slate-400">Fan Status</span>
-                <span className="text-slate-400"> {tier.label} · {Math.floor(((Number(player.idolatry) || 0) / 1000) * 100)}/100</span>
+                <span className="text-slate-400"> {tier.label} · {player.idolatry} FANS</span>
               </div>
               <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((Number(player.idolatry) || 0) / 1000) * 100)}%`, background: getBarColor(Number(player.idolatry) || 0) }}></div>
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: getBarColor(player.idolatry) }}></div>
               </div>
               <div className="relative h-3.5 md:h-4">
                 <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>

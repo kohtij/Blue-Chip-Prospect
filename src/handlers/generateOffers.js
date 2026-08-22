@@ -3,19 +3,32 @@ import { shopItems } from '../data/economy';
 import { getTransferImpact } from '../utils/gameHelpers';
 import { getRole } from '../utils/appHelpers';
 
-export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null) {
-  const { currentYear, isAmateur, player, setEventFeedback, setFreeAgencyOffers, setScreen } = ctx;
+export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null, overrideLeague = null) {
+  const { currentYear, player, setEventFeedback, setFreeAgencyOffers, setScreen } = ctx;
 
-    let actingTeam = overrideTeam || player.team;
-    let actingLeague = player.league;
-    const isNHLContract = (player.contract?.salary || 0) >= 500000;
+    // Safely extract the team ID in case it was accidentally passed as an object
+    let rawTeam = overrideTeam || player.team;
+    let actingTeam = typeof rawTeam === 'object' && rawTeam !== null ? (rawTeam.id || rawTeam.team || rawTeam.name || 'UNK') : rawTeam;
+    let actingLeague = overrideLeague || player.league; 
+    
+    // Establish an internal rights variable that travels with the player during a trade
+    let currentRights = player.rights;
 
-    if (actingLeague === 'AHL' && isNHLContract) {
-       const parent = (nhlTeams || []).find(t => t.ahlId === actingTeam);
-       if (parent) {
-          actingTeam = parent.id;
-          actingLeague = 'NHL';
+    // BULLETPROOF RIGHTS HOLDER CHECK
+    if (['AHL', 'ECHL'].includes(actingLeague)) {
+       let parent = (nhlTeams || []).find(t => t.ahlId === actingTeam || t.echlId === actingTeam || t.id === actingTeam);
+       
+       if (!parent && currentRights) {
+           parent = (nhlTeams || []).find(t => t.id === currentRights);
        }
+
+       if (parent) {
+           actingTeam = parent.id;
+           actingLeague = 'NHL';
+           currentRights = parent.id; // Sync rights to the actual NHL parent
+       }
+    } else if (actingLeague === 'NHL' && actingTeam !== 'UNK') {
+       currentRights = actingTeam; // Sync rights to the active NHL club
     }
 
     const agentItem = shopItems.find(i => i.id === 'agent');
@@ -26,13 +39,11 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
     if (currentYear === 2027) leagueMinimum = 900000;
     else if (currentYear >= 2029) leagueMinimum = 1000000;
 
-    let baseSalary = leagueMinimum;
-    let maxYears = 2;
+    let baseSalary;
+    let maxYears;
 
-   if (actingLeague === 'AHL' || isAmateur) {
-      baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
-      maxYears = 3; 
-    } else if (actingLeague === 'NHL') {
+    // Force NHL logic if actingLeague is NHL. Impossible to get $165k here.
+    if (actingLeague === 'NHL') {
       const careerAwards = player.stats?.awards || [];
       const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
 
@@ -65,6 +76,10 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
 
       const NHL_MAX_SALARY = 13500000;
       baseSalary = Math.min(NHL_MAX_SALARY, baseSalary);
+    } else {
+      // Minor league / amateur fallback pay
+      baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
+      maxYears = 3; 
     }
 
     baseSalary = Math.max(leagueMinimum, Math.round(baseSalary / 25000) * 25000);
@@ -82,15 +97,25 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
          setEventFeedback("Your current team has decided to move in a different direction and will not offer you an extension. You are heading to the open market.");
          teamDidNotExtend = true;
       } else {
+         // QUALIFYING OFFER MATH
+         let qoSalary = baseSalary;
+         if (isRFA && player.contract?.salary) {
+             const prev = player.contract.salary;
+             if (prev <= 660000) qoSalary = prev * 1.10;
+             else if (prev <= 1000000) qoSalary = Math.min(1000000, prev * 1.05);
+             else qoSalary = prev;
+         }
+
+         // Generate the Current Club offer
          offers.push({
            team: actingTeam,
            league: actingLeague,
            type: isRFA ? (player.ovr >= 82 ? 'RFA EXTENSION' : 'QUALIFYING OFFER') : 'EXTENSION',
-           salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary,
+           salary: isRFA && player.ovr < 82 ? qoSalary : (actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary),
            years: isRFA && player.ovr < 82 ? 1 : maxYears,
-           role: actingLeague !== 'NHL' ? 'Pro Roster' : getRole(baseSalary, player),
+           role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
            idolHit: 10,
-           state: 'Current Club'
+           state: (player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Contract' : 'Current Club'
          });
       }
     }
@@ -158,13 +183,13 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null)
             }
         }
 
-        if (targetLg === 'NHL' && player.rights) {
+        if (targetLg === 'NHL' && currentRights) {
             const playedProNA = (player.teamsPlayedFor || []).some(tId => 
                 (nhlTeams || []).some(nhl => nhl.id === tId) || 
                 (ahlTeams || []).some(ahl => ahl.id === tId)
             );
             if (!playedProNA) {
-                pool = pool.filter(t => t.id === player.rights);
+                pool = pool.filter(t => t.id === currentRights);
             }
         }
 

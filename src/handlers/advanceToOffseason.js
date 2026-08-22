@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { getOpponentPool, ncaaTeams, ohlTeams, nhlTeams } from '../data/teams';
+import { getOpponentPool, ncaaTeams, ohlTeams } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 
@@ -66,17 +66,22 @@ export function advanceToOffseason(ctx) {
 
     let currentTeam = player.team;
     let currentLeague = player.league;
+    let updatedContract = player.contract ? { ...player.contract } : null;
     
     // Always report to NHL Training Camp if you are on an NHL contract
-    if (currentLeague === 'AHL' && (player.contract?.salary || 0) >= 500000) {
-        const parent = (nhlTeams || []).find(t => t.ahlId === currentTeam);
-        if (parent) {
-            currentTeam = parent.id;
-            currentLeague = 'NHL';
-        }
+    if (['AHL', 'ECHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLeague) && (player.contract?.salary || 0) >= 500000 && player.rights) {
+        currentTeam = player.rights;
+        currentLeague = 'NHL';
     }
 
-    setPlayer(p => ({ ...p, team: currentTeam, league: currentLeague, buffs: newBuffs }));
+    // 1. ELC SLIDE RULE
+    // If the player is under an NHL contract but playing in juniors, the contract slides (the year is not burned).
+    // We restore the year that simulateSeason decremented.
+    if (updatedContract && safeJuniorLeagues.includes(currentLeague) && player.age <= 20) {
+        updatedContract.years = Math.min(3, updatedContract.years + 1);
+    }
+
+    setPlayer(p => ({ ...p, team: currentTeam, league: currentLeague, buffs: newBuffs, contract: updatedContract || p.contract }));
 
     if (player.age === 17 && safeEuroLeagues.includes(currentLeague) && Math.random() > 0.4) {
          const pool = ohlTeams || [];
@@ -231,7 +236,7 @@ export function advanceToOffseason(ctx) {
        return;
     }
 
-    if (isCurrentlyAmateur && player.rights && player.age > 18 && player.age < rightsExpireAge) {
+    if (isCurrentlyAmateur && player.rights && !player.contract && player.age > 18 && player.age < rightsExpireAge) {
        const teamName = getFullTeamName(player.rights, 'NHL');
        if (player.ovr >= 65) {
            setActiveEvent({

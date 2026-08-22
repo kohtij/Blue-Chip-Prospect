@@ -82,8 +82,19 @@ export default function RetirementScreen() {
 
           const cityWords = primaryTeamName.split(' ');
           const cityName = cityWords.length > 1 ? cityWords[0] : primaryTeamName;
-          const arenaName = `${cityName} Arena`;
 
+          const NHL_ARENAS = {
+            'ANA': 'Honda Center', 'BOS': 'TD Garden', 'BUF': 'KeyBank Center', 'CGY': 'Scotiabank Saddledome',
+            'CAR': 'Lenovo Center', 'CHI': 'United Center', 'COL': 'Ball Arena', 'CBJ': 'Nationwide Arena',
+            'DAL': 'American Airlines Center', 'DET': 'Little Caesars Arena', 'EDM': 'Rogers Place', 'FLA': 'Amerant Bank Arena',
+            'LAK': 'Crypto.com Arena', 'MIN': 'Grand Casino Arena', 'MTL': 'Bell Centre', 'NSH': 'Bridgestone Arena',
+            'NJD': 'Prudential Center', 'NYI': 'UBS Arena', 'NYR': 'Madison Square Garden', 'OTT': 'Canadian Tire Centre',
+            'PHI': 'Xfinity Mobile Arena', 'PIT': 'PPG Paints Arena', 'SJS': 'SAP Center', 'SEA': 'Climate Pledge Arena',
+            'STL': 'Enterprise Center', 'TBL': 'Benchmark International Arena', 'TOR': 'Scotiabank Arena', 'VAN': 'Rogers Arena',
+            'VGK': 'T-Mobile Arena', 'WSH': 'Capital One Arena', 'WPG': 'Canada Life Centre', 'UTA': 'Delta Center'
+          };
+
+          const arenaName = player.league === 'NHL' && NHL_ARENAS[primaryTeam] ? NHL_ARENAS[primaryTeam] : `${cityName} Arena`;
           const stanleyCups = (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length;
           
           const aggregatedAwards = {};
@@ -99,7 +110,7 @@ export default function RetirementScreen() {
             <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#040505] text-white font-sans">
               <div className="w-full max-w-4xl space-y-4">
                 
-                {/* 1. HERO HEADER */}
+                {/* HERO HEADER */}
                 <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#3b82f6] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(59,130,246,0.15)]">
                   <div className="flex justify-between items-center mb-6">
                     <span className="text-[10px] sm:text-xs font-black tracking-widest text-slate-400 uppercase bg-black/40 px-3 py-1 rounded-full border border-slate-700">
@@ -143,7 +154,7 @@ export default function RetirementScreen() {
                   )}
                 </div>
 
-                {/* 2. CORE STATS GRID */}
+                {/* CORE STATS GRID */}
                 <div className="game-panel p-4 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
                   <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-3 mb-4 px-2">
                     <div className="flex items-center gap-4">
@@ -247,24 +258,24 @@ export default function RetirementScreen() {
                       <h3 className="text-sm sm:text-base font-black text-[#F59E0B] tracking-widest uppercase mb-4 sports-font border-b border-[#F59E0B]/20 pb-2 flex items-center gap-2">
                         <span className="text-xl">💍</span> CHAMPIONSHIP RINGS
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
                         {rings.map((r, idx) => {
                            const cupName = r.awards?.find(a => a.includes('Cup') || a.includes('Championship') || a.includes('Title')) || (r.league === 'NHL' ? 'Stanley Cup' : 'Championship');
                            const cleanCupName = cupName.replace(/^\d{4}\s/, ''); 
                            return (
-                             <div key={`ring-${idx}`} className="bg-[#101410] border border-[#F59E0B]/40 rounded-xl p-3 flex items-center gap-3 transition-transform hover:scale-[1.02] relative">
-                               <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center relative">
-                                 <TeamLogo teamId={r.team || player.team} league={r.league || 'NHL'} isAHL={r.league === 'AHL'} />
-                                 <div className="absolute -bottom-2 -right-2">
-                                     <TrophyImage league={r.league || 'NHL'} className="w-6 h-6 drop-shadow-md" />
+                             <div key={`ring-${idx}`} className="bg-[#101410] border border-[#F59E0B]/40 rounded-xl p-3.5 flex items-center gap-4 transition-transform hover:scale-[1.02]">
+                               <div className="w-14 h-14 shrink-0 bg-black/60 border border-slate-800 rounded-lg p-1.5 flex items-center justify-center relative overflow-visible">
+                                 <TeamLogo teamId={r.team || player.team} league={r.league || 'NHL'} isAHL={r.league === 'AHL'} size="small" />
+                                 <div className="absolute -bottom-1.5 -right-1.5 bg-[#101410] border border-[#F59E0B]/50 rounded-full p-0.5 shadow-md">
+                                   <TrophyImage league={r.league || 'NHL'} className="w-5 h-5 object-contain" />
                                  </div>
                                </div>
-                               <div className="min-w-0 flex-1">
-                                 <p className="text-white font-black sports-font leading-tight text-xs sm:text-sm truncate">{cleanCupName}</p>
-                                 <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">
-                                   {r.year} • {getFullTeamName(r.team || player.team, r.league || 'NHL')}
-                                 </p>
-                               </div>
+                               <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                  <p className="text-white font-black sports-font leading-tight text-xs sm:text-sm truncate">{cleanCupName}</p>
+                                  <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-tight mt-0.5 leading-tight break-words">
+                                    {r.year} • {getFullTeamName(r.team || player.team, r.league || 'NHL')}
+                                  </p>
+                                </div>
                              </div>
                            );
                         })}
@@ -273,7 +284,7 @@ export default function RetirementScreen() {
                   );
                 })()}
 
-                {/* 3. CLUB HISTORY */}
+                {/* CLUB HISTORY */}
                 <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
                   <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-4 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
                     CAREER HISTORY

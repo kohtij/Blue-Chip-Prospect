@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
 
 const SCOUTS = [
@@ -7,48 +7,84 @@ const SCOUTS = [
   { name: "Desperate Franchise", trait: "STAR", color: "text-[#c084fc]", bg: "bg-[#c084fc]/10", border: "border-[#c084fc]/30", desc: "Values swagger, highlight reels, and immediate game-breaking impact." }
 ];
 
-const INTERVIEW_QUESTIONS = [
-  {
-    text: "You're down by 1 goal in the 3rd period of a playoff game. What's your primary focus when you step on the ice?",
-    answers: [
-      { text: "Dump it in, lay a massive hit, and set a physical tone.", trait: "GRIT" },
-      { text: "Stick to the system and cycle the puck to find the open man.", trait: "TEAM" },
-      { text: "Demand the puck. I want it on my stick when the game is on the line.", trait: "STAR" }
-    ]
-  },
-  {
-    text: "Every prospect has flaws. If you had to identify your biggest weakness right now, what is it?",
-    answers: [
-      { text: "I need to get meaner and stronger in the dirty areas.", trait: "GRIT" },
-      { text: "I need to communicate better on defense and trust my linemates.", trait: "TEAM" },
-      { text: "I don't focus on weaknesses. I just need a coach who lets me play my game.", trait: "STAR" }
-    ]
-  },
-  {
-    text: "You get drafted to a team with a toxic locker room that's currently on a 5-game losing streak. How do you handle it?",
-    answers: [
-      { text: "Grab the loudest guy by the collar and tell him to wake up.", trait: "GRIT" },
-      { text: "Call a players-only meeting and get everyone on the same page.", trait: "TEAM" },
-      { text: "Put the team on my back and win the next game myself.", trait: "STAR" }
-    ]
-  },
-  {
-    text: "It's an off-day before the biggest game of the season. What are you doing?",
-    answers: [
-      { text: "Hitting the gym. There are no days off.", trait: "GRIT" },
-      { text: "Organizing a team dinner to keep the boys loose and connected.", trait: "TEAM" },
-      { text: "Visualizing my goal celebration. Keeping my mind entirely focused on scoring.", trait: "STAR" }
-    ]
-  }
-];
+// ==========================================
+// POSITION-SPECIFIC INTERVIEW QUESTIONS
+// ==========================================
+const POSITION_QUESTIONS = {
+  F: [
+    {
+      text: "You're down by 1 goal with 30 seconds left in a playoff game. What's your primary focus when you step on the ice?",
+      answers: [
+        { text: "Dump it in, lay a massive hit, and set a physical tone.", trait: "GRIT" },
+        { text: "Stick to the system and cycle the puck to find the open man.", trait: "TEAM" },
+        { text: "Demand the puck. I want it on my stick when the game is on the line.", trait: "STAR" }
+      ]
+    },
+    {
+      text: "Every forward has defensive flaws. How do you handle being benched for a missed backcheck?",
+      answers: [
+        { text: "Take it on the chin, go block a shot on my next shift, and earn my ice time back.", trait: "GRIT" },
+        { text: "Ask the assistant coach for video breakdown so I don't make the same mistake twice.", trait: "TEAM" },
+        { text: "I don't focus on the benching. I just go out and score on my next shift.", trait: "STAR" }
+      ]
+    }
+  ],
+  D: [
+    {
+      text: "An opposing power forward is driving hard down your wing on a 1-on-1. How do you defend it?",
+      answers: [
+        { text: "Step up at the blue line and put him through the glass.", trait: "GRIT" },
+        { text: "Maintain strict gap control and force him wide into my partner's coverage.", trait: "TEAM" },
+        { text: "Poke the puck free and immediately start a 2-on-1 rush the other way.", trait: "STAR" }
+      ]
+    },
+    {
+      text: "You're logging 25+ minutes a night and your partner makes a costly giveaway. How do you react?",
+      answers: [
+        { text: "Grind it out and cover for him. Defensemen protect each other.", trait: "GRIT" },
+        { text: "Tap his pads on the bench and tell him we get the next one back.", trait: "TEAM" },
+        { text: "Take over the next shift myself and carry the puck out of our zone.", trait: "STAR" }
+      ]
+    }
+  ],
+  G: [
+    {
+      text: "You just allowed a soft goal from center ice in front of 20,000 hostile fans. How do you recover?",
+      answers: [
+        { text: "Battle harder in the crease. Make the next save as painful for them as possible.", trait: "GRIT" },
+        { text: "Reset my breathing, trust my technical routine, and focus on the next shot.", trait: "TEAM" },
+        { text: "Wave it off. I know I'm the best player on this ice.", trait: "STAR" }
+      ]
+    },
+    {
+      text: "Our analytics team wants you to tweak your butterfly stance to match our tracking data. Are you receptive?",
+      answers: [
+        { text: "I'll do whatever dirty work is necessary to stop pucks.", trait: "GRIT" },
+        { text: "Whatever the coaching staff needs from me, I'm 100% bought in.", trait: "TEAM" },
+        { text: "I'll listen, but my natural instincts got me drafted for a reason.", trait: "STAR" }
+      ]
+    }
+  ]
+};
+
+// Helper to keep Math.random() strictly outside the React component scope
+const getRandomTarget = (exclude = -1) => {
+  const possibleTargets = [0, 1, 2, 3, 4, 5, 6, 7, 8].filter(n => n !== exclude);
+  return possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+};
 
 export default function CombineScreen() {
-  const { combinePhase, combineScore, handleDraftDay, setCombineClicks, setCombinePhase, setCombineScore } = useAppContext();
+  const { combinePhase, combineScore, handleDraftDay, player, setCombineClicks, setCombinePhase, setCombineScore } = useAppContext();
   
+  const [showIntro, setShowIntro] = useState(true);
   const [interviewData, setInterviewData] = useState(null);
   const [interviewResult, setInterviewResult] = useState(null);
 
-  // Bench Press State (Timing Mechanic)
+  const posGroup = player.pos === 'G' ? 'G' : ['LD', 'RD'].includes(player.pos) ? 'D' : 'F';
+
+  // ==========================================
+  // FORWARD STATE: Bench Press
+  // ==========================================
   const [bpActive, setBpActive] = useState(false);
   const [bpDone, setBpDone] = useState(false);
   const [bpReps, setBpReps] = useState(0);
@@ -56,8 +92,6 @@ export default function CombineScreen() {
   const [bpFailed, setBpFailed] = useState(false);
   const [bpResult, setBpResult] = useState(null);
   const dirRef = useRef(1);
-
-  // Speed increases as reps go up to simulate fatigue
   const speed = 1.5 + (bpReps * 0.8);
 
   useEffect(() => {
@@ -75,59 +109,139 @@ export default function CombineScreen() {
   }, [bpActive, bpFailed, bpDone, speed]);
 
   const startBenchPress = () => {
-    setBpActive(true);
-    setBpReps(0);
-    setBpPos(5);
-    dirRef.current = 1;
-    setBpFailed(false);
-    setBpDone(false);
+    setBpActive(true); setBpReps(0); setBpPos(5); dirRef.current = 1; setBpFailed(false); setBpDone(false);
   };
 
   const handlePush = () => {
     if (!bpActive || bpFailed || bpDone) return;
-    
-    // The Sweet Spot is exactly between 40% and 60%
     if (bpPos >= 40 && bpPos <= 60) {
-      // SUCCESS! Hit the green zone
       const newReps = bpReps + 1;
-      if (newReps >= 5) {
-        finishBp(newReps, false); // Flawless victory
-      } else {
-        setBpReps(newReps);
-      }
+      if (newReps >= 5) finishBp(newReps, false);
+      else setBpReps(newReps);
     } else {
-      // FAIL! Missed the green zone
       finishBp(bpReps, true);
     }
   };
 
   const finishBp = (finalReps, failed) => {
-    setBpActive(false);
-    setBpDone(true);
-    setBpFailed(failed);
-
-    let pts;
-    let msg;
+    setBpActive(false); setBpDone(true); setBpFailed(failed);
+    let pts, msg;
     if (finalReps >= 5) { pts = 2; msg = "Elite strength! 5 perfect reps."; }
     else if (finalReps >= 3) { pts = 1; msg = "Solid showing. You have pro-level power."; }
     else if (finalReps >= 1) { pts = 0; msg = "Average strength. Nothing special."; }
     else { pts = -1; msg = "You completely missed the lift. An embarrassing showing."; }
-
     setCombineScore(s => s + pts);
-    setBpResult({ pts, msg, finalReps });
+    setBpResult({ pts, msg, finalScore: finalReps, unit: 'REPS' });
   };
 
-  // Initialize the interview data when Phase 2 starts
+  // ==========================================
+  // DEFENSE STATE: VO2 Max Button Mash
+  // ==========================================
+  const [vo2Active, setVo2Active] = useState(false);
+  const [vo2Done, setVo2Done] = useState(false);
+  const [vo2Score, setVo2Score] = useState(0);
+  const [vo2Time, setVo2Time] = useState(10);
+  const [vo2Result, setVo2Result] = useState(null);
+
+  const finishVo2 = useCallback((score) => {
+    setVo2Done(true);
+    let pts, msg;
+    if (score >= 45) { pts = 2; msg = "Elite endurance! You barely broke a sweat."; }
+    else if (score >= 32) { pts = 1; msg = "Solid motor. You can handle top-four minutes."; }
+    else if (score >= 20) { pts = 0; msg = "Average cardio. Better hit the bike this summer."; }
+    else { pts = -1; msg = "You gassed out completely. Scouts are concerned."; }
+    setCombineScore(s => s + pts);
+    setVo2Result({ pts, msg, finalScore: score, unit: 'STRIDES' });
+  }, [setCombineScore]);
+
+  // EFFECT 1: Pure timer tick (uninterrupted by button mashing)
+  useEffect(() => {
+    let interval;
+    if (vo2Active) {
+      interval = setInterval(() => setVo2Time(t => (t > 0 ? t - 1 : 0)), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [vo2Active]);
+
+  // EFFECT 2: Check for game over
+  useEffect(() => {
+    if (vo2Active && vo2Time <= 0) {
+      setTimeout(() => {
+        setVo2Active(false);
+        finishVo2(vo2Score);
+      }, 0);
+    }
+  }, [vo2Active, vo2Time, vo2Score, finishVo2]);
+
+  const startVo2 = () => {
+    setVo2Active(true); setVo2Score(0); setVo2Time(10); setVo2Done(false);
+  };
+
+  // ==========================================
+  // GOALIE STATE: Reaction Light Board
+  // ==========================================
+  const [rxActive, setRxActive] = useState(false);
+  const [rxDone, setRxDone] = useState(false);
+  const [rxScore, setRxScore] = useState(0);
+  const [rxTime, setRxTime] = useState(10);
+  const [rxTarget, setRxTarget] = useState(-1);
+  const [rxResult, setRxResult] = useState(null);
+
+  const finishRx = useCallback((score) => {
+    setRxDone(true);
+    let pts, msg;
+    if (score >= 18) { pts = 2; msg = "Lightning reflexes! The scouts are amazed."; }
+    else if (score >= 12) { pts = 1; msg = "Great quickness and eye tracking."; }
+    else if (score >= 7) { pts = 0; msg = "Average reaction time for a prospect."; }
+    else { pts = -1; msg = "Slow reads. The puck beats you cleanly."; }
+    setCombineScore(s => s + pts);
+    setRxResult({ pts, msg, finalScore: score, unit: 'HITS' });
+  }, [setCombineScore]);
+
+  // EFFECT 1: Pure timer tick (uninterrupted by target clicking)
+  useEffect(() => {
+    let interval;
+    if (rxActive) {
+      interval = setInterval(() => setRxTime(t => (t > 0 ? t - 1 : 0)), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [rxActive]);
+
+  // EFFECT 2: Check for game over
+  useEffect(() => {
+    if (rxActive && rxTime <= 0) {
+      setTimeout(() => {
+        setRxActive(false);
+        finishRx(rxScore);
+      }, 0);
+    }
+  }, [rxActive, rxTime, rxScore, finishRx]);
+
+  const startRx = () => {
+    setRxActive(true); setRxScore(0); setRxTime(10); setRxDone(false); setRxTarget(getRandomTarget());
+  };
+
+  const handleRxTap = (idx) => {
+    if (!rxActive) return;
+    if (idx === rxTarget) {
+      setRxScore(s => s + 1);
+      setRxTarget(getRandomTarget(rxTarget));
+    }
+  };
+
+  // Position-aware interview initialization
   useEffect(() => {
      if (combinePhase === 2 && !interviewData) {
          const scout = SCOUTS[Math.floor(Math.random() * SCOUTS.length)];
-         const q = INTERVIEW_QUESTIONS[Math.floor(Math.random() * INTERVIEW_QUESTIONS.length)];
+         const questionPool = POSITION_QUESTIONS[posGroup] || POSITION_QUESTIONS.F;
+         const q = questionPool[Math.floor(Math.random() * questionPool.length)];
+         
          const shuffledAnswers = [...q.answers].sort(() => 0.5 - Math.random());
          setTimeout(() => {
              setInterviewData({ scout, question: q, answers: shuffledAnswers });
          }, 0);
      }
-  }, [combinePhase, interviewData]);
+  }, [combinePhase, interviewData, posGroup]);
 
   const handleAnswer = (ans) => {
      const isMatch = ans.trait === interviewData.scout.trait;
@@ -136,18 +250,43 @@ export default function CombineScreen() {
   };
 
   return (() => {
-          // ==========================================
-          // PHASE 1: BENCH PRESS TEST (TIMING)
-          // ==========================================
+          // PHASE 0: INTRO SCREEN
+          if (showIntro) {
+             return (
+               <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in flex flex-col items-center">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-[#101410] border border-slate-700 px-3 py-1 rounded-full mb-3 shadow-md">
+                    DRAFT PREPARATION
+                 </span>
+                 <h2 className="text-3xl sm:text-5xl font-black text-[#3b82f6] sports-font uppercase mb-4 tracking-tighter">
+                   NHL DRAFT COMBINE
+                 </h2>
+                 <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
+                   Welcome to the Draft Combine. This is your final chance to prove your worth to general managers before draft day. You will undergo physical testing to measure your athleticism, followed by intense interviews to evaluate your character and hockey IQ. 
+                 </p>
+                 <button 
+                   onClick={() => setShowIntro(false)} 
+                   className="btn-primary py-4 px-10 rounded-xl font-black sports-font text-2xl uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+                 >
+                   ENTER COMBINE
+                 </button>
+               </div>
+             );
+          }
+
+          // PHASE 1: PHYSICAL TESTING MINIGAMES
           if (combinePhase === 1) {
-             if (bpDone) {
+             
+             const activeResult = posGroup === 'F' ? bpResult : posGroup === 'D' ? vo2Result : rxResult;
+             const isDone = posGroup === 'F' ? bpDone : posGroup === 'D' ? vo2Done : rxDone;
+
+             if (isDone) {
                  return (
                    <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in max-w-2xl mx-auto">
-                     <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase mb-6">STRENGTH RESULTS</h2>
+                     <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase mb-6">TEST RESULTS</h2>
                      
-                     <div className={`flex flex-col items-center justify-center bg-[#101410] p-6 rounded-xl border mb-8 ${bpResult.pts > 0 ? 'border-[#22E748]/50 shadow-[0_0_15px_rgba(34,231,72,0.15)]' : bpResult.pts < 0 ? 'border-[#ef4444]/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-slate-500/50'}`}>
-                        <div className="text-5xl font-black sports-font mb-2">{bpResult.finalReps} <span className="text-lg text-slate-400">REPS</span></div>
-                        <p className={`text-lg font-bold uppercase tracking-widest ${bpResult.pts > 0 ? 'text-[#22E748]' : bpResult.pts < 0 ? 'text-[#ef4444]' : 'text-slate-300'}`}>{bpResult.msg}</p>
+                     <div className={`flex flex-col items-center justify-center bg-[#101410] p-6 rounded-xl border mb-8 ${activeResult.pts > 0 ? 'border-[#22E748]/50 shadow-[0_0_15px_rgba(34,231,72,0.15)]' : activeResult.pts < 0 ? 'border-[#ef4444]/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-slate-500/50'}`}>
+                        <div className="text-5xl font-black sports-font mb-2">{activeResult.finalScore} <span className="text-lg text-slate-400">{activeResult.unit}</span></div>
+                        <p className={`text-lg font-bold uppercase tracking-widest ${activeResult.pts > 0 ? 'text-[#22E748]' : activeResult.pts < 0 ? 'text-[#ef4444]' : 'text-slate-300'}`}>{activeResult.msg}</p>
                      </div>
 
                      <button onClick={() => setCombinePhase(2)} className="w-full btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg">
@@ -157,51 +296,102 @@ export default function CombineScreen() {
                  );
              }
 
-             return (
-               <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6]">
-                 <h2 className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font uppercase mb-2">BENCH PRESS TEST</h2>
-                 <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
-                   Test your strength and composure. Press <strong className="text-white">PUSH</strong> exactly when the bar is inside the green sweet spot. Every rep gets faster!
-                 </p>
-                 
-                 <div className="flex justify-between items-center max-w-md mx-auto mb-4 font-black sports-font text-xl text-slate-400">
-                    <span>REPS: <span className="text-white">{bpReps} / 5</span></span>
-                 </div>
+             // FORWARD: BENCH PRESS
+             if (posGroup === 'F') {
+               return (
+                 <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in">
+                   <h2 className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font uppercase mb-2">BENCH PRESS TEST</h2>
+                   <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
+                     Test your strength and composure. Press <strong className="text-white">PUSH</strong> exactly when the bar is inside the green sweet spot. Every rep gets faster!
+                   </p>
+                   
+                   <div className="flex justify-between items-center max-w-md mx-auto mb-4 font-black sports-font text-xl text-slate-400">
+                      <span>REPS: <span className="text-white">{bpReps} / 5</span></span>
+                   </div>
 
-                 {/* THE TIMING BAR */}
-                 <div className="w-full max-w-md mx-auto h-10 bg-[#101410] rounded-full relative overflow-hidden border-2 border-[rgba(255,255,255,0.1)] mb-8 shadow-inner">
-                    {/* The Sweet Spot (40% to 60%) */}
-                    <div className="absolute top-0 bottom-0 left-[40%] right-[40%] bg-[#22E748]/30 border-l-2 border-r-2 border-[#22E748]"></div>
-                    
-                    {/* The Moving Indicator */}
-                    <div 
-                      className="absolute top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_10px_white]" 
-                      style={{ left: `${bpPos}%`, transform: 'translateX(-50%)' }}
-                    ></div>
-                 </div>
+                   <div className="w-full max-w-md mx-auto h-10 bg-[#101410] rounded-full relative overflow-hidden border-2 border-[rgba(255,255,255,0.1)] mb-8 shadow-inner">
+                      <div className="absolute top-0 bottom-0 left-[40%] right-[40%] bg-[#22E748]/30 border-l-2 border-r-2 border-[#22E748]"></div>
+                      <div 
+                        className="absolute top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_10px_white]" 
+                        style={{ left: `${bpPos}%`, transform: 'translateX(-50%)' }}
+                      ></div>
+                   </div>
 
-                 {!bpActive ? (
-                    <button 
-                      onClick={startBenchPress} 
-                      className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(59,130,246,0.4)]"
-                    >
-                      START TEST
-                    </button>
-                 ) : (
-                    <button 
-                      onClick={handlePush} 
-                      className="w-48 h-20 sm:w-56 mx-auto rounded-xl bg-[#ef4444] hover:bg-[#dc2626] border-b-4 border-[#991b1b] active:border-b-0 active:translate-y-1 text-white font-black text-3xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_30px_rgba(239,68,68,0.3)]"
-                    >
-                      PUSH!
-                    </button>
-                 )}
-               </div>
-             );
+                   {!bpActive ? (
+                      <button onClick={startBenchPress} className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+                        START TEST
+                      </button>
+                   ) : (
+                      <button onClick={handlePush} className="w-48 h-20 sm:w-56 mx-auto rounded-xl bg-[#ef4444] hover:bg-[#dc2626] border-b-4 border-[#991b1b] active:border-b-0 active:translate-y-1 text-white font-black text-3xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                        PUSH!
+                      </button>
+                   )}
+                 </div>
+               );
+             }
+
+             // DEFENSE: VO2 MAX
+             if (posGroup === 'D') {
+                return (
+                  <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#F59E0B] animate-fade-in">
+                   <h2 className="text-2xl sm:text-4xl font-black text-[#F59E0B] sports-font uppercase mb-2">VO2 MAX TREADMILL</h2>
+                   <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
+                     Test your aerobic endurance. Mash the <strong className="text-[#F59E0B]">STRIDE</strong> button as rapidly as humanly possible before the 10-second timer expires!
+                   </p>
+                   
+                   <div className="flex justify-between items-center max-w-md mx-auto mb-6 font-black sports-font text-2xl text-slate-400">
+                      <span>TIME: <span className="text-white">{vo2Time}s</span></span>
+                      <span>STRIDES: <span className="text-[#F59E0B]">{vo2Score}</span></span>
+                   </div>
+
+                   {!vo2Active ? (
+                      <button onClick={startVo2} className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#F59E0B] hover:bg-[#d97706] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                        START TEST
+                      </button>
+                   ) : (
+                      <button onClick={() => setVo2Score(s => s + 1)} className="w-48 h-32 sm:w-56 mx-auto rounded-xl bg-[#101410] hover:bg-[#1a2230] border-4 border-[#F59E0B] active:bg-[#F59E0B]/20 active:scale-95 text-[#F59E0B] font-black text-4xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_30px_rgba(245,158,11,0.3)] select-none">
+                        STRIDE!
+                      </button>
+                   )}
+                 </div>
+                );
+             }
+
+             // GOALIE: REACTION BOARD
+             if (posGroup === 'G') {
+                return (
+                  <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#c084fc] animate-fade-in">
+                   <h2 className="text-2xl sm:text-4xl font-black text-[#c084fc] sports-font uppercase mb-2">REACTION BOARD</h2>
+                   <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
+                     Test your hand-eye coordination. Tap the glowing blue targets as quickly as they appear before time runs out!
+                   </p>
+                   
+                   <div className="flex justify-between items-center max-w-md mx-auto mb-6 font-black sports-font text-2xl text-slate-400">
+                      <span>TIME: <span className="text-white">{rxTime}s</span></span>
+                      <span>HITS: <span className="text-[#c084fc]">{rxScore}</span></span>
+                   </div>
+
+                   {!rxActive ? (
+                      <button onClick={startRx} className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#c084fc] hover:bg-[#a855f7] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(192,132,252,0.4)]">
+                        START TEST
+                      </button>
+                   ) : (
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 w-64 h-64 sm:w-80 sm:h-80 mx-auto select-none">
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
+                          <button
+                            key={idx}
+                            onPointerDown={() => handleRxTap(idx)}
+                            className={`rounded-lg transition-all duration-75 border ${idx === rxTarget ? 'bg-[#3b82f6] border-[#60a5fa] shadow-[0_0_25px_rgba(59,130,246,0.8)] scale-105 cursor-pointer' : 'bg-[#101410] border-[rgba(255,255,255,0.065)] cursor-default'}`}
+                          ></button>
+                        ))}
+                      </div>
+                   )}
+                 </div>
+                );
+             }
           }
 
-          // ==========================================
           // PHASE 2: COMBINE INTERVIEWS
-          // ==========================================
           if (combinePhase === 2 && interviewData) {
              if (interviewResult) {
                 return (
@@ -254,9 +444,7 @@ export default function CombineScreen() {
              );
           }
 
-          // ==========================================
           // PHASE 3: VERDICT & IMPACT
-          // ==========================================
           if (combinePhase === 3) {
              let verdict;
              let boost = 0;

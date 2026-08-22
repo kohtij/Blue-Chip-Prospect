@@ -65,6 +65,14 @@ export function handleEventChoice(ctx, choice) {
     }
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
+  } else if (actionStr === 'ROUTE_ALL_STAR') {
+    ctx.setPlayer(updated);
+    ctx.setScreen('all-star');
+    return;
+  } else if (actionStr === 'ROUTE_TRADE_DEADLINE') {
+    ctx.setPlayer(updated);
+    ctx.setScreen('trade-deadline');
+    return;
   } else if (actionStr === 'ACCEPT_IMPORT_DRAFT') {
     const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData?.team || 'UNK';
     const lg = choice.actionData?.league || 'OHL';
