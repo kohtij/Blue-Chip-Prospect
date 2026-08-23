@@ -295,7 +295,18 @@ export default function CreationScreen() {
                                  <h4 className="text-base sm:text-lg font-black text-white sports-font uppercase leading-none truncate">
                                    {c.name}
                                  </h4>
-                                 {c.isLegend && <span className="text-[9px] font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/30 px-2 py-0.5 rounded ml-2 shrink-0">LEGEND</span>}
+                                 <div className="flex items-center gap-2 ml-2 shrink-0">
+                                   {c.careerScore !== undefined && (
+                                      <span className="text-[9px] font-black text-white bg-white/10 border border-white/20 px-2 py-0.5 rounded">
+                                        SCORE: {c.careerScore.toLocaleString()}
+                                      </span>
+                                   )}
+                                   {c.isLegend && (
+                                      <span className="text-[9px] font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/30 px-2 py-0.5 rounded">
+                                        LEGEND
+                                      </span>
+                                   )}
+                                 </div>
                                </div>
                                
                                <p className="text-[10px] text-slate-400 font-bold uppercase font-sans truncate mb-2">

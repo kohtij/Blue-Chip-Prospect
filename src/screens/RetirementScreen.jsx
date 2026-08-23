@@ -5,9 +5,12 @@ import { getAwardImage } from '../data/awards';
 import { formatMoney } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
+import { useMemo } from 'react';
+import { computeCareerScore } from '../utils/careerScore';
 
 export default function RetirementScreen() {
   const { handleNewGame, player } = useAppContext();
+  const scoreData = useMemo(() => computeCareerScore(player), [player]);
   return (() => {
           const isLegend = player.idolatry >= 800;
           const isGoalie = player.pos === 'G';
@@ -130,7 +133,31 @@ export default function RetirementScreen() {
                   <p className="text-xs sm:text-sm text-slate-400 font-sans italic mt-2 mb-4">
                     {isLegend ? `Your jersey hangs proudly in the rafters of ${arenaName}.` : 'You officially hang up the skates after a hard-fought career.'}
                   </p>
-
+                  
+                {/* CAREER SCORE HERO BANNER */}
+                    <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-8 rounded-xl mb-8 flex flex-col items-center shadow-lg relative overflow-hidden">
+                      <div className={`absolute top-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent ${scoreData.color} opacity-50`}></div>
+                      
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">FINAL CAREER SCORE</p>
+                      
+                      <h1 className="text-6xl sm:text-7xl font-black sports-font tracking-tighter text-white drop-shadow-md mb-1">
+                        {scoreData.total.toLocaleString()}
+                      </h1>
+                      
+                      <h2 className={`text-xl sm:text-2xl font-black sports-font uppercase tracking-widest ${scoreData.color}`}>
+                        {scoreData.tier}
+                      </h2>
+                      
+                      <div className="w-full h-px bg-[rgba(255,255,255,0.05)] my-5"></div>
+                      
+                      <div className="flex flex-wrap justify-center gap-2 sm:gap-4 w-full">
+                        {scoreData.breakdown.map((item, idx) => (
+                          <span key={idx} className="text-[10px] sm:text-xs font-bold text-slate-300 bg-black/40 px-3 py-1.5 rounded-md border border-[rgba(255,255,255,0.05)]">
+                            {item.label} <span className={item.points > 0 ? "text-[#22E748]" : "text-[#ef4444]"}>{item.points > 0 ? '+' : ''}{item.points}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   {stanleyCups > 0 && (
                     <div className="game-panel mt-4 p-4 sm:p-6 bg-gradient-to-r from-[#F59E0B]/20 via-[#101410] to-[#F59E0B]/20 border-2 border-[#F59E0B] rounded-2xl flex items-center justify-between shadow-[0_0_25px_rgba(245,158,11,0.2)]">
                       <div className="flex items-center gap-4 text-left">
@@ -381,7 +408,8 @@ export default function RetirementScreen() {
                         earnings: player.stats?.earnings || 0,
                         team: primaryTeamName,
                         logo: primaryTeam,
-                        isLegend: player.idolatry >= 800
+                        isLegend: scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer',
+                        careerScore: scoreData.total, // (Optional) Save it for the future!
                       };
                       
                       localStorage.setItem('hockey_career_history', JSON.stringify([newCareer, ...savedCareers]));

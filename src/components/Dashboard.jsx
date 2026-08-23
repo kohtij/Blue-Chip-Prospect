@@ -4,7 +4,7 @@ import { getDisplayDeployment, getFullTeamName } from '../utils/appHelpers';
 import TeamLogo from './TeamLogo';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop }) => {
+const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire }) => {
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
   const nextYear = currentYear + 1;
@@ -329,12 +329,26 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop }) =
                 </div>
               </div>
 
-              {/* SHOP BUTTON */}
-              {!isJunior && player.league !== 'NCAA' && (
-                <button type="button" onClick={onOpenShop} className="w-full mt-2 py-2.5 rounded-lg border border-[#22E748]/40 bg-[#22E748]/10 text-[#22E748] font-black sports-font uppercase tracking-widest hover:bg-[#22E748]/20 transition-colors shadow-[0_0_10px_rgba(34,231,75,0.1)] cursor-pointer flex items-center justify-center gap-2">
-                   <span className="text-sm">🛒</span> OPEN SHOP
+              {/* ACTION BUTTONS */}
+              <div className="flex flex-col gap-2 mt-2">
+                {!isJunior && player.league !== 'NCAA' && (
+                  <button type="button" onClick={onOpenShop} className="w-full py-2.5 rounded-lg border border-[#22E748]/40 bg-[#22E748]/10 text-[#22E748] font-black sports-font uppercase tracking-widest hover:bg-[#22E748]/20 transition-colors shadow-[0_0_10px_rgba(34,231,75,0.1)] cursor-pointer flex items-center justify-center gap-2">
+                     <span className="text-sm">🛒</span> OPEN SHOP
+                  </button>
+                )}
+
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to retire? This will end your career permanently and calculate your final score.")) {
+                      onRetire();
+                    }
+                  }} 
+                  className="w-full py-2.5 rounded-lg border border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444] font-black sports-font uppercase tracking-widest hover:bg-[#ef4444]/20 transition-colors shadow-[0_0_10px_rgba(239,68,68,0.1)] cursor-pointer flex items-center justify-center gap-2"
+                >
+                   <span className="text-sm">🛑</span> RETIRE NOW
                 </button>
-              )}
+              </div>
 
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { LEAGUE_CONFIG, getOpponentPool, getPrimaryRival, ncaaTeams } from '../data/teams';
 import { capIdol, formatMoney } from '../utils/gameHelpers';
+import { formatLeagueName, leagueWithArticle } from '../utils/gameHelpers';
 
 export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
@@ -33,12 +34,12 @@ export default function RecapScreen() {
              } else if (isJunior) {
                  if (seasonRecap?.memCupStatus === 'won') {
                      narrativeTitle = 'MEMORIAL CUP CHAMPIONS';
-                     narrative = `Absolute glory. You conquered the ${player.league} and lifted the Memorial Cup, cementing your legacy as a junior hockey legend.`;
+                     narrative = `Absolute glory. You conquered ${leagueWithArticle(player.league)} and lifted the Memorial Cup, cementing your legacy as a junior hockey legend.`;
                  } else if (seasonRecap?.memCupStatus === 'lost') {
                      narrativeTitle = 'REGIONAL CHAMPIONS';
                      narrative = `You dominated your league and lifted the ${titles.cupName}, but fell agonizingly short in the Memorial Cup against the nation's best. A bittersweet, but incredible season.`;
                  } else {
-                     narrativeTitle = `${player.league} CHAMPIONS`;
+                     narrativeTitle = `${formatLeagueName(player.league)} CHAMPIONS`;
                      narrative = `You climbed the mountain and won the ${titles.cupName}!`;
                  }
              } else {
@@ -130,7 +131,7 @@ export default function RecapScreen() {
                         );
                      }
                      return (
-                       <>🏅 {['SHL', 'LIIGA'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in the {player.league}. {
+                       <>🏅 {['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in {leagueWithArticle(player.league)}. {
                          (seasonRecap?.standings === 1) ? 'An absolutely dominant regular season.' :
                          (seasonRecap?.madePlayoffs) ? 'A solid campaign to secure a playoff berth.' :
                          (seasonRecap?.standings >= (getOpponentPool(player.league)?.length || 20) - 3) ? 'A miserable rebuilding year for the franchise.' :

@@ -118,8 +118,8 @@ export default function TransferScreen() {
                     {o.type === 'OFFER SHEET' && <div className="bg-[#c084fc] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">📝 OFFER SHEET</div>}
 
                     <div className="p-4 sm:p-5 flex flex-col flex-1">
-                      <div className="absolute top-1/2 right-[-10%] -translate-y-1/2 opacity-[0.04] group-hover:opacity-[0.08] pointer-events-none grayscale mix-blend-screen transition-opacity">
-                         <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" className="scale-[3]" />
+                      <div className="absolute top-1/2 right-[-10%] -translate-y-1/2 opacity-[0.025] group-hover:opacity-[0.05] pointer-events-none transition-opacity">
+                          <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" className="scale-[3]" />
                       </div>
 
                       <div className="flex items-center gap-3 mb-4 z-10 relative">

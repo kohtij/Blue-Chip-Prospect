@@ -303,7 +303,9 @@ const generateTraining = useCallback((pos) => {
     const epics = activePool.filter(t => t.rarity === 'Epic');
 
     const hand = [];
-    while (hand.length < 3) {
+    let tries = 0;
+    while (hand.length < 3 && tries < 50) {
+      tries++;
       const roll = Math.random();
       let selectedPool = commons;
       if (roll > 0.95 && epics.length) selectedPool = epics;
@@ -311,10 +313,25 @@ const generateTraining = useCallback((pos) => {
 
       if (selectedPool.length) {
         const randomCard = selectedPool[Math.floor(Math.random() * selectedPool.length)];
-        if (!hand.find(c => c.id === randomCard.id)) { hand.push(randomCard); }
+        // Identify the primary stat this card modifies
+        const statKeys = Object.keys(randomCard.effect || {}).filter(k => k !== 'stamina' && k !== 'idolatry');
+        const mainStat = statKeys.length > 0 ? statKeys[0] : null;
+        
+        // Ensure we don't already have a card boosting this stat
+        const alreadyHasStat = mainStat ? hand.some(c => Object.keys(c.effect || {}).includes(mainStat)) : false;
+
+        if (!hand.find(c => c.id === randomCard.id) && !alreadyHasStat) { 
+            hand.push(randomCard); 
+        }
       } else {
         break; 
       }
+    }
+    
+    // Fallback if the loop starves 
+    while (hand.length < 3) {
+       const fallbackCard = commons[Math.floor(Math.random() * commons.length)];
+       if (!hand.find(c => c.id === fallbackCard.id)) hand.push(fallbackCard);
     }
     setActiveTrainings(hand);
   }, []);
@@ -631,6 +648,25 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         unlockAchievement('gold_medal');
         const withOvr = applyOvrDelta(player, 1);
         updatedPlayer = { ...withOvr, idolatry: capIdol(withOvr.idolatry + 50), ovr: recomputeOvr(withOvr) };
+        
+        // --- NEW: Inject International Medal into Career Awards ---
+        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
+        const medalString = `🥇 Gold, ${tournamentName} ${currentYear}`;
+        
+        updatedPlayer.stats = {
+           ...updatedPlayer.stats,
+           awards: [...(updatedPlayer.stats?.awards || []), medalString]
+        };
+        
+        if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
+            const lastIdx = updatedPlayer.seasonHistory.length - 1;
+            updatedPlayer.seasonHistory[lastIdx] = {
+                ...updatedPlayer.seasonHistory[lastIdx],
+                awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString]
+            };
+        }
+        // --------------------------------------------------------
+
         resultMsg = `${msg} You secured Gold for ${countryName}!`;
         resultEffect = { idol: 50, ovr: 1 };
       } else {
@@ -641,7 +677,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
       setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
-      return; // FIXED: Early return prevents the Verdict Toast from overlapping!
+      return; 
     }
 
     const payout = reward || { win: { idol: 5 }, loss: { idol: -2 } };
@@ -712,6 +748,25 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       if (isWin) {
         unlockAchievement('gold_medal');
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
+        
+        // --- NEW: Inject International Medal into Career Awards ---
+        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
+        const medalString = `🥇 Gold, ${tournamentName} ${currentYear}`;
+        
+        updatedPlayer.stats = {
+           ...updatedPlayer.stats,
+           awards: [...(updatedPlayer.stats?.awards || []), medalString]
+        };
+        
+        if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
+            const lastIdx = updatedPlayer.seasonHistory.length - 1;
+            updatedPlayer.seasonHistory[lastIdx] = {
+                ...updatedPlayer.seasonHistory[lastIdx],
+                awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString]
+            };
+        }
+        // --------------------------------------------------------
+
         resultMsg = `${msg} You secured Gold for ${countryName}!`;
         resultEffect = { idol: 50, ovr: payout.ovr || 0 };
       } else {
@@ -722,7 +777,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
       setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
-      return; // FIXED: Early return to suppress toast!
+      return; 
     }
 
     setPlayer(updatedPlayer);
@@ -765,6 +820,11 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     const hasCHLHistory = (player.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
     const demoteThresh = player.pos === 'G' ? 71 : 64;
     
+    // --- NEW: Calculate True Juniors Eligibility (The 9-Game Rule) ---
+    const played10NhlGames = (player.seasonHistory || []).some(s => s.league === 'NHL' && s.games >= 10);
+    const isNonELC = player.contract?.salary !== 925000 && player.contract?.salary !== 0;
+    const juniorsEligible = isUnder20 && !played10NhlGames && !isNonELC;
+
     const lastSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
     const wonRecentTitle = lastSeason?.titleWon === true || (lastSeason?.awards || []).some(a => a.includes('Cup') || a.includes('Championship'));
     if (wonRecentTitle) return null;
@@ -779,16 +839,15 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         return { team: echlTeamId, lg: 'ECHL', reason: 'ECHL_REASSIGNMENT' };
     }
 
-    // NHL ➔ AHL / JUNIOR DEMOTION
     if (player.league === 'NHL' && (player.ovr < demoteThresh || needsAHLDevelopment)) {
-      // Top 10 picks under 20 are almost always kept in the NHL to sell tickets and develop
       if (isTop10Pick && isUnder20) {
           return null; 
       }
 
-      if (isUnder20 && hasCHLHistory && Math.random() > 0.5) {
+      // Check strictly against the new `juniorsEligible` flag instead of just `isUnder20`
+      if (juniorsEligible && hasCHLHistory && Math.random() > 0.5) {
         return null;
-      } else if (isUnder20 && hasCHLHistory) {
+      } else if (juniorsEligible && hasCHLHistory) {
          const lastCHL = (player.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
          const currentTeam = lastCHL || player.draftTeam || 'UNK';
          let currentLg = 'OHL';
@@ -799,8 +858,6 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       } else {
          const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
          const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
-         
-         const proSeasons = player.stats?.seasonsPlayed || 0;
          const isRFA = player.age < 27 && proSeasons < 7;
          const isELC = player.contract?.salary === 925000 || (isRFA && proSeasons < 3);
 
@@ -964,29 +1021,39 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
   };
 
   const handleArbitration = (offer) => {
-  // Calculate a fair baseline based purely on current OVR
-  let baseline;
-  if (player.ovr >= 85) baseline = 6500000;
-  else if (player.ovr >= 80) baseline = 4000000;
-  else if (player.ovr >= 75) baseline = 2250000;
-  else baseline = 1100000;
+    let baseline;
+    const careerAwards = player.stats?.awards || [];
+    const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
 
-  // Create the arbitration bounds
-  const teamOffer = Math.round((baseline * 0.75) / 25000) * 25000;
-  const playerAsk = Math.round((baseline * 1.30) / 25000) * 25000;
-  const startingRuling = Math.round(baseline / 25000) * 25000;
+    if (player.ovr >= 85 || isSuperstar) {
+      baseline = 7500000 + ((player.ovr - 85) * 1000000);
+    } else if (player.ovr >= 80) {
+      baseline = 4500000 + ((player.ovr - 80) * 600000);
+    } else if (player.ovr >= 75) {
+      baseline = 2000000 + ((player.ovr - 75) * 500000);
+    } else {
+      baseline = 900000 + 150000 + ((player.ovr - 70) * 100000);
+    }
 
-  setArbState({
-    teamOffer,
-    playerAsk,
-    currentRuling: startingRuling,
-    rounds: 3,
-    offerData: offer,
-    log: ["The arbitrator calls the hearing to order. The team's lawyers glare at you from across the mahogany table. Present your case."]
-  });
+    if (isSuperstar) baseline = Math.max(baseline, 10500000);
+    baseline = Math.min(13500000, baseline); // NHL Max cap
 
-  setScreen('arbitration_minigame');
-};
+    // Create the arbitration bounds around the player's true market value
+    const teamOffer = Math.round((baseline * 0.70) / 25000) * 25000;
+    const playerAsk = Math.round((baseline * 1.35) / 25000) * 25000;
+    const startingRuling = Math.round(baseline / 25000) * 25000;
+
+    setArbState({
+      teamOffer,
+      playerAsk,
+      currentRuling: startingRuling,
+      rounds: 3,
+      offerData: offer,
+      log: ["The arbitrator calls the hearing to order. The team's lawyers glare at you from across the mahogany table. Present your case."]
+    });
+
+    setScreen('arbitration_minigame');
+  };
 
   const startNegotiation = (offer) => {
     setNegotiation({
@@ -1232,6 +1299,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
               onOpenShop={() => setIsShopOpen(true)} 
               hasDemandedTrade={hasDemandedTrade} 
               setHasDemandedTrade={setHasDemandedTrade} 
+              onRetire={() => setScreen('retirement')}
             />
           </div>
         )}

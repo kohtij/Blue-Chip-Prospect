@@ -519,3 +519,17 @@ export function generatePlayoffDeck(standings, playoffSpots, round, gamesPerMatc
   
   return shuffleArray(cards);
 }
+
+export const formatLeagueName = (league) => {
+  if (league === 'LIIGA') return 'Liiga';
+  if (league === 'SWISS') return 'Swiss National League';
+  if (league === 'CZECH') return 'Czech Extraliga';
+  if (league === 'SLOVAK') return 'Slovak Extraliga';
+  return league;
+};
+
+export const leagueWithArticle = (league) => {
+  const noArticle = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+  const formatted = formatLeagueName(league);
+  return noArticle.includes(league) ? formatted : `the ${formatted}`;
+};
