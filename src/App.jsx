@@ -612,7 +612,6 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
 
     if (minigameContext === 'memcup') {
       if (isWin) {
-        // FIXED: Properly progress to the "semi_won" screen instead of skipping straight to the final
         setMemCup(prev => ({ ...prev, status: prev.round === 0 ? 'semi_won' : 'won', lastFeedback: msg }));
         
         if (memCup.round === 1) {
@@ -635,7 +634,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       }
       
       proceedToNextScreen(activeEvent, minigameContext, player);
-      return; // FIXED: Early return prevents the Verdict Toast from overlapping the tournament screen!
+      return; 
     }
 
     if (minigameContext === 'wjc' || minigameContext === 'olympics') {
@@ -645,13 +644,16 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       let resultMsg, resultEffect;
 
       if (isWin) {
-        unlockAchievement('gold_medal');
+        const isTier12 = !nat || nat.tier <= 2;
+        const isTier3 = nat?.tier === 3;
+
+        if (isTier12) unlockAchievement('gold_medal');
         const withOvr = applyOvrDelta(player, 1);
         updatedPlayer = { ...withOvr, idolatry: capIdol(withOvr.idolatry + 50), ovr: recomputeOvr(withOvr) };
         
-        // --- NEW: Inject International Medal into Career Awards ---
         const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
-        const medalString = `🥇 Gold, ${tournamentName} ${currentYear}`;
+        const achievementName = isTier12 ? '🥇 Gold' : (isTier3 ? '🛡️ Survival' : '📈 Promotion');
+        const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
         updatedPlayer.stats = {
            ...updatedPlayer.stats,
@@ -665,9 +667,9 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
                 awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString]
             };
         }
-        // --------------------------------------------------------
 
-        resultMsg = `${msg} You secured Gold for ${countryName}!`;
+        const actionWord = isTier12 ? 'secured Gold' : (isTier3 ? 'avoided relegation' : 'secured promotion');
+        resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
         resultEffect = { idol: 50, ovr: 1 };
       } else {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
@@ -737,7 +739,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         setPlayer(updatedPlayer);
         setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
         proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
-        return; // FIXED: Early return to suppress toast!
+        return; 
     }
 
     if (minigameContext === 'wjc' || minigameContext === 'olympics') {
@@ -746,12 +748,15 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
       let resultMsg, resultEffect;
 
       if (isWin) {
-        unlockAchievement('gold_medal');
+        const isTier12 = !nat || nat.tier <= 2;
+        const isTier3 = nat?.tier === 3;
+
+        if (isTier12) unlockAchievement('gold_medal');
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
         
-        // --- NEW: Inject International Medal into Career Awards ---
         const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
-        const medalString = `🥇 Gold, ${tournamentName} ${currentYear}`;
+        const achievementName = isTier12 ? '🥇 Gold' : (isTier3 ? '🛡️ Survival' : '📈 Promotion');
+        const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
         updatedPlayer.stats = {
            ...updatedPlayer.stats,
@@ -765,9 +770,9 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
                 awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString]
             };
         }
-        // --------------------------------------------------------
 
-        resultMsg = `${msg} You secured Gold for ${countryName}!`;
+        const actionWord = isTier12 ? 'secured Gold' : (isTier3 ? 'avoided relegation' : 'secured promotion');
+        resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
         resultEffect = { idol: 50, ovr: payout.ovr || 0 };
       } else {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
@@ -817,14 +822,18 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
   const checkEarlyDemotion = () => {
     const isUnder20 = player.age < 20;
     const isTop10Pick = seasonRecap?.draftPick <= 10;
-    const hasCHLHistory = (player.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
-    const demoteThresh = player.pos === 'G' ? 71 : 64;
     
-    // --- NEW: Calculate True Juniors Eligibility (The 9-Game Rule) ---
+    // STRICT HISTORY CHECK: Prevents the USHL "CHI" vs QMJHL "CHI" bug
+    const chlSeason = [...(player.seasonHistory || [])].reverse().find(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
+    const hasCHLHistory = !!chlSeason;
+    
+    // THE 9-GAME RULE: Have they burned a year of their ELC by playing 10+ NHL games?
     const played10NhlGames = (player.seasonHistory || []).some(s => s.league === 'NHL' && s.games >= 10);
     const isNonELC = player.contract?.salary !== 925000 && player.contract?.salary !== 0;
     const juniorsEligible = isUnder20 && !played10NhlGames && !isNonELC;
 
+    const demoteThresh = player.pos === 'G' ? 71 : 64;
+    
     const lastSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
     const wonRecentTitle = lastSeason?.titleWon === true || (lastSeason?.awards || []).some(a => a.includes('Cup') || a.includes('Championship'));
     if (wonRecentTitle) return null;
@@ -844,20 +853,18 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
           return null; 
       }
 
-      // Check strictly against the new `juniorsEligible` flag instead of just `isUnder20`
       if (juniorsEligible && hasCHLHistory && Math.random() > 0.5) {
         return null;
       } else if (juniorsEligible && hasCHLHistory) {
-         const lastCHL = (player.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
-         const currentTeam = lastCHL || player.draftTeam || 'UNK';
-         let currentLg = 'OHL';
-         if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
-         else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
+         // Because we pulled the exact season object, we know the exact team and league
+         const currentTeam = chlSeason ? chlSeason.team : (player.draftTeam || 'UNK');
+         const currentLg = chlSeason ? chlSeason.league : 'OHL';
          
          return { team: currentTeam, lg: currentLg, reason: '9_GAME_RULE' };
       } else {
          const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
          const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
+         
          const isRFA = player.age < 27 && proSeasons < 7;
          const isELC = player.contract?.salary === 925000 || (isRFA && proSeasons < 3);
 

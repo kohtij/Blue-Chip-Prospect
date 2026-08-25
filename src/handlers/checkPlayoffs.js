@@ -32,8 +32,26 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings) {
       const gpm = rounds[roundNum - 1]?.gamesPerMatchup || 7;
       const generated = generatePlayoffDeck ? generatePlayoffDeck(standings || 1, spots, roundNum, gpm) : null;
       if (generated && Array.isArray(generated) && generated.length > 0) return generated;
-      const size = gpm === 1 ? 3 : gpm + 2; // Always provide at least 3 choices for single-elimination
-      return Array(size).fill(null).map(() => ({ isWin: Math.random() > 0.45 }));
+      
+      // Calculate Playoff Impact based on Player OVR vs League Average
+      const pOvr = ctx.player.ovr;
+      let impactOdds = 0.55; // Base 45% chance to win (0.55 threshold)
+      
+      if (currentLg === 'NHL') {
+          if (pOvr >= 88) impactOdds = 0.35; // 65% chance to win
+          else if (pOvr >= 83) impactOdds = 0.45; // 55% chance
+          else if (pOvr < 75) impactOdds = 0.65; // 35% chance (Liability)
+      } else if (currentLg === 'AHL') {
+          if (pOvr >= 75) impactOdds = 0.35; 
+          else if (pOvr < 65) impactOdds = 0.65;
+      } else {
+          // Juniors/Euro
+          if (pOvr >= 65) impactOdds = 0.35;
+          else if (pOvr < 55) impactOdds = 0.65;
+      }
+
+      const size = gpm === 1 ? 3 : gpm + 2; 
+      return Array(size).fill(null).map(() => ({ isWin: Math.random() > impactOdds }));
     };
 
     const getDivLabel = (m, totalMatchups) => {

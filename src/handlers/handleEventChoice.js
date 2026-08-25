@@ -31,7 +31,7 @@ export function handleEventChoice(ctx, choice) {
   setSeasonEvents(prev => [...prev, { feedback: outcomeFeedback, effect: outcomeEffect || {} }]);
   
   let updated = { ...player };
-  const actionStr = choice.action || ''; // <-- FIXED: Added missing definition
+  const actionStr = choice.action || ''; 
   
   if (actionStr === 'VETERAN_EXTENSION') updated.contract = { salary: 850000, years: 1 };
   else if (actionStr === 'BECOME_UFA') updated.rights = null;
@@ -65,6 +65,12 @@ export function handleEventChoice(ctx, choice) {
     }
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
+  } else if (actionStr === 'CHANGE_LEAGUE') {
+    updated.league = choice.actionData;
+    // Ensure an emergency call-up gets a minimum NHL contract
+    if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < 750000)) {
+      updated.contract = { salary: 750000, years: 1, role: 'Depth' };
+    }
   } else if (actionStr === 'ROUTE_ALL_STAR') {
     ctx.setPlayer(updated);
     ctx.setScreen('all-star');
@@ -118,8 +124,6 @@ export function handleEventChoice(ctx, choice) {
   }
   
   setPlayer(finalPlayer);
-
-  // FIXED: Removed the unused `isMajorRouting` constant completely
 
   if (actionStr.includes('MINIGAME')) {
       triggerMinigame(minigameContext || 'season');

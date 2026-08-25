@@ -1,4 +1,4 @@
-import  { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
 import { applyOvrDelta, recomputeOvr, capIdol } from '../utils/gameHelpers';
 
@@ -6,7 +6,7 @@ import { applyOvrDelta, recomputeOvr, capIdol } from '../utils/gameHelpers';
 const PREP_SCENARIOS = [
   {
     title: "🍽️ THE TEAM DINNER",
-    desc: "The night before the Gold Medal game, the coaches have arranged a standard buffet at the hotel, but some teammates want to sneak out and try the famous local street food.",
+    desc: "The night before the massive tournament finale, the coaches have arranged a standard buffet at the hotel, but some teammates want to sneak out and try the famous local street food.",
     choices: [
       { label: 'Eat at the Hotel', isRisky: false, desc: 'Safe carbs. You feel perfectly fine.', winEffect: { idol: 0, ovr: 1 }, win: "You ate the bland pasta. Not exciting, but safe." },
       { label: 'Try Local Street Food', isRisky: true, chance: 0.5, desc: 'Could be amazing energy, or a long night in the bathroom.', winEffect: { idol: 15, ovr: 2 }, failEffect: { idol: -10, ovr: -2 }, win: "The food was incredible! You feel incredibly energized.", fail: "Food poisoning. You spent the night hugging the toilet." }
@@ -51,8 +51,7 @@ export default function IntlMinigameScreen() {
   
   const [prepPhase, setPrepPhase] = useState(true);
   const [prepFeedback, setPrepFeedback] = useState(null);
-  // Lazy initialize the random scenario so it only calculates once on mount.
-  // This bypasses both the purity error and the cascading render warning!
+  
   const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
 
   const nat = safeNationalities.find(n => n.id === player.nat);
@@ -62,7 +61,14 @@ export default function IntlMinigameScreen() {
                     : minigameContext === 'olympics' ? 'Winter Games' 
                     : 'World Championship';
 
-  // Wrap in useCallback so linter knows it's an event handler
+  // --- Dynamic Match Naming based on Nation Tier ---
+  const isTier12 = !nat || nat.tier <= 2;
+  const isTier3 = nat?.tier === 3;
+  
+  const matchLabel = isTier12 ? 'Gold Medal game' : isTier3 ? 'Top Division Survival game' : 'Division Promotion game';
+  const winTitle = isTier12 ? 'GOLD MEDAL' : isTier3 ? 'SURVIVAL SECURED' : 'PROMOTION SECURED';
+  const winIcon = isTier12 ? '🥇' : isTier3 ? '🛡️' : '📈';
+
   const handlePrepChoice = useCallback((c) => {
      let isWin = true;
      let effect = c.winEffect;
@@ -108,7 +114,7 @@ export default function IntlMinigameScreen() {
         <span className="shrink-0">🌍</span>
       </h2>
       <p className="text-base sm:text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-left">
-        You are representing <span className="font-black text-white flex items-center gap-2">{countryName} <img src={nat?.img} alt={player.nat} className="w-6 h-4 object-cover rounded-[2px] border border-slate-600" /></span> in the Gold Medal game!
+        You are representing <span className="font-black text-white flex items-center gap-2">{countryName} <img src={nat?.img} alt={player.nat} className="w-6 h-4 object-cover rounded-[2px] border border-slate-600" /></span> in the {matchLabel}!
       </p>
 
       {/* PHASE 1: PRE-TOURNAMENT PREPARATION SCENARIO */}
@@ -203,9 +209,9 @@ export default function IntlMinigameScreen() {
       {intlResult && (
         <div className="max-w-2xl mx-auto mt-2 fade-up">
           <div className={`rounded-2xl border-2 p-6 sm:p-10 flex flex-col items-center text-center ${intlResult.isWin ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]'}`}>
-            <div className="text-5xl sm:text-6xl mb-3">{intlResult.isWin ? '🥇' : '💔'}</div>
+            <div className="text-5xl sm:text-6xl mb-3">{intlResult.isWin ? winIcon : '💔'}</div>
             <h3 className={`text-2xl sm:text-4xl font-black sports-font uppercase tracking-tighter mb-4 ${intlResult.isWin ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-              {intlResult.isWin ? 'GOLD MEDAL' : 'HEARTBREAK'}
+              {intlResult.isWin ? winTitle : 'HEARTBREAK'}
             </h3>
             <p className="text-base sm:text-xl italic text-slate-300 mb-6 font-sans leading-relaxed">"{intlResult.msg}"</p>
 
