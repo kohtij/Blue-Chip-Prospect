@@ -148,13 +148,13 @@ export default function RecapScreen() {
                     'Struggled to find consistency this year.'
                   }</li>
                 ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating. {
+                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong>. {
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 65 ? 'Historic offensive production from the blue line.' :
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 40 ? 'Excellent puck-moving all season.' :
                     'Focused heavily on the defensive side of the puck.'
                   }</li>
                 ) : (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games. {
+                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 100 ? 'A legendary century-mark campaign.' :
                     (seasonRecap?.g >= 50) ? 'An elite goal-scoring year.' :
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :

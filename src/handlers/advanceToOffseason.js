@@ -5,7 +5,13 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 
 export function advanceToOffseason(ctx) {
-  const { generateTraining, player, seasonRecap, setActiveEvent, setPlayer, setScreen, safeEuroLeagues, safeJuniorLeagues } = ctx;
+  // ADD setSeasonEvents to this line:
+  const { player, seasonRecap, setActiveEvent, setPlayer, setScreen, safeEuroLeagues, safeJuniorLeagues, setSeasonEvents } = ctx;
+
+  // Clear out the previous year's events!
+  setSeasonEvents([]);
+
+    // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
 
     // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
     if (player.age >= 40 || (player.age >= 35 && player.ovr < 76)) {
@@ -346,7 +352,15 @@ export function advanceToOffseason(ctx) {
           setScreen('event');
           return;
       }
-      generateTraining(player.pos);
-      setScreen('preseason');
+      setActiveEvent({
+          title: '⛺ TRAINING CAMP',
+          desc: 'It is time to report to training camp for the new season. How hard are you pushing yourself this offseason?',
+          choices: [
+              { label: 'Relaxed Camp (Focus on Rest)', isRisky: false, feedback: 'You feel fully rested and injury-free, but you left some development on the table.', effect: { idol: 0, ovr: 0, money: 0 } },
+              { label: 'Grueling Camp (Push the Limits)', isRisky: true, successChance: 0.60, successFeedback: 'You pushed your body to the absolute limit and gained incredible strength!', successEffect: { idol: 0, ovr: 2 }, failFeedback: 'You overtrained and pulled a muscle, losing valuable early-season conditioning.', failEffect: { idol: 0, ovr: -2 } }
+          ],
+          isOffseasonEvent: true
+      });
+      setScreen('event');
     }
 }

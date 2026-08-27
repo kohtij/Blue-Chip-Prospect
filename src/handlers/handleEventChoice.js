@@ -1,5 +1,6 @@
 import { capIdol, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
 import { getRole } from '../utils/appHelpers';
+import { getOpponentPool } from '../data/teams';
 
 export function handleEventChoice(ctx, choice) {
   const { 
@@ -33,9 +34,11 @@ export function handleEventChoice(ctx, choice) {
   let updated = { ...player };
   const actionStr = choice.action || ''; 
   
-  if (actionStr === 'VETERAN_EXTENSION') updated.contract = { salary: 850000, years: 1 };
-  else if (actionStr === 'BECOME_UFA') updated.rights = null;
-  else if (actionStr === 'JOIN_NCAA') {
+  if (actionStr === 'VETERAN_EXTENSION') {
+    updated.contract = { salary: 850000, years: 1 };
+  } else if (actionStr === 'BECOME_UFA') {
+    updated.rights = null;
+  } else if (actionStr === 'JOIN_NCAA') {
     const teamId = choice.actionData?.id || choice.actionData;
     updated.team = teamId; updated.league = 'NCAA';
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
@@ -63,6 +66,13 @@ export function handleEventChoice(ctx, choice) {
        currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
        currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
     }
+  } else if (actionStr === 'TRADE_HOLDOUT') {
+    if (outcomeEffect === choice.successEffect) {
+        const pool = (getOpponentPool('NHL') || []).filter(t => t.id !== player.team);
+        const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
+        updated.team = destTeam;
+        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
+    }
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
   } else if (actionStr === 'CHANGE_LEAGUE') {
@@ -71,6 +81,10 @@ export function handleEventChoice(ctx, choice) {
     if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < 750000)) {
       updated.contract = { salary: 750000, years: 1, role: 'Depth' };
     }
+  } else if (actionStr === 'MAKE_CAPTAIN') {
+    updated.isCaptain = true;
+  } else if (actionStr === 'TEAM_MEETING') {
+    updated.storylines = { ...(updated.storylines || {}), lastMeetingYear: ctx.currentYear };
   } else if (actionStr === 'ROUTE_ALL_STAR') {
     ctx.setPlayer(updated);
     ctx.setScreen('all-star');
@@ -99,8 +113,6 @@ export function handleEventChoice(ctx, choice) {
     updated.team = choice.actionData.team; updated.league = 'NHL';
     updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role };
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
-  } else if (actionStr === 'INTL_SAFE') {
-     // Safe approach just processes the standard outcome and ends the event.
   } else if (actionStr === 'INTL_RISKY') {
      triggerMinigame(ctx.minigameContext || 'wjc');
      return;

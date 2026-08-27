@@ -652,7 +652,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         updatedPlayer = { ...withOvr, idolatry: capIdol(withOvr.idolatry + 50), ovr: recomputeOvr(withOvr) };
         
         const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
-        const achievementName = isTier12 ? '🥇 Gold' : (isTier3 ? '🛡️ Survival' : '📈 Promotion');
+        const achievementName = isTier12 ? 'Gold' : (isTier3 ? 'Survival' : 'Promotion');
         const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
         updatedPlayer.stats = {
@@ -755,7 +755,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
         
         const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
-        const achievementName = isTier12 ? '🥇 Gold' : (isTier3 ? '🛡️ Survival' : '📈 Promotion');
+        const achievementName = isTier12 ? 'Gold' : (isTier3 ? 'Survival' : 'Promotion');
         const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
         updatedPlayer.stats = {
@@ -1307,6 +1307,8 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
               hasDemandedTrade={hasDemandedTrade} 
               setHasDemandedTrade={setHasDemandedTrade} 
               onRetire={() => setScreen('retirement')}
+              setActiveEvent={setActiveEvent}
+              setScreen={setScreen}
             />
           </div>
         )}

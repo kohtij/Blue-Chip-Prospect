@@ -286,6 +286,8 @@ export function simulateSeason(player, trainingEffect = {}) {
   const isJuniorLg = juniorLeagues.includes(p.league);
   const isEuroLg = euroLeagues.includes(p.league);
   const isNCAA = p.league === 'NCAA';
+  
+  const coachTrust = p.relationships?.coach || 50;
 
   const placement = _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA);
   let currentLg   = placement.currentLg;
@@ -344,6 +346,30 @@ export function simulateSeason(player, trainingEffect = {}) {
 
   const finalTeamFactor = Math.min(0.95, Math.max(0.05, randomTeamFactor + playerImpact));
   const teamStrength = 0.65 + (finalTeamFactor * 0.55); 
+  
+  // --- TIME ON ICE (TOI) CALCULATION ---
+  let avgToi;
+  let fatigueMultiplier = 1.0;
+
+  if (p.pos === 'G') {
+      avgToi = 60.0;
+  } else {
+      // 1. Base TOI from role (e.g., 1.25 roleMulti = ~18.5 mins, 0.60 = ~11 mins)
+      let baseToi = 8.0 + (roleMulti * 8.5); 
+
+      // 2. Coach Trust Modifier (Trust earns special teams / 3rd period shifts)
+      const trustMod = (coachTrust - 50) * 0.05; // +/- 2.5 mins
+
+      // 3. Stamina Modifier
+      const staminaMod = (p.stamina - 50) * 0.04; // +/- 2 mins
+
+      avgToi = Math.min(26.5, Math.max(7.0, baseToi + trustMod + staminaMod));
+
+      // 4. Fatigue Check (Heavy minutes + Low stamina = production drop)
+      if (avgToi > 19.0 && p.stamina < 65) {
+          fatigueMultiplier = 0.85; // 15% drop in goals/assists
+      }
+  }
 
   let standings = Math.max(1, Math.min(teamCount, Math.round(teamCount - (finalTeamFactor * teamCount) + 1)));
   if (isEuroLg) standings = teamCount + 1; 
@@ -372,20 +398,20 @@ export function simulateSeason(player, trainingEffect = {}) {
       if (['LD', 'RD'].includes(p.pos)) {
           const gpg = Math.max(0, (simSht - 55) * 0.004 + (simIq - 50) * 0.002);
           const apg = Math.max(0, (simIq - 50) * 0.009 + (simSkt - 50) * 0.004);
-          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
-          aRaw = games * apg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
+          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
+          aRaw = games * apg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
           pm = Math.floor((teamStrength - 1) * 60 + ((simPhy + simIq) - 130) * 0.2 + (Math.random() * 10 - 5));
       } else if (p.pos === 'C') {
           const gpg = Math.max(0, (simSht - 55) * 0.009 + (simIq - 50) * 0.002);
           const apg = Math.max(0, (simIq - 50) * 0.012 + (simSkt - 50) * 0.005);
-          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
-          aRaw = games * apg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
+          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
+          aRaw = games * apg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
           pm = Math.floor((teamStrength - 1) * 50 + ((simPhy + simIq) - 130) * 0.2 + (Math.random() * 10 - 5));
       } else {
           const gpg = Math.max(0, (simSht - 50) * 0.009 + (simSkt - 50) * 0.002); 
           const apg = Math.max(0, (simIq - 50) * 0.008 + (simSkt - 50) * 0.004);
-          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
-          aRaw = games * apg * roleMulti * teamStrength * lgMulti * (0.85 + Math.random() * 0.3);
+          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
+          aRaw = games * apg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
           pm = Math.floor((teamStrength - 1) * 50 + ((simSkt + simSht) - 130) * 0.2 + (Math.random() * 10 - 5));
       }
 
@@ -403,7 +429,6 @@ export function simulateSeason(player, trainingEffect = {}) {
     : Math.min(10, Math.max(1, 5.0 + (g + a + pm * 0.5) / games * 5));
   rating = Number(rating.toFixed(1));
 
-  // Lock in the league you actually played in before any mid-season call-ups happen
   let playedLg = currentLg;
 
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
@@ -418,7 +443,6 @@ export function simulateSeason(player, trainingEffect = {}) {
     a = Math.floor(a * 0.7);
   }
 
-  // Pass the locked-in playedLg to computeAwards so you get AHL awards, not NHL ones
   const tempPlayer = { ...player, league: playedLg };
   const awards = _computeAwards({ player: tempPlayer, rating, g, a, saves, shots, games, standings });
   const offPercent = p.pos === 'G' ? 0 : Math.min(100, Math.round(((g + a) / ((g * 2) + 40)) * 100));
@@ -428,13 +452,26 @@ export function simulateSeason(player, trainingEffect = {}) {
   const coachModifier = p.inventory.includes('coach') ? (coachItem?.effect?.declineModifier ?? 0.5) : 1;
   const st = _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifier });
 
+  // --- TOI DEVELOPMENT IMPACT ---
+  if (p.pos !== 'G') {
+      if (avgToi < 11.0) {
+          // Stunted Growth: Harder to develop on the 4th line
+          if (st.shooting > 0) st.shooting--;
+          else if (st.skating > 0) st.skating--;
+          else if (st.hockeyIQ > 0) st.hockeyIQ--;
+      } else if (avgToi > 17.0 && p.age < 23) {
+          // Prospect Fast-Track: Top-6 minutes accelerate young players
+          const primaryStat = ['LD', 'RD'].includes(p.pos) ? 'physicality' : (p.pos === 'C' ? 'hockeyIQ' : 'shooting');
+          st[primaryStat] = (st[primaryStat] || 0) + 1;
+      }
+  }
+
   const newSht = p.shooting + st.shooting;
   const newSkt = p.skating + st.skating;
   const newSta = p.stamina + st.stamina;
   const newIq = p.hockeyIQ + st.hockeyIQ;
   const newPhy = p.physicality + st.physicality;
 
-  // Use playedLg to calculate fan gains properly
   const idolGain = isJuniorLg
     ? Math.floor((g + a) / 20)
     : (playedLg === 'AHL' ? Math.floor((g + a + (sho * 5)) / 15) : Math.floor((g + a + (sho * 5)) / 3));
@@ -451,7 +488,6 @@ export function simulateSeason(player, trainingEffect = {}) {
   const nextOvr = recomputeOvr({ pos: p.pos, shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
   const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 
-  // Safely route stats to the correct bucket based on the league you ACTUALLY played in
   const statBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(playedLg) ? 'chl' : (playedLg === 'AHL' ? 'ahl' : 'nhl');
 
   const updatedPlayer = {
@@ -490,7 +526,7 @@ export function simulateSeason(player, trainingEffect = {}) {
     }
   };
 
-  const recap = { g, a, pm, saves, shots, sho, games, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs };
+  const recap = { g, a, pm, saves, shots, sho, games, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi };
 
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
 }

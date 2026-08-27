@@ -32,6 +32,20 @@ export default function RetirementScreen() {
           const otherAssists = (player.stats?.chl?.assists || 0);
           const otherSaves = (player.stats?.chl?.saves || 0);
           const otherShots = (player.stats?.chl?.shots || 0);
+
+          // Calculate Career Average TOI (Professional Seasons Only)
+          let totalProMinutes = 0;
+          let totalProGamesWithToi = 0;
+          (player.seasonHistory || []).forEach(s => {
+              if (['NHL', 'AHL'].includes(s.league) && s.avgToi) {
+                  totalProMinutes += s.avgToi * s.games;
+                  totalProGamesWithToi += s.games;
+              }
+          });
+          const careerAvgToi = totalProGamesWithToi > 0 ? (totalProMinutes / totalProGamesWithToi) : 0;
+          const formattedToi = careerAvgToi > 0 
+              ? `${Math.floor(careerAvgToi)}:${Math.round((careerAvgToi % 1) * 60).toString().padStart(2, '0')}` 
+              : '--:--';
           
           const stints = [];
           (player.seasonHistory || []).forEach(s => {
@@ -194,8 +208,8 @@ export default function RetirementScreen() {
                     PRO CAREER TOTALS
                   </h3>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center mb-6">
-                   <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center mb-6">
+                   <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-2 sm:col-span-3">
                       <p className="text-[9px] font-bold text-slate-500 uppercase leading-none mb-2 tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-1 w-full">REGULAR SEASON</p>
                       <div className="flex gap-4 items-center justify-center w-full">
                           <div className="text-center">
@@ -210,6 +224,12 @@ export default function RetirementScreen() {
                             </p>
                             <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
                           </div>
+                          <div className="text-center hidden sm:block">
+                            <p className="text-xl sm:text-2xl font-black text-sky-400 sports-font leading-none mb-1">
+                              {isGoalie ? '60:00' : formattedToi}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">AVG TOI</p>
+                          </div>
                           <div className="text-center">
                             <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">{proGames}</p>
                             <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GP</p>
@@ -217,7 +237,7 @@ export default function RetirementScreen() {
                       </div>
                     </div>
 
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
+                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-2 sm:col-span-2">
                       <p className="text-[9px] font-bold text-[#F59E0B] uppercase leading-none mb-2 tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-1 w-full">PRO PLAYOFFS</p>
                       <div className="flex gap-4 items-center justify-center w-full">
                           <div className="text-center">

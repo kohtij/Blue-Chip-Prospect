@@ -177,7 +177,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                 title: '👑 PASSING THE TORCH',
                 desc: `You bought into the system, played the right way, and earned the ultimate respect of the old guard. The veteran captain just announced his retirement and publicly handed you the "C".`,
                 choices: [
-                    { label: 'Accept the Captaincy', isRisky: false, feedback: 'You are now the Captain of the franchise. Your leadership elevates everyone on the ice.', effect: { idol: 100, ovr: 2, rel: { coach: 20, teammates: 20 } } }
+                    { label: 'Accept the Captaincy', isRisky: false, feedback: 'You are now the Captain of the franchise.', effect: { idol: 100, ovr: 2, rel: { coach: 20, teammates: 20 } }, action: 'MAKE_CAPTAIN' }
                 ],
                 madePlayoffs
             });
@@ -320,6 +320,71 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                     successEffect: { idol: 15, ovr: 1, rel: { coach: 10 } },
                     failFeedback: 'You flat out refused the coach\'s request. He benched you for the third period to teach you a lesson about being a team player.',
                     failEffect: { idol: -10, ovr: -1, rel: { coach: -30 } }
+                }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+    // ==========================================
+    // STORYLINE 6: THE AHL MENTOR (AHL Lifers)
+    // ==========================================
+    if (!player.storylines?.ahlMentor && currentLg === 'AHL' && pAge >= 26 && Math.random() < 0.20) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, ahlMentor: 1 } }));
+        setActiveEvent({
+            title: '🎓 THE VETERAN PRESENCE',
+            desc: `The NHL club just drafted a highly-touted 18-year-old phenom. They assigned him to the AHL and the GM specifically asked you to center his line and teach him how to be a professional.`,
+            choices: [
+                {
+                    label: 'Take Him Under Your Wing',
+                    isRisky: false,
+                    feedback: 'You spent the season protecting him on the ice and teaching him off it. The organization deeply respects your leadership.',
+                    effect: { idol: 20, ovr: 0, money: 25000, rel: { coach: 30, teammates: 15 } }
+                },
+                {
+                    label: 'Refuse (He is trying to take my job)',
+                    isRisky: true,
+                    successChance: 0.5,
+                    successFeedback: 'You refused to pass him the puck and completely outplayed him, proving you are still the top dog on this roster!',
+                    successEffect: { idol: 10, ovr: 2, rel: { coach: -10 } },
+                    failFeedback: 'You tried to freeze him out, but he scored anyway. The GM was furious with your selfishness and benched you.',
+                    failEffect: { idol: -15, ovr: -2, rel: { coach: -40, teammates: -20 } }
+                }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+
+    // ==========================================
+    // STORYLINE 7: THE EMERGENCY CALL-UP
+    // ==========================================
+    if (!player.storylines?.emergencyCallup && currentLg === 'AHL' && pAge >= 24 && coachTrust >= 60 && Math.random() < 0.15) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, emergencyCallup: 1 } }));
+        setActiveEvent({
+            title: '🚨 THE EMERGENCY CALL-UP',
+            desc: `The NHL club just suffered three catastrophic injuries in one night. Your AHL coach knocks on your hotel door at 2 AM. "Pack your bags. You are starting in the NHL tomorrow night."`,
+            choices: [
+                {
+                    label: 'Play a Safe, Grinding Game',
+                    isRisky: false,
+                    feedback: 'You played 8 minutes of flawless, mistake-free hockey. The NHL coach loved your reliability and told you to unpack your bags—you are staying up.',
+                    effect: { idol: 25, ovr: 2, rel: { coach: 20 } },
+                    action: 'CHANGE_LEAGUE',
+                    actionData: 'NHL'
+                },
+                {
+                    label: 'Try to Be the Hero',
+                    isRisky: true,
+                    successChance: (pOvr >= 72 ? 0.4 : 0.15),
+                    successFeedback: 'You went rogue, jumped into the rush, and scored the game-winner! The fans are chanting your name. You just earned a permanent NHL roster spot!',
+                    successEffect: { idol: 75, ovr: 4, money: 50000, rel: { coach: 15 } },
+                    action: 'CHANGE_LEAGUE',
+                    actionData: 'NHL',
+                    failFeedback: 'You tried to do too much and turned the puck over for the game-losing goal. You were on a flight back to the AHL the next morning.',
+                    failEffect: { idol: -10, ovr: -1, rel: { coach: -20 } }
                 }
             ],
             madePlayoffs

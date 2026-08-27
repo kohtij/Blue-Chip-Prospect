@@ -77,6 +77,17 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
           isRisky: false,
           feedback: 'You put your head down, but the environment in the locker room is toxic.',
           effect: { idol: -30, ovr: -1, money: 0 }
+        },
+        {
+          label: 'Hold Out (Refuse to Play)',
+          subLabel: '⚡ High Risk • Force a trade, but risk massive fan and skill backlash',
+          isRisky: true,
+          successChance: 0.35,
+          successFeedback: 'The GM panicked and immediately shipped you out for pennies on the dollar to rid the locker room of the distraction!',
+          successEffect: { idol: -50, ovr: 0 },
+          failFeedback: 'The GM called your bluff. You missed camp, lost your conditioning, and permanently damaged your reputation.',
+          failEffect: { idol: -125, ovr: -3 },
+          action: 'TRADE_HOLDOUT'
         }
       ],
       isTradeDeadlineEvent: true

@@ -4,7 +4,7 @@ import { getDisplayDeployment, getFullTeamName } from '../utils/appHelpers';
 import TeamLogo from './TeamLogo';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire }) => {
+const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire, setActiveEvent, setScreen }) => {
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
   const nextYear = currentYear + 1;
@@ -196,22 +196,26 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                  : {};
               
               return (
-                <div className="grid grid-cols-4 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
+                <div className="grid grid-cols-5 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
                   <div className="px-1 py-2 flex flex-col justify-center items-center min-h-[50px]">
                     <p className="text-lg sm:text-xl font-black text-white number-font leading-none">{ls.games || 0}</p>
-                    <p className="mt-0.5 truncate text-[8px] md:text-[9px] font-black uppercase tracking-wide text-slate-400">Games</p>
+                    <p className="mt-0.5 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">Games</p>
                   </div>
                   <div className="px-1 py-2 flex flex-col justify-center items-center min-h-[50px] bg-gradient-to-b from-[rgba(255,255,255,0.03)] to-transparent">
                     <p className="text-lg sm:text-xl font-black text-[#22E748] number-font leading-none">{isGoalie ? ((ls.shots > 0 && ls.saves !== undefined) ? (ls.saves / ls.shots).toFixed(3).replace('0.', '.') : '.000') : (ls.goals || 0)}</p>
-                    <p className="mt-0.5 truncate text-[8px] md:text-[9px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SV%' : 'Goals'}</p>
+                    <p className="mt-0.5 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SV%' : 'Goals'}</p>
                   </div>
                   <div className="px-1 py-2 flex flex-col justify-center items-center min-h-[50px]">
                     <p className="text-lg sm:text-xl font-black text-white number-font leading-none">{isGoalie ? ((ls.games > 0 && ls.shots !== undefined) ? ((ls.shots - ls.saves) / ls.games).toFixed(2) : '0.00') : (ls.assists || 0)}</p>
-                    <p className="mt-0.5 truncate text-[8px] md:text-[9px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'GAA' : 'Assists'}</p>
+                    <p className="mt-0.5 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'GAA' : 'Assists'}</p>
                   </div>
                   <div className="px-1 py-2 flex flex-col justify-center items-center min-h-[50px]">
                     <p className="text-lg sm:text-xl font-black text-white number-font leading-none">{isGoalie ? (ls.shutouts || 0) : (ls.plusMinus > 0 ? `+${ls.plusMinus}` : (ls.plusMinus || 0))}</p>
-                    <p className="mt-0.5 truncate text-[8px] md:text-[9px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SHO' : '+/-'}</p>
+                    <p className="mt-0.5 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">{isGoalie ? 'SHO' : '+/-'}</p>
+                  </div>
+                  <div className="px-1 py-2 flex flex-col justify-center items-center min-h-[50px]">
+                    <p className="text-lg sm:text-xl font-black text-sky-400 number-font leading-none">{isGoalie ? "60:00" : `${Math.floor(ls.avgToi || 0)}:${Math.round(((ls.avgToi || 0) % 1) * 60).toString().padStart(2, '0')}`}</p>
+                    <p className="mt-0.5 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">TOI</p>
                   </div>
                 </div>
               );
@@ -331,6 +335,28 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
               {/* ACTION BUTTONS */}
               <div className="flex flex-col gap-2 mt-2">
+                
+                {/* NEW: CAPTAIN'S TEAM MEETING BUTTON */}
+                {player.isCaptain && player.storylines?.lastMeetingYear !== currentYear && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setActiveEvent({
+                        title: '📢 CALL TEAM MEETING',
+                        desc: 'As the Captain, you have the authority to lock the locker room doors and address the team. A great speech will rally the boys, but if you do this too often, they will tune you out.',
+                        choices: [
+                          { label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65, successFeedback: 'The room was silent. You fired them up, and team morale skyrocketed!', successEffect: { idol: 15, ovr: 1, rel: { teammates: 25 } }, failFeedback: 'You stumbled over your words. The veterans rolled their eyes.', failEffect: { idol: -10, ovr: -1, rel: { teammates: -20 } }, action: 'TEAM_MEETING' }
+                        ],
+                        madePlayoffs: false
+                      });
+                      setScreen('event');
+                    }}
+                    className="w-full py-2.5 rounded-lg border border-[#3b82f6]/40 bg-[#3b82f6]/10 text-[#3b82f6] font-black sports-font uppercase tracking-widest hover:bg-[#3b82f6]/20 transition-colors shadow-[0_0_10px_rgba(59,130,246,0.1)] cursor-pointer flex items-center justify-center gap-2 mb-2"
+                  >
+                     <span className="text-sm">📢</span> CALL TEAM MEETING
+                  </button>
+                )}
+
                 {!isJunior && player.league !== 'NCAA' && (
                   <button type="button" onClick={onOpenShop} className="w-full py-2.5 rounded-lg border border-[#22E748]/40 bg-[#22E748]/10 text-[#22E748] font-black sports-font uppercase tracking-widest hover:bg-[#22E748]/20 transition-colors shadow-[0_0_10px_rgba(34,231,75,0.1)] cursor-pointer flex items-center justify-center gap-2">
                      <span className="text-sm">🛒</span> OPEN SHOP

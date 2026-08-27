@@ -4,12 +4,11 @@ import { runPostSeasonFlow } from './runPostSeasonFlow';
 export function handleTrain(ctx, t) {
   const { 
     player, setHasDemandedTrade, setPendingSeasonResult, 
-    setPlayer, setScreen, setSeasonEvents, setSeasonRecap, setStatChanges, unlockAchievement 
+    setPlayer, setScreen, setSeasonRecap, setStatChanges, unlockAchievement 
   } = ctx;
 
   setHasDemandedTrade(false);
-  setSeasonEvents([]);
-
+  
   // 1. Run the simulation
   const result = simulateSeason(player, t?.effect);
   if (!result) return;
@@ -27,6 +26,7 @@ export function handleTrain(ctx, t) {
   if (player.league === 'NHL' && isDemoted) unlockAchievement('demoted');
 
   // 3. Commit State and Push to History
+  // 3. Commit State and Push to History
   const historyEntry = {
       year: 2026 + ((player.stats?.seasonsPlayed || 0)), 
       team: currentTeam,
@@ -39,7 +39,8 @@ export function handleTrain(ctx, t) {
       shutouts: recap.sho,
       plusMinus: recap.pm,
       awards: recap.awards || [],
-      titleWon: false 
+      titleWon: false,
+      avgToi: recap.avgToi
   };
   
   updatedPlayer.seasonHistory = [...(player.seasonHistory || []), historyEntry];
@@ -94,8 +95,15 @@ export function handleTrain(ctx, t) {
          moveTitle = '✈️ CLAIMED OFF WAIVERS';
          moveDesc = `You were placed on waivers and claimed by a new NHL organization. You are packing your bags immediately to join your new club.`;
      } else if (wasJuniorReturn) {
-         moveTitle = '📉 RETURNED TO JUNIORS';
-         moveDesc = `Following your 9-game NHL tryout, the front office has decided you need more time to develop physically. You have been reassigned back to your junior club.`;
+         if (player.storylines?.hadNineGameTryout) {
+             moveTitle = '📉 REASSIGNED TO JUNIORS';
+             moveDesc = `For the second consecutive year, you couldn't secure a permanent NHL roster spot out of training camp. The front office has returned you to your junior club to finish out your amateur eligibility.`;
+         } else {
+             moveTitle = '📉 RETURNED TO JUNIORS';
+             moveDesc = `Following your 9-game NHL tryout, the front office has decided you need more time to develop physically. You have been reassigned back to your junior club.`;
+             // Flag that they've experienced their rookie tryout
+             ctx.setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), hadNineGameTryout: true } }));
+         }
      } else if (wasNHLtoAHL) {
          moveTitle = '📉 REASSIGNED TO AHL';
          moveDesc = `The GM called you into his office. You've been reassigned to the AHL affiliate. "Head down, work on your game, and you'll be back," he said.`;
