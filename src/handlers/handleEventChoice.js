@@ -85,14 +85,6 @@ export function handleEventChoice(ctx, choice) {
     updated.isCaptain = true;
   } else if (actionStr === 'TEAM_MEETING') {
     updated.storylines = { ...(updated.storylines || {}), lastMeetingYear: ctx.currentYear };
-  } else if (actionStr === 'ROUTE_ALL_STAR') {
-    ctx.setPlayer(updated);
-    ctx.setScreen('all-star');
-    return;
-  } else if (actionStr === 'ROUTE_TRADE_DEADLINE') {
-    ctx.setPlayer(updated);
-    ctx.setScreen('trade-deadline');
-    return;
   } else if (actionStr === 'ACCEPT_IMPORT_DRAFT') {
     const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData?.team || 'UNK';
     const lg = choice.actionData?.league || 'OHL';
@@ -171,6 +163,12 @@ export function handleEventChoice(ctx, choice) {
       setActiveEvent(null);
       setScreen('preseason');
       if (generateTraining) generateTraining(finalPlayer.pos);
+  } else if (actionStr === 'ROUTE_ALL_STAR') {
+      setActiveEvent(null);
+      setScreen('all-star');
+  } else if (actionStr === 'ROUTE_TRADE_DEADLINE') {
+      setActiveEvent(null);
+      setScreen('trade-deadline');
   } else {
       setActiveEvent(null);
       proceedToNextScreen(activeEvent, minigameContext, finalPlayer);

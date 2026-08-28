@@ -186,7 +186,8 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings }
   return awards;
 }
 
-function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifier }) {
+// We need to pass the full player object into this function now to read their archetype
+function _computeProgressionDelta({ player, trainingEffect, rating, newAge, coachModifier }) {
   const st = {
     shooting:    trainingEffect.shooting    || 0,
     skating:     trainingEffect.skating     || 0,
@@ -194,6 +195,17 @@ function _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifie
     hockeyIQ:    trainingEffect.hockeyIQ    || 0,
     physicality: trainingEffect.physicality || 0
   };
+
+  // ARCHETYPE CAPS: Prevent players from maxing out stats outside their role
+  const arch = player.archetype || '';
+  if (arch.includes('Sniper') || arch.includes('Playmaker') || arch.includes('Dynamo')) {
+      if (player.physicality >= 75) st.physicality = Math.min(0, st.physicality); // Soft cap on hitting
+  } else if (arch.includes('Power') || arch.includes('Shutdown') || arch.includes('Grinder')) {
+      if (player.shooting >= 80) st.shooting = Math.min(0, st.shooting); // Soft cap on sniping
+      if (player.skating >= 85) st.skating = Math.min(0, st.skating); // Soft cap on speed
+  } else if (arch.includes('Butterfly')) {
+      if (player.skating >= 85) st.skating = Math.min(0, st.skating); // Goalies: POS soft cap
+  }
 
   if (newAge <= 28) {
     const pointsToDistribute = rating >= 8.5 ? 2 : rating >= 7.0 ? 1 : 0;
@@ -281,7 +293,7 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
   return { currentLg, currentTeam, waiverEvent, isDemoted };
 }
 
-export function simulateSeason(player, trainingEffect = {}) {
+export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const p = player;
   const isJuniorLg = juniorLeagues.includes(p.league);
   const isEuroLg = euroLeagues.includes(p.league);
@@ -384,6 +396,9 @@ export function simulateSeason(player, trainingEffect = {}) {
       games = Math.floor(maxGames * (0.9 + Math.random() * 0.1)); 
   }
 
+  // NEW: Deduct the missed games from their total!
+  games = Math.max(0, games - gamesMissed);
+
   const lgMulti = currentLg === 'NHL' ? 1.0 : (isJuniorLg ? 1.3 : 1.1);
   let g = 0, a = 0, pm = 0, saves = 0, shots = 0, sho = 0;
 
@@ -450,7 +465,7 @@ export function simulateSeason(player, trainingEffect = {}) {
   
   const coachItem = shopItems.find(i => i.id === 'coach');
   const coachModifier = p.inventory.includes('coach') ? (coachItem?.effect?.declineModifier ?? 0.5) : 1;
-  const st = _computeProgressionDelta({ trainingEffect, rating, newAge, coachModifier });
+  const st = _computeProgressionDelta({ player: tempPlayer, trainingEffect, rating, newAge, coachModifier });
 
   // --- TOI DEVELOPMENT IMPACT ---
   if (p.pos !== 'G') {

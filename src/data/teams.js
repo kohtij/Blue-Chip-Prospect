@@ -95,36 +95,36 @@ export const PLAYOFF_ROUNDS = {
 // ==========================================
 export const nationalities = [
   // TIER 1: The Superpowers (Medal Contenders)
-  { id: 'CAN', name: 'Canada', sentenceName: 'Canada', img: 'https://flagcdn.com/w40/ca.png', iihfRank: 1, tier: 1 },
-  { id: 'USA', name: 'United States', sentenceName: 'the United States', img: 'https://flagcdn.com/w40/us.png', iihfRank: 4, tier: 1 },
-  { id: 'SWE', name: 'Sweden', sentenceName: 'Sweden', img: 'https://flagcdn.com/w40/se.png', iihfRank: 5, tier: 1 },
-  { id: 'FIN', name: 'Finland', sentenceName: 'Finland', img: 'https://flagcdn.com/w40/fi.png', iihfRank: 3, tier: 1 },
-  { id: 'RUS', name: 'Russia', sentenceName: 'Russia', img: 'https://flagcdn.com/w40/ru.png', iihfRank: 2, tier: 1 },
-  { id: 'SUI', name: 'Switzerland', sentenceName: 'Switzerland', img: 'https://flagcdn.com/w40/ch.png', iihfRank: 6, tier: 1 },
-  { id: 'CZE', name: 'Czechia', sentenceName: 'Czechia', img: 'https://flagcdn.com/w40/cz.png', iihfRank: 7, tier: 1 },
+  { id: 'CAN', name: 'Canada', sentenceName: 'Canada', img: 'https://flagcdn.com/w40/ca.png', iihfRank: 1, tier: 1, division: 'Top Division' },
+  { id: 'USA', name: 'United States', sentenceName: 'the United States', img: 'https://flagcdn.com/w40/us.png', iihfRank: 4, tier: 1, division: 'Top Division' },
+  { id: 'SWE', name: 'Sweden', sentenceName: 'Sweden', img: 'https://flagcdn.com/w40/se.png', iihfRank: 5, tier: 1, division: 'Top Division' },
+  { id: 'FIN', name: 'Finland', sentenceName: 'Finland', img: 'https://flagcdn.com/w40/fi.png', iihfRank: 3, tier: 1, division: 'Top Division' },
+  { id: 'RUS', name: 'Russia', sentenceName: 'Russia', img: 'https://flagcdn.com/w40/ru.png', iihfRank: 2, tier: 1, division: 'Top Division' },
+  { id: 'SUI', name: 'Switzerland', sentenceName: 'Switzerland', img: 'https://flagcdn.com/w40/ch.png', iihfRank: 6, tier: 1, division: 'Top Division' },
+  { id: 'CZE', name: 'Czechia', sentenceName: 'Czechia', img: 'https://flagcdn.com/w40/cz.png', iihfRank: 7, tier: 1, division: 'Top Division' },
   
   // TIER 2: Strong Contenders (Upset Potential)
-  { id: 'GER', name: 'Germany', sentenceName: 'Germany', img: 'https://flagcdn.com/w40/de.png', iihfRank: 8, tier: 2 },
-  { id: 'SVK', name: 'Slovakia', sentenceName: 'Slovakia', img: 'https://flagcdn.com/w40/sk.png', iihfRank: 9, tier: 2 },
-  { id: 'LAT', name: 'Latvia', sentenceName: 'Latvia', img: 'https://flagcdn.com/w40/lv.png', iihfRank: 10, tier: 2 },
+  { id: 'GER', name: 'Germany', sentenceName: 'Germany', img: 'https://flagcdn.com/w40/de.png', iihfRank: 8, tier: 2, division: 'Top Division' },
+  { id: 'SVK', name: 'Slovakia', sentenceName: 'Slovakia', img: 'https://flagcdn.com/w40/sk.png', iihfRank: 9, tier: 2, division: 'Top Division' },
+  { id: 'LAT', name: 'Latvia', sentenceName: 'Latvia', img: 'https://flagcdn.com/w40/lv.png', iihfRank: 10, tier: 2, division: 'Top Division' },
   
   // TIER 3: Top Division Regulars (Fighting Relegation)
-  { id: 'DNK', name: 'Denmark', sentenceName: 'Denmark', img: 'https://flagcdn.com/w40/dk.png', iihfRank: 11, tier: 3 },
-  { id: 'NOR', name: 'Norway', sentenceName: 'Norway', img: 'https://flagcdn.com/w40/no.png', iihfRank: 12, tier: 3 },
-  { id: 'AUT', name: 'Austria', sentenceName: 'Austria', img: 'https://flagcdn.com/w40/at.png', iihfRank: 13, tier: 3 },
-  { id: 'FRA', name: 'France', sentenceName: 'France', img: 'https://flagcdn.com/w40/fr.png', iihfRank: 14, tier: 3 },
-  { id: 'KAZ', name: 'Kazakhstan', sentenceName: 'Kazakhstan', img: 'https://flagcdn.com/w40/kz.png', iihfRank: 15, tier: 3 },
-  { id: 'BLR', name: 'Belarus', sentenceName: 'Belarus', img: 'https://flagcdn.com/w40/by.png', iihfRank: 16, tier: 3 },
+  { id: 'DNK', name: 'Denmark', sentenceName: 'Denmark', img: 'https://flagcdn.com/w40/dk.png', iihfRank: 11, tier: 3, division: 'Division I-A' },
+  { id: 'NOR', name: 'Norway', sentenceName: 'Norway', img: 'https://flagcdn.com/w40/no.png', iihfRank: 12, tier: 3, division: 'Division I-A' },
+  { id: 'AUT', name: 'Austria', sentenceName: 'Austria', img: 'https://flagcdn.com/w40/at.png', iihfRank: 13, tier: 3, division: 'Division I-A' },
+  { id: 'FRA', name: 'France', sentenceName: 'France', img: 'https://flagcdn.com/w40/fr.png', iihfRank: 14, tier: 3, division: 'Division I-A' },
+  { id: 'KAZ', name: 'Kazakhstan', sentenceName: 'Kazakhstan', img: 'https://flagcdn.com/w40/kz.png', iihfRank: 15, tier: 3, division: 'Division I-A' },
+  { id: 'BLR', name: 'Belarus', sentenceName: 'Belarus', img: 'https://flagcdn.com/w40/by.png', iihfRank: 16, tier: 3, division: 'Division I-A' },
   
   // TIER 4: Lower Divisions (Development Programs)
-  { id: 'GBR', name: 'United Kingdom', sentenceName: 'the United Kingdom', img: 'https://flagcdn.com/w40/gb.png', iihfRank: 17, tier: 4 },
-  { id: 'SVN', name: 'Slovenia', sentenceName: 'Slovenia', img: 'https://flagcdn.com/w40/si.png', iihfRank: 18, tier: 4 },
-  { id: 'ITA', name: 'Italy', sentenceName: 'Italy', img: 'https://flagcdn.com/w40/it.png', iihfRank: 19, tier: 4 },
-  { id: 'KOR', name: 'South Korea', sentenceName: 'South Korea', img: 'https://flagcdn.com/w40/kr.png', iihfRank: 20, tier: 4 },
-  { id: 'UKR', name: 'Ukraine', sentenceName: 'Ukraine', img: 'https://flagcdn.com/w40/ua.png', iihfRank: 21, tier: 4 },
-  { id: 'JPN', name: 'Japan', sentenceName: 'Japan', img: 'https://flagcdn.com/w40/jp.png', iihfRank: 22, tier: 4 },
-  { id: 'CHN', name: 'China', sentenceName: 'China', img: 'https://flagcdn.com/w40/cn.png', iihfRank: 23, tier: 4 },
-  { id: 'AUS', name: 'Australia', sentenceName: 'Australia', img: 'https://flagcdn.com/w40/au.png', iihfRank: 24, tier: 4 },
+  { id: 'GBR', name: 'United Kingdom', sentenceName: 'the United Kingdom', img: 'https://flagcdn.com/w40/gb.png', iihfRank: 17, tier: 4, division: 'Division I-B' },
+  { id: 'SVN', name: 'Slovenia', sentenceName: 'Slovenia', img: 'https://flagcdn.com/w40/si.png', iihfRank: 18, tier: 4, division: 'Division I-B' },
+  { id: 'ITA', name: 'Italy', sentenceName: 'Italy', img: 'https://flagcdn.com/w40/it.png', iihfRank: 19, tier: 4, division: 'Division I-B' },
+  { id: 'KOR', name: 'South Korea', sentenceName: 'South Korea', img: 'https://flagcdn.com/w40/kr.png', iihfRank: 20, tier: 4, division: 'Division I-B' },
+  { id: 'UKR', name: 'Ukraine', sentenceName: 'Ukraine', img: 'https://flagcdn.com/w40/ua.png', iihfRank: 21, tier: 4, division: 'Division I-B' },
+  { id: 'JPN', name: 'Japan', sentenceName: 'Japan', img: 'https://flagcdn.com/w40/jp.png', iihfRank: 22, tier: 4, division: 'Division I-B' },
+  { id: 'CHN', name: 'China', sentenceName: 'China', img: 'https://flagcdn.com/w40/cn.png', iihfRank: 23, tier: 4, division: 'Division II-A' },
+  { id: 'AUS', name: 'Australia', sentenceName: 'Australia', img: 'https://flagcdn.com/w40/au.png', iihfRank: 24, tier: 4, division: 'Division II-A' },
 ];
 
 // ==========================================

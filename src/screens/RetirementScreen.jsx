@@ -1,17 +1,16 @@
-import 'react';
 import { useAppContext } from '../AppContext';
 import { getAwardPill, getFullTeamName } from '../utils/appHelpers';
-import { getAwardImage } from '../data/awards';
 import { formatMoney } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { computeCareerScore } from '../utils/careerScore';
 
 export default function RetirementScreen() {
   const { handleNewGame, player } = useAppContext();
   const scoreData = useMemo(() => computeCareerScore(player), [player]);
-  return (() => {
+  const [expandedSeasonIdx, setExpandedSeasonIdx] = useState(null);
+    return (() => {
           const isLegend = player.idolatry >= 800;
           const isGoalie = player.pos === 'G';
 
@@ -331,83 +330,97 @@ export default function RetirementScreen() {
                   );
                 })()}
 
-                {/* CLUB HISTORY */}
+                {/* {/* CLUB HISTORY (A9 & A10 OVERHAUL) */}
                 <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
                   <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-4 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
-                    CAREER HISTORY
+                    CAREER HISTORY (CLICK TO EXPAND)
                   </h3>
 
-                  {stints.length === 0 ? (
+                  {!player.seasonHistory || player.seasonHistory.length === 0 ? (
                     <p className="text-slate-500 text-sm italic font-sans">No detailed club history recorded for this career.</p>
                   ) : (
                     <div className="space-y-3">
-                      {stints.map((stint, idx) => (
-                        <div key={idx} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-3 sm:p-4 flex flex-col gap-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <TeamLogo teamId={stint.team} league={stint.league} isAHL={stint.league === 'AHL'} size="small" className="shrink-0" />
-                              <div className="min-w-0">
-                                <h4 className="text-base sm:text-lg font-black text-white sports-font truncate">{getFullTeamName(stint.team, stint.league)}</h4>
-                                <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
-                                  {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.league}
-                                </p>
+                      {player.seasonHistory.slice().reverse().map((season, rawIdx) => {
+                        const originalIdx = player.seasonHistory.length - 1 - rawIdx;
+                        const isExpanded = expandedSeasonIdx === originalIdx;
+                        const isG = player.pos === 'G';
+                        
+                        return (
+                          <div key={originalIdx} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl flex flex-col overflow-hidden transition-all duration-300">
+                            <button 
+                               onClick={() => setExpandedSeasonIdx(isExpanded ? null : originalIdx)} 
+                               className="w-full text-left p-3 sm:p-4 flex items-center justify-between gap-2 hover:bg-[#1a2230] transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <TeamLogo teamId={season.team} league={season.league} isAHL={season.league === 'AHL'} size="small" className="shrink-0" />
+                                <div className="min-w-0">
+                                  <h4 className="text-base sm:text-lg font-black text-white sports-font leading-tight mb-0.5 break-words">{getFullTeamName(season.team, season.league)}</h4>
+                                  <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
+                                    {season.year} · {season.league}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="text-[10px] sm:text-sm font-black text-slate-300 font-sans whitespace-nowrap">
-                                {stint.games} GP · {isGoalie ? `${stint.saves} SV` : `${stint.goals} G · ${stint.assists} A`}
-                              </span>
-                            </div>
-                          </div>
-
-                          {(stint.titles.length > 0 || stint.awards.length > 0) && (
-                            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[rgba(255,255,255,0.04)]">
-                              {stint.titles.length > 0 && (
-                                <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider font-sans inline-flex items-center gap-1.5">
-                                  {getAwardImage(stint.league === 'NHL' ? 'Stanley Cup' : stint.league === 'AHL' ? 'Calder Cup' : 'Championship') ? (
-                                     <img src={getAwardImage(stint.league === 'NHL' ? 'Stanley Cup' : stint.league === 'AHL' ? 'Calder Cup' : 'Championship')} className="w-3.5 h-3.5 object-contain" />
-                                  ) : '🏆'}
-                                  {stint.titles.length}x {stint.league === 'NHL' ? 'Stanley Cup' : 'Championship'} ({stint.titles.join(', ')})
+                              <div className="text-right shrink-0 flex items-center gap-3">
+                                <span className="text-[10px] sm:text-sm font-black text-slate-300 font-sans whitespace-nowrap">
+                                  {season.games} GP
                                 </span>
-                              )}
-                              {stint.awards
-                                .filter(aw => !(aw.includes('All-Star') && stint.awards.some(other => other.includes('1st Team') && other !== aw)))
-                                .map((aw, aIdx) => {
-                                let colors = 'bg-slate-800 border-slate-600 text-slate-300';
-                                
-                                if (aw.includes('Cup') || aw.includes('Championship') || aw.includes('Title')) {
-                                    // Championships: Gold
-                                    colors = 'bg-[#F59E0B]/10 border-[#F59E0B]/40 text-[#F59E0B]';
-                                } else if (aw.includes('MVP') || aw.includes('Hart') || aw.includes('Smythe') || aw.includes('Presidents') || aw.includes('Vezina') || aw.includes('Norris') || aw.includes('Ross') || aw.includes('Richard') || aw.includes('Calder') || aw.includes('Baker')) {
-                                    // Individual Hardware: Purple
-                                    colors = 'bg-[#c084fc]/10 border-[#c084fc]/40 text-[#c084fc]';
-                                } else if (aw.includes('Olympics') || aw.includes('World Juniors') || aw.includes('Gold') || aw.includes('Silver') || aw.includes('Bronze') || aw.includes('Promotion') || aw.includes('Survival')) {
-                                    // International: Green
-                                    colors = 'bg-[#22E748]/10 border-[#22E748]/40 text-[#22E748]';
-                                } else if (aw.includes('All-Star') || aw.includes('American') || aw.includes('Team')) {
-                                    // Distinctions: Blue
-                                    colors = 'bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6]';
-                                }
-                                
-                                const yearMatch = aw.match(/^\d{4}/);
-                                const year = yearMatch ? yearMatch[0] : '';
-                                const cleanAward = aw.replace(/^\d{4}\s/, '').replace(' Trophy', '').replace(' Memorial', '').replace(/\s*\(.+?\)\s*$/, '').trim();
-                                const trophyImg = getAwardImage(cleanAward);
-                                return (
-                                  <span key={aIdx} className={`inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold pr-2 ${trophyImg ? 'pl-1' : 'pl-2'} py-0.5 rounded border uppercase tracking-wider font-sans ${colors}`}>
-                                    {trophyImg ? (
-                                        <img src={trophyImg} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain drop-shadow-[0_0_3px_rgba(0,0,0,0.8)]" loading="lazy" />
-                                    ) : (
-                                        <span className="text-[10px]">{cleanAward.includes('All-Star') || cleanAward.includes('American') ? '⭐' : '🥇'}</span>
-                                    )}
-                                    <span className="whitespace-nowrap">{year} {cleanAward}</span>
-                                  </span>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                                <span className={`text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180 text-[#3b82f6]' : 'text-slate-500'}`}>▼</span>
+                              </div>
+                            </button>
+
+                            {/* EXPANDED STATS PANEL */}
+                            {isExpanded && (
+                               <div className="p-4 border-t border-[rgba(255,255,255,0.05)] bg-[#0a0d0a] shadow-inner font-sans animate-fade-in">
+                                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 text-center mb-4">
+                                     <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">GP</span>
+                                        <span className="text-lg font-black text-white number-font">{season.games || 0}</span>
+                                     </div>
+                                     <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'SV%' : 'G'}</span>
+                                        <span className="text-lg font-black text-[#22E748] number-font">
+                                           {isG ? (season.shots > 0 ? (season.saves / season.shots).toFixed(3).replace('0.', '.') : '.000') : (season.goals || 0)}
+                                        </span>
+                                     </div>
+                                     <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'GAA' : 'A'}</span>
+                                        <span className="text-lg font-black text-white number-font">
+                                           {isG ? (season.games > 0 ? ((season.shots - season.saves) / season.games).toFixed(2) : '0.00') : (season.assists || 0)}
+                                        </span>
+                                     </div>
+                                     <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'SHO' : 'PTS'}</span>
+                                        <span className="text-lg font-black text-[#3b82f6] number-font">
+                                           {isG ? (season.shutouts || 0) : ((season.goals || 0) + (season.assists || 0))}
+                                        </span>
+                                     </div>
+                                     <div className="flex flex-col hidden sm:flex">
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'TOI' : '+/-'}</span>
+                                        <span className="text-lg font-black text-slate-300 number-font">
+                                           {isG ? '60:00' : (season.plusMinus > 0 ? `+${season.plusMinus}` : (season.plusMinus || 0))}
+                                        </span>
+                                     </div>
+                                  </div>
+                                  
+                                  {(season.awards?.length > 0 || season.titleWon) && (
+                                     <div className="pt-3 border-t border-[rgba(255,255,255,0.05)] flex flex-wrap gap-2">
+                                        {season.titleWon && (
+                                            <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider inline-flex items-center gap-1.5">
+                                              🏆 {season.league === 'NHL' ? 'Stanley Cup' : 'Championship'}
+                                            </span>
+                                        )}
+                                        {(season.awards || []).map((aw, aIdx) => (
+                                            <span key={aIdx} className="bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                                              🥇 {aw.replace(/^\d{4}\s/, '')}
+                                            </span>
+                                        ))}
+                                     </div>
+                                  )}
+                               </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

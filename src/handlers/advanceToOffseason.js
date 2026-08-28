@@ -1,8 +1,7 @@
-// Extracted from App.jsx.
-// Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { getOpponentPool, ncaaTeams, ohlTeams } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
+import { recomputeOvr } from '../utils/gameHelpers';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -11,9 +10,23 @@ export function advanceToOffseason(ctx) {
   // Clear out the previous year's events!
   setSeasonEvents([]);
 
-    // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
+  // B1: Longevity Tick - Building chemistry by staying with the same org
+  if (player.seasonHistory && player.seasonHistory.length > 0) {
+      const lastSeason = player.seasonHistory[player.seasonHistory.length - 1];
+      // If we finished last season on the exact same team we are starting this offseason with
+      if (lastSeason.team === player.team) {
+          setPlayer(p => ({
+              ...p,
+              relationships: {
+                  ...p.relationships,
+                  coach: Math.min(100, (p.relationships?.coach || 50) + 2),
+                  teammates: Math.min(100, (p.relationships?.teammates || 50) + 3)
+              }
+          }));
+      }
+  }
 
-    // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
+  // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
     if (player.age >= 40 || (player.age >= 35 && player.ovr < 76)) {
        setScreen('retirement');
        return; 
@@ -87,7 +100,48 @@ export function advanceToOffseason(ctx) {
         updatedContract.years = Math.min(3, updatedContract.years + 1);
     }
 
-    setPlayer(p => ({ ...p, team: currentTeam, league: currentLeague, buffs: newBuffs, contract: updatedContract || p.contract }));
+    // 2. AGING CURVE DECLINE
+    let declineSkt = 0;
+    let declinePhy = 0;
+    
+    if (player.age >= 32) {
+        declineSkt = Math.random() > 0.4 ? 1 : 2; // 1-2 point drop to skating
+        declinePhy = Math.random() > 0.6 ? 1 : 0; // 0-1 point drop to physicality
+        
+        // Decline accelerates harshly in the late 30s!
+        if (player.age >= 35) {
+            declineSkt += 1; 
+            declinePhy += 1;
+        }
+        
+        if (declineSkt > 0 || declinePhy > 0) {
+            const declineMsg = `Father Time is undefeated. Your body is aging, and you lost a physical step over the summer (-${declineSkt} SKT, -${declinePhy} PHY).`;
+            setSeasonEvents(prev => [...prev, { feedback: declineMsg, effect: { ovr: 0, idol: 0, money: 0 } }]);
+        }
+    }
+
+    // Apply team changes, contract updates, AND physical decline
+    setPlayer(p => {
+        const nextSkt = Math.max(30, (p.skating || 50) - declineSkt);
+        const nextPhy = Math.max(30, (p.physicality || 50) - declinePhy);
+        
+        const updatedPlayer = { 
+            ...p, 
+            team: currentTeam, 
+            league: currentLeague, 
+            buffs: newBuffs, 
+            contract: updatedContract || p.contract,
+            skating: nextSkt,
+            physicality: nextPhy
+        };
+        
+        // If the player aged out and lost stats, force an immediate OVR recalculation
+        if (declineSkt > 0 || declinePhy > 0) {
+            updatedPlayer.ovr = recomputeOvr(updatedPlayer);
+        }
+        
+        return updatedPlayer;
+    });
 
     if (player.age === 17 && safeEuroLeagues.includes(currentLeague) && Math.random() > 0.4) {
          const pool = ohlTeams || [];
@@ -352,12 +406,27 @@ export function advanceToOffseason(ctx) {
           setScreen('event');
           return;
       }
+      // Replace the old text-based TRAINING CAMP event with this:
       setActiveEvent({
           title: '⛺ TRAINING CAMP',
-          desc: 'It is time to report to training camp for the new season. How hard are you pushing yourself this offseason?',
+          desc: 'It is time to report to training camp for the new season. Your performance here will dictate your ice time for the rest of the year.',
           choices: [
-              { label: 'Relaxed Camp (Focus on Rest)', isRisky: false, feedback: 'You feel fully rested and injury-free, but you left some development on the table.', effect: { idol: 0, ovr: 0, money: 0 } },
-              { label: 'Grueling Camp (Push the Limits)', isRisky: true, successChance: 0.60, successFeedback: 'You pushed your body to the absolute limit and gained incredible strength!', successEffect: { idol: 0, ovr: 2 }, failFeedback: 'You overtrained and pulled a muscle, losing valuable early-season conditioning.', failEffect: { idol: 0, ovr: -2 } }
+              { 
+                  label: 'Battle for a Top Spot (Take on the Challenge)', 
+                  isRisky: true, 
+                  successChance: 0.5, 
+                  feedback: 'You step onto the ice ready to prove yourself.',
+                  effect: { idol: 0, ovr: 0, money: 0 },
+                  // This action tells App.jsx to close the event and open the MinigameScreen
+                  action: 'ROUTE_MINIGAME',
+                  actionData: 'camp_battle'
+              },
+              { 
+                  label: 'Play it Safe (Accept Depth Role)', 
+                  isRisky: false, 
+                  feedback: 'You avoided injury, but the coach slotted you into a grinding depth role.', 
+                  effect: { idol: 0, ovr: -1, rel: { coach: -10 } } 
+              }
           ],
           isOffseasonEvent: true
       });

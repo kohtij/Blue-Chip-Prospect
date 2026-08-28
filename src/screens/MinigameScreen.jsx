@@ -1,4 +1,4 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 import { ACCENT } from '../utils/appHelpers';
 import { findMinigame } from '../data/minigames';

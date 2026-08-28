@@ -4,7 +4,7 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { getPrimaryRival, nhlTeams } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 
-// 4. OFFER SHEET COMPENSATION MATH
+// OFFER SHEET COMPENSATION MATH
 const getCompensation = (salary) => {
     if (salary < 1500000) return 'None';
     if (salary < 2300000) return '3rd Round Pick';
@@ -119,9 +119,9 @@ export default function TransferScreen() {
 
                     <div className="p-4 sm:p-5 flex flex-col flex-1">
                       
-                      {/* FIXED BACKGROUND LOGO */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-[0.1] group-hover:opacity-[0.2] grayscale pointer-events-none z-0 transition-opacity duration-300 ease-in-out">
-                          <div className="scale-[2] sm:scale-[2.5] transition-transform">
+                      {/* SUBTLE CORNER WATERMARK (A2) */}
+                      <div className="absolute -bottom-6 -right-6 opacity-10 group-hover:opacity-20 grayscale pointer-events-none z-0 transition-all duration-300 ease-in-out">
+                          <div className="w-32 h-32 sm:w-40 sm:h-40 transform -rotate-12">
                               <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" />
                           </div>
                       </div>

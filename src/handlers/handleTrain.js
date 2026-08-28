@@ -8,9 +8,15 @@ export function handleTrain(ctx, t) {
   } = ctx;
 
   setHasDemandedTrade(false);
-  
+
+  // NEW: Check if the player is currently nursing a nagging injury or suspension
+  let gamesMissed = 0;
+  if (player.storylines?.naggingInjury) gamesMissed += 15; // Missed 15 games
+  if (player.storylines?.injury === 1) gamesMissed += 60; // Missed almost the whole season from the ACL tear!
+  if (player.storylines?.suspended) gamesMissed += 5; 
+
   // 1. Run the simulation
-  const result = simulateSeason(player, t?.effect);
+  const result = simulateSeason(player, t?.effect, gamesMissed);
   if (!result) return;
 
   const { updatedPlayer, recap, statChanges, isDemoted, currentLg, currentTeam } = result;
@@ -26,7 +32,6 @@ export function handleTrain(ctx, t) {
   if (player.league === 'NHL' && isDemoted) unlockAchievement('demoted');
 
   // 3. Commit State and Push to History
-  // 3. Commit State and Push to History
   const historyEntry = {
       year: 2026 + ((player.stats?.seasonsPlayed || 0)), 
       team: currentTeam,
@@ -40,10 +45,22 @@ export function handleTrain(ctx, t) {
       plusMinus: recap.pm,
       awards: recap.awards || [],
       titleWon: false,
-      avgToi: recap.avgToi
+      avgToi: recap.avgToi,
+      tradedTo: recap.tradedTo,
+      gamesWithOriginal: recap.gamesWithOriginal,
+      gamesWithNew: recap.gamesWithNew
   };
   
   updatedPlayer.seasonHistory = [...(player.seasonHistory || []), historyEntry];
+
+  // Also clear nagging injury status so it doesn't carry over forever
+  if (updatedPlayer.storylines?.naggingInjury || updatedPlayer.storylines?.suspended) {
+      updatedPlayer.storylines = { 
+          ...updatedPlayer.storylines, 
+          naggingInjury: false,
+          suspended: false
+      };
+  }
 
   setPlayer(updatedPlayer);
   setStatChanges(statChanges);
@@ -53,7 +70,6 @@ export function handleTrain(ctx, t) {
   let isWaiverClaim = recap.waiverEvent === 'CLAIMED';
   let customWaiverEvent = recap.waiverEvent;
 
-  // Add clarity for Junior Development Assignments
   if (recap.waiverEvent === '9_GAME_RULE' || (isDemoted && ['OHL', 'WHL', 'QMJHL'].includes(currentLg))) {
      const draftTeamName = player.draftTeam ? player.draftTeam : "The team that drafted you";
      customWaiverEvent = `${draftTeamName} felt you needed more time to develop physically. They have officially assigned you back to the CHL team that holds your junior rights.`;
@@ -64,7 +80,7 @@ export function handleTrain(ctx, t) {
         ...recap, 
         wasDemotedTo: currentLg, 
         wasWaived: isWaiverClaim,
-        waiverEvent: customWaiverEvent // Overwrite with the custom explanation
+        waiverEvent: customWaiverEvent 
      });
   } else {
      setSeasonRecap(recap);
@@ -75,23 +91,43 @@ export function handleTrain(ctx, t) {
   } else {
      setPendingSeasonResult(result);
      
-     // 🌟 ALL-STAR INTERCEPT
-     // If the engine granted them an All-Star or All-American award, route them to the weekend festivities!
      const isAllStar = recap.awards?.some(a => a.includes('All-Star') || a.includes('All-American'));
      
-     // 🌟 ROSTER MOVE INTERCEPTOR
      const wasAHLtoNHL = player.league === 'AHL' && currentLg === 'NHL';
      const wasECHLtoAHL = player.league === 'ECHL' && currentLg === 'AHL';
      const wasJuniorToPro = ['OHL', 'WHL', 'QMJHL', 'NCAA'].includes(player.league) && ['NHL', 'AHL'].includes(currentLg);
      const wasNHLtoAHL = player.league === 'NHL' && currentLg === 'AHL';
      const wasAHLtoECHL = player.league === 'AHL' && currentLg === 'ECHL';
-     const wasWaiverClaim = recap.waiverEvent === 'CLAIMED';
      const wasJuniorReturn = recap.waiverEvent === '9_GAME_RULE';
+
+     // 🌟 MILESTONE INTERCEPTOR (NEW)
+     const oldNhlGames = player.stats?.nhl?.games || 0;
+     const newNhlGames = updatedPlayer.stats?.nhl?.games || 0;
 
      let moveTitle = null;
      let moveDesc = null;
+     let moveChoices = null;
 
-     if (wasWaiverClaim) {
+     if (oldNhlGames === 0 && newNhlGames > 0 && currentLg === 'NHL' && !wasAHLtoNHL && !isWaiverClaim) {
+         moveTitle = '🏒 NHL DEBUT';
+         moveDesc = `You step onto the ice for your first official NHL shift. The lights are blinding, the crowd is roaring, and you line up across from players you grew up watching. The puck drops.`;
+         moveChoices = [
+             { label: 'Play it Safe (Keep it simple)', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
+             { label: 'Make a Statement', isRisky: true, successChance: 0.5, successFeedback: 'You laid out a veteran on your first shift and scored a point! The arena went wild.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+         ];
+     } else if (oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
+         moveTitle = '🥈 THE SILVER STICK (1000 GAMES)';
+         moveDesc = `Tonight is your 1000th career NHL game. The team holds a pre-game ceremony, presenting you with the traditional silver stick. The crowd gives you a standing ovation for your incredible longevity.`;
+         moveChoices = [
+             { label: 'Soak it in', isRisky: false, feedback: 'A beautiful, emotional night. You are a true ironman of the sport.', effect: { idol: 150, ovr: 1, rel: { teammates: 30, coach: 20 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+         ];
+     } else if (oldNhlGames < 500 && newNhlGames >= 500 && currentLg === 'NHL') {
+         moveTitle = '💯 500 CAREER GAMES';
+         moveDesc = `You've officially played 500 games in the NHL. You are no longer a kid; you are an established veteran in this league. The rookies are starting to look up to you.`;
+         moveChoices = [
+             { label: 'Acknowledge the Milestone', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { idol: 50, ovr: 0, rel: { teammates: 10 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+         ];
+     } else if (isWaiverClaim) {
          moveTitle = '✈️ CLAIMED OFF WAIVERS';
          moveDesc = `You were placed on waivers and claimed by a new NHL organization. You are packing your bags immediately to join your new club.`;
      } else if (wasJuniorReturn) {
@@ -101,7 +137,6 @@ export function handleTrain(ctx, t) {
          } else {
              moveTitle = '📉 9-GAME TRYOUT CONCLUDED';
              moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season playing top-line minutes in juniors.`;
-             // Flag that they've experienced their rookie tryout
              ctx.setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), hadNineGameTryout: true } }));
          }
      } else if (wasNHLtoAHL) {
@@ -128,7 +163,7 @@ export function handleTrain(ctx, t) {
          ctx.setActiveEvent({
              title: moveTitle,
              desc: moveDesc,
-             choices: [{ 
+             choices: moveChoices || [{ 
                  label: 'Acknowledge', 
                  effect: { idol: 0, ovr: 0 }, 
                  action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' 

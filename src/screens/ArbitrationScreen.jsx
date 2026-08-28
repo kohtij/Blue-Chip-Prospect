@@ -9,50 +9,62 @@ export default function ArbitrationScreen() {
   // Track which arguments have been used so you can't just spam the same one 3 times
   const [usedArgs, setUsedArgs] = useState([]);
 
+  // NEW: Arbitrator Mood state
+  const mood = arbState.mood ?? 50;
+  const moodModifier = (mood - 50) * 0.006; // +/- 30% max swing
+
   // Dynamic Argument 1: On-Ice Impact (Checks attributes)
   const statSum = player.pos === 'G' ? (player.skating + player.hockeyIQ) : (player.shooting + player.hockeyIQ);
-  const impactChance = statSum > 165 ? 0.90 : statSum > 145 ? 0.65 : 0.35;
+  const baseImpactChance = statSum > 165 ? 0.90 : statSum > 145 ? 0.65 : 0.35;
+  const impactChance = Math.max(0.1, Math.min(0.95, baseImpactChance + moodModifier));
 
   // Dynamic Argument 2: Leadership & Character (Checks relationships)
   const relSum = (player.relationships?.teammates || 50) + (player.relationships?.coach || 50);
-  const leadershipChance = relSum >= 150 ? 0.95 : relSum >= 110 ? 0.70 : 0.30;
+  const baseLeadChance = relSum >= 150 ? 0.95 : relSum >= 110 ? 0.70 : 0.30;
+  const leadershipChance = Math.max(0.1, Math.min(0.95, baseLeadChance + moodModifier));
 
   const handleArgument = (argType) => {
     const gap = arbState.playerAsk - arbState.teamOffer;
-    let success = false;
     let swing = 0;
     let logMsg = "";
+    let moodSwing = 0;
+
+    const isHardball = argType === 'hardball';
+    const hardballChance = Math.max(0.1, Math.min(0.95, 0.35 + moodModifier));
+    const baseSuccess = isHardball ? hardballChance : (argType === 'impact' ? impactChance : leadershipChance);
+    const success = Math.random() < baseSuccess;
 
     if (argType === 'impact') {
-      success = Math.random() < impactChance;
       swing = Math.round((gap * 0.12) / 25000) * 25000;
+      moodSwing = success ? 15 : -15;
       logMsg = success 
-        ? "🟢 You highlight your underlying metrics and on-ice value. The arbitrator nods, ticking your price up." 
-        : "🔴 The team's lawyer points out your inconsistencies and defensive lapses. The arbitrator frowns.";
+        ? "🟢 You highlight your underlying metrics. The arbitrator nods, ticking your price up." 
+        : "🔴 The team's lawyer points out defensive lapses. The arbitrator frowns.";
     } 
     else if (argType === 'leadership') {
-      success = Math.random() < leadershipChance;
       swing = Math.round((gap * 0.10) / 25000) * 25000;
+      moodSwing = success ? 20 : -10;
       logMsg = success 
-        ? "🟢 You present glowing character references from the locker room. The arbitrator values your leadership." 
-        : "🔴 The team hints at behind-the-scenes friction and a poor attitude. The arbitrator isn't buying the leadership angle.";
+        ? "🟢 You present glowing character references. The arbitrator values your leadership." 
+        : "🔴 The team hints at behind-the-scenes friction. The arbitrator isn't buying it.";
     } 
-    else if (argType === 'hardball') {
-      success = Math.random() < 0.35;
+    else if (isHardball) {
       const upSwing = Math.round((gap * 0.25) / 25000) * 25000;
       const downSwing = Math.round((gap * 0.20) / 25000) * 25000;
       swing = success ? upSwing : -downSwing;
+      moodSwing = success ? 10 : -30;
       logMsg = success 
-        ? "🟢 MASSIVE SUCCESS. You aggressively compare yourself to league superstars, and the arbitrator agrees!" 
-        : "🔴 DISASTER. You demand superstar money, but the team ruthlessly exposes your flaws. Value plummets.";
+        ? "🟢 MASSIVE SUCCESS. You compare yourself to superstars, and the arbitrator agrees!" 
+        : "🔴 DISASTER. You demand superstar money, but the team exposes your flaws.";
     }
 
-    const newRuling = arbState.currentRuling + (success || argType === 'hardball' ? swing : 0);
+    const newRuling = arbState.currentRuling + (success || isHardball ? swing : 0);
 
     setArbState(prev => ({
       ...prev,
       currentRuling: Math.max(prev.teamOffer, Math.min(prev.playerAsk, newRuling)),
       rounds: prev.rounds - 1,
+      mood: Math.max(0, Math.min(100, (prev.mood ?? 50) + moodSwing)),
       log: [logMsg, ...prev.log]
     }));
     
@@ -94,6 +106,20 @@ export default function ArbitrationScreen() {
             <div className="mt-4 text-center">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Current Arbitrator Lean:</span>
               <div className="number-font text-3xl sm:text-4xl text-white drop-shadow-md">{formatMoney(arbState.currentRuling)}</div>
+            </div>
+            
+            {/* NEW: Arbitrator Mood Meter */}
+            <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.05)]">
+              <div className="flex justify-between text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                <span>Arbitrator Mood: Annoyed</span>
+                <span>Receptive</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-500 ${mood > 60 ? 'bg-[#22E748]' : mood > 40 ? 'bg-[#F59E0B]' : 'bg-[#ef4444]'}`} 
+                  style={{ width: `${mood}%` }}
+                ></div>
+              </div>
             </div>
           </div>
 

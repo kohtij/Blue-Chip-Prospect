@@ -132,7 +132,14 @@ export default function PreseasonScreen() {
                       <button
                         type="button"
                         key={t.id}
-                        onClick={() => handleTrain(t)}
+                        // B1: Effort in training camp slightly bumps Front Office trust
+                        onClick={() => {
+                            setPlayer(p => ({
+                                ...p,
+                                relationships: { ...p.relationships, coach: Math.min(100, (p.relationships?.coach || 50) + 5) }
+                            }));
+                            handleTrain(t);
+                        }}
                         className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[12rem] sm:min-h-[16rem] text-left relative z-30 ${currentYear === 2026 ? 'hover:border-[#c084fc] shadow-[0_0_15px_rgba(192,132,252,0.1)]' : t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
                       >
                         <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between w-full pointer-events-none">

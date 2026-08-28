@@ -295,6 +295,41 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         setScreen('event');
         return;
     }
+
+// ==========================================
+    // STORYLINE 4.5: THE NAGGING INJURY (Mid-Season Risk/Reward)
+    // ==========================================
+    // Triggers organically mid-season for established players
+    if (currentLg !== 'NCAA' && madePlayoffs && Math.random() < 0.05 && !player.storylines?.naggingInjury) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, naggingInjury: true } }));
+        setActiveEvent({
+            title: '🤕 THE NAGGING INJURY',
+            desc: `You took a nasty slash to the wrist and the team doctor says it's a hairline fracture. You can sit out for 4 weeks to let it heal, or shoot up with painkillers and play through it to help the team secure a playoff spot.`,
+            choices: [
+                { 
+                    label: 'Rest and Heal (Sit Out)', 
+                    isRisky: false, 
+                    feedback: 'You took the time to heal. Your body is 100%, but the team struggled without you.', 
+                    effect: { idol: -10, ovr: 0, rel: { coach: -10, teammates: -10 } },
+                    madePlayoffs: false // Sitting out causes the team to miss the playoffs!
+                },
+                { 
+                    label: 'Play Through the Pain', 
+                    isRisky: true, 
+                    successChance: 0.50, 
+                    successFeedback: 'You gritted your teeth and played through it! Your teammates revere your toughness.', 
+                    successEffect: { idol: 30, ovr: 1, rel: { teammates: 40, coach: 20 } }, 
+                    failFeedback: 'You played through it, but the fracture worsened. You need off-season surgery and your shot has suffered.', 
+                    failEffect: { idol: 10, ovr: -2, rel: { teammates: 20 } } 
+                }
+            ],
+            isDemotionEvent: false,
+            madePlayoffs: true // Playing through it guarantees the playoff spot
+        });
+        setScreen('event');
+        return;
+    }
+
     // ==========================================
     // STORYLINE 5: THE POSITIONAL LOGJAM (Centers Only)
     // ==========================================
@@ -400,6 +435,23 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
       return;
     }
     if (pAge > 19 && nextYear % 4 === 0 && pOvr >= 78) {
+      setIntlResult(null);
+      setMinigameContext('olympics');
+      setScreen('intl-minigame');
+      return;
+    }
+
+// A1: Track IIHF Divisions for Olympic Eligibility
+    const nat = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B' };
+    
+    if (pAge <= 19 && Math.random() > 0.4) {
+      setIntlResult(null);
+      setMinigameContext('wjc');
+      setScreen('intl-minigame');
+      return;
+    }
+    // Olympics are strictly gated to Top Division nations
+    if (pAge > 19 && nextYear % 4 === 0 && pOvr >= 78 && nat.division === 'Top Division') {
       setIntlResult(null);
       setMinigameContext('olympics');
       setScreen('intl-minigame');
@@ -601,9 +653,19 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
 
     if (Math.random() < 0.65) {
       const eventRoll = Math.random();
-      if (eventRoll < 0.33) {
+    
+    // A5: Fixed Frequency. 35% chance dedicated to Press Conferences.
+    if (eventRoll < 0.35) {
         const isGoalie = player.pos === 'G';
-        const validQuestions = PRESS_QUESTIONS.filter(q => q.forPos === 'all' || (isGoalie ? q.forPos === 'goalie' : q.forPos === 'skater'));
+        // B2: Media Trust Consumer (If media loves you, no negative questions. If they hate you, no positive questions)
+        const mediaTrust = player.relationships?.media || 50;
+        
+        const validQuestions = PRESS_QUESTIONS.filter(q => q.forPos === 'all' || (isGoalie ? q.forPos === 'goalie' : q.forPos === 'skater'))
+          .filter(q => {
+             if (mediaTrust >= 75 && q.tag === 'negative') return false; 
+             if (mediaTrust <= 30 && q.tag === 'positive') return false; 
+             return true;
+          });
         
         let shuffledQ = [];
         let hasPositive = false;
@@ -618,16 +680,16 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           if (q.tag === 'negative') hasNegative = true;
           
           shuffledQ.push(q);
-              if (shuffledQ.length === 3) break;
-            }
+          if (shuffledQ.length === 3) break;
+        }
 
-            const validReporters = getJournalistsForLeague(currentLg);
-            const shuffledJ = [...validReporters].sort(() => 0.5 - Math.random()).slice(0, 3);
-            setActivePress({ journalists: shuffledJ, questions: shuffledQ, currentQ: 0, answers: [] });
-            setScreen('press');
-      } else if (eventRoll < 0.66) {
+        const validReporters = getJournalistsForLeague(currentLg);
+        const shuffledJ = [...validReporters].sort(() => 0.5 - Math.random()).slice(0, 3);
+        setActivePress({ journalists: shuffledJ, questions: shuffledQ, currentQ: 0, answers: [] });
+        setScreen('press');
+    } else if (eventRoll < 0.65) { 
         triggerMinigame('season');
-      } else {
+    } else {
         setMinigameContext('season');
         const deck = eventDeck || [];
         if (deck.length > 0) {
@@ -638,8 +700,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
            if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings);
            else setScreen('recap');
         }
-      }
-      return;
+    }
+    return;
     }
 
     if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings);

@@ -606,7 +606,7 @@ const generateTraining = useCallback((pos) => {
   };
 
 const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
-    // eslint-disable-next-line react-hooks/purity
+    
     const isWin = Math.random() < successChance;
     const msg = isWin ? successMsg : failMsg;
 
@@ -669,12 +669,14 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         }
 
         const actionWord = isTier12 ? 'secured Gold' : (isTier3 ? 'avoided relegation' : 'secured promotion');
+        // In the isWin = true block:
         resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
-        resultEffect = { idol: 50, ovr: 1 };
+        resultEffect = { idol: 50, ovr: payout?.ovr || 1, rel: { media: 20 } }; // B1: Added media bump
       } else {
+        // In the isWin = false block:
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
         resultMsg = `${msg} A devastating loss for ${countryName}.`;
-        resultEffect = { idol: -5 };
+        resultEffect = { idol: -5, rel: { media: -15 } }; // B1: Added media penalty
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
@@ -772,12 +774,14 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         }
 
         const actionWord = isTier12 ? 'secured Gold' : (isTier3 ? 'avoided relegation' : 'secured promotion');
+        // In the isWin = true block:
         resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
-        resultEffect = { idol: 50, ovr: payout.ovr || 0 };
+        resultEffect = { idol: 50, ovr: payout?.ovr || 1, rel: { media: 20 } }; // B1: Added media bump
       } else {
+        // In the isWin = false block:
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
         resultMsg = `${msg} A devastating loss for ${countryName}.`;
-        resultEffect = { idol: -5 };
+        resultEffect = { idol: -5, rel: { media: -15 } }; // B1: Added media penalty
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
@@ -910,7 +914,10 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
             pSaves = Math.floor(pShots * savePct);
             pSho = Math.max(0, Math.floor((savePct - 0.900) * 50) + Math.floor(Math.random() * 2));
         } else {
-            const ppg = impact * (0.8 + Math.random() * 0.4);
+            // B2: Teammate Consumer (Small assist rate bonus)
+            const chemistryMod = (player.relationships?.teammates || 50) > 75 ? 1.15 : 1.0;
+            const ppg = impact * (0.8 + Math.random() * 0.4) * chemistryMod;
+            
             const points = Math.floor(playoffGames * ppg);
             const goalRatio = ['LD', 'RD'].includes(player.pos) ? 0.25 : 0.45;
             pG = Math.floor(points * goalRatio);

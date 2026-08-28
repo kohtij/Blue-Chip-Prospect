@@ -87,6 +87,17 @@ export const interactiveMinigames = [
     successMsg: "What a rocket! You blasted the one-timer top shelf.",
     failMsg: "You fanned on the shot and the puck trickled into the corner."
   },
+  {
+    id: 'camp_battle',
+    title: 'TRAINING CAMP BATTLE',
+    desc: 'You are battling a veteran for the final top-6 roster spot. The coach is watching closely. When the whistle blows (screen flashes GREEN), click immediately to win the puck battle!',
+    accent: 'emerald',
+    gameType: 'faceoff', // We can reuse the Faceoff reflex mechanic for a generic "puck battle"
+    pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], // Everyone
+    reward: { win: { idol: 10, ovr: 1, rel: { coach: 25 } }, loss: { idol: -5, ovr: -1, rel: { coach: -25 } } },
+    successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
+    failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
+  }
 ];
 
 export const getMinigamePool = (pos) => {

@@ -35,6 +35,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     const agentModifier = agentItem?.effect?.salaryModifier ?? 1.15;
     const multi = (player.inventory || []).includes('agent') ? agentModifier : 1.0;
 
+    // NEW: League-wide reputation modifier
+    const repMod = (player.stats?.reputation ?? 100) / 100;
+
     let leagueMinimum = 850000;
     if (currentYear === 2027) leagueMinimum = 900000;
     else if (currentYear >= 2029) leagueMinimum = 1000000;
@@ -48,21 +51,21 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
 
       if (player.ovr >= 85 || isSuperstar) {
-        baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi;
+        baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi * repMod;
         maxYears = 8;
       } else if (player.ovr >= 80) {
-        baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi;
+        baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi * repMod;
         maxYears = 5;
       } else if (player.ovr >= 75) {
-        baseSalary = (2000000 + ((player.ovr - 75) * 500000)) * multi;
+        baseSalary = (2000000 + ((player.ovr - 75) * 500000)) * multi * repMod;
         maxYears = 3;
       } else {
-        baseSalary = (leagueMinimum + 150000 + ((player.ovr - 70) * 100000)) * multi;
+        baseSalary = (leagueMinimum + 150000 + ((player.ovr - 70) * 100000)) * multi * repMod;
         maxYears = 2;
       }
 
       if (isSuperstar) {
-         baseSalary = Math.max(baseSalary, 10500000 * multi);
+         baseSalary = Math.max(baseSalary, 10500000 * multi * repMod);
          maxYears = Math.max(maxYears, 8);
       }
 
@@ -88,12 +91,20 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     const isRFA = actingLeague === 'NHL' && player.age < 27;
     const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(actingLeague);
     
+    const coachTrust = player.relationships?.coach || 50; // B2: Front Office Consumer
     let teamDidNotExtend = false;
+
     if (!isTradeRequest && !isAmateurGraduating) {
-      if (player.ovr < 65 && Math.random() > 0.60) {
+      // If Front Office trust is toxic, you are a liability and they let you walk (unless you're an elite superstar)
+      if (coachTrust < 30 && player.ovr < 88 && Math.random() < 0.75) {
+         setEventFeedback("The front office considers you a locker room liability. They have informed your agent they will not be offering an extension. You are heading to the open market.");
+         teamDidNotExtend = true;
+      } 
+      // High Front Office trust saves fringe players from being cut
+      else if (player.ovr < 65 && Math.random() > (coachTrust > 75 ? 0.85 : 0.60)) {
          setEventFeedback(isRFA ? "Your team elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent." : "Your team elected not to extend your contract. You are now a UFA.");
          teamDidNotExtend = true;
-      } else if (!isRFA && Math.random() > 0.70 && player.ovr < 85) {
+      } else if (!isRFA && Math.random() > 0.70 && player.ovr < 85 && coachTrust < 70) {
          setEventFeedback("Your current team has decided to move in a different direction and will not offer you an extension. You are heading to the open market.");
          teamDidNotExtend = true;
       } else {
@@ -117,6 +128,22 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
            idolHit: 10,
            state: (player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Contract' : 'Current Club'
          });
+
+         // NEW: HOMETOWN DISCOUNT (For Beloved UFAs)
+         if (!isRFA && actingLeague === 'NHL' && (player.idolatry || 0) >= 600) {
+             offers.push({
+                 team: actingTeam,
+                 league: actingLeague,
+                 type: 'HOMETOWN DISCOUNT',
+                 salary: Math.round((baseSalary * 0.65) / 25000) * 25000, // 35% pay cut to help the cap
+                 years: Math.min(8, maxYears + 2), // Rewarded with maximum term security
+                 role: getRole(baseSalary, player),
+                 idolHit: 100, // Massive loyalty boost
+                 state: 'Staying Put',
+                 nmc: true, // Rewarded with a No-Movement Clause
+                 perks: [{ text: '🔒 Absolute Loyalty (+100 Fans)', idol: 100, ovr: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }]
+             });
+         }
       }
     }
 

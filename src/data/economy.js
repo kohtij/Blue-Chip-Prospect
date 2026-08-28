@@ -147,5 +147,67 @@ export const eventDeck = [
       { label: 'Take him under your wing', isRisky: false, feedback: 'You showed real leadership. The kid, and the coaches, will remember it.', effect: { idol: 15, ovr: 1, money: 0 } },
       { label: 'Show him who runs this room', isRisky: true, successChance: 0.5, successFeedback: 'You outworked him at every turn and cemented your status.', successEffect: { idol: 20, ovr: 2, money: 0 }, failFeedback: 'The rivalry got petty and the coach sided with the kid.', failEffect: { idol: -15, ovr: -1, money: 0 } }
     ]
+  },
+  // NEW: OFF-ICE / PERSONAL LIFE EVENTS
+  {
+    title: 'The High-Profile Romance',
+    desc: 'You have started dating a very famous pop star. The paparazzi are swarming your house and following you to the arena. It is becoming a massive distraction.',
+    choices: [
+      { label: 'Embrace the Limelight', isRisky: true, successChance: 0.5, successFeedback: 'You leaned into the fame! You are now half of a global power couple, and your jersey sales are through the roof.', successEffect: { idol: 150, ovr: 0, money: 500000, rel: { media: 20 } }, failFeedback: 'The distraction proved too much. You looked completely lost on the ice, and the coach benched you to protect the team.', failEffect: { idol: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
+      { label: 'Keep it Private', isRisky: false, feedback: 'You set strict boundaries with the press and focused on hockey. Your coach appreciates the maturity.', effect: { idol: 10, ovr: 1, money: 0, rel: { coach: 15 } } }
+    ]
+  },
+  {
+    title: 'Family Investment Opportunity',
+    desc: 'Your brother wants you to invest heavily in his new "revolutionary" tech startup. Your financial advisor strongly advises against it.',
+    choices: [
+      { label: 'Fund the Startup ($2.5M)', isRisky: true, successChance: 0.35, successFeedback: 'Against all odds, the company took off! You doubled your investment and your family is thrilled.', successEffect: { idol: 0, ovr: 0, money: 5000000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be incredibly awkward.', failEffect: { idol: 0, ovr: -1, money: -2500000 } },
+      { label: 'Trust the Advisor (Pass)', isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { idol: 0, ovr: 0, money: 0 } }
+    ]
+  },
+  {
+    title: 'The Fired Agent',
+    desc: 'Your agent just got caught in a massive illegal gambling scandal. The media is swarming, assuming you are involved.',
+    choices: [
+      { label: 'Defend Him to the Press', isRisky: true, successChance: 0.40, successFeedback: 'You cleared your name and loyalty paid off—he beat the charges and negotiated a massive endorsement for you as a thank you.', successEffect: { idol: 20, ovr: 0, money: 1000000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming. By defending him, your own reputation took a massive hit.', failEffect: { idol: -50, ovr: 0, money: 0, rel: { media: -30 } } },
+      { label: 'Fire Him Immediately', isRisky: false, feedback: 'You ruthlessly cut ties. It was cold, but it protected your brand.', effect: { idol: 15, ovr: 0, money: 0, rel: { media: 15 } } }
+    ]
+  },
+  {
+    title: 'The Hometown Charity Gala',
+    desc: 'Your hometown is hosting a massive charity gala in your honor. Unfortunately, it is scheduled the night before the hardest day of training camp.',
+    choices: [
+      { label: 'Fly Home for the Kids', isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, delighted the fans, and somehow still dominated the bag skate the next morning!', successEffect: { idol: 75, ovr: 1, money: -50000, rel: { coach: 10 } }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { idol: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 } } },
+      { label: 'Skip it for Hockey', isRisky: false, feedback: 'You sent a video message and a check. The hometown fans are a bit disappointed, but you dominated camp.', effect: { idol: -15, ovr: 2, money: -50000, rel: { coach: 15 } } }
+    ]
+  },
+  {
+    title: 'Off-Ice Controversy',
+    desc: 'A teammate was caught on video making wildly inappropriate comments at a bar. The media is demanding a statement from you as a leader in the room.',
+    choices: [
+      { label: 'Condemn the Comments', isRisky: false, feedback: 'You took a hard stance. The media praised your leadership, but it definitely caused a fracture in the locker room.', effect: { idol: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
+      { label: 'Protect the Room ("No Comment")', isRisky: true, successChance: 0.50, successFeedback: 'You stonewalled the media. The story died down quickly, and your teammates deeply respect your loyalty.', successEffect: { idol: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic culture. Your silence became a massive PR disaster.', failEffect: { idol: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
+    ]
+  },
+  {
+    title: 'The Next Generation',
+    desc: 'Your teenage son is generating serious buzz ahead of the junior hockey draft. The media is already comparing him to you, and the pressure on him is immense.',
+    choices: [
+      { 
+        label: 'Push Him to Greatness', 
+        isRisky: true, 
+        successChance: 0.5, 
+        successFeedback: 'He embraced the grind! He went 1st overall and your hockey family legacy is secured.', 
+        successEffect: { idol: 100, ovr: 0, money: 0, rel: { media: 20 } }, 
+        failFeedback: 'The pressure broke him. He quit hockey entirely, and the media blamed your overbearing parenting.', 
+        failEffect: { idol: -50, ovr: -1, money: 0, rel: { media: -30 } } 
+      },
+      { 
+        label: 'Protect Him from the Spotlight', 
+        isRisky: false, 
+        feedback: 'You shielded him from the media and let him enjoy being a kid. A great dad move, even if the hockey world is disappointed.', 
+        effect: { idol: 20, ovr: 1, money: 0, rel: { media: -10 } } 
+      }
+    ]
   }
 ];

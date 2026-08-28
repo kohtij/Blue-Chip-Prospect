@@ -2,7 +2,7 @@ import 'react';
 import { useAppContext } from '../AppContext';
 
 export default function EventScreen() {
-  const { activeEvent, handleEventChoice } = useAppContext();
+  const { activeEvent, handleEventChoice, player } = useAppContext();
   if (!activeEvent) return null;
   
   return (() => {
@@ -43,15 +43,33 @@ export default function EventScreen() {
             {isDemotion && <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale"></div>}
             
             <div className="relative z-10">
-              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left ${titleColor}`}>
-                {isInjuryEvent ? '' : '🗣 '}{activeEvent.title}
+              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left flex items-start sm:items-center gap-2 sm:gap-3 ${titleColor}`}>
+                {!isInjuryEvent && <span className="shrink-0">🗣</span>}
+                <span>{activeEvent.title}</span>
               </h2>
               <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-2xl font-sans text-left">
                 {renderDesc(activeEvent.desc)}
               </p>
               <div className="flex flex-col gap-2 sm:gap-4 font-sans">
                 {(activeEvent.choices || []).map((c, i) => (
-                  <button key={i} onClick={() => handleEventChoice(c)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-2 shadow-lg">
+                  <button key={i} onClick={() => {
+                      let modChoice = { ...c };
+                      // B1: Teammate relationship modifier on Commercials
+                      if (activeEvent.title?.includes('COMMERCIAL') || activeEvent.title?.includes('SPONSOR') || activeEvent.title?.includes('ENDORSEMENT')) {
+                          const tTrust = player.relationships?.teammates || 50;
+                          let relHit = 0;
+                          if (tTrust < 45) relHit = -15; // Alienates team further
+                          else if (tTrust > 75) relHit = 5; // Good vibes
+                          
+                          if (relHit !== 0) {
+                              modChoice.effect = {
+                                  ...modChoice.effect,
+                                  rel: { ...(modChoice.effect?.rel || {}), teammates: (modChoice.effect?.rel?.teammates || 0) + relHit }
+                              };
+                          }
+                      }
+                      handleEventChoice(modChoice);
+                  }} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-2 shadow-lg">
                     <div className="flex justify-between items-start sm:items-center w-full gap-4">
                        <span className="text-sm sm:text-base font-bold text-left leading-tight">{c.label}</span>
                        <div className="flex items-center gap-2 shrink-0 mt-1 sm:mt-0">

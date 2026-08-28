@@ -2,42 +2,44 @@ import { useAppContext } from '../AppContext';
 import { formatMoney } from '../utils/gameHelpers';
 
 export default function NegotiationScreen() {
-  const { finishNegotiation, negotiation, setNegotiation, player } = useAppContext();
+  const { finishNegotiation, negotiation, setNegotiation, player, setPlayer } = useAppContext();
   const hasAgent = (player.inventory || []).includes('agent');
 
-  // We are moving the handleNegotiatePush logic *inside* this component 
-  // so it can properly update the local Negotiation state without having 
-  // to pass it back and forth to App.jsx!
   const handleNegotiatePush = (type) => {
     let damage = 0;
     let bumpSalary = 0;
     let bumpYears = 0;
     let label = "";
     let isSuccess = true;
+    let trustHit = 0; 
     
     // 👔 THE SUPER AGENT IMPACT
-    const dmgMult = hasAgent ? 0.4 : 1.0; // Agent reduces patience damage by 60%
-    const succBoost = hasAgent ? 0.25 : 0; // Agent increases success chance by 25%
+    const dmgMult = hasAgent ? 0.4 : 1.0; 
+    const succBoost = hasAgent ? 0.25 : 0; 
 
     if (type === 'safe') {
       damage = (Math.floor(Math.random() * 10) + 5) * dmgMult; 
       bumpSalary = Math.round(negotiation.originalOffer.salary * 0.03 / 25000) * 25000;
       label = "Safe Salary";
+      trustHit = 5; 
     } else if (type === 'hardball') {
       damage = (Math.floor(Math.random() * 25) + 15) * dmgMult; 
       bumpSalary = Math.round(negotiation.originalOffer.salary * 0.08 / 25000) * 25000;
       label = "Hardball Salary";
+      trustHit = -3; 
     } else if (type === 'bluff') {
       const success = Math.random() < (0.40 + succBoost);
       if (success) {
         damage = 5 * dmgMult;
         bumpSalary = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
         label = "Bold Bluff (Success)";
+        trustHit = -5; 
       } else {
         damage = 45 * dmgMult;
         bumpSalary = 0;
         isSuccess = false;
         label = "Bold Bluff (Failed)";
+        trustHit = -8; 
       }
     } else if (type === 'term_up') {
        const success = Math.random() < (0.50 + succBoost);
@@ -63,15 +65,36 @@ export default function NegotiationScreen() {
        }
     }
 
+    // Apply the trust hit directly to the player state
+    if (trustHit !== 0) {
+        setPlayer(p => ({
+            ...p,
+            relationships: {
+                ...p.relationships,
+                coach: Math.min(100, Math.max(0, (p.relationships?.coach || 50) + trustHit))
+            }
+        }));
+    }
+
     const newPatience = negotiation.gmPatience - damage;
     const newRound = negotiation.rounds + 1;
 
     if (newPatience <= 0) {
        const penalty = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
+       
+       // NEW: Burning bridges damages your league-wide reputation!
+       setPlayer(p => ({
+           ...p,
+           stats: {
+               ...p.stats,
+               reputation: Math.max(50, (p.stats?.reputation ?? 100) - 5)
+           }
+       }));
+
        setNegotiation(prev => ({
          ...prev, gmPatience: 0, currentSalary: Math.max(850000, prev.currentSalary - penalty),
          status: 'busted', history: [...prev.history, { label, success: false }],
-         msg: "The GM slammed the table and slashed the offer!"
+         msg: "The GM slammed the table and walked away! Word of your greed is spreading around the league."
        }));
     } else {
        setNegotiation(prev => ({
@@ -140,13 +163,13 @@ export default function NegotiationScreen() {
            <div className="flex flex-col gap-3 w-full">
              <div className="flex flex-col sm:flex-row gap-2">
                <button onClick={() => handleNegotiatePush('safe')} className="flex-1 bg-[#3b82f6]/10 border-2 border-[#3b82f6]/40 hover:bg-[#3b82f6]/20 text-[#3b82f6] px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider leading-tight transition-transform active:scale-95 cursor-pointer">
-                 SAFE<br />ARGUMENT
+                 SAFE<br />SALARY
                </button>
                <button onClick={() => handleNegotiatePush('hardball')} className="flex-1 bg-[#ef4444]/10 border-2 border-[#ef4444]/40 hover:bg-[#ef4444]/20 text-[#ef4444] px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider leading-tight transition-transform active:scale-95 cursor-pointer">
-                 HARDBALL<br />
+                 HARDBALL<br />SALARY
                </button>
                <button onClick={() => handleNegotiatePush('bluff')} className="flex-1 bg-[#F59E0B]/10 border-2 border-[#F59E0B]/40 hover:bg-[#F59E0B]/20 text-[#F59E0B] px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider leading-tight transition-transform active:scale-95 cursor-pointer">
-                 BLUFF<br />
+                 BLUFF<br />SALARY
                </button>
              </div>
              <div className="flex flex-col sm:flex-row gap-2 mt-2">

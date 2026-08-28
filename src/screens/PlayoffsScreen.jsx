@@ -1,9 +1,9 @@
 import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
-import { getPlayoffRounds, getTeamData } from '../data/teams';
+import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
-import TrophyImage from '../components/TrophyImage';
+import TrophyImage from '../components/TrophyImage'
 
 export default function PlayoffsScreen() {
   const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setPlayer, setPlayoffs } = useAppContext();
@@ -32,6 +32,9 @@ export default function PlayoffsScreen() {
     const label = getTeamLabel(team);
     const isWinner = wins >= winsNeeded;
     const teamData = !tbd ? getTeamData(teamId, playoffs.currentLg) : null;
+    
+    // NEW: Check if this bracket slot is the player's arch-rival
+    const isRival = getPrimaryRival(player.team, player.league)?.id === teamId;
 
     return (
       <div className={`flex items-center text-[9px] sm:text-[10px] ${isWinner ? 'text-[#22E748]' : 'text-slate-300'}`}>
@@ -50,6 +53,7 @@ export default function PlayoffsScreen() {
         <span className={`font-bold truncate text-left ${isFinal ? 'max-w-[60px] sm:max-w-[80px]' : 'max-w-[45px] sm:max-w-[60px]'} ${tbd ? 'text-slate-500 italic' : ''}`}>
           {label}
         </span>
+        {isRival && <span className="text-[10px] ml-1 shrink-0 leading-none" title="Arch-Rival">🔥</span>}
         <span className="font-black sports-font ml-auto">{wins ?? 0}</span>
       </div>
     );
