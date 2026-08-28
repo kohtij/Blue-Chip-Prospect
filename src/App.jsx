@@ -651,7 +651,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         const withOvr = applyOvrDelta(player, 1);
         updatedPlayer = { ...withOvr, idolatry: capIdol(withOvr.idolatry + 50), ovr: recomputeOvr(withOvr) };
         
-        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
+        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 ? 'Olympics' : 'World Championship');
         const achievementName = isTier12 ? 'Gold' : (isTier3 ? 'Survival' : 'Promotion');
         const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
@@ -754,7 +754,7 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         if (isTier12) unlockAchievement('gold_medal');
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
         
-        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : 'Olympics';
+        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 ? 'Olympics' : 'World Championship');
         const achievementName = isTier12 ? 'Gold' : (isTier3 ? 'Survival' : 'Promotion');
         const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
@@ -1006,6 +1006,36 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
     setPlayer(p => {
+      const isNewTeam = p.team !== o.team;
+      let newRelationships;
+
+      // Dynamically scale relationships if moving to a new locker room
+      if (isNewTeam) {
+         let baseTrust = 50;
+         let mediaTrust = 50;
+
+         if (p.idolatry >= 800) {
+             baseTrust = 75; 
+             mediaTrust = 80;
+         } else if (p.idolatry >= 400) {
+             baseTrust = 60; 
+             mediaTrust = 65;
+         }
+
+         newRelationships = {
+             coach: baseTrust,
+             teammates: baseTrust,
+             media: mediaTrust
+         };
+      } else {
+         // Loyalty bump for re-signing!
+         newRelationships = {
+             coach: Math.min(100, (p.relationships?.coach || 50) + 10),
+             teammates: Math.min(100, (p.relationships?.teammates || 50) + 10),
+             media: Math.min(100, (p.relationships?.media || 50) + 5)
+         };
+      }
+
       const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
       const updatedPlayer = {
         ...p, 
@@ -1013,7 +1043,8 @@ const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
         league: o.league || 'NHL', 
         idolatry: capIdol(p.idolatry + (o.idolHit || 0)), 
         teamsPlayedFor: newTeams,
-        contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc }
+        contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc },
+        relationships: newRelationships
       };
       
       // Keep exact stats and recompute OVR cleanly using positional weights

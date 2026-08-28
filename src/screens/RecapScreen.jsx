@@ -121,8 +121,8 @@ export default function RecapScreen() {
                 <p className="text-base sm:text-lg text-slate-400 font-sans italic text-left m-0">"{narrative}"</p>
               </div>
 
-              <ul className="recap-list space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-lg mb-10 font-sans text-left">
-                <li className="border-l-4 border-[#3b82f6] pl-4 py-1">
+              <ul className="recap-list space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-base font-sans text-left leading-relaxed">
+                <li className="border-l-4 border-[#3b82f6] pl-4 py-2">
                   {(() => {
                      const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
                      if (currentHistory?.tradedTo) {
@@ -142,19 +142,19 @@ export default function RecapScreen() {
                 </li>
                 
                 {player.pos === 'G' ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
+                  <li className="border-l-4 border-[#22E748] pl-4 py-2">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Truly elite numbers between the pipes.' :
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.905 ? 'A reliable, steady presence in the crease.' :
                     'Struggled to find consistency this year.'
                   }</li>
                 ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong>. {
+                  <li className="border-l-4 border-[#22E748] pl-4 py-2">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong>. {
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 65 ? 'Historic offensive production from the blue line.' :
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 40 ? 'Excellent puck-moving all season.' :
                     'Focused heavily on the defensive side of the puck.'
                   }</li>
                 ) : (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-1">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
+                  <li className="border-l-4 border-[#22E748] pl-4 py-2">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 100 ? 'A legendary century-mark campaign.' :
                     (seasonRecap?.g >= 50) ? 'An elite goal-scoring year.' :
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :
@@ -165,7 +165,7 @@ export default function RecapScreen() {
 
                 {madePlayoffsForNarrative ? (
                   <>
-                    <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-1`}>
+                    <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-2`}>
                       {seasonRecap?.titleWon === 1 
                         ? `🏆 Won the ${titles.cupName}!` 
                         : seasonRecap?.confTitleWon
@@ -175,46 +175,46 @@ export default function RecapScreen() {
                             : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
                     </li>
                     {seasonRecap?.memCupStatus === 'won' && (
-                       <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
+                       <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
                          🏆 CONQUERED THE NATION AND WON THE MEMORIAL CUP!
                        </li>
                     )}
                   </>
                 ) : (
-                  <li className="border-l-4 border-slate-600 pl-4 py-1">⛳ Missed the playoffs.</li>
+                  <li className="border-l-4 border-slate-600 pl-4 py-2">⛳ Missed the playoffs.</li>
                 )}
 
                 {player.league === 'NHL' && seasonRecap?.g >= 92 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
                     👑 BROKE GRETZKY'S SINGLE-SEASON GOAL RECORD (92)!
                   </li>
                 )}
                 {player.league === 'NHL' && (seasonRecap?.g + seasonRecap?.a) >= 215 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
                     👑 BROKE GRETZKY'S SINGLE-SEASON POINTS RECORD (215)!
                   </li>
                 )}
                 {player.league === 'NHL' && player.pos === 'G' && seasonRecap?.sho >= 15 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1 text-[#F59E0B] font-bold">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
                     👑 BROKE TONY ESPOSITO'S SINGLE-SEASON SHUTOUT RECORD (15)!
                   </li>
                 )}
 
                 {seasonRecap?.wasWaived && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-1">✈️ Claimed off waivers mid-season.</li>
+                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2">✈️ Claimed off waivers mid-season.</li>
                 )}
                 
                 {seasonRecap?.awards && seasonRecap.awards.length > 0 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 mt-4 bg-[#F59E0B]/10 rounded-r-lg">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 bg-[#F59E0B]/10 rounded-r-lg">
                     <strong className="text-[#F59E0B] block text-[10px] tracking-widest uppercase mb-1">🏆 HARDWARE SECURED</strong>
                     {seasonRecap.awards.map(aw => <div key={aw} className="text-white text-sm font-bold">{aw}</div>)}
                   </li>
                 )}
 
                 {seasonEvents.map((ev, i) => {
-                  if (!ev || !ev.feedback) return null; // Prevents blank newspaper lines!
+                  if (!ev || !ev.feedback) return null;
                   return (
-                    <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-1.5 block">
+                    <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-2 block">
                       <span className="text-slate-300 leading-relaxed">📰 {ev.feedback}</span>
                        <span className="inline-flex flex-wrap items-center gap-1.5 ml-2 align-middle relative -top-[1px]">
                          {ev.effect?.ovr !== undefined && ev.effect.ovr !== 0 && (
@@ -238,7 +238,7 @@ export default function RecapScreen() {
                 })}
               </ul>
 
-              <div className="w-full pt-8 pb-2 mt-8 border-t border-[rgba(255,255,255,0.05)] flex flex-col sm:flex-row gap-4">
+              <div className="w-full pt-6 mt-8 border-t border-[rgba(255,255,255,0.05)] flex flex-col sm:flex-row gap-4">
                 <button onClick={advanceToOffseason} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-2xl">
                   PROCEED TO OFFSEASON
                 </button>

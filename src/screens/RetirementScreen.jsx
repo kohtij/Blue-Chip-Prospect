@@ -196,100 +196,100 @@ export default function RetirementScreen() {
                 </div>
 
                 {/* CORE STATS GRID */}
-                <div className="game-panel p-4 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
-                  <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-3 mb-4 px-2">
+                <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
+                  <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-3 mb-5 px-2">
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">NATIONALITY: {player.nat}</span>
                       <span className="text-xs font-bold text-[#22E748] uppercase tracking-widest">PEAK OVR: {player.stats?.peakOvr || player.ovr}</span>
                     </div>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-2 ml-2 font-sans">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans">
                     PRO CAREER TOTALS
                   </h3>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center mb-6">
-                   <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-2 sm:col-span-3">
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none mb-2 tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-1 w-full">REGULAR SEASON</p>
-                      <div className="flex gap-4 items-center justify-center w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center mb-6">
+                   <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center col-span-1 sm:col-span-3">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-2 w-full mb-3">REGULAR SEASON</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 w-full divide-x divide-[rgba(255,255,255,0.05)]">
                           <div className="text-center">
-                            <p className="text-xl sm:text-2xl font-black text-[#22E748] sports-font leading-none mb-1">
+                            <p className="text-xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-1">
                               {isGoalie ? (proShots > 0 ? (proSaves / proShots).toFixed(3).replace('0.', '.') : '.000') : proGoals}
                             </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
                               {isGoalie ? (proGames > 0 ? ((proShots - proSaves) / proGames).toFixed(2) : '0.00') : proAssists}
                             </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
                           </div>
                           <div className="text-center hidden sm:block">
-                            <p className="text-xl sm:text-2xl font-black text-sky-400 sports-font leading-none mb-1">
+                            <p className="text-xl sm:text-3xl font-black text-sky-400 sports-font leading-none mb-1">
                               {isGoalie ? '60:00' : formattedToi}
                             </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">AVG TOI</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">AVG TOI</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">{proGames}</p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GP</p>
+                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{proGames}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GP</p>
                           </div>
                       </div>
                     </div>
 
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[80px] col-span-2 sm:col-span-2">
-                      <p className="text-[9px] font-bold text-[#F59E0B] uppercase leading-none mb-2 tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-1 w-full">PRO PLAYOFFS</p>
-                      <div className="flex gap-4 items-center justify-center w-full">
+                    <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center col-span-1 sm:col-span-2">
+                      <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-2 w-full mb-3">PRO PLAYOFFS</p>
+                      <div className="grid grid-cols-3 w-full divide-x divide-[rgba(255,255,255,0.05)]">
                           <div className="text-center">
-                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
                               {isGoalie ? (poShots > 0 ? (poSaves / poShots).toFixed(3).replace('0.', '.') : '.000') : poGoals}
                             </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
                               {isGoalie ? (poGames > 0 ? ((poShots - poSaves) / poGames).toFixed(2) : '0.00') : poAssists}
                             </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">{poGames}</p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GP</p>
+                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{poGames}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GP</p>
                           </div>
                       </div>
                     </div>
                     
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
-                      <p className="text-xl sm:text-2xl font-black text-[#3b82f6] sports-font leading-none mb-1">{formatMoney(player.stats?.value || 50000)}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">PEAK VALUE</p>
+                    <div className="bg-[#101410] p-4 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-2 shadow-inner">
+                      <p className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.value || 50000)}</p>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">PEAK VALUE</p>
                     </div>
-                    <div className="bg-[#101410] p-3 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[80px] col-span-1 sm:col-span-2">
-                      <p className="text-xl sm:text-2xl font-black text-[#22E748] sports-font leading-none mb-1">{formatMoney(player.stats?.earnings || 0)}</p>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">CAREER EARNINGS</p>
+                    <div className="bg-[#101410] p-4 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-3 shadow-inner">
+                      <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.earnings || 0)}</p>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">CAREER EARNINGS</p>
                     </div>
                   </div>
 
                   {otherGames > 0 && (
                     <>
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-2 ml-2 font-sans border-t border-[rgba(255,255,255,0.065)] pt-4">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans border-t border-[rgba(255,255,255,0.065)] pt-5">
                         PRE-NHL & DEVELOPMENT TOTALS
                       </h3>
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-                        <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[60px]">
-                          <p className="text-xl sm:text-2xl font-black text-[#22E748] sports-font leading-none mb-1">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
+                          <p className="text-xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-2">
                             {isGoalie ? (otherShots > 0 ? (otherSaves / otherShots).toFixed(3).replace('0.', '.') : '.000') : otherGoals}
                           </p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
                         </div>
-                        <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[60px]">
-                          <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">
+                        <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
+                          <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-2">
                             {isGoalie ? (otherGames > 0 ? ((otherShots - otherSaves) / otherGames).toFixed(2) : '0.00') : otherAssists}
                           </p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
                         </div>
-                        <div className="bg-[#101410] p-3 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center min-h-[60px]">
-                          <p className="text-xl sm:text-2xl font-black text-white sports-font leading-none mb-1">{otherGames}</p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none">GAMES PLAYED</p>
+                        <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
+                          <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-2">{otherGames}</p>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GAMES PLAYED</p>
                         </div>
                       </div>
                     </>
@@ -374,8 +374,20 @@ export default function RetirementScreen() {
                                 .filter(aw => !(aw.includes('All-Star') && stint.awards.some(other => other.includes('1st Team') && other !== aw)))
                                 .map((aw, aIdx) => {
                                 let colors = 'bg-slate-800 border-slate-600 text-slate-300';
-                                if (aw.includes('MVP') || aw.includes('Hart') || aw.includes('Smythe') || aw.includes('Presidents')) colors = 'bg-[#c084fc]/10 border-[#c084fc]/40 text-[#c084fc]';
-                                else if (aw.includes('Vezina') || aw.includes('Norris') || aw.includes('Ross') || aw.includes('Richard') || aw.includes('Calder') || aw.includes('All-Star') || aw.includes('American') || aw.includes('Cup')) colors = 'bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6]';
+                                
+                                if (aw.includes('Cup') || aw.includes('Championship') || aw.includes('Title')) {
+                                    // Championships: Gold
+                                    colors = 'bg-[#F59E0B]/10 border-[#F59E0B]/40 text-[#F59E0B]';
+                                } else if (aw.includes('MVP') || aw.includes('Hart') || aw.includes('Smythe') || aw.includes('Presidents') || aw.includes('Vezina') || aw.includes('Norris') || aw.includes('Ross') || aw.includes('Richard') || aw.includes('Calder') || aw.includes('Baker')) {
+                                    // Individual Hardware: Purple
+                                    colors = 'bg-[#c084fc]/10 border-[#c084fc]/40 text-[#c084fc]';
+                                } else if (aw.includes('Olympics') || aw.includes('World Juniors') || aw.includes('Gold') || aw.includes('Silver') || aw.includes('Bronze') || aw.includes('Promotion') || aw.includes('Survival')) {
+                                    // International: Green
+                                    colors = 'bg-[#22E748]/10 border-[#22E748]/40 text-[#22E748]';
+                                } else if (aw.includes('All-Star') || aw.includes('American') || aw.includes('Team')) {
+                                    // Distinctions: Blue
+                                    colors = 'bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6]';
+                                }
                                 
                                 const yearMatch = aw.match(/^\d{4}/);
                                 const year = yearMatch ? yearMatch[0] : '';

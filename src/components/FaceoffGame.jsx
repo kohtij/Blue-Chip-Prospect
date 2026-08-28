@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import  { useCallback, useEffect, useRef, useState } from 'react';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const FaceoffGame = ({ player, onComplete }) => {
@@ -27,7 +27,7 @@ const FaceoffGame = ({ player, onComplete }) => {
          innerTo = setTimeout(() => {
            setStatus(prev => {
              if (prev === 'ready') {
-               setMsg(`LOST! AI: ${aiTime}ms`); // Tell the player how fast the AI was
+               setMsg('TOO SLOW!');
                finish(false); 
                return 'done';
              }
@@ -42,12 +42,12 @@ const FaceoffGame = ({ player, onComplete }) => {
    const handleClick = () => {
      if (status === 'waiting') {
        setStatus('done');
-       setMsg('JUMPED EARLY!');
+       setMsg('FALSE START!');
        finish(false);
      } else if (status === 'ready') {
        const reactionTime = Date.now() - startTimeRef.current;
        setStatus('done');
-       setMsg(`WON: ${reactionTime}ms!`);
+       setMsg(`WON! (${reactionTime}ms)`);
        finish(true);
      }
    };

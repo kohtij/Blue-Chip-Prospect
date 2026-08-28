@@ -1,11 +1,16 @@
-/* Google Fonts must load BEFORE @import "tailwindcss" — Tailwind inlines
-   thousands of rules at that spot, and any @import that appears after
-   real rules is silently ignored by the browser per the CSS spec. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700;1,900&display=swap');
 @import "tailwindcss";
 
+/* Inter Variable - Normal */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ============================================================
-   BLUE CHIP PROSPECT — DESIGN SYSTEM 
+   BLUE CHIP PROSPECT — DESIGN SYSTEM
 
    This is the single source of truth for styles. Class names you 
    already use in App.jsx (.sports-font, .number-font, .game-panel, 

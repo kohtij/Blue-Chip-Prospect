@@ -1,13 +1,26 @@
-import  { useEffect, useState, useRef } from 'react';
+import  { useCallback, useEffect, useState, useRef } from 'react';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const ShootoutGame = ({ player, onComplete }) => {
   const [activeZone, setActiveZone] = useState(null);
   const [timeLeft, setTimeLeft] = useState(5000);
   const [jitter, setJitter] = useState({ x: 0, y: 0 });
+  const [status, setStatus] = useState('playing');
   const poolRef = useRef([]);
+  const doneRef = useRef(false);
+
+  // Added a delay so the player can actually see the result before the screen advances!
+  const finish = useCallback((win, delay = 1500) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setStatus(win ? 'won' : 'lost');
+    setTimeout(() => onComplete(win), delay);
+  }, [onComplete]);
 
   useEffect(() => {
+    // Stop the timer and targets if the game is over
+    if (status !== 'playing') return;
+
     let timeoutId;
 
     const getNextZone = () => {
@@ -27,7 +40,7 @@ const ShootoutGame = ({ player, onComplete }) => {
       setJitter({ x: jX, y: jY });
 
       // Vary timing between shots (base speed + ±100ms randomization)
-      const baseSpeed = Math.max(400, 1000 - (player.shooting * 4));
+      const baseSpeed = Math.max(400, 1000 - ((player?.shooting || 50) * 4));
       const randomOffset = Math.floor(Math.random() * 201) - 100;
       const speed = Math.max(300, baseSpeed + randomOffset);
 
@@ -41,7 +54,7 @@ const ShootoutGame = ({ player, onComplete }) => {
         if (t <= 100) {
           clearTimeout(timeoutId);
           clearInterval(timer);
-          onComplete(false); // Time ran out
+          finish(false); // Time ran out, trigger the loss delay
           return 0;
         }
         return t - 100;
@@ -52,7 +65,7 @@ const ShootoutGame = ({ player, onComplete }) => {
       clearTimeout(timeoutId);
       clearInterval(timer);
     };
-  }, [player, onComplete]);
+  }, [player, status, finish]);
 
   const zones = [
     { id: 0, label: 'TOP LEFT', cls: 'top-4 left-4 w-16 h-16 sm:w-20 sm:h-20' },
@@ -65,15 +78,19 @@ const ShootoutGame = ({ player, onComplete }) => {
   return (
     <div className="w-full max-w-md mx-auto aspect-[4/3] bg-[#e2e8f0] border-4 border-[#ef4444] rounded-lg relative overflow-hidden flex items-center justify-center shadow-inner">
       <div className="absolute inset-0 border-8 border-[#ef4444] rounded opacity-50 pointer-events-none"></div>
-      {/* Goalie Graphic Placeholder */}
-      <div className="w-3/5 h-4/5 bg-slate-800 rounded-t-[40%] absolute bottom-0 opacity-80 flex flex-col items-center justify-center">
-         <span className="text-5xl">🥅</span>
+      
+      {/* Goalie Graphic Placeholder with Success/Fail Flair */}
+      <div className={`w-3/5 h-4/5 ${status === 'won' ? 'bg-[#22E748]/20' : status === 'lost' ? 'bg-[#ef4444]/20' : 'bg-slate-800'} rounded-t-[40%] absolute bottom-0 opacity-80 flex flex-col items-center justify-center transition-colors duration-300`}>
+         <span className="text-5xl">{status === 'won' ? '🚨' : status === 'lost' ? '🧱' : '🥅'}</span>
+         {status === 'won' && <span className="text-[#22E748] font-black sports-font text-2xl mt-2 animate-bounce drop-shadow-md">SNIPE!</span>}
+         {status === 'lost' && <span className="text-[#ef4444] font-black sports-font text-2xl mt-2 drop-shadow-md">SAVED!</span>}
       </div>
       
-      {zones.map(z => (
+      {/* Only show target zones while playing */}
+      {status === 'playing' && zones.map(z => (
         <button
           key={z.id}
-          onClick={() => { if (activeZone === z.id) onComplete(true); }}
+          onClick={() => { if (activeZone === z.id) finish(true); }}
           style={activeZone === z.id ? { marginTop: `${jitter.y}px`, marginLeft: `${jitter.x}px` } : {}}
           className={`absolute rounded-full border-4 transition-colors font-black sports-font text-[10px] sm:text-xs leading-none z-10 ${
             activeZone === z.id 
@@ -84,8 +101,9 @@ const ShootoutGame = ({ player, onComplete }) => {
           {activeZone === z.id ? 'SHOOT' : ''}
         </button>
       ))}
+
       <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-1 rounded-full font-black number-font text-xl shadow-lg border border-slate-700">
-         {(timeLeft / 1000).toFixed(1)}s
+         {status === 'playing' ? `${(timeLeft / 1000).toFixed(1)}s` : status === 'won' ? 'GOAL' : 'NO GOAL'}
       </div>
     </div>
   );

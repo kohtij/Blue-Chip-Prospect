@@ -184,6 +184,34 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 {tier.req > 0 ? `You're ${tier.req} pts short of ${tier.nextLabel}` : <span className="text-[#F59E0B]">Max Icon Status 🏆</span>}
               </p>
             </div>
+
+            {/* RELATIONSHIPS BARS */}
+            <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.05)] w-full space-y-2">
+              <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide mb-1">
+                <span className="text-slate-400">Relationships</span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest w-[85px] shrink-0">FRONT OFFICE</span>
+                <div className="flex-1 h-1.5 bg-[#0a0d0a] rounded-full overflow-hidden border border-[rgba(255,255,255,0.05)] relative">
+                  <div className="absolute top-0 bottom-0 left-0 bg-[#3b82f6] transition-all duration-500" style={{ width: `${player.relationships?.coach || 50}%` }}></div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest w-[85px] shrink-0">TEAMMATES</span>
+                <div className="flex-1 h-1.5 bg-[#0a0d0a] rounded-full overflow-hidden border border-[rgba(255,255,255,0.05)] relative">
+                  <div className="absolute top-0 bottom-0 left-0 bg-[#22E748] transition-all duration-500" style={{ width: `${player.relationships?.teammates || 50}%` }}></div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest w-[85px] shrink-0">MEDIA</span>
+                <div className="flex-1 h-1.5 bg-[#0a0d0a] rounded-full overflow-hidden border border-[rgba(255,255,255,0.05)] relative">
+                  <div className="absolute top-0 bottom-0 left-0 bg-[#F59E0B] transition-all duration-500" style={{ width: `${player.relationships?.media || 50}%` }}></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 2. BOTTOM STAT GRIDS */}
@@ -245,7 +273,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
             </div>
 
             {/* FINANCIALS ROW */}
-            <div className="grid grid-cols-3 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
+            <div className="grid grid-cols-2 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
               <div className="flex flex-col justify-center items-center py-2 min-h-[50px]">
                 <p className="px-1 text-lg sm:text-xl font-black number-font leading-none text-sky-300">{formatMoney(player.stats?.value || 0)}</p>
                 <p className="mt-0.5 text-[8px] font-black uppercase tracking-wide text-slate-400">Value</p>
@@ -253,10 +281,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               <div className="flex flex-col justify-center items-center bg-amber-400/10 py-2 min-h-[50px]">
                 <p className="px-1 text-lg sm:text-xl font-black number-font leading-none text-amber-300">{formatMoney(player.stats?.earnings || 0)}</p>
                 <p className="mt-0.5 text-[8px] font-black uppercase tracking-wide text-slate-400">Earnings</p>
-              </div>
-              <div className="flex flex-col justify-center items-center py-2 min-h-[50px]">
-                <p className="px-1 text-lg sm:text-xl font-black number-font leading-none text-[#22E748]">{player.relationships?.coach || 50}%</p>
-                <p className="mt-0.5 text-[8px] font-black uppercase tracking-wide text-slate-400">Coach Trust</p>
               </div>
             </div>
           </div>

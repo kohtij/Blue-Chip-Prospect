@@ -112,14 +112,18 @@ export default function TransferScreen() {
                 return (
                   <div key={i} className={`bg-[#0a0d0a] border ${topBorder} rounded-xl relative overflow-hidden flex flex-col transition-all hover:scale-[1.02] shadow-lg group`}>
                     
-                    {isExtension && <div className="bg-[#22E748] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">✅ {o.type === 'QUALIFYING OFFER' ? 'QUALIFYING OFFER' : 'EXTENSION OFFER'}</div>}
-                    {isRival && <div className="bg-[#ef4444] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">⚔️ ARCH-RIVAL OFFER</div>}
-                    {isReturnHome && !isRival && <div className="bg-[#F59E0B] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">🏠 RETURNING HOME</div>}
-                    {o.type === 'OFFER SHEET' && <div className="bg-[#c084fc] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">📝 OFFER SHEET</div>}
+                    {isExtension && <div className="relative z-10 bg-[#22E748] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">✅ {o.type === 'QUALIFYING OFFER' ? 'QUALIFYING OFFER' : 'EXTENSION OFFER'}</div>}
+                    {isRival && <div className="relative z-10 bg-[#ef4444] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">⚔️ ARCH-RIVAL OFFER</div>}
+                    {isReturnHome && !isRival && <div className="relative z-10 bg-[#F59E0B] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">🏠 RETURNING HOME</div>}
+                    {o.type === 'OFFER SHEET' && <div className="relative z-10 bg-[#c084fc] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">📝 OFFER SHEET</div>}
 
                     <div className="p-4 sm:p-5 flex flex-col flex-1">
-                      <div className="absolute top-1/2 right-[-10%] -translate-y-1/2 opacity-[0.025] group-hover:opacity-[0.05] pointer-events-none transition-opacity">
-                          <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" className="scale-[3]" />
+                      
+                      {/* FIXED BACKGROUND LOGO */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-[0.1] group-hover:opacity-[0.2] grayscale pointer-events-none z-0 transition-opacity duration-300 ease-in-out">
+                          <div className="scale-[2] sm:scale-[2.5] transition-transform">
+                              <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" />
+                          </div>
                       </div>
 
                       <div className="flex items-center gap-3 mb-4 z-10 relative">

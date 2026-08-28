@@ -132,7 +132,35 @@ export function handleEventChoice(ctx, choice) {
   };
 
   if (finalPlayer.team !== player.team) {
-     finalPlayer.relationships = { coach: 50, teammates: 50, media: 50 };
+     let baseTrust = 50;
+     let mediaTrust = 50;
+
+     // Context 1: Cast-offs and Demotions
+     if (ctx.seasonRecap?.wasWaived || actionStr.includes('DEMOTE')) {
+         baseTrust = 40; // Front office and teammates are skeptical
+         mediaTrust = 45; 
+     } 
+     // Context 2: The Drama Queen
+     else if (ctx.hasDemandedTrade || actionStr === 'TRADE_HOLDOUT') {
+         baseTrust = 35; // Arriving with a toxic reputation
+         mediaTrust = 70; // ...but the media absolutely loves the drama!
+     } 
+     // Context 3: The Superstar
+     else if (finalPlayer.idolatry >= 800) {
+         baseTrust = 75; // Red carpet treatment. They are thrilled to have you.
+         mediaTrust = 80;
+     } 
+     // Context 4: Highly Coveted
+     else if (finalPlayer.idolatry >= 400) {
+         baseTrust = 60; // Respected addition to the roster
+         mediaTrust = 65;
+     }
+
+     finalPlayer.relationships = { 
+         coach: baseTrust, 
+         teammates: baseTrust, 
+         media: mediaTrust 
+     };
   }
   
   setPlayer(finalPlayer);

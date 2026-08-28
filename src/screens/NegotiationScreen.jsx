@@ -139,21 +139,21 @@ export default function NegotiationScreen() {
          {negotiation.status === 'playing' ? (
            <div className="flex flex-col gap-3 w-full">
              <div className="flex flex-col sm:flex-row gap-2">
-               <button onClick={() => handleNegotiatePush('safe')} className="flex-1 bg-[#3b82f6]/10 border-2 border-[#3b82f6]/40 hover:bg-[#3b82f6]/20 text-[#3b82f6] py-3 rounded-xl font-black sports-font text-[10px] sm:text-xs tracking-widest transition-transform active:scale-95 cursor-pointer">
-                 SAFE SALARY
+               <button onClick={() => handleNegotiatePush('safe')} className="flex-1 bg-[#3b82f6]/10 border-2 border-[#3b82f6]/40 hover:bg-[#3b82f6]/20 text-[#3b82f6] px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider leading-tight transition-transform active:scale-95 cursor-pointer">
+                 SAFE<br />ARGUMENT
                </button>
-               <button onClick={() => handleNegotiatePush('hardball')} className="flex-1 bg-[#ef4444]/10 border-2 border-[#ef4444]/40 hover:bg-[#ef4444]/20 text-[#ef4444] py-3 rounded-xl font-black sports-font text-[10px] sm:text-xs tracking-widest transition-transform active:scale-95 cursor-pointer">
-                 HARDBALL SALARY
-             </button>
-               <button onClick={() => handleNegotiatePush('bluff')} className="flex-1 bg-[#F59E0B]/10 border-2 border-[#F59E0B]/40 hover:bg-[#F59E0B]/20 text-[#F59E0B] py-3 rounded-xl font-black sports-font text-[10px] sm:text-xs tracking-widest transition-transform active:scale-95 cursor-pointer">
-                 BLUFF SALARY
+               <button onClick={() => handleNegotiatePush('hardball')} className="flex-1 bg-[#ef4444]/10 border-2 border-[#ef4444]/40 hover:bg-[#ef4444]/20 text-[#ef4444] px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider leading-tight transition-transform active:scale-95 cursor-pointer">
+                 HARDBALL<br />
+               </button>
+               <button onClick={() => handleNegotiatePush('bluff')} className="flex-1 bg-[#F59E0B]/10 border-2 border-[#F59E0B]/40 hover:bg-[#F59E0B]/20 text-[#F59E0B] px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider leading-tight transition-transform active:scale-95 cursor-pointer">
+                 BLUFF<br />
                </button>
              </div>
              <div className="flex flex-col sm:flex-row gap-2 mt-2">
-               <button disabled={negotiation.currentYears >= 8} onClick={() => handleNegotiatePush('term_up')} className="flex-1 bg-slate-800 border-2 border-slate-600 hover:bg-slate-700 text-white disabled:opacity-50 py-3 rounded-xl font-black sports-font text-[10px] sm:text-xs tracking-widest transition-transform active:scale-95 cursor-pointer">
+               <button disabled={negotiation.currentYears >= 8} onClick={() => handleNegotiatePush('term_up')} className="flex-1 bg-slate-800 border-2 border-slate-600 hover:bg-slate-700 text-white disabled:opacity-50 px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider transition-transform active:scale-95 cursor-pointer">
                  MORE TERM (+1 YR)
                </button>
-               <button disabled={negotiation.currentYears <= 1} onClick={() => handleNegotiatePush('term_down')} className="flex-1 bg-slate-800 border-2 border-slate-600 hover:bg-slate-700 text-white disabled:opacity-50 py-3 rounded-xl font-black sports-font text-[10px] sm:text-xs tracking-widest transition-transform active:scale-95 cursor-pointer">
+               <button disabled={negotiation.currentYears <= 1} onClick={() => handleNegotiatePush('term_down')} className="flex-1 bg-slate-800 border-2 border-slate-600 hover:bg-slate-700 text-white disabled:opacity-50 px-1 py-3 rounded-xl font-black sports-font text-[9px] sm:text-[10px] md:text-xs tracking-wider transition-transform active:scale-95 cursor-pointer">
                  LESS TERM (-1 YR)
                </button>
              </div>

@@ -97,10 +97,10 @@ export function handleTrain(ctx, t) {
      } else if (wasJuniorReturn) {
          if (player.storylines?.hadNineGameTryout) {
              moveTitle = '📉 REASSIGNED TO JUNIORS';
-             moveDesc = `For the second consecutive year, you couldn't secure a permanent NHL roster spot out of training camp. The front office has returned you to your junior club to finish out your amateur eligibility.`;
+             moveDesc = `For the second consecutive year, you couldn't secure a permanent NHL roster spot out of training camp. You spent the season developing with your junior club to finish out your amateur eligibility.`;
          } else {
-             moveTitle = '📉 RETURNED TO JUNIORS';
-             moveDesc = `Following your 9-game NHL tryout, the front office has decided you need more time to develop physically. You have been reassigned back to your junior club.`;
+             moveTitle = '📉 9-GAME TRYOUT CONCLUDED';
+             moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season playing top-line minutes in juniors.`;
              // Flag that they've experienced their rookie tryout
              ctx.setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), hadNineGameTryout: true } }));
          }
