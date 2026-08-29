@@ -144,8 +144,20 @@ export default function PreseasonScreen() {
                       >
                         <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between w-full pointer-events-none">
                           <div>
-                            <div className="mb-3">
-                              <h3 className="text-lg xl:text-xl tracking-tight font-black text-white uppercase leading-tight text-left sports-font">
+                            <div className="mb-3 flex flex-col items-start gap-1">
+                              {t.rarity && (
+                                <div className={`flex items-center gap-2 w-full ${
+                                  t.rarity === 'Epic' ? 'text-[#F59E0B]' :
+                                  t.rarity === 'Rare' ? 'text-[#3b82f6]' :
+                                  'text-[#22E748] opacity-80'
+                                }`}>
+                                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] leading-none">
+                                    {t.rarity}
+                                  </span>
+                                  <div className="flex-1 h-px bg-current opacity-30"></div>
+                                </div>
+                              )}
+                              <h3 className="text-lg xl:text-xl tracking-tight font-black text-white uppercase leading-tight text-left sports-font mt-1">
                                 {t.name}
                               </h3>
                             </div>

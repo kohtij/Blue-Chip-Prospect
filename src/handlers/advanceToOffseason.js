@@ -115,8 +115,22 @@ export function advanceToOffseason(ctx) {
         }
         
         if (declineSkt > 0 || declinePhy > 0) {
-            const declineMsg = `Father Time is undefeated. Your body is aging, and you lost a physical step over the summer (-${declineSkt} SKT, -${declinePhy} PHY).`;
-            setSeasonEvents(prev => [...prev, { feedback: declineMsg, effect: { ovr: 0, idol: 0, money: 0 } }]);
+            // Calculate the actual OVR drop for the UI pills
+            const tempPlayer = { 
+                ...player, 
+                skating: Math.max(30, (player.skating || 50) - declineSkt), 
+                physicality: Math.max(30, (player.physicality || 50) - declinePhy) 
+            };
+            const newOvr = recomputeOvr(tempPlayer);
+            const ovrDiff = newOvr - player.ovr;
+
+            const declineMsg = `Father Time is undefeated. Your body is aging, and you lost a physical step over the summer.`;
+            
+            // FIX: Pass the calculated ovr drop and raw stat drops into the effect object
+            setSeasonEvents(prev => [...prev, { 
+                feedback: declineMsg, 
+                effect: { ovr: ovrDiff, idol: 0, money: 0, skating: -declineSkt, physicality: -declinePhy } 
+            }]);
         }
     }
 
@@ -406,30 +420,63 @@ export function advanceToOffseason(ctx) {
           setScreen('event');
           return;
       }
-      // Replace the old text-based TRAINING CAMP event with this:
-      setActiveEvent({
-          title: '⛺ TRAINING CAMP',
-          desc: 'It is time to report to training camp for the new season. Your performance here will dictate your ice time for the rest of the year.',
-          choices: [
-              { 
-                  label: 'Battle for a Top Spot (Take on the Challenge)', 
+    // 1. Determine proper verbiage based on position
+    const targetRole = ['LD', 'RD'].includes(player.pos) ? 'Top 4 spot' : player.pos === 'G' ? 'Starting job' : 'Top 6 spot';
+    
+    // 2. Check if the player is already an established elite veteran or captain
+    const isEstablished = player.ovr >= 85 || player.isCaptain;
+
+    if (isEstablished) {
+        ctx.setActiveEvent({
+            title: '⛺ VETERAN TRAINING CAMP',
+            desc: `You arrive at camp as an established core player for the ${player.league} season. The coaches know what you bring to the table. Use this time to set the tone for the rookies.`,
+            choices: [
+                { 
+                  label: 'Pace Yourself (Avoid Injury)', 
+                  isRisky: false, 
+                  feedback: 'You coasted through camp cleanly. You are 100% ready for opening night.', 
+                  effect: { idol: 10, ovr: 0 } 
+                },
+                { 
+                  label: 'Dominate Scrimmages', 
                   isRisky: true, 
-                  successChance: 0.5, 
-                  feedback: 'You step onto the ice ready to prove yourself.',
-                  effect: { idol: 0, ovr: 0, money: 0 },
-                  // This action tells App.jsx to close the event and open the MinigameScreen
-                  action: 'ROUTE_MINIGAME',
-                  actionData: 'camp_battle'
-              },
-              { 
+                  successChance: 0.75, 
+                  successFeedback: 'You looked absolutely unstoppable. The media is hyping you up for a career year.', 
+                  successEffect: { idol: 50, ovr: 1, rel: { coach: 15 } }, 
+                  failFeedback: 'You pushed too hard in a meaningless drill and tweaked a muscle.', 
+                  failEffect: { idol: -10, ovr: -1, rel: { coach: -10 } } 
+                }
+            ],
+            isOffseasonEvent: true
+        });
+    } else {
+        ctx.setActiveEvent({
+            title: '⛺ TRAINING CAMP BATTLE',
+            desc: `It is time to report to training camp for the new season. You are locked in a fierce roster battle. Your performance here will dictate your ice time.`,
+            choices: [
+                { 
+                  label: `Battle for a ${targetRole} (Hit the ice)`, 
+                  isRisky: true, 
+                  successChance: 0.50, 
+                  successFeedback: `You had an incredible camp and secured a ${targetRole}!`, 
+                  successEffect: { idol: 20, ovr: 1, rel: { coach: 20 } }, 
+                  failFeedback: `You struggled to keep up. The coach bumped you down the depth chart.`, 
+                  failEffect: { idol: -10, ovr: -1, rel: { coach: -15 } },
+                  action: 'ROUTE_MINIGAME' 
+                },
+                { 
                   label: 'Play it Safe (Accept Depth Role)', 
                   isRisky: false, 
-                  feedback: 'You avoided injury, but the coach slotted you into a grinding depth role.', 
-                  effect: { idol: 0, ovr: -1, rel: { coach: -10 } } 
-              }
-          ],
-          isOffseasonEvent: true
-      });
-      setScreen('event');
-    }
-}
+                  feedback: 'You played a quiet, mistake-free camp and slotted into the bottom of the lineup.', 
+                  effect: { idol: 0, ovr: 0, rel: { coach: 5 } } 
+                }
+            ],
+            isOffseasonEvent: true
+        });
+    } // Closes the if (isEstablished) / else block
+
+    // FIX: Actually route the user to the event screen!
+    ctx.setScreen('event');
+    
+  } // Closes the massive `else` block for players who already have contracts
+} // Closes the entire advanceToOffseason function

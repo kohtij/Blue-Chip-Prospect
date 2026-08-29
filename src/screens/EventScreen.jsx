@@ -24,7 +24,6 @@ export default function EventScreen() {
              titleColor = 'text-slate-300';
           }
 
-          // A lightweight Markdown parser for bold text (**text**)
           const renderDesc = (text) => {
              if (!text) return null;
              const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -43,23 +42,22 @@ export default function EventScreen() {
             {isDemotion && <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale"></div>}
             
             <div className="relative z-10">
-              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left flex items-start sm:items-center gap-2 sm:gap-3 ${titleColor}`}>
-                {!isInjuryEvent && <span className="shrink-0">🗣</span>}
-                <span>{activeEvent.title}</span>
+              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left flex items-center gap-1 sm:gap-1.5 ${titleColor}`}>
+                {!isInjuryEvent && <span className="shrink-0 leading-none pb-0.5">🗣</span>}
+                <span className="leading-tight">{activeEvent.title}</span>
               </h2>
               <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-2xl font-sans text-left">
                 {renderDesc(activeEvent.desc)}
               </p>
-              <div className="flex flex-col gap-2 sm:gap-4 font-sans">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 font-sans items-stretch">
                 {(activeEvent.choices || []).map((c, i) => (
                   <button key={i} onClick={() => {
                       let modChoice = { ...c };
-                      // B1: Teammate relationship modifier on Commercials
                       if (activeEvent.title?.includes('COMMERCIAL') || activeEvent.title?.includes('SPONSOR') || activeEvent.title?.includes('ENDORSEMENT')) {
                           const tTrust = player.relationships?.teammates || 50;
                           let relHit = 0;
-                          if (tTrust < 45) relHit = -15; // Alienates team further
-                          else if (tTrust > 75) relHit = 5; // Good vibes
+                          if (tTrust < 45) relHit = -15; 
+                          else if (tTrust > 75) relHit = 5; 
                           
                           if (relHit !== 0) {
                               modChoice.effect = {
@@ -69,7 +67,7 @@ export default function EventScreen() {
                           }
                       }
                       handleEventChoice(modChoice);
-                  }} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-2 shadow-lg">
+                  }} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-center gap-2 shadow-lg h-auto">
                     <div className="flex justify-between items-start sm:items-center w-full gap-4">
                        <span className="text-sm sm:text-base font-bold text-left leading-tight">{c.label}</span>
                        <div className="flex items-center gap-2 shrink-0 mt-1 sm:mt-0">

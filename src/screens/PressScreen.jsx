@@ -1,15 +1,12 @@
-import React from 'react';
+import 'react';
 import { useAppContext } from '../AppContext';
 import { PRESS_VIBES } from '../utils/appHelpers';
 
-// Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function PressScreen() {
   const { activePress, handlePressAnswer, player, pressAnswerKeys } = useAppContext();
   return (() => {
           const q = activePress.questions[activePress.currentQ];
           const journalist = activePress.journalists[activePress.currentQ];
-          
-          // Pulls from the safe top-level hook instead!
           const answerKeys = pressAnswerKeys;
 
           return (
@@ -19,7 +16,6 @@ export default function PressScreen() {
                  <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase tracking-wide">THE PRESS CONFERENCE</h2>
               </div>
               
-              {/* VISIBLE JOURNALIST PROFILE (Scales based on Hockey IQ) */}
               <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 flex flex-col justify-center min-h-[100px]">
                 <p className="text-[10px] sm:text-xs font-bold text-[#F59E0B] tracking-widest uppercase mb-1 font-sans">QUESTION {activePress.currentQ + 1} FROM:</p>
                 
@@ -47,7 +43,6 @@ export default function PressScreen() {
                 )}
               </div>
 
-              {/* HIGH IQ CHEAT CODE */}
               {player.hockeyIQ >= 75 && (
                 <div className="bg-[#22E748]/10 border border-[#22E748]/30 p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 flex items-center gap-3 shadow-[0_0_15px_rgba(34,231,75,0.1)]">
                   <span className="text-xl sm:text-3xl">🧠</span>
@@ -65,12 +60,11 @@ export default function PressScreen() {
                 {answerKeys.map((vibeKey) => {
                   const vibe = PRESS_VIBES[vibeKey];
                   return (
-                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-4 sm:p-5 rounded-xl transition-colors group flex flex-col justify-center cursor-pointer min-h-[100px]">
+                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-4 sm:p-5 rounded-xl transition-colors group flex flex-col justify-center cursor-pointer h-auto">
                        <p className="text-sm sm:text-base text-slate-300 font-medium group-hover:text-white transition-colors italic leading-relaxed">
                          "{q.answers[vibeKey]}"
                        </p>
                        
-                       {/* HIGH IQ PERK: Unlocks the labels to make matching trivial */}
                        {player.hockeyIQ >= 75 && (
                          <div className="flex items-center gap-2 mt-3 opacity-40 group-hover:opacity-100 transition-opacity">
                            <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${vibe.bg} ${vibe.color} border ${vibe.border}`}>

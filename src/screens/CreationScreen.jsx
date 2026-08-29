@@ -12,28 +12,19 @@ export default function CreationScreen() {
   const [isQuickStarting, setIsQuickStarting] = useState(false);
     
   const [savedCareers] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem('hockey_career_history') || '[]'); } 
+    catch { return []; }
   });
 
-  // This catches the state update and fires the game start!
   useEffect(() => {
-    if (isQuickStarting && player.startLeague && player.nat) {
-      handleStart();
-    }
+    if (isQuickStarting && player.startLeague && player.nat) handleStart();
   }, [isQuickStarting, player.startLeague, player.nat, handleStart]);
 
   const handleQuickStart = () => {
-    // Randomize League
     const leagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'];
     const randomLg = leagues[Math.floor(Math.random() * leagues.length)];
-    // Randomize Nationality
     const randomNat = safeNationalities[Math.floor(Math.random() * safeNationalities.length)].id;
     
-    // Update player state, then flip the flag to trigger the useEffect
     setPlayer(p => ({ ...p, startLeague: randomLg, nat: randomNat, team: null }));
     setIsQuickStarting(true);
   };
@@ -44,7 +35,6 @@ export default function CreationScreen() {
               <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font text-sm sm:text-base">A HOCKEY GAME</h2>
               <h1 className="text-5xl sm:text-6xl font-black mb-8 text-white italic sports-font uppercase tracking-tighter">BLUE CHIP PROSPECT</h1>
 
-              {/* CORE INPUTS (Always Visible) */}
               <input
                 type="text" placeholder="Your Last Name"
                 className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-lg mb-4 text-center font-bold focus:border-[#22E748] outline-none transition-all font-sans"
@@ -71,7 +61,6 @@ export default function CreationScreen() {
                 ))}
               </div>
 
-              {/* THE FORK: QUICK START vs MANUAL SETUP */}
               {!showManualSetup ? (
                  <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
                    <button 
@@ -151,7 +140,8 @@ export default function CreationScreen() {
                               <button
                                 key={n.id}
                                 onClick={() => setPlayer({ ...player, nat: n.id })}
-                                className={`p-2 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                                // BUG 3 FIX: pt-5 & pb-1 visually pushes the flag perfectly to the center
+                                className={`pt-4 pb-2 px-2 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 ${
                                   player.nat === n.id 
                                     ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]' 
                                     : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
@@ -180,10 +170,7 @@ export default function CreationScreen() {
                 </div>
               )}
 
-              {/* COLLAPSIBLE LOGS AND ACHIEVEMENTS */}
               <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-6 w-full flex flex-col gap-3">
-                
-                {/* ACHIEVEMENTS BUTTON */}
                 <button 
                   type="button"
                   onClick={() => { setShowAchievementsMenu(!showAchievementsMenu); setShowRecordsMenu(false); }}
@@ -205,7 +192,6 @@ export default function CreationScreen() {
                   </span>
                 </button>
 
-                {/* ACHIEVEMENTS MENU */}
                 {showAchievementsMenu && (
                   <div className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl max-h-[420px] overflow-y-auto space-y-3 text-left">
                     <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-2 mb-3">
@@ -248,7 +234,6 @@ export default function CreationScreen() {
                   </div>
                 )}
 
-                {/* HALL OF RECORDS BUTTON */}
                 <button 
                   type="button"
                   onClick={() => { setShowRecordsMenu(!showRecordsMenu); setShowAchievementsMenu(false); }}
@@ -270,7 +255,6 @@ export default function CreationScreen() {
                   </span>
                 </button>
 
-                {/* HALL OF RECORDS MENU */}
                 {showRecordsMenu && (
                   <div className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl max-h-[420px] overflow-y-auto space-y-3 text-left">
                     <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-2 mb-3">
@@ -317,7 +301,6 @@ export default function CreationScreen() {
                                  <span className="text-[#3b82f6]">{c.games} GP</span>
                                  <span className="text-[#22E748]">{c.points} {c.pos === 'G' ? 'SV%' : 'PTS'}</span>
                                  <span className="text-[#F59E0B]">{c.cups} CUPS</span>
-                                 {/* Safely render awards so it doesn't break older saved careers */}
                                  {c.awards !== undefined && <span className="text-[#c084fc]">{c.awards} AWARDS</span>}
                                  <span className="text-slate-300 hidden sm:inline">{formatMoney(c.earnings)}</span>
                                </div>
@@ -328,9 +311,7 @@ export default function CreationScreen() {
                     )}
                   </div>
                 )}
-
               </div>
-                
             </div>
           </div>
         );

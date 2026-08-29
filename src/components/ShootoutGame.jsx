@@ -1,6 +1,5 @@
 import  { useCallback, useEffect, useState, useRef } from 'react';
 
-// Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const ShootoutGame = ({ player, onComplete }) => {
   const [activeZone, setActiveZone] = useState(null);
   const [timeLeft, setTimeLeft] = useState(5000);
@@ -9,7 +8,6 @@ const ShootoutGame = ({ player, onComplete }) => {
   const poolRef = useRef([]);
   const doneRef = useRef(false);
 
-  // Added a delay so the player can actually see the result before the screen advances!
   const finish = useCallback((win, delay = 1500) => {
     if (doneRef.current) return;
     doneRef.current = true;
@@ -18,7 +16,6 @@ const ShootoutGame = ({ player, onComplete }) => {
   }, [onComplete]);
 
   useEffect(() => {
-    // Stop the timer and targets if the game is over
     if (status !== 'playing') return;
 
     let timeoutId;
@@ -34,12 +31,10 @@ const ShootoutGame = ({ player, onComplete }) => {
       const nextZ = getNextZone();
       setActiveZone(nextZ);
 
-      // Add small pixel-level position jitter (-10px to +10px)
       const jX = Math.floor(Math.random() * 21) - 10;
       const jY = Math.floor(Math.random() * 21) - 10;
       setJitter({ x: jX, y: jY });
 
-      // Vary timing between shots (base speed + ±100ms randomization)
       const baseSpeed = Math.max(400, 1000 - ((player?.shooting || 50) * 4));
       const randomOffset = Math.floor(Math.random() * 201) - 100;
       const speed = Math.max(300, baseSpeed + randomOffset);
@@ -54,7 +49,7 @@ const ShootoutGame = ({ player, onComplete }) => {
         if (t <= 100) {
           clearTimeout(timeoutId);
           clearInterval(timer);
-          finish(false); // Time ran out, trigger the loss delay
+          finish(false); 
           return 0;
         }
         return t - 100;
@@ -79,14 +74,12 @@ const ShootoutGame = ({ player, onComplete }) => {
     <div className="w-full max-w-md mx-auto aspect-[4/3] bg-[#e2e8f0] border-4 border-[#ef4444] rounded-lg relative overflow-hidden flex items-center justify-center shadow-inner">
       <div className="absolute inset-0 border-8 border-[#ef4444] rounded opacity-50 pointer-events-none"></div>
       
-      {/* Goalie Graphic Placeholder with Success/Fail Flair */}
       <div className={`w-3/5 h-4/5 ${status === 'won' ? 'bg-[#22E748]/20' : status === 'lost' ? 'bg-[#ef4444]/20' : 'bg-slate-800'} rounded-t-[40%] absolute bottom-0 opacity-80 flex flex-col items-center justify-center transition-colors duration-300`}>
          <span className="text-5xl">{status === 'won' ? '🚨' : status === 'lost' ? '🧱' : '🥅'}</span>
-         {status === 'won' && <span className="text-[#22E748] font-black sports-font text-2xl mt-2 animate-bounce drop-shadow-md">SNIPE!</span>}
+         {status === 'won' && <span className="bg-[#14532d] text-[#4ade80] border border-[#22c55e] px-4 py-1.5 rounded-full font-black sports-font text-xl mt-3 animate-bounce shadow-lg">SNIPE!</span>}
          {status === 'lost' && <span className="text-[#ef4444] font-black sports-font text-2xl mt-2 drop-shadow-md">SAVED!</span>}
       </div>
       
-      {/* Only show target zones while playing */}
       {status === 'playing' && zones.map(z => (
         <button
           key={z.id}

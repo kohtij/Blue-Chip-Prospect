@@ -232,6 +232,17 @@ export default function RecapScreen() {
                              {ev.effect.money > 0 ? '+' : '-'}{formatMoney(Math.abs(ev.effect.money))}
                            </span>
                          )}
+                         {/* FIX: RENDER SKATING AND PHYSICALITY PILLS */}
+                         {ev.effect?.skating !== undefined && ev.effect.skating !== 0 && (
+                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.skating > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
+                             {ev.effect.skating > 0 ? '+' : ''}{ev.effect.skating} SKT
+                           </span>
+                         )}
+                         {ev.effect?.physicality !== undefined && ev.effect.physicality !== 0 && (
+                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.physicality > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
+                             {ev.effect.physicality > 0 ? '+' : ''}{ev.effect.physicality} PHY
+                           </span>
+                         )}
                        </span>
                      </li>
                    );

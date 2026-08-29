@@ -1,6 +1,7 @@
 import { useAppContext } from '../AppContext';
-import { getAwardPill, getFullTeamName } from '../utils/appHelpers';
+import { getFullTeamName } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
+import { getAwardImage } from '../data/awards';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
 import { useMemo, useState } from 'react';
@@ -10,464 +11,490 @@ export default function RetirementScreen() {
   const { handleNewGame, player } = useAppContext();
   const scoreData = useMemo(() => computeCareerScore(player), [player]);
   const [expandedSeasonIdx, setExpandedSeasonIdx] = useState(null);
-    return (() => {
-          const isLegend = player.idolatry >= 800;
-          const isGoalie = player.pos === 'G';
 
-          const proGames = (player.stats?.nhl?.games || 0) + (player.stats?.ahl?.games || 0);
-          const proGoals = (player.stats?.nhl?.goals || 0) + (player.stats?.ahl?.goals || 0);
-          const proAssists = (player.stats?.nhl?.assists || 0) + (player.stats?.ahl?.assists || 0);
-          const proSaves = (player.stats?.nhl?.saves || 0) + (player.stats?.ahl?.saves || 0);
-          const proShots = (player.stats?.nhl?.shots || 0) + (player.stats?.ahl?.shots || 0);
-          
-          const poGames = (player.stats?.nhlPlayoffs?.games || 0) + (player.stats?.ahlPlayoffs?.games || 0);
-          const poGoals = (player.stats?.nhlPlayoffs?.goals || 0) + (player.stats?.ahlPlayoffs?.goals || 0);
-          const poAssists = (player.stats?.nhlPlayoffs?.assists || 0) + (player.stats?.ahlPlayoffs?.assists || 0);
-          const poSaves = (player.stats?.nhlPlayoffs?.saves || 0) + (player.stats?.ahlPlayoffs?.saves || 0);
-          const poShots = (player.stats?.nhlPlayoffs?.shots || 0) + (player.stats?.ahlPlayoffs?.shots || 0);
-          
-          const otherGames = (player.stats?.chl?.games || 0);
-          const otherGoals = (player.stats?.chl?.goals || 0);
-          const otherAssists = (player.stats?.chl?.assists || 0);
-          const otherSaves = (player.stats?.chl?.saves || 0);
-          const otherShots = (player.stats?.chl?.shots || 0);
+  return (() => {
+    const isLegend = player.idolatry >= 800;
+    const isGoalie = player.pos === 'G';
+    const peakOvr = player.stats?.peakOvr || player.ovr;
 
-          // Calculate Career Average TOI (Professional Seasons Only)
-          let totalProMinutes = 0;
-          let totalProGamesWithToi = 0;
-          (player.seasonHistory || []).forEach(s => {
-              if (['NHL', 'AHL'].includes(s.league) && s.avgToi) {
-                  totalProMinutes += s.avgToi * s.games;
-                  totalProGamesWithToi += s.games;
-              }
-          });
-          const careerAvgToi = totalProGamesWithToi > 0 ? (totalProMinutes / totalProGamesWithToi) : 0;
-          const formattedToi = careerAvgToi > 0 
-              ? `${Math.floor(careerAvgToi)}:${Math.round((careerAvgToi % 1) * 60).toString().padStart(2, '0')}` 
-              : '--:--';
-          
-          const stints = [];
-          (player.seasonHistory || []).forEach(s => {
-            const processStint = (teamId, gp, isFinalPart) => {
-              const lastStint = stints[stints.length - 1];
-              const ratio = gp / (s.games || 1);
-              const rGoals = Math.round((s.goals || 0) * ratio);
-              const rAssists = Math.round((s.assists || 0) * ratio);
-              const rSaves = Math.round((s.saves || 0) * ratio);
+    const proGames = (player.stats?.nhl?.games || 0) + (player.stats?.ahl?.games || 0);
+    const proGoals = (player.stats?.nhl?.goals || 0) + (player.stats?.ahl?.goals || 0);
+    const proAssists = (player.stats?.nhl?.assists || 0) + (player.stats?.ahl?.assists || 0);
+    const proSaves = (player.stats?.nhl?.saves || 0) + (player.stats?.ahl?.saves || 0);
+    const proShots = (player.stats?.nhl?.shots || 0) + (player.stats?.ahl?.shots || 0);
+    
+    const poGames = (player.stats?.nhlPlayoffs?.games || 0) + (player.stats?.ahlPlayoffs?.games || 0);
+    const poGoals = (player.stats?.nhlPlayoffs?.goals || 0) + (player.stats?.ahlPlayoffs?.goals || 0);
+    const poAssists = (player.stats?.nhlPlayoffs?.assists || 0) + (player.stats?.ahlPlayoffs?.assists || 0);
+    const poSaves = (player.stats?.nhlPlayoffs?.saves || 0) + (player.stats?.ahlPlayoffs?.saves || 0);
+    const poShots = (player.stats?.nhlPlayoffs?.shots || 0) + (player.stats?.ahlPlayoffs?.shots || 0);
+    
+    const otherGames = (player.stats?.chl?.games || 0);
+    const otherGoals = (player.stats?.chl?.goals || 0);
+    const otherAssists = (player.stats?.chl?.assists || 0);
+    const otherSaves = (player.stats?.chl?.saves || 0);
+    const otherShots = (player.stats?.chl?.shots || 0);
 
-              if (lastStint && lastStint.team === teamId && lastStint.league === s.league) {
-                lastStint.endYear = s.year;
-                lastStint.games += gp;
-                lastStint.goals += rGoals;
-                lastStint.assists += rAssists;
-                lastStint.saves += rSaves;
-                if (isFinalPart) {
-                  if (s.titleWon) lastStint.titles.push(s.year);
-                  if (s.awards?.length) lastStint.awards.push(...s.awards.map(a => `${s.year} ${a}`));
-                }
-              } else {
-                stints.push({
-                  team: teamId,
-                  league: s.league,
-                  startYear: s.year,
-                  endYear: s.year,
-                  games: gp,
-                  goals: rGoals,
-                  assists: rAssists,
-                  saves: rSaves,
-                  titles: (isFinalPart && s.titleWon) ? [s.year] : [],
-                  awards: (isFinalPart && s.awards?.length) ? s.awards.map(a => `${s.year} ${a}`) : []
-                });
-              }
-            };
+    let totalProMinutes = 0;
+    let totalProGamesWithToi = 0;
+    (player.seasonHistory || []).forEach(s => {
+        if (['NHL', 'AHL'].includes(s.league) && s.avgToi) {
+            totalProMinutes += s.avgToi * s.games;
+            totalProGamesWithToi += s.games;
+        }
+    });
+    const careerAvgToi = totalProGamesWithToi > 0 ? (totalProMinutes / totalProGamesWithToi) : 0;
+    const formattedToi = careerAvgToi > 0 
+        ? `${Math.floor(careerAvgToi)}:${Math.round((careerAvgToi % 1) * 60).toString().padStart(2, '0')}` 
+        : '--:--';
+    
+    const teamGroupsMap = new Map();
+    const teamOrder = []; 
 
-            if (s.tradedTo) {
-              processStint(s.team, s.gamesWithOriginal || Math.floor((s.games || 82) * 0.75), false);
-              processStint(s.tradedTo, s.gamesWithNew || Math.ceil((s.games || 82) * 0.25), true);
-            } else {
-              processStint(s.team, s.games || 0, true);
-            }
-          });
-
-          let primaryTeam = player.team;
-          if (stints.length > 0) {
-            const sortedStints = [...stints].sort((a, b) => b.games - a.games);
-            primaryTeam = sortedStints[0].team;
-          }
-          const primaryTeamName = getFullTeamName(primaryTeam, player.league);
-
-          const cityWords = primaryTeamName.split(' ');
-          const cityName = cityWords.length > 1 ? cityWords[0] : primaryTeamName;
-
-          const NHL_ARENAS = {
-            'ANA': 'Honda Center', 'BOS': 'TD Garden', 'BUF': 'KeyBank Center', 'CGY': 'Scotiabank Saddledome',
-            'CAR': 'Lenovo Center', 'CHI': 'United Center', 'COL': 'Ball Arena', 'CBJ': 'Nationwide Arena',
-            'DAL': 'American Airlines Center', 'DET': 'Little Caesars Arena', 'EDM': 'Rogers Place', 'FLA': 'Amerant Bank Arena',
-            'LAK': 'Crypto.com Arena', 'MIN': 'Grand Casino Arena', 'MTL': 'Bell Centre', 'NSH': 'Bridgestone Arena',
-            'NJD': 'Prudential Center', 'NYI': 'UBS Arena', 'NYR': 'Madison Square Garden', 'OTT': 'Canadian Tire Centre',
-            'PHI': 'Xfinity Mobile Arena', 'PIT': 'PPG Paints Arena', 'SJS': 'SAP Center', 'SEA': 'Climate Pledge Arena',
-            'STL': 'Enterprise Center', 'TBL': 'Benchmark International Arena', 'TOR': 'Scotiabank Arena', 'VAN': 'Rogers Arena',
-            'VGK': 'T-Mobile Arena', 'WSH': 'Capital One Arena', 'WPG': 'Canada Life Centre', 'UTA': 'Delta Center'
-          };
-
-          const arenaName = player.league === 'NHL' && NHL_ARENAS[primaryTeam] ? NHL_ARENAS[primaryTeam] : `${cityName} Arena`;
-          const stanleyCups = (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length;
-          
-          const aggregatedAwards = {};
-          (player.seasonHistory || []).forEach(s => {
-            (s.awards || []).forEach(aw => {
-              const key = aw.replace(/^\d{4}\s/, '').replace(' Trophy', '').replace(' Memorial', '').replace(/\s*\(.+?\)\s*$/, '').trim();
-              if (!aggregatedAwards[key]) aggregatedAwards[key] = { name: key, count: 0 };
-              aggregatedAwards[key].count++;
+    (player.seasonHistory || []).forEach(season => {
+        if (!teamGroupsMap.has(season.team)) {
+            teamGroupsMap.set(season.team, {
+                team: season.team, league: season.league,
+                startYear: season.year, endYear: season.year,
+                games: 0, goals: 0, assists: 0, saves: 0, shots: 0, shutouts: 0, plusMinus: 0,
+                seasons: []
             });
-          });
+            teamOrder.push(season.team);
+        }
+        const group = teamGroupsMap.get(season.team);
+        group.endYear = Math.max(group.endYear, season.year);
+        group.games += season.games || 0;
+        group.goals += season.goals || 0;
+        group.assists += season.assists || 0;
+        group.saves += season.saves || 0;
+        group.shots += season.shots || 0;
+        group.shutouts += season.shutouts || 0;
+        group.plusMinus += season.plusMinus || 0;
+        group.seasons.push(season); 
+    });
 
-          return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#040505] text-white font-sans">
-              <div className="w-full max-w-4xl space-y-4">
+    const teamStints = teamOrder.map(teamId => teamGroupsMap.get(teamId));
+
+    let primaryTeam = player.team;
+    if (teamStints.length > 0) {
+      const sortedStints = [...teamStints].sort((a, b) => b.games - a.games);
+      primaryTeam = sortedStints[0].team;
+    }
+    const primaryTeamName = getFullTeamName(primaryTeam, player.league);
+
+    const cityWords = primaryTeamName.split(' ');
+    const cityName = cityWords.length > 1 ? cityWords[0] : primaryTeamName;
+
+    const NHL_ARENAS = {
+      'ANA': 'Honda Center', 'BOS': 'TD Garden', 'BUF': 'KeyBank Center', 'CGY': 'Scotiabank Saddledome',
+      'CAR': 'Lenovo Center', 'CHI': 'United Center', 'COL': 'Ball Arena', 'CBJ': 'Nationwide Arena',
+      'DAL': 'American Airlines Center', 'DET': 'Little Caesars Arena', 'EDM': 'Rogers Place', 'FLA': 'Amerant Bank Arena',
+      'LAK': 'Crypto.com Arena', 'MIN': 'Grand Casino Arena', 'MTL': 'Bell Centre', 'NSH': 'Bridgestone Arena',
+      'NJD': 'Prudential Center', 'NYI': 'UBS Arena', 'NYR': 'Madison Square Garden', 'OTT': 'Canadian Tire Centre',
+      'PHI': 'Xfinity Mobile Arena', 'PIT': 'PPG Paints Arena', 'SJS': 'SAP Center', 'SEA': 'Climate Pledge Arena',
+      'STL': 'Enterprise Center', 'TBL': 'Benchmark International Arena', 'TOR': 'Scotiabank Arena', 'VAN': 'Rogers Arena',
+      'VGK': 'T-Mobile Arena', 'WSH': 'Capital One Arena', 'WPG': 'Canada Life Centre', 'UTA': 'Delta Center'
+    };
+
+    const arenaName = player.league === 'NHL' && NHL_ARENAS[primaryTeam] ? NHL_ARENAS[primaryTeam] : `${cityName} Arena`;
+    const stanleyCups = (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length;
+    
+    const aggregatedAwards = {};
+    (player.seasonHistory || []).forEach(s => {
+      (s.awards || []).forEach(aw => {
+        let key = aw.replace(/^\d{4}\s/, '').replace(' Trophy', '').replace(' Memorial', '').replace(/\s*\(.+?\)\s*$/, '').trim();
+        
+        if (key.toLowerCase().includes('1st team all-star')) return;
+        
+        key = key.replace(/\s\d{4}$/, '');
+        key = key.replace('Gold, Olympics', 'Olympic Gold');
+        key = key.replace('Gold, World Juniors', 'WJC Gold');
+        key = key.replace('Gold, World Championship', 'WC Gold');
+        key = key.replace('Promotion, World Championship', 'WC Promotion');
+        key = key.replace('Survival, World Championship', 'WC Survival');
+
+        if (!aggregatedAwards[key]) aggregatedAwards[key] = { name: key, count: 0 };
+        aggregatedAwards[key].count++;
+      });
+    });
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#040505] text-white font-sans">
+        <div className="w-full max-w-4xl space-y-4">
+          
+          <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#3b82f6] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] sm:text-xs font-black tracking-widest text-slate-400 uppercase bg-black/40 px-3.5 sm:px-4 rounded-full border border-slate-700/80 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
+                  RETIRED AT AGE {player.age}
+                </span>
+                <span className="text-[10px] sm:text-xs font-black tracking-widest text-[#22E748] uppercase bg-[#22E748]/10 px-3.5 sm:px-4 rounded-full border border-[#22E748]/30 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
+                  PEAK RATING · {peakOvr}
+                </span>
+              </div>
+              <span className={`text-[10px] sm:text-xs font-black tracking-widest uppercase px-3.5 sm:px-4 rounded-full border inline-flex items-center justify-center h-8 sm:h-9 leading-none ${isLegend ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'}`}>
+                {isLegend ? 'HALL OF FAME CAREER' : 'CAREER ACCOMPLISHED'}
+              </span>
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl font-black text-white number-font uppercase tracking-tight mb-1">
+              {player.name}
+            </h1>
+            <p className="text-lg sm:text-2xl font-black text-[#3b82f6] sports-font uppercase tracking-wide mb-3">
+              #{player.number} · {primaryTeamName.toUpperCase()} · TEAM {player.nat?.toUpperCase()}
+            </p>
+            <p className="text-xs sm:text-sm text-slate-400 font-sans italic mb-6">
+              {isLegend ? `Your jersey hangs proudly in the rafters of ${arenaName}.` : 'You officially hang up the skates after a hard-fought career.'}
+            </p>
+            
+            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-10 rounded-xl mb-8 flex flex-col items-center shadow-lg relative overflow-hidden">
+                <div className={`absolute top-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent ${scoreData.color} opacity-50`}></div>
                 
-                {/* HERO HEADER */}
-                <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#3b82f6] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="text-[10px] sm:text-xs font-black tracking-widest text-slate-400 uppercase bg-black/40 px-3 py-1 rounded-full border border-slate-700">
-                      RETIRED AT AGE {player.age}
-                    </span>
-                    <span className={`text-[10px] sm:text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border sports-font ${isLegend ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'}`}>
-                      {isLegend ? 'HALL OF FAME CAREER' : 'CAREER ACCOMPLISHED'}
-                    </span>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">FINAL CAREER SCORE</p>
+                
+                <h1 className="text-7xl sm:text-8xl font-black sports-font tracking-tighter text-white drop-shadow-md mb-2">
+                  {scoreData.total.toLocaleString()}
+                </h1>
+                
+                <h2 className={`text-2xl sm:text-3xl font-black sports-font uppercase tracking-widest ${scoreData.color}`}>
+                  {scoreData.tier}
+                </h2>
+            </div>
+
+            {stanleyCups > 0 && (
+              <div className="game-panel mt-4 p-4 sm:p-6 bg-gradient-to-r from-[#F59E0B]/20 via-[#101410] to-[#F59E0B]/20 border-2 border-[#F59E0B] rounded-2xl flex items-center justify-between shadow-[0_0_25px_rgba(245,158,11,0.2)] overflow-hidden">
+                <div className="flex items-center gap-4 text-left shrink-0 z-10">
+                  <span className="text-4xl sm:text-5xl">💍</span>
+                  <div>
+                    <p className="text-xs font-black text-[#F59E0B] uppercase tracking-widest">CHAMPIONSHIP MANTLE</p>
+                    <h3 className="text-xl sm:text-2xl font-black text-white sports-font">
+                      {stanleyCups}x STANLEY CUP CHAMPION
+                    </h3>
                   </div>
-
-                  <h1 className="text-5xl sm:text-6xl font-black text-white number-font uppercase tracking-tight mb-1">
-                    {player.name}
-                  </h1>
-                  <p className="text-xl sm:text-2xl font-black text-[#3b82f6] sports-font uppercase tracking-wide">
-                    #{player.number} · {primaryTeamName.toUpperCase()}
-                  </p>
-                  <p className="text-xs sm:text-sm text-slate-400 font-sans italic mt-2 mb-4">
-                    {isLegend ? `Your jersey hangs proudly in the rafters of ${arenaName}.` : 'You officially hang up the skates after a hard-fought career.'}
-                  </p>
-                  
-                {/* CAREER SCORE HERO BANNER */}
-                    <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-8 rounded-xl mb-8 flex flex-col items-center shadow-lg relative overflow-hidden">
-                      <div className={`absolute top-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent ${scoreData.color} opacity-50`}></div>
-                      
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">FINAL CAREER SCORE</p>
-                      
-                      <h1 className="text-6xl sm:text-7xl font-black sports-font tracking-tighter text-white drop-shadow-md mb-1">
-                        {scoreData.total.toLocaleString()}
-                      </h1>
-                      
-                      <h2 className={`text-xl sm:text-2xl font-black sports-font uppercase tracking-widest ${scoreData.color}`}>
-                        {scoreData.tier}
-                      </h2>
-                      
-                      <div className="w-full h-px bg-[rgba(255,255,255,0.05)] my-5"></div>
-                      
-                      <div className="flex flex-wrap justify-center gap-2 sm:gap-4 w-full">
-                        {scoreData.breakdown.map((item, idx) => (
-                          <span key={idx} className="text-[10px] sm:text-xs font-bold text-slate-300 bg-black/40 px-3 py-1.5 rounded-md border border-[rgba(255,255,255,0.05)]">
-                            {item.label} <span className={item.points > 0 ? "text-[#22E748]" : "text-[#ef4444]"}>{item.points > 0 ? '+' : ''}{item.points}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  {stanleyCups > 0 && (
-                    <div className="game-panel mt-4 p-4 sm:p-6 bg-gradient-to-r from-[#F59E0B]/20 via-[#101410] to-[#F59E0B]/20 border-2 border-[#F59E0B] rounded-2xl flex items-center justify-between shadow-[0_0_25px_rgba(245,158,11,0.2)]">
-                      <div className="flex items-center gap-4 text-left">
-                        <span className="text-4xl sm:text-5xl">💍</span>
-                        <div>
-                          <p className="text-xs font-black text-[#F59E0B] uppercase tracking-widest">CHAMPIONSHIP MANTLE</p>
-                          <h3 className="text-xl sm:text-2xl font-black text-white sports-font">
-                            {stanleyCups}x STANLEY CUP CHAMPION
-                          </h3>
-                        </div>
-                      </div>
-                      <TrophyImage league="NHL" className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
-                    </div>
-                  )}
-
-                  {(stanleyCups > 0 || Object.keys(aggregatedAwards).length > 0) && (
-                    <div className="pt-4 border-t border-[rgba(255,255,255,0.065)] flex flex-wrap justify-center gap-x-4 gap-y-2">
-                      {stanleyCups > 0 && getAwardPill('Stanley Cup', stanleyCups)}
-                      {Object.values(aggregatedAwards).sort((a,b) => b.count - a.count).map((aw) => getAwardPill(aw.name, aw.count))}
-                    </div>
-                  )}
                 </div>
 
-                {/* CORE STATS GRID */}
-                <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
-                  <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-3 mb-5 px-2">
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">NATIONALITY: {player.nat}</span>
-                      <span className="text-xs font-bold text-[#22E748] uppercase tracking-widest">PEAK OVR: {player.stats?.peakOvr || player.ovr}</span>
+                <div className="flex items-center justify-end pl-4">
+                  {Array.from({ length: stanleyCups }).map((_, i) => (
+                    <div 
+                      key={i} 
+                      className="transition-transform hover:scale-110 hover:z-30 cursor-pointer"
+                      style={{ 
+                        marginLeft: i === 0 ? 0 : '-1.5rem',
+                        zIndex: i + 1 
+                      }}
+                    >
+                      <TrophyImage 
+                        league="NHL" 
+                        className="w-14 h-14 sm:w-20 sm:h-20 shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] filter brightness-105" 
+                      />
                     </div>
-                  </div>
-
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans">
-                    PRO CAREER TOTALS
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center mb-6">
-                   <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center col-span-1 sm:col-span-3">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-2 w-full mb-3">REGULAR SEASON</p>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 w-full divide-x divide-[rgba(255,255,255,0.05)]">
-                          <div className="text-center">
-                            <p className="text-xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-1">
-                              {isGoalie ? (proShots > 0 ? (proSaves / proShots).toFixed(3).replace('0.', '.') : '.000') : proGoals}
-                            </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
-                              {isGoalie ? (proGames > 0 ? ((proShots - proSaves) / proGames).toFixed(2) : '0.00') : proAssists}
-                            </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
-                          </div>
-                          <div className="text-center hidden sm:block">
-                            <p className="text-xl sm:text-3xl font-black text-sky-400 sports-font leading-none mb-1">
-                              {isGoalie ? '60:00' : formattedToi}
-                            </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">AVG TOI</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{proGames}</p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GP</p>
-                          </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center col-span-1 sm:col-span-2">
-                      <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-2 w-full mb-3">PRO PLAYOFFS</p>
-                      <div className="grid grid-cols-3 w-full divide-x divide-[rgba(255,255,255,0.05)]">
-                          <div className="text-center">
-                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
-                              {isGoalie ? (poShots > 0 ? (poSaves / poShots).toFixed(3).replace('0.', '.') : '.000') : poGoals}
-                            </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
-                              {isGoalie ? (poGames > 0 ? ((poShots - poSaves) / poGames).toFixed(2) : '0.00') : poAssists}
-                            </p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{poGames}</p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GP</p>
-                          </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-[#101410] p-4 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-2 shadow-inner">
-                      <p className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.value || 50000)}</p>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">PEAK VALUE</p>
-                    </div>
-                    <div className="bg-[#101410] p-4 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-3 shadow-inner">
-                      <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.earnings || 0)}</p>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">CAREER EARNINGS</p>
-                    </div>
-                  </div>
-
-                  {otherGames > 0 && (
-                    <>
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans border-t border-[rgba(255,255,255,0.065)] pt-5">
-                        PRE-NHL & DEVELOPMENT TOTALS
-                      </h3>
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
-                          <p className="text-xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-2">
-                            {isGoalie ? (otherShots > 0 ? (otherSaves / otherShots).toFixed(3).replace('0.', '.') : '.000') : otherGoals}
-                          </p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
-                        </div>
-                        <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
-                          <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-2">
-                            {isGoalie ? (otherGames > 0 ? ((otherShots - otherSaves) / otherGames).toFixed(2) : '0.00') : otherAssists}
-                          </p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
-                        </div>
-                        <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
-                          <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-2">{otherGames}</p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GAMES PLAYED</p>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  ))}
                 </div>
+              </div>
+            )}
 
-                {/* CHAMPIONSHIP RINGS TIMELINE */}
-                {(() => {
-                  const rings = (player.seasonHistory || []).filter(h => h.titleWon || (h.awards && h.awards.some(a => a.includes('Cup') || a.includes('Championship') || a.includes('Title'))));
-                  if (rings.length === 0) return null;
-                  return (
-                    <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[#F59E0B]/30 text-left mb-4 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
-                      <h3 className="text-sm sm:text-base font-black text-[#F59E0B] tracking-widest uppercase mb-4 sports-font border-b border-[#F59E0B]/20 pb-2 flex items-center gap-2">
-                        <span className="text-xl">💍</span> CHAMPIONSHIP RINGS
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
-                        {rings.map((r, idx) => {
-                           const cupName = r.awards?.find(a => a.includes('Cup') || a.includes('Championship') || a.includes('Title')) || (r.league === 'NHL' ? 'Stanley Cup' : 'Championship');
-                           const cleanCupName = cupName.replace(/^\d{4}\s/, ''); 
-                           return (
-                             <div key={`ring-${idx}`} className="bg-[#101410] border border-[#F59E0B]/40 rounded-xl p-3.5 flex items-center gap-4 transition-transform hover:scale-[1.02]">
-                               <div className="w-14 h-14 shrink-0 bg-black/60 border border-slate-800 rounded-lg p-1.5 flex items-center justify-center relative overflow-visible">
-                                 <TeamLogo teamId={r.team || player.team} league={r.league || 'NHL'} isAHL={r.league === 'AHL'} size="small" />
-                                 <div className="absolute -bottom-1.5 -right-1.5 bg-[#101410] border border-[#F59E0B]/50 rounded-full p-0.5 shadow-md">
-                                   <TrophyImage league={r.league || 'NHL'} className="w-5 h-5 object-contain" />
-                                 </div>
-                               </div>
-                               <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                  <p className="text-white font-black sports-font leading-tight text-xs sm:text-sm truncate">{cleanCupName}</p>
-                                  <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-tight mt-0.5 leading-tight break-words">
-                                    {r.year} • {getFullTeamName(r.team || player.team, r.league || 'NHL')}
-                                  </p>
-                                </div>
-                             </div>
-                           );
-                        })}
-                      </div>
+            {(stanleyCups > 0 || Object.keys(aggregatedAwards).length > 0) && (
+              <div className="pt-5 mt-5 border-t border-[rgba(255,255,255,0.065)] flex flex-wrap justify-center gap-3">
+                {stanleyCups > 0 && (
+                    <div key="Stanley Cup" className="text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center h-9 sm:h-10 gap-2 px-3.5 rounded-lg shadow-sm">
+                        <TrophyImage league="NHL" className="w-5 h-5 shrink-0 object-contain" />
+                        <span className="text-xs sm:text-sm font-black uppercase tracking-widest leading-none">Stanley Cup</span>
+                        <span className="text-xs sm:text-sm font-black opacity-75 ml-1 leading-none">×{stanleyCups}</span>
                     </div>
-                  );
-                })()}
+                )}
+                {Object.values(aggregatedAwards).sort((a,b) => b.count - a.count).map((aw) => {
+                    const text = aw.name;
+                    const imgUrl = getAwardImage(text);
+                    let colorClass = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
 
-                {/* {/* CLUB HISTORY (A9 & A10 OVERHAUL) */}
-                <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-4 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
-                    CAREER HISTORY (CLICK TO EXPAND)
-                  </h3>
+                    if (text.includes('Cup') || text.includes('Gold') || text.includes('Conn Smythe')) {
+                        colorClass = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'; 
+                    } else if (text.includes('Hart') || text.includes('Art Ross') || text.includes('Maurice') || text.includes('Lindsay') || text.includes('Rocket')) {
+                        colorClass = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; 
+                    } else if (text.includes('Norris') || text.includes('Vezina') || text.includes('Selke') || text.includes('Calder')) {
+                        colorClass = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; 
+                    } else if (text.includes('Silver') || text.includes('Bronze')) {
+                        colorClass = 'text-slate-300 bg-slate-500/10 border-slate-500/30'; 
+                    }
 
-                  {!player.seasonHistory || player.seasonHistory.length === 0 ? (
-                    <p className="text-slate-500 text-sm italic font-sans">No detailed club history recorded for this career.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {player.seasonHistory.slice().reverse().map((season, rawIdx) => {
-                        const originalIdx = player.seasonHistory.length - 1 - rawIdx;
-                        const isExpanded = expandedSeasonIdx === originalIdx;
-                        const isG = player.pos === 'G';
-                        
-                        return (
-                          <div key={originalIdx} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl flex flex-col overflow-hidden transition-all duration-300">
-                            <button 
-                               onClick={() => setExpandedSeasonIdx(isExpanded ? null : originalIdx)} 
-                               className="w-full text-left p-3 sm:p-4 flex items-center justify-between gap-2 hover:bg-[#1a2230] transition-colors cursor-pointer"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <TeamLogo teamId={season.team} league={season.league} isAHL={season.league === 'AHL'} size="small" className="shrink-0" />
-                                <div className="min-w-0">
-                                  <h4 className="text-base sm:text-lg font-black text-white sports-font leading-tight mb-0.5 break-words">{getFullTeamName(season.team, season.league)}</h4>
-                                  <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
-                                    {season.year} · {season.league}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0 flex items-center gap-3">
-                                <span className="text-[10px] sm:text-sm font-black text-slate-300 font-sans whitespace-nowrap">
-                                  {season.games} GP
-                                </span>
-                                <span className={`text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180 text-[#3b82f6]' : 'text-slate-500'}`}>▼</span>
-                              </div>
-                            </button>
-
-                            {/* EXPANDED STATS PANEL */}
-                            {isExpanded && (
-                               <div className="p-4 border-t border-[rgba(255,255,255,0.05)] bg-[#0a0d0a] shadow-inner font-sans animate-fade-in">
-                                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 text-center mb-4">
-                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">GP</span>
-                                        <span className="text-lg font-black text-white number-font">{season.games || 0}</span>
-                                     </div>
-                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'SV%' : 'G'}</span>
-                                        <span className="text-lg font-black text-[#22E748] number-font">
-                                           {isG ? (season.shots > 0 ? (season.saves / season.shots).toFixed(3).replace('0.', '.') : '.000') : (season.goals || 0)}
-                                        </span>
-                                     </div>
-                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'GAA' : 'A'}</span>
-                                        <span className="text-lg font-black text-white number-font">
-                                           {isG ? (season.games > 0 ? ((season.shots - season.saves) / season.games).toFixed(2) : '0.00') : (season.assists || 0)}
-                                        </span>
-                                     </div>
-                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'SHO' : 'PTS'}</span>
-                                        <span className="text-lg font-black text-[#3b82f6] number-font">
-                                           {isG ? (season.shutouts || 0) : ((season.goals || 0) + (season.assists || 0))}
-                                        </span>
-                                     </div>
-                                     <div className="flex flex-col hidden sm:flex">
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isG ? 'TOI' : '+/-'}</span>
-                                        <span className="text-lg font-black text-slate-300 number-font">
-                                           {isG ? '60:00' : (season.plusMinus > 0 ? `+${season.plusMinus}` : (season.plusMinus || 0))}
-                                        </span>
-                                     </div>
-                                  </div>
-                                  
-                                  {(season.awards?.length > 0 || season.titleWon) && (
-                                     <div className="pt-3 border-t border-[rgba(255,255,255,0.05)] flex flex-wrap gap-2">
-                                        {season.titleWon && (
-                                            <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider inline-flex items-center gap-1.5">
-                                              🏆 {season.league === 'NHL' ? 'Stanley Cup' : 'Championship'}
-                                            </span>
-                                        )}
-                                        {(season.awards || []).map((aw, aIdx) => (
-                                            <span key={aIdx} className="bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                              🥇 {aw.replace(/^\d{4}\s/, '')}
-                                            </span>
-                                        ))}
-                                     </div>
-                                  )}
-                               </div>
+                    return (
+                        <div key={text} className={`${colorClass} border flex items-center h-9 sm:h-10 gap-2 px-3.5 rounded-lg shadow-sm`}>
+                            {imgUrl && (
+                              <img
+                                src={imgUrl}
+                                alt=""
+                                className="w-5 h-5 shrink-0 object-contain"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
                             )}
-                          </div>
-                        );
-                      })}
+                            <span className="text-xs sm:text-sm font-black uppercase tracking-widest leading-none">{text}</span>
+                            <span className="text-xs sm:text-sm font-black opacity-75 ml-1 leading-none">×{aw.count}</span>
+                        </div>
+                    );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
+            <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans">
+              PRO CAREER TOTALS
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center mb-6">
+             <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center col-span-1 sm:col-span-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-2 w-full mb-3">REGULAR SEASON</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 w-full divide-x divide-[rgba(255,255,255,0.05)]">
+                    <div className="text-center">
+                      <p className="text-xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-1">
+                        {isGoalie ? (proShots > 0 ? (proSaves / proShots).toFixed(3).replace('0.', '.') : '.000') : proGoals}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
                     </div>
-                  )}
+                    <div className="text-center">
+                      <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
+                        {isGoalie ? (proGames > 0 ? ((proShots - proSaves) / proGames).toFixed(2) : '0.00') : proAssists}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                    </div>
+                    <div className="text-center hidden sm:block">
+                      <p className="text-xl sm:text-3xl font-black text-sky-400 sports-font leading-none mb-1">
+                        {isGoalie ? '60:00' : formattedToi}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">AVG TOI</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{proGames}</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GP</p>
+                    </div>
                 </div>
+              </div>
 
-                <div className="text-center pt-4">
-                  <button 
-                    onClick={() => {
-                      const savedCareers = JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
-                      const nhlGames = player.stats?.nhl?.games || 0;
-                      const nhlGoals = player.stats?.nhl?.goals || 0;
-                      const nhlAssists = player.stats?.nhl?.assists || 0;
-                      const nhlPoints = nhlGoals + nhlAssists;
-                      const nhlSaves = player.stats?.nhl?.saves || 0;
-                      const nhlShots = player.stats?.nhl?.shots || 0;
-                      const svPct = nhlShots > 0 ? (nhlSaves / nhlShots).toFixed(3).replace('0.', '.') : '.000';
-
-                      const totalIndividualAwards = Object.values(aggregatedAwards)
-                        .filter(aw => !aw.name.includes('All-Star') && !aw.name.includes('All-American') && !aw.name.includes('Team'))
-                        .reduce((sum, aw) => sum + aw.count, 0);
-
-                      const newCareer = {
-                        id: Date.now(),
-                        name: player.name,
-                        pos: player.pos,
-                        number: player.number,
-                        games: nhlGames,
-                        points: isGoalie ? svPct : nhlPoints,
-                        cups: (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length,
-                        awards: totalIndividualAwards,
-                        earnings: player.stats?.earnings || 0,
-                        team: primaryTeamName,
-                        logo: primaryTeam,
-                        isLegend: scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer',
-                        careerScore: scoreData.total, // (Optional) Save it for the future!
-                      };
-                      
-                      localStorage.setItem('hockey_career_history', JSON.stringify([newCareer, ...savedCareers]));
-                      handleNewGame();
-                    }} 
-                    className="btn-primary w-full sm:w-auto py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest uppercase shadow-2xl"
-                  >
-                    START NEW CAREER
-                  </button>
+              <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center col-span-1 sm:col-span-2">
+                <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-widest border-b border-[rgba(255,255,255,0.065)] pb-2 w-full mb-3">PRO PLAYOFFS</p>
+                <div className="grid grid-cols-3 w-full divide-x divide-[rgba(255,255,255,0.05)]">
+                    <div className="text-center">
+                      <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
+                        {isGoalie ? (poShots > 0 ? (poSaves / poShots).toFixed(3).replace('0.', '.') : '.000') : poGoals}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">
+                        {isGoalie ? (poGames > 0 ? ((poShots - poSaves) / poGames).toFixed(2) : '0.00') : poAssists}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-1">{poGames}</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GP</p>
+                    </div>
                 </div>
-
+              </div>
+              
+              <div className="bg-[#101410] p-4 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-2 shadow-inner">
+                <p className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.value || 50000)}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">PEAK VALUE</p>
+              </div>
+              <div className="bg-[#101410] p-4 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-3 shadow-inner">
+                <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.earnings || 0)}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">CAREER EARNINGS</p>
               </div>
             </div>
-          );
-        })();
+
+            {otherGames > 0 && (
+              <>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans border-t border-[rgba(255,255,255,0.065)] pt-5">
+                  PRE-NHL & DEVELOPMENT TOTALS
+                </h3>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
+                    <p className="text-xl sm:text-3xl font-black text-[#22E748] sports-font leading-none mb-2">
+                      {isGoalie ? (otherShots > 0 ? (otherSaves / otherShots).toFixed(3).replace('0.', '.') : '.000') : otherGoals}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'SV%' : 'GOALS'}</p>
+                  </div>
+                  <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
+                    <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-2">
+                      {isGoalie ? (otherGames > 0 ? ((otherShots - otherSaves) / otherGames).toFixed(2) : '0.00') : otherAssists}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">{isGoalie ? 'GAA' : 'ASSISTS'}</p>
+                  </div>
+                  <div className="bg-[#101410] p-4 rounded-xl border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
+                    <p className="text-xl sm:text-3xl font-black text-white sports-font leading-none mb-2">{otherGames}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase leading-none tracking-widest">GAMES PLAYED</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
+            <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-4 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
+              CAREER HISTORY (CLICK TO EXPAND)
+            </h3>
+
+            {!player.seasonHistory || player.seasonHistory.length === 0 ? (
+              <p className="text-slate-500 text-sm italic font-sans">No detailed club history recorded for this career.</p>
+            ) : (
+              <div className="space-y-3">
+                {teamStints.map((stint, rawIdx) => {
+                  const isExpanded = expandedSeasonIdx === rawIdx;
+                  const isG = player.pos === 'G';
+                  
+                  return (
+                    <div key={rawIdx} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl flex flex-col overflow-hidden transition-all duration-300">
+                      <button 
+                         onClick={() => setExpandedSeasonIdx(isExpanded ? null : rawIdx)} 
+                         className="w-full text-left p-3 sm:p-4 flex items-center justify-between gap-2 hover:bg-[#1a2230] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <TeamLogo teamId={stint.team} league={stint.league} isAHL={stint.league === 'AHL'} size="small" className="shrink-0" />
+                          <div className="min-w-0">
+                            <h4 className="text-base sm:text-lg font-black text-white sports-font leading-tight mb-0.5 break-words">{getFullTeamName(stint.team, stint.league)}</h4>
+                            <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
+                              {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.league}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 flex items-center gap-3">
+                          <span className="text-[10px] sm:text-sm font-black text-slate-300 font-sans whitespace-nowrap">
+                            {stint.games} GP
+                          </span>
+                          <span className={`text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180 text-[#3b82f6]' : 'text-slate-500'}`}>▼</span>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                         <div className="border-t border-[rgba(255,255,255,0.05)] bg-[#0a0d0a] shadow-inner font-sans animate-fade-in overflow-x-auto">
+                            <table className="w-full text-left text-sm sm:text-base whitespace-nowrap">
+                                <thead className="bg-[#101410] border-b border-[rgba(255,255,255,0.05)] text-slate-500 font-bold tracking-widest uppercase text-xs">
+                                    <tr>
+                                        <th className="px-4 py-3 font-medium">Season</th>
+                                        <th className="px-3 py-3 font-medium text-center">GP</th>
+                                        <th className="px-3 py-3 font-medium text-center">{isG ? 'SV%' : 'G'}</th>
+                                        <th className="px-3 py-3 font-medium text-center">{isG ? 'GAA' : 'A'}</th>
+                                        <th className="px-3 py-3 font-medium text-center">{isG ? 'SHO' : 'PTS'}</th>
+                                        <th className="px-3 py-3 font-medium text-center hidden sm:table-cell">{isG ? 'TOI' : '+/-'}</th>
+                                        <th className="px-4 py-3 font-medium w-full">Hardware</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[rgba(255,255,255,0.04)] text-slate-300">
+                                    {stint.seasons.map((season, sIdx) => (
+                                        <tr key={sIdx} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                                            <td className="px-4 py-3.5 font-bold text-[#3b82f6] whitespace-nowrap">{season.year} / {season.year + 1}</td>
+                                            <td className="px-3 py-3.5 text-center font-black number-font text-lg">{season.games || 0}</td>
+                                            <td className="px-3 py-3.5 text-center font-black text-[#22E748] number-font text-lg">
+                                               {isG ? (season.shots > 0 ? (season.saves / season.shots).toFixed(3).replace('0.', '.') : '.000') : (season.goals || 0)}
+                                            </td>
+                                            <td className="px-3 py-3.5 text-center font-black number-font text-lg">
+                                               {isG ? (season.games > 0 ? ((season.shots - season.saves) / season.games).toFixed(2) : '0.00') : (season.assists || 0)}
+                                            </td>
+                                            <td className="px-3 py-3.5 text-center font-black text-[#3b82f6] number-font text-lg">
+                                               {isG ? (season.shutouts || 0) : ((season.goals || 0) + (season.assists || 0))}
+                                            </td>
+                                            <td className="px-3 py-3.5 text-center font-black number-font text-slate-400 hidden sm:table-cell text-lg">
+                                               {isG ? '60:00' : (season.plusMinus > 0 ? `+${season.plusMinus}` : (season.plusMinus || 0))}
+                                            </td>
+                                            <td className="px-4 py-2 w-full">
+                                               <div className="flex flex-wrap gap-2 items-center">
+                                                   {season.titleWon && (
+                                                       <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] sm:text-[10px] font-bold px-2.5 h-6 rounded uppercase tracking-wider inline-flex items-center gap-1.5 leading-none shadow-sm">
+                                                         <TrophyImage league={season.league || 'NHL'} className="w-3.5 h-3.5 shrink-0" />
+                                                         <span>{season.league === 'NHL' ? 'Stanley Cup' : 'Championship'}</span>
+                                                       </span>
+                                                   )}
+                                                   {(season.awards || [])
+                                                       .filter(aw => !aw.toLowerCase().includes('1st team all-star'))
+                                                       .map((aw, aIdx) => {
+                                                       let text = aw.replace(/^\d{4}\s/, '');
+                                                       
+                                                       text = text.replace(/\s\d{4}$/, '');
+                                                       text = text.replace('Gold, Olympics', 'Olympic Gold');
+                                                       text = text.replace('Gold, World Juniors', 'WJC Gold');
+                                                       text = text.replace('Gold, World Championship', 'WC Gold');
+                                                       text = text.replace('Promotion, World Championship', 'WC Promotion');
+                                                       text = text.replace('Survival, World Championship', 'WC Survival');
+
+                                                       const imgUrl = getAwardImage(aw) || getAwardImage(text);
+                                                       let colorClass = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
+
+                                                       if (text.includes('Cup') || text.includes('Gold') || text.includes('Conn Smythe')) {
+                                                           colorClass = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'; 
+                                                       } else if (text.includes('Hart') || text.includes('Art Ross') || text.includes('Maurice') || text.includes('Lindsay') || text.includes('Rocket')) {
+                                                           colorClass = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; 
+                                                       } else if (text.includes('Norris') || text.includes('Vezina') || text.includes('Selke') || text.includes('Calder')) {
+                                                           colorClass = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; 
+                                                       } else if (text.includes('Silver') || text.includes('Bronze')) {
+                                                           colorClass = 'text-slate-300 bg-slate-500/10 border-slate-500/30'; 
+                                                       }
+
+                                                       return (
+                                                           <span key={aIdx} className={`${colorClass} border text-[9px] sm:text-[10px] font-bold px-2.5 h-6 rounded uppercase tracking-wider leading-none inline-flex items-center gap-1.5 shadow-sm`}>
+                                                               {imgUrl && (
+                                                                 <img
+                                                                   src={imgUrl}
+                                                                   alt=""
+                                                                   className="w-3.5 h-3.5 shrink-0 object-contain"
+                                                                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                 />
+                                                               )}
+                                                               <span>{text}</span>
+                                                           </span>
+                                                       );
+                                                   })}
+                                               </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                         </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="text-center pt-4">
+            <button 
+              onClick={() => {
+                const savedCareers = JSON.parse(localStorage.getItem('hockey_career_history') || '[]');
+                const nhlGames = player.stats?.nhl?.games || 0;
+                const nhlGoals = player.stats?.nhl?.goals || 0;
+                const nhlAssists = player.stats?.nhl?.assists || 0;
+                const nhlPoints = nhlGoals + nhlAssists;
+                const nhlSaves = player.stats?.nhl?.saves || 0;
+                const nhlShots = player.stats?.nhl?.shots || 0;
+                const svPct = nhlShots > 0 ? (nhlSaves / nhlShots).toFixed(3).replace('0.', '.') : '.000';
+
+                const totalIndividualAwards = Object.values(aggregatedAwards)
+                  .filter(aw => !aw.name.includes('All-Star') && !aw.name.includes('All-American') && !aw.name.includes('Team'))
+                  .reduce((sum, aw) => sum + aw.count, 0);
+
+                const newCareer = {
+                  id: Date.now(), name: player.name, pos: player.pos, number: player.number,
+                  games: nhlGames, points: isGoalie ? svPct : nhlPoints,
+                  cups: (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length,
+                  awards: totalIndividualAwards, earnings: player.stats?.earnings || 0,
+                  team: primaryTeamName, logo: primaryTeam,
+                  isLegend: scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer',
+                  careerScore: scoreData.total, 
+                };
+                
+                localStorage.setItem('hockey_career_history', JSON.stringify([newCareer, ...savedCareers]));
+                handleNewGame();
+              }} 
+              className="btn-primary w-full sm:w-auto py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest uppercase shadow-2xl"
+            >
+              START NEW CAREER
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  })();
 }

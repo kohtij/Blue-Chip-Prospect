@@ -3,7 +3,6 @@ import { formatMoney, getActiveStat } from '../utils/gameHelpers';
 import { getDisplayDeployment, getFullTeamName } from '../utils/appHelpers';
 import TeamLogo from './TeamLogo';
 
-// Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire, setActiveEvent, setScreen }) => {
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
@@ -19,7 +18,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   if (player.ovr >= 82) frameColor = '#e2e8f0'; 
   if (player.ovr >= 90) frameColor = '#F59E0B'; 
 
-  // --- NEW: INTERNATIONAL STATUS LOGIC ---
   const getIntlStatus = () => {
     if (player.age <= 19) {
       if (player.ovr >= 68) return { label: 'U20 STAR', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' };
@@ -42,7 +40,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
     return 'linear-gradient(90deg, color-mix(in srgb, #22E748 55%, #14532d), #4ade80)'; // Green
   };
 
-  // NEW CAREER AGGREGATES (Separated by League)
   const activeBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(player.league) ? 'chl' : (player.league === 'AHL' ? 'ahl' : 'nhl');
   const bName = activeBucket === 'nhl' ? 'NHL' : activeBucket === 'ahl' ? 'AHL' : 'PRE-NHL';
   
@@ -84,14 +81,12 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           <div className="flex flex-col w-full min-w-0 justify-center shrink-0">
             <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
               
-              {/* OVR & INFO WRAPPER */}
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 shrink">
                 <div className="flex flex-col items-center shrink-0">
                  <span className="number-font text-5xl sm:text-6xl text-white leading-none">{player.ovr}</span>
                   <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 leading-none">OVR</p>
                 </div>
 
-                {/* TEXT CONTAINER */}
                 <div className="flex flex-col min-w-0 justify-center">
                   <div className="flex items-center gap-2 mb-1 w-full">
                     <img src={safeNationalities.find(n => n.id === player.nat)?.img} alt={player.nat} className="h-3.5 md:h-4 w-[21px] md:w-[26px] shrink-0 rounded-[2px] object-cover border border-slate-700 shadow-sm" />
@@ -159,13 +154,11 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 </div>
               </div>
 
-              {/* LOGO MOVED TO RIGHT */}
               <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0 flex items-center justify-end ml-auto">
                 <TeamLogo teamId={player.team} league={player.league} isAHL={isAHL} />
               </div>
             </div>
 
-            {/* FAN STATUS BAR */}
             <div className="mt-4 md:mt-5 w-full space-y-1.5">
               <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide">
                 <span className="text-slate-400">Fan Status</span>
@@ -185,7 +178,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               </p>
             </div>
 
-            {/* RELATIONSHIPS BARS */}
             <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.05)] w-full space-y-2">
               <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide mb-1">
                 <span className="text-slate-400">Relationships</span>
@@ -216,9 +208,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
           {/* 2. BOTTOM STAT GRIDS */}
           <div className="flex flex-col gap-2 w-full shrink-0">
-            {/* STATS ROW (SINGLE SEASON) */}
             {(() => {
-              // Pull the most recent season from the player's seasonHistory array
               const ls = player.seasonHistory && player.seasonHistory.length > 0 
                  ? player.seasonHistory[player.seasonHistory.length - 1] 
                  : {};
@@ -249,7 +239,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               );
             })()}
 
-            {/* ATTRIBUTES ROW */}
             <div className="grid grid-cols-5 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
               {[
                 { label: isGoalie ? 'Reflexes' : 'Shooting', key: 'shooting', val: getActiveStat(player, 'shooting') },
@@ -272,7 +261,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               })}
             </div>
 
-            {/* FINANCIALS ROW */}
             <div className="grid grid-cols-2 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
               <div className="flex flex-col justify-center items-center py-2 min-h-[50px]">
                 <p className="px-1 text-lg sm:text-xl font-black number-font leading-none text-sky-300">{formatMoney(player.stats?.value || 0)}</p>
@@ -289,6 +277,27 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           <div className="flex flex-col w-full pt-2 pb-1">
             <div className="bg-[#101410] border border-[rgba(255,255,255,0.05)] rounded-xl p-4 sm:p-5 flex flex-col shadow-inner gap-6">
               
+              {/* MOVED: CAPTAIN'S TEAM MEETING BUTTON */}
+              {player.isCaptain && player.storylines?.lastMeetingYear !== currentYear && (
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setActiveEvent({
+                      title: '📢 CALL TEAM MEETING',
+                      desc: 'As the Captain, you have the authority to lock the locker room doors and address the team. A great speech will rally the boys, but if you do this too often, they will tune you out.',
+                      choices: [
+                        { label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65, successFeedback: 'The room was silent. You fired them up, and team morale skyrocketed!', successEffect: { idol: 15, ovr: 1, rel: { teammates: 25 } }, failFeedback: 'You stumbled over your words. The veterans rolled their eyes.', failEffect: { idol: -10, ovr: -1, rel: { teammates: -20 } }, action: 'TEAM_MEETING' }
+                      ],
+                      madePlayoffs: false
+                    });
+                    setScreen('event');
+                  }}
+                  className="w-full py-2.5 rounded-lg border border-[#3b82f6]/40 bg-[#3b82f6]/10 text-[#3b82f6] font-black sports-font uppercase tracking-widest hover:bg-[#3b82f6]/20 transition-colors shadow-[0_0_10px_rgba(59,130,246,0.1)] cursor-pointer flex items-center justify-center gap-2 -mt-2 mb-2"
+                >
+                   <span className="text-sm">📢</span> CALL TEAM MEETING
+                </button>
+              )}
+
               {/* ALL-TIME STATS */}
               <div>
                 <h4 className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 font-sans border-b border-[rgba(255,255,255,0.05)] pb-1.5">
@@ -359,28 +368,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
               {/* ACTION BUTTONS */}
               <div className="flex flex-col gap-2 mt-2">
-                
-                {/* NEW: CAPTAIN'S TEAM MEETING BUTTON */}
-                {player.isCaptain && player.storylines?.lastMeetingYear !== currentYear && (
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      setActiveEvent({
-                        title: '📢 CALL TEAM MEETING',
-                        desc: 'As the Captain, you have the authority to lock the locker room doors and address the team. A great speech will rally the boys, but if you do this too often, they will tune you out.',
-                        choices: [
-                          { label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65, successFeedback: 'The room was silent. You fired them up, and team morale skyrocketed!', successEffect: { idol: 15, ovr: 1, rel: { teammates: 25 } }, failFeedback: 'You stumbled over your words. The veterans rolled their eyes.', failEffect: { idol: -10, ovr: -1, rel: { teammates: -20 } }, action: 'TEAM_MEETING' }
-                        ],
-                        madePlayoffs: false
-                      });
-                      setScreen('event');
-                    }}
-                    className="w-full py-2.5 rounded-lg border border-[#3b82f6]/40 bg-[#3b82f6]/10 text-[#3b82f6] font-black sports-font uppercase tracking-widest hover:bg-[#3b82f6]/20 transition-colors shadow-[0_0_10px_rgba(59,130,246,0.1)] cursor-pointer flex items-center justify-center gap-2 mb-2"
-                  >
-                     <span className="text-sm">📢</span> CALL TEAM MEETING
-                  </button>
-                )}
-
                 {!isJunior && player.league !== 'NCAA' && (
                   <button type="button" onClick={onOpenShop} className="w-full py-2.5 rounded-lg border border-[#22E748]/40 bg-[#22E748]/10 text-[#22E748] font-black sports-font uppercase tracking-widest hover:bg-[#22E748]/20 transition-colors shadow-[0_0_10px_rgba(34,231,75,0.1)] cursor-pointer flex items-center justify-center gap-2">
                      <span className="text-sm">🛒</span> OPEN SHOP

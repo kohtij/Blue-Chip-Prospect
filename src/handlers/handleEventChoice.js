@@ -77,7 +77,6 @@ export function handleEventChoice(ctx, choice) {
     updated.pos = choice.actionData;
   } else if (actionStr === 'CHANGE_LEAGUE') {
     updated.league = choice.actionData;
-    // Ensure an emergency call-up gets a minimum NHL contract
     if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < 750000)) {
       updated.contract = { salary: 750000, years: 1, role: 'Depth' };
     }
@@ -127,38 +126,29 @@ export function handleEventChoice(ctx, choice) {
      let baseTrust = 50;
      let mediaTrust = 50;
 
-     // Context 1: Cast-offs and Demotions
      if (ctx.seasonRecap?.wasWaived || actionStr.includes('DEMOTE')) {
-         baseTrust = 40; // Front office and teammates are skeptical
+         baseTrust = 40; 
          mediaTrust = 45; 
      } 
-     // Context 2: The Drama Queen
      else if (ctx.hasDemandedTrade || actionStr === 'TRADE_HOLDOUT') {
-         baseTrust = 35; // Arriving with a toxic reputation
-         mediaTrust = 70; // ...but the media absolutely loves the drama!
+         baseTrust = 35; 
+         mediaTrust = 70; 
      } 
-     // Context 3: The Superstar
      else if (finalPlayer.idolatry >= 800) {
-         baseTrust = 75; // Red carpet treatment. They are thrilled to have you.
+         baseTrust = 75; 
          mediaTrust = 80;
      } 
-     // Context 4: Highly Coveted
      else if (finalPlayer.idolatry >= 400) {
-         baseTrust = 60; // Respected addition to the roster
+         baseTrust = 60; 
          mediaTrust = 65;
      }
-
-     finalPlayer.relationships = { 
-         coach: baseTrust, 
-         teammates: baseTrust, 
-         media: mediaTrust 
-     };
+     finalPlayer.relationships = { coach: baseTrust, teammates: baseTrust, media: mediaTrust };
   }
   
   setPlayer(finalPlayer);
 
   if (actionStr.includes('MINIGAME')) {
-      triggerMinigame(minigameContext || 'season');
+      triggerMinigame(minigameContext || 'season', choice.actionData);
   } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
       setActiveEvent(null);
       setScreen('preseason');

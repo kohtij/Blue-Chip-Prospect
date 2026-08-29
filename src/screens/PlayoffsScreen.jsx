@@ -148,7 +148,7 @@ export default function PlayoffsScreen() {
             </div>
             
             {/* BOTTOM ACTION AREA */}
-              <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[48px] sm:min-h-[56px]">
+              <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[110px] sm:min-h-[120px]">
               {activeMatch.status === 'playing' ? (
                 <div className="w-full flex flex-col items-center">
                   {(() => {

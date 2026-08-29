@@ -20,8 +20,11 @@ export const AWARD_IMAGES = {
   'Vezina':                   `${AWARDS}/national_hockey_league_award_best_goalie.png`,
   'Calder Trophy':            `${AWARDS}/national_hockey_league_award_best_rookie.png`,
   'Conn Smythe':              `${AWARDS}/national_hockey_league_award_playoff_mvp.png`,
-  'NHL All-Star':             `${AWARDS}/national_hockey_league_award_PLAYERS_MVP.png`,
-  '1st Team All-Star':        `${AWARDS}/national_hockey_league_award_PLAYERS_MVP.png`,
+  // NOTE: NHL All-Star and 1st Team All-Star are TEAM SELECTIONS, not physical
+  // trophies — leaving them out of the image map so getAwardImage returns null
+  // and the retirement pill renders text-only. The FHM asset previously used
+  // here (national_hockey_league_award_PLAYERS_MVP.png) is the Ted Lindsay
+  // Award artwork specifically, which the game does not currently award.
 
   // OHL
   'Red Tilson':               `${AWARDS}/ontario_hockey_league_award_mvp.png`,
@@ -48,10 +51,10 @@ export const AWARD_IMAGES = {
   'USHL Player of the Year':      `${AWARDS}/national_hockey_league_award_mvp.png`,
   'USHL Forward of the Year':     `${AWARDS}/national_hockey_league_award_points.png`,
   'USHL Defenceman of the Year':  `${AWARDS}/national_hockey_league_award_best_defender.png`,
-  'USHL Goaltender of the Year':  `${AWARDS}/national_hockey_league_award_best_goalie.png`,
+  'USHL Goaltender of the Year':  `${AWARDS}/national_hockey_league_award_best_goalie.png`
 
-  // NCAA / College — fall back to NHL
-  '1st Team All-American':    `${AWARDS}/national_hockey_league_award_PLAYERS_MVP.png`
+  // NCAA / College: 1st Team All-American is a team selection, not a trophy —
+  // leaving unmapped so it renders text-only, same reason as NHL All-Star above.
 };
 
 // Playoff (championship) trophies, keyed by league string in LEAGUE_CONFIG.
