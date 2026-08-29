@@ -26,19 +26,31 @@ export function advanceToOffseason(ctx) {
       }
   }
 
-  // Hard cap at 40. Start forcing retirement at 35 if OVR drops.
-    if (player.age >= 40 || (player.age >= 35 && player.ovr < 76)) {
-       setScreen('retirement');
-       return; 
-    }
-    if (player.age >= 35 && player.ovr >= 76 && player.league === 'NHL') {
+  // VETERAN CAREER CROSSROADS
+    if (player.age >= 37 || (player.age >= 34 && player.ovr < 76)) {
+       const choices = [
+         { label: 'Hang up the skates (Retire)', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { idol: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
+       ];
+
+       if (player.ovr >= 76 && player.league === 'NHL') {
+           choices.push({ label: 'Push for one more NHL season', isRisky: false, feedback: 'You signed a 1-year veteran extension. Time to chase glory.', effect: { idol: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
+       } else if (player.ovr >= 68) {
+           choices.push({ label: 'Attempt a comeback in the AHL', isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { idol: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
+       }
+       
+       if (player.ovr >= 60) {
+           choices.push({ label: 'Sign a Twilight Contract in Europe', isRisky: false, feedback: 'You packed your bags for a European farewell tour. Less travel, bigger ice, pure hockey.', effect: { idol: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
+       }
+
+       if (choices.length === 1) {
+           setScreen('retirement');
+           return;
+       }
+
        setActiveEvent({
-         title: 'ONE LAST RIDE?',
-         desc: `You are ${player.age} years old. Most guys have hung up their skates by now, but you still have gas in the tank. Will you retire a legend, or push for one more year on a veteran-minimum deal?`,
-         choices: [
-           { label: 'Retire a Legend', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { idol: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' },
-           { label: 'Play One More Year', isRisky: false, feedback: 'You signed a 1-year extension. Time to chase glory.', effect: { idol: 10, ovr: -3, money: 0 }, action: 'VETERAN_EXTENSION' }
-         ],
+         title: 'CAREER CROSSROADS',
+         desc: `You are ${player.age} years old. The miles are adding up, and the league is getting younger. Are you ready to hang them up, or do you have another chapter left in you?`,
+         choices: choices,
          isOffseasonEvent: true
        });
        setScreen('event');
@@ -420,10 +432,35 @@ export function advanceToOffseason(ctx) {
           setScreen('event');
           return;
       }
-    // 1. Determine proper verbiage based on position
-    const targetRole = ['LD', 'RD'].includes(player.pos) ? 'Top 4 spot' : player.pos === 'G' ? 'Starting job' : 'Top 6 spot';
-    
-    // 2. Check if the player is already an established elite veteran or captain
+    // 0. MEMORIAL CUP CHAMPION INTERCEPTOR
+    if (seasonRecap?.memCupStatus === 'won') {
+        ctx.setActiveEvent({
+            title: '🏆 CHAMPIONSHIP PARADE',
+            desc: `The city is shutting down for your Memorial Cup parade! You are riding on the lead fire truck, holding the trophy high as thousands of fans chant your name. What a way to end the season.`,
+            choices: [
+                { 
+                  label: 'Soak it in (Enjoy the moment)', 
+                  isRisky: false, 
+                  feedback: 'A beautiful day. Now it\'s time to rest and prepare for next year.', 
+                  effect: { idol: 50, ovr: 1, rel: { teammates: 20 } } 
+                },
+                { 
+                  label: 'Party Hard with the Boys', 
+                  isRisky: true, 
+                  successChance: 0.70, 
+                  successFeedback: 'An absolute legendary celebration that brought the team closer together than ever!', 
+                  successEffect: { idol: 20, ovr: 0, rel: { teammates: 40 } }, 
+                  failFeedback: 'You partied a little too hard and made a fool of yourself on local news.', 
+                  failEffect: { idol: -20, ovr: -1, rel: { media: -20 } } 
+                }
+            ],
+            isOffseasonEvent: true
+        });
+        ctx.setScreen('event');
+        return;
+    }
+
+    // 1. Check if the player is already an established elite veteran or captain
     const isEstablished = player.ovr >= 85 || player.isCaptain;
 
     if (isEstablished) {
@@ -450,24 +487,52 @@ export function advanceToOffseason(ctx) {
             isOffseasonEvent: true
         });
     } else {
+        let campTitle, campDesc, riskyLabel, riskySuccess, riskyFail, safeLabel, safeFeedback;
+
+        if (player.pos === 'G') {
+            campTitle = '⛺ CREASE BATTLE';
+            campDesc = 'Training camp has opened, and the team has a true goaltending controversy. You are locked in a fierce battle for the starter\'s net.';
+            riskyLabel = 'Battle for the Starting Job (Hit the ice)';
+            riskySuccess = 'You outplayed your competition in camp and secured the starting job!';
+            riskyFail = 'You let in too many soft goals during scrimmages. The coach named you the backup.';
+            safeLabel = 'Accept Backup Duty (Play it safe)';
+            safeFeedback = 'You played a quiet, mistake-free camp and accepted the backup role behind the veteran.';
+        } else if (['LD', 'RD'].includes(player.pos)) {
+            campTitle = '⛺ BLUE LINE BATTLE';
+            campDesc = 'Training camp has opened, and there is an open spot in the top-4 defensive pairings. You are locked in a fierce battle for those crucial minutes.';
+            riskyLabel = 'Battle for a Top-4 Spot (Hit the ice)';
+            riskySuccess = 'You dominated the defensive drills and secured a Top-4 spot!';
+            riskyFail = 'You got burned a few times in scrimmages. The coach bumped you down to the bottom pairing.';
+            safeLabel = 'Accept Bottom-Pairing Role (Play it safe)';
+            safeFeedback = 'You played a quiet, mistake-free camp and slotted into a safe, third-pairing role.';
+        } else {
+            campTitle = '⛺ TRAINING CAMP BATTLE';
+            campDesc = 'Training camp has opened, and the coach is looking for someone to step up into a top-6 scoring role. You are locked in a fierce roster battle.';
+            riskyLabel = 'Battle for a Top-6 Spot (Hit the ice)';
+            riskySuccess = 'You showed incredible offensive chemistry in camp and secured a Top-6 spot!';
+            riskyFail = 'You forced too many plays and turned the puck over. The coach bumped you down to the checking line.';
+            safeLabel = 'Accept Bottom-6 Role (Play it safe)';
+            safeFeedback = 'You played a quiet, mistake-free camp and accepted a gritty checking role at the bottom of the lineup.';
+        }
+
         ctx.setActiveEvent({
-            title: '⛺ TRAINING CAMP BATTLE',
-            desc: `It is time to report to training camp for the new season. You are locked in a fierce roster battle. Your performance here will dictate your ice time.`,
+            title: campTitle,
+            desc: campDesc,
             choices: [
                 { 
-                  label: `Battle for a ${targetRole} (Hit the ice)`, 
+                  label: riskyLabel, 
                   isRisky: true, 
                   successChance: 0.50, 
-                  successFeedback: `You had an incredible camp and secured a ${targetRole}!`, 
+                  successFeedback: riskySuccess, 
                   successEffect: { idol: 20, ovr: 1, rel: { coach: 20 } }, 
-                  failFeedback: `You struggled to keep up. The coach bumped you down the depth chart.`, 
+                  failFeedback: riskyFail, 
                   failEffect: { idol: -10, ovr: -1, rel: { coach: -15 } },
                   action: 'ROUTE_MINIGAME' 
                 },
                 { 
-                  label: 'Play it Safe (Accept Depth Role)', 
+                  label: safeLabel, 
                   isRisky: false, 
-                  feedback: 'You played a quiet, mistake-free camp and slotted into the bottom of the lineup.', 
+                  feedback: safeFeedback, 
                   effect: { idol: 0, ovr: 0, rel: { coach: 5 } } 
                 }
             ],

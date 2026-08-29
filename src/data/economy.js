@@ -94,7 +94,7 @@ export const eventDeck = [
   },
   {
     title: 'The Viral Moment',
-    desc: 'A clip of you doing a ridiculous stickhandling trick in warmups is blowing up online. A brand wants you to lean into it.',
+    desc: 'A clip of you pulling off a ridiculous highlight-reel move in warmups is blowing up online. A brand wants you to lean into it.',
     choices: [
       { label: 'Post the whole routine', isRisky: true, successChance: 0.6, successFeedback: 'You broke the internet. Your following (and your Q rating) explodes.', successEffect: { idol: 35, ovr: 0, money: 500000 }, failFeedback: 'A rival captain called you a clown in the press and it stuck.', failEffect: { idol: -15, ovr: 0, money: 500000 } },
       { label: 'Stay humble, say nothing', isRisky: false, feedback: 'You let your game do the talking. Old-school respect from the room.', effect: { idol: 5, ovr: 1, money: 0 } }
@@ -112,7 +112,7 @@ export const eventDeck = [
     title: "The Coach's Doghouse",
     desc: 'The new head coach benched you in the third period and the media wants to know how you feel about it.',
     choices: [
-      { label: 'Call him out publicly', isRisky: true, successChance: 0.35, successFeedback: 'The fans rallied behind you and the coach backed down. Power move.', successEffect: { idol: 25, ovr: 0, money: 0 }, failFeedback: 'You lost the room and the coach buried you on the fourth line.', failEffect: { idol: -20, ovr: -2, money: 0 } },
+      { label: 'Call him out publicly', isRisky: true, successChance: 0.35, successFeedback: 'The fans rallied behind you and the coach backed down. Power move.', successEffect: { idol: 25, ovr: 0, money: 0 }, failFeedback: 'You lost the room and the coach permanently stapled you to the bench.', failEffect: { idol: -20, ovr: -2, money: 0 } },
       { label: 'Ask for a closed-door meeting', isRisky: false, feedback: 'You handled it like a pro. The coach respects you for it.', effect: { idol: 0, ovr: 2, money: 0 } }
     ]
   },

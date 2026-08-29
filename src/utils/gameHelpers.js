@@ -389,7 +389,25 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
 
   let games;
   if (p.pos === 'G') {
-      games = (cRole.includes('Backup') || roleMulti <= 0.4) ? Math.floor(maxGames * 0.3) : Math.floor(maxGames * (0.8 + Math.random() * 0.15));
+      let minG, maxG;
+      if (cRole.includes('Backup')) {
+          minG = 15; maxG = 30; // Backup
+      } else if (p.ovr >= 85) {
+          minG = 55; maxG = 68; // Workhorse ace
+      } else if (p.ovr >= 78) {
+          minG = 50; maxG = 62; // Established starter
+      } else if (p.ovr >= 72) {
+          minG = 35; maxG = 50; // 1B / Tandem
+      } else {
+          // Sub-70 OVR, but ensure minor league starters still get decent ice time
+          if (currentLg !== 'NHL' && roleMulti >= 1.0) {
+              minG = 35; maxG = 50; 
+          } else {
+              minG = 15; maxG = 30;
+          }
+      }
+      const leagueScale = maxGames / 82; // Adjusts the bands if the league plays fewer than 82 games (e.g. NCAA)
+      games = Math.floor((minG + Math.random() * (maxG - minG)) * leagueScale);
   } else if (roleMulti <= 0.65) {
       games = Math.floor(maxGames * (0.75 + Math.random() * 0.2));
   } else {
@@ -407,7 +425,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
       const actualSavePct = Math.min(0.940, Math.max(0.840, savePctBase + (Math.random() * 0.02 - 0.01)));
       shots = games * (26 + Math.floor(Math.random() * 8));
       saves = Math.floor(shots * actualSavePct);
-      sho = Math.max(0, Math.floor((actualSavePct - 0.890) * 150) + Math.floor(Math.random() * 3));
+      
+      const baseShutouts = Math.max(0, Math.floor((actualSavePct - 0.890) * 150) + Math.floor(Math.random() * 3));
+      sho = Math.round(baseShutouts * (games / 82)); // Shutouts now scale proportionally to games played
   } else {
       let gRaw, aRaw;
       if (['LD', 'RD'].includes(p.pos)) {

@@ -110,11 +110,19 @@ export function handleTrain(ctx, t) {
 
      if (oldNhlGames === 0 && newNhlGames > 0 && currentLg === 'NHL' && !wasAHLtoNHL && !isWaiverClaim) {
          moveTitle = '🏒 NHL DEBUT';
-         moveDesc = `You step onto the ice for your first official NHL shift. The lights are blinding, the crowd is roaring, and you line up across from players you grew up watching. The puck drops.`;
-         moveChoices = [
-             { label: 'Play it Safe (Keep it simple)', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
-             { label: 'Make a Statement', isRisky: true, successChance: 0.5, successFeedback: 'You laid out a veteran on your first shift and scored a point! The arena went wild.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
-         ];
+         if (player.pos === 'G') {
+             moveDesc = `You step onto the ice for your first official NHL start. The lights are blinding, the crowd is roaring, and you stare down players you grew up watching. The puck drops.`;
+             moveChoices = [
+                 { label: 'Play it Safe (Keep it simple)', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
+                 { label: 'Make a Statement', isRisky: true, successChance: 0.5, successFeedback: 'You stood tall in your NHL debut, stopping an early barrage of shots including a highlight-reel glove save. The crowd chanted your name.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You fought the puck early and let in a soft goal. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+             ];
+         } else {
+             moveDesc = `You step onto the ice for your first official NHL shift. The lights are blinding, the crowd is roaring, and you line up across from players you grew up watching. The puck drops.`;
+             moveChoices = [
+                 { label: 'Play it Safe (Keep it simple)', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
+                 { label: 'Make a Statement', isRisky: true, successChance: 0.5, successFeedback: 'You laid out a veteran on your first shift and scored a point! The arena went wild.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+             ];
+         }
      } else if (oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
          moveTitle = '🥈 THE SILVER STICK (1000 GAMES)';
          moveDesc = `Tonight is your 1000th career NHL game. The team holds a pre-game ceremony, presenting you with the traditional silver stick. The crowd gives you a standing ovation for your incredible longevity.`;

@@ -18,7 +18,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const isBottomFeeder = standings >= (totalTeams - 5);
     
     // If the team bombs and coach trust is low, the coach is fired.
-    if (currentLg === 'NHL' && isBottomFeeder && coachTrustLvl < 50 && Math.random() < 0.40) {
+    if (currentLg === 'NHL' && player.pos !== 'G' && isBottomFeeder && coachTrustLvl < 50 && Math.random() < 0.40) {
         setActiveEvent({
             title: '👔 THE COACHING CAROUSEL',
             desc: `After a disastrous season, the front office fired the head coach. The new bench boss has pulled you into his office to discuss your role moving forward.`,
@@ -94,7 +94,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const teammateTrust = player.relationships?.teammates || 50;
 
     // Organic Trigger: Good teammate relations early in NHL career
-    if (duoStage === 0 && currentLg === 'NHL' && teammateTrust > 75 && player.stats?.seasonsPlayed >= 2 && Math.random() < 0.15) {
+    if (duoStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && teammateTrust > 75 && player.stats?.seasonsPlayed >= 2 && Math.random() < 0.15) {
         setPlayer(p => ({ 
             ...p, 
             storylines: { ...p.storylines, franchiseDuo: 1 },
@@ -134,7 +134,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const coachTrust = player.relationships?.coach || 50;
 
     // STAGE 1: THE CLASH (Triggered organically early in an NHL career)
-    if (lockerStage === 0 && currentLg === 'NHL' && player.stats?.seasonsPlayed < 5 && Math.random() < 0.15) {
+    if (lockerStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && player.stats?.seasonsPlayed < 5 && Math.random() < 0.15) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, lockerRoom: 1 } }));
         setActiveEvent({
             title: '👴 THE OLD GUARD',
@@ -250,7 +250,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const injuryStage = player.storylines?.injury || 0;
 
     // STAGE 1: THE HIT (Random 4% chance anytime after junior hockey)
-    if (injuryStage === 0 && currentLg !== 'NCAA' && pAge > 18 && Math.random() < 0.04) {
+    if (injuryStage === 0 && player.pos !== 'G' && currentLg !== 'NCAA' && pAge > 18 && Math.random() < 0.04) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 1 } }));
         setActiveEvent({
             title: '🚑 DEVASTATING INJURY',
@@ -365,7 +365,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // ==========================================
     // STORYLINE 6: THE AHL MENTOR (AHL Lifers)
     // ==========================================
-    if (!player.storylines?.ahlMentor && currentLg === 'AHL' && pAge >= 26 && Math.random() < 0.20) {
+    if (!player.storylines?.ahlMentor && player.pos !== 'G' && currentLg === 'AHL' && pAge >= 26 && Math.random() < 0.20) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, ahlMentor: 1 } }));
         setActiveEvent({
             title: '🎓 THE VETERAN PRESENCE',
@@ -396,7 +396,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // ==========================================
     // STORYLINE 7: THE EMERGENCY CALL-UP
     // ==========================================
-    if (!player.storylines?.emergencyCallup && currentLg === 'AHL' && pAge >= 24 && coachTrust >= 60 && Math.random() < 0.15) {
+    if (!player.storylines?.emergencyCallup && player.pos !== 'G' && currentLg === 'AHL' && pAge >= 24 && coachTrust >= 60 && Math.random() < 0.15) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, emergencyCallup: 1 } }));
         setActiveEvent({
             title: '🚨 THE EMERGENCY CALL-UP',

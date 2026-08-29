@@ -89,6 +89,12 @@ export default function TradeDeadlineScreen() {
              } else {
                  setSeasonRecap(res.recap);
                  runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, 2026 + (player.stats?.seasonsPlayed || 0), standings);
+                 
+                 // FAILSAFE: If downstream flow (like a minigame pool failure) silently aborts 
+                 // without changing the screen, force the transition to prevent a dead click.
+                 setTimeout(() => {
+                     setScreen(currentScreen => currentScreen === 'trade-deadline' ? 'recap' : currentScreen);
+                 }, 50);
              }
           };
 

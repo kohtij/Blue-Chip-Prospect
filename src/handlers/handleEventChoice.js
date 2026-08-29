@@ -36,6 +36,25 @@ export function handleEventChoice(ctx, choice) {
   
   if (actionStr === 'VETERAN_EXTENSION') {
     updated.contract = { salary: 850000, years: 1 };
+  } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
+    const euroLeague = Math.random() > 0.5 ? 'SHL' : 'LIIGA';
+    let pool = getOpponentPool(euroLeague) || [];
+    if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+    const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
+    
+    updated.team = destTeam;
+    updated.league = euroLeague;
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
+    updated.contract = { salary: 150000 + Math.floor(Math.random() * 200000), years: 1 + Math.floor(Math.random() * 2), role: 'Veteran Leader' };
+  } else if (actionStr === 'SIGN_TWILIGHT_AHL') {
+    let pool = getOpponentPool('AHL') || [];
+    if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+    const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
+    
+    updated.team = destTeam;
+    updated.league = 'AHL';
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
+    updated.contract = { salary: 150000, years: 1, role: 'Veteran Mentor' };
   } else if (actionStr === 'BECOME_UFA') {
     updated.rights = null;
   } else if (actionStr === 'JOIN_NCAA') {
