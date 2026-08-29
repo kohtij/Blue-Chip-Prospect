@@ -428,21 +428,9 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         return;
     }
     
-    if (pAge <= 19 && Math.random() > 0.4) {
-      setIntlResult(null);
-      setMinigameContext('wjc');
-      setScreen('intl-minigame');
-      return;
-    }
-    if (pAge > 19 && nextYear % 4 === 0 && pOvr >= 78) {
-      setIntlResult(null);
-      setMinigameContext('olympics');
-      setScreen('intl-minigame');
-      return;
-    }
-
-// A1: Track IIHF Divisions for Olympic Eligibility
-    const nat = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B' };
+    // Track dynamic IIHF Divisions for Olympic/WC Eligibility
+    const playerNatData = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B' };
+    const activeNatDiv = player.natDiv || playerNatData.division;
     
     if (pAge <= 19 && Math.random() > 0.4) {
       setIntlResult(null);
@@ -450,12 +438,18 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
       setScreen('intl-minigame');
       return;
     }
-    // Olympics are strictly gated to Top Division nations
-    if (pAge > 19 && nextYear % 4 === 0 && pOvr >= 78 && nat.division === 'Top Division') {
-      setIntlResult(null);
-      setMinigameContext('olympics');
-      setScreen('intl-minigame');
-      return;
+    
+    if (pAge > 19 && pOvr >= 78) {
+       const isOlympicYear = nextYear % 4 === 0;
+       const isTopDiv = activeNatDiv === 'Top Division';
+       
+       // Top Division gets Olympics every 4 years. Lower divisions get World Championships to fight for promotion.
+       if ((isTopDiv && isOlympicYear) || (!isTopDiv && Math.random() > 0.4)) {
+          setIntlResult(null);
+          setMinigameContext('olympics');
+          setScreen('intl-minigame');
+          return;
+       }
     }
 
     const rivalObj = getPrimaryRival(currentTeam, currentLg);

@@ -1,7 +1,7 @@
-import { useState, } from 'react';
+import { useState } from 'react';
+import { useAppContext } from '../AppContext';
 
-// Massive pool of questions pulled outside the component
-const MASTER_SCENARIOS = [
+const SKATER_SCENARIOS = [
   { video: "Opponent's powerplay setup: 1-3-1 Umbrella.", question: "Where is the most vulnerable passing lane you need to cut off?", options: [{ text: "Cross-ice through the royal road", isCorrect: true }, { text: "Drop pass to the point", isCorrect: false }, { text: "Dump into the corner", isCorrect: false }] },
   { video: "2-on-1 rush against you.", question: "As the lone defender, what is your primary responsibility?", options: [{ text: "Attack the puck carrier immediately", isCorrect: false }, { text: "Take away the pass and let the goalie take the shooter", isCorrect: true }, { text: "Block the goalie's line of sight", isCorrect: false }] },
   { video: "Faceoff in the defensive zone, down by 1, 10 seconds left.", question: "What's the play if we win the draw?", options: [{ text: "Freeze the puck against the boards", isCorrect: false }, { text: "Fast breakout up the middle", isCorrect: true }, { text: "Pull the goalie", isCorrect: false }] },
@@ -14,13 +14,25 @@ const MASTER_SCENARIOS = [
   { video: "Forechecking: You are F1 entering the zone.", question: "What is your objective?", options: [{ text: "Take the body and separate man from puck", isCorrect: true }, { text: "Wave your stick and peel off", isCorrect: false }, { text: "Skate to the bench for a change", isCorrect: false }] }
 ];
 
+const GOALIE_SCENARIOS = [
+  { video: "Opponent entering on a 2-on-1 rush across the blue line.", question: "How do you manage your depth as the rush develops?", options: [{ text: "Stay aggressive at the top of the crease, then T-push across on the pass", isCorrect: true }, { text: "Retreat deep into the blue paint immediately to cover the back door", isCorrect: false }, { text: "Poke-check the defender at the blue line", isCorrect: false }] },
+  { video: "Puck is cycled behind your net to the weak side.", question: "Which post-integration technique should you use as the puck moves behind the goal line?", options: [{ text: "RVH (Reverse Vertical-Horizontal) to seal the short-side post and pad", isCorrect: true }, { text: "Stand tall in the middle of the net facing forward", isCorrect: false }, { text: "Butterfly in the center of the crease", isCorrect: false }] },
+  { video: "Heavy traffic in front of the net on an opponent point shot.", question: "How do you maintain sight of the puck through a double screen?", options: [{ text: "Fight for a sightline over or around the screen while staying square", isCorrect: true }, { text: "Drop into a butterfly early and guess where the shot is going", isCorrect: false }, { text: "Shove the netfront player onto your own defenseman", isCorrect: false }] },
+  { video: "Puck is rimmed hard around the glass into your end with an aggressive forecheck.", question: "What is your best decision when leaving the net to play the puck behind the goal line?", options: [{ text: "Stop the puck behind the net, set it for your D-man, and return immediately", isCorrect: true }, { text: "Try to deke the incoming forechecker yourself", isCorrect: false }, { text: "Fire a slap shot down ice into the opponent's zone", isCorrect: false }] },
+  { video: "Shooter coming down the wing on a breakaway with their stick blade open.", question: "What does an open blade angle on the shooter's stick indicate?", options: [{ text: "A high wrist shot or five-hole deke attempt", isCorrect: true }, { text: "An immediate low slap shot to the far pad", isCorrect: false }, { text: "They are definitely going to pass back to the trailing defenseman", isCorrect: false }] },
+  { video: "Powerplay breakdown: Cross-seam pass incoming across the slot.", question: "What is the most efficient movement to cover the one-timer on the far side?", options: [{ text: "Explosive backside push in a butterfly slide led by head and hands", isCorrect: true }, { text: "Stand up and shuffle slowly across the crease", isCorrect: false }, { text: "Dive head-first across the goal line", isCorrect: false }] }
+];
+
 export default function FilmRoomGame({ onComplete }) {
+  const { player } = useAppContext();
   const [step, setStep] = useState(0);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-  // Lazy initialize: shuffles and picks 3 questions exactly ONCE on mount
+
+  // Shuffles and picks 3 questions based on player position on mount
   const [scenarios] = useState(() => {
-    const shuffled = [...MASTER_SCENARIOS].sort(() => 0.5 - Math.random());
+    const pool = player?.pos === 'G' ? GOALIE_SCENARIOS : SKATER_SCENARIOS;
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 3);
   });
 
@@ -35,7 +47,7 @@ export default function FilmRoomGame({ onComplete }) {
     }
   };
 
-  if (scenarios.length === 0) return null; // Wait for shuffle
+  if (scenarios.length === 0) return null;
 
   // ==========================================
   // RESULTS PHASE

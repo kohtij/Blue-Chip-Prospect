@@ -32,10 +32,16 @@ export function advanceToOffseason(ctx) {
          { label: 'Hang up the skates (Retire)', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { idol: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
        ];
 
-       if (player.ovr >= 76 && player.league === 'NHL') {
-           choices.push({ label: 'Push for one more NHL season', isRisky: false, feedback: 'You signed a 1-year veteran extension. Time to chase glory.', effect: { idol: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
-       } else if (player.ovr >= 68) {
-           choices.push({ label: 'Attempt a comeback in the AHL', isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { idol: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
+       const hasContract = (player.contract?.years || 0) > 0;
+
+       if (hasContract) {
+           choices.push({ label: 'Play out current contract', isRisky: false, feedback: 'You decided to honor your contract and play another year.', effect: { idol: 10, ovr: -2, money: 0 } });
+       } else {
+           if (player.ovr >= 76 && player.league === 'NHL') {
+               choices.push({ label: 'Push for one more NHL season', isRisky: false, feedback: 'You signed a 1-year veteran extension. Time to chase glory.', effect: { idol: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
+           } else if (player.ovr >= 68) {
+               choices.push({ label: 'Attempt a comeback in the AHL', isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { idol: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
+           }
        }
        
        if (player.ovr >= 60) {

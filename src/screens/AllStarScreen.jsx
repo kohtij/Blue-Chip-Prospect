@@ -232,7 +232,7 @@ export default function AllStarScreen() {
       )}
 
       {phase === 'skills-comp' && (
-        <div className="w-full">
+        <div className="w-full flex flex-col items-center justify-center">
             {minigameType === 'accuracy' && <AllStarAccuracy onComplete={handleMinigameComplete} strategy={captainStrategy} />}
             {minigameType === 'hardestShot' && <AllStarHardestShot onComplete={handleMinigameComplete} strategy={captainStrategy} />}
             {minigameType === 'fastestSkater' && <AllStarFastestSkater onComplete={handleMinigameComplete} strategy={captainStrategy} />}

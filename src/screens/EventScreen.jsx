@@ -1,9 +1,17 @@
-import 'react';
+import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 
 export default function EventScreen() {
+  const [isProcessing, setIsProcessing] = useState(false);
   const { activeEvent, handleEventChoice, player } = useAppContext();
-  if (!activeEvent) return null;
+  
+  if (!activeEvent) {
+      return (
+         <div className="game-panel p-10 mt-2 text-center text-slate-400 animate-pulse font-sans">
+            Loading next event...
+         </div>
+      );
+  }
   
   return (() => {
           const isGenEvent = activeEvent.title === '🌟 THE CHOSEN ONE';
@@ -46,12 +54,14 @@ export default function EventScreen() {
                 {!isInjuryEvent && <span className="shrink-0 leading-none pb-0.5">🗣</span>}
                 <span className="leading-tight">{activeEvent.title}</span>
               </h2>
-              <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 max-w-2xl font-sans text-left">
+              <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 w-full font-sans text-left leading-relaxed pr-2 sm:pr-4">
                 {renderDesc(activeEvent.desc)}
               </p>
               <div className="grid grid-cols-1 gap-3 sm:gap-4 font-sans items-stretch">
                 {(activeEvent.choices || []).map((c, i) => (
-                  <button key={i} onClick={() => {
+                  <button key={i} disabled={isProcessing} onClick={() => {
+                      if (isProcessing) return;
+                      setIsProcessing(true);
                       let modChoice = { ...c };
                       if (activeEvent.title?.includes('COMMERCIAL') || activeEvent.title?.includes('SPONSOR') || activeEvent.title?.includes('ENDORSEMENT')) {
                           const tTrust = player.relationships?.teammates || 50;

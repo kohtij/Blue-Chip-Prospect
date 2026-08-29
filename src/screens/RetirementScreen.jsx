@@ -8,14 +8,41 @@ import { useMemo, useState } from 'react';
 import { computeCareerScore } from '../utils/careerScore';
 
 export default function RetirementScreen() {
-  const { handleNewGame, player } = useAppContext();
+  const { handleNewGame, player, safeNationalities } = useAppContext();
   const scoreData = useMemo(() => computeCareerScore(player), [player]);
   const [expandedSeasonIdx, setExpandedSeasonIdx] = useState(null);
+
+  const natObj = (safeNationalities || []).find(n => n.id === player.nat);
+  const fullCountryName = natObj?.name || player.nat || 'UNKNOWN';
 
   return (() => {
     const isLegend = player.idolatry >= 800;
     const isGoalie = player.pos === 'G';
     const peakOvr = player.stats?.peakOvr || player.ovr;
+
+    // Deep search across player object and season history for draft info
+    let foundPick = player.draftPick || player.stats?.draftPick;
+    let foundRound = player.draftRound || player.stats?.draftRound;
+
+    if (!foundPick && player.seasonHistory) {
+      for (const s of player.seasonHistory) {
+        if (s.draftPick) {
+          foundPick = s.draftPick;
+          foundRound = s.draftRound;
+          break;
+        }
+      }
+    }
+
+    let draftLabel = 'UNDRAFTED FREE AGENT';
+    if (foundPick && foundRound) {
+      draftLabel = `DRAFTED #${foundPick} OVERALL`;
+    } else if (foundPick) {
+      const estimatedRound = Math.ceil(foundPick / 32);
+      draftLabel = `SELECTED IN ROUND ${estimatedRound}, #${foundPick} OVERALL`;
+    } else if (player.draftTeam || player.rights) {
+      draftLabel = 'DRAFTED PROSPECT';
+    }
 
     const proGames = (player.stats?.nhl?.games || 0) + (player.stats?.ahl?.games || 0);
     const proGoals = (player.stats?.nhl?.goals || 0) + (player.stats?.ahl?.goals || 0);
@@ -48,37 +75,113 @@ export default function RetirementScreen() {
         ? `${Math.floor(careerAvgToi)}:${Math.round((careerAvgToi % 1) * 60).toString().padStart(2, '0')}` 
         : '--:--';
     
-    const teamGroupsMap = new Map();
-    const teamOrder = []; 
+    const teamStints = []; 
+    const intlSeasons = [];
+    let currentStint = null;
 
     (player.seasonHistory || []).forEach(season => {
-        if (!teamGroupsMap.has(season.team)) {
-            teamGroupsMap.set(season.team, {
+        const clubAwards = [];
+        const intlAwards = [];
+
+        (season.awards || []).forEach(aw => {
+            const lowerAw = aw.toLowerCase();
+            if (lowerAw.includes('olympic') || lowerAw.includes('world junior') || lowerAw.includes('world championship') || lowerAw.includes('wjc') || lowerAw.includes('wc gold') || lowerAw.includes('wc survival') || lowerAw.includes('wc promotion')) {
+                intlAwards.push(aw);
+            } else {
+                clubAwards.push(aw);
+            }
+        });
+
+        if (intlAwards.length > 0) {
+            // Deterministic simulation based on season year & player state (pure function)
+            const seed = (season.year * 17 + (player.number || 1) * 31) % 100;
+            const simGames = 5 + (seed % 3); // 5 to 7 games
+            let simGoals = 0, simAssists = 0, simSaves = 0, simShots = 0, simShutouts = 0, simPM = 0;
+
+            if (player.pos === 'G') {
+                simShots = simGames * (20 + (seed % 15));
+                simSaves = Math.floor(simShots * (0.900 + ((seed % 40) * 0.001)));
+                simShutouts = seed % 2;
+            } else {
+                const isDef = ['LD', 'RD'].includes(player.pos);
+                simGoals = Math.floor(simGames * (isDef ? (0.1 + (seed % 20) * 0.01) : (0.3 + (seed % 30) * 0.01)));
+                simAssists = Math.floor(simGames * (isDef ? (0.2 + (seed % 30) * 0.01) : (0.4 + (seed % 30) * 0.01)));
+                simPM = (seed % 12) - 2;
+            }
+
+            // Detect tournament name from the award string and prepend the year
+            const firstAward = intlAwards[0] || '';
+            let baseName = 'International Tournament';
+            if (firstAward.includes('World Juniors') || firstAward.includes('WJC')) {
+                baseName = 'World Junior Championship';
+            } else if (firstAward.includes('Olympics')) {
+                baseName = 'Winter Olympic Games';
+            } else if (firstAward.includes('World Championship')) {
+                baseName = 'IIHF World Championship';
+            }
+
+            const tournamentName = `${season.year} ${baseName}`;
+
+            intlSeasons.push({
+                year: season.year,
+                tournamentName,
+                awards: intlAwards,
+                games: simGames, 
+                goals: simGoals, 
+                assists: simAssists, 
+                saves: simSaves, 
+                shots: simShots, 
+                shutouts: simShutouts, 
+                plusMinus: simPM,
+                league: 'INTL',
+                team: player.nat || 'UNK'
+            });
+        }
+
+        // Group consecutive seasons for the SAME team into a chronological stint
+        if (!currentStint || currentStint.team !== season.team || currentStint.league !== season.league) {
+            if (currentStint) {
+                teamStints.push(currentStint);
+            }
+            currentStint = {
                 team: season.team, league: season.league,
                 startYear: season.year, endYear: season.year,
                 games: 0, goals: 0, assists: 0, saves: 0, shots: 0, shutouts: 0, plusMinus: 0,
                 seasons: []
-            });
-            teamOrder.push(season.team);
+            };
         }
-        const group = teamGroupsMap.get(season.team);
-        group.endYear = Math.max(group.endYear, season.year);
-        group.games += season.games || 0;
-        group.goals += season.goals || 0;
-        group.assists += season.assists || 0;
-        group.saves += season.saves || 0;
-        group.shots += season.shots || 0;
-        group.shutouts += season.shutouts || 0;
-        group.plusMinus += season.plusMinus || 0;
-        group.seasons.push(season); 
+
+        currentStint.endYear = Math.max(currentStint.endYear, season.year);
+        currentStint.games += season.games || 0;
+        currentStint.goals += season.goals || 0;
+        currentStint.assists += season.assists || 0;
+        currentStint.saves += season.saves || 0;
+        currentStint.shots += season.shots || 0;
+        currentStint.shutouts += season.shutouts || 0;
+        currentStint.plusMinus += season.plusMinus || 0;
+        currentStint.seasons.push({ ...season, awards: clubAwards }); 
     });
 
-    const teamStints = teamOrder.map(teamId => teamGroupsMap.get(teamId));
+    if (currentStint) {
+        teamStints.push(currentStint);
+    }
+    if (intlSeasons.length > 0) {
+        const totalIntlGames = intlSeasons.reduce((sum, s) => sum + s.games, 0);
+        teamStints.push({
+            team: player.nat || 'UNK',
+            league: 'INTL',
+            startYear: intlSeasons[0].year,
+            endYear: intlSeasons[intlSeasons.length - 1].year,
+            games: totalIntlGames,
+            seasons: intlSeasons,
+            isNational: true
+        });
+    }
 
     let primaryTeam = player.team;
     if (teamStints.length > 0) {
-      const sortedStints = [...teamStints].sort((a, b) => b.games - a.games);
-      primaryTeam = sortedStints[0].team;
+      const sortedStints = [...teamStints].filter(s => !s.isNational).sort((a, b) => b.games - a.games);
+      if (sortedStints.length > 0) primaryTeam = sortedStints[0].team;
     }
     const primaryTeamName = getFullTeamName(primaryTeam, player.league);
 
@@ -124,12 +227,15 @@ export default function RetirementScreen() {
           
           <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#3b82f6] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(59,130,246,0.15)]">
             <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] sm:text-xs font-black tracking-widest text-slate-400 uppercase bg-black/40 px-3.5 sm:px-4 rounded-full border border-slate-700/80 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
                   RETIRED AT AGE {player.age}
                 </span>
                 <span className="text-[10px] sm:text-xs font-black tracking-widest text-[#22E748] uppercase bg-[#22E748]/10 px-3.5 sm:px-4 rounded-full border border-[#22E748]/30 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
                   PEAK RATING · {peakOvr}
+                </span>
+                <span className="text-[10px] sm:text-xs font-black tracking-widest text-[#c084fc] uppercase bg-[#c084fc]/10 px-3.5 sm:px-4 rounded-full border border-[#c084fc]/30 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
+                  🎯 {draftLabel}
                 </span>
               </div>
               <span className={`text-[10px] sm:text-xs font-black tracking-widest uppercase px-3.5 sm:px-4 rounded-full border inline-flex items-center justify-center h-8 sm:h-9 leading-none ${isLegend ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'}`}>
@@ -141,7 +247,7 @@ export default function RetirementScreen() {
               {player.name}
             </h1>
             <p className="text-lg sm:text-2xl font-black text-[#3b82f6] sports-font uppercase tracking-wide mb-3">
-              #{player.number} · {primaryTeamName.toUpperCase()} · TEAM {player.nat?.toUpperCase()}
+              #{player.number} · {primaryTeamName.toUpperCase()} · TEAM {fullCountryName.toUpperCase()}
             </p>
             <p className="text-xs sm:text-sm text-slate-400 font-sans italic mb-6">
               {isLegend ? `Your jersey hangs proudly in the rafters of ${arenaName}.` : 'You officially hang up the skates after a hard-fought career.'}
@@ -174,21 +280,25 @@ export default function RetirementScreen() {
                 </div>
 
                 <div className="flex items-center justify-end pl-4">
-                  {Array.from({ length: stanleyCups }).map((_, i) => (
-                    <div 
-                      key={i} 
-                      className="transition-transform hover:scale-110 hover:z-30 cursor-pointer"
-                      style={{ 
-                        marginLeft: i === 0 ? 0 : '-1.5rem',
-                        zIndex: i + 1 
-                      }}
-                    >
-                      <TrophyImage 
-                        league="NHL" 
-                        className="w-14 h-14 sm:w-20 sm:h-20 shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] filter brightness-105" 
-                      />
-                    </div>
-                  ))}
+                  {Array.from({ length: stanleyCups }).map((_, i) => {
+                    // Dynamically increase the overlap if the player has a massive dynasty
+                    let overlapClass = "-ml-6 sm:-ml-6"; // Default overlap
+                    if (stanleyCups > 8) overlapClass = "-ml-10 sm:-ml-12"; // Heavy overlap for 9+ cups
+                    else if (stanleyCups > 5) overlapClass = "-ml-8 sm:-ml-8"; // Medium overlap for 6-8 cups
+
+                    return (
+                      <div 
+                        key={i} 
+                        className={`transition-transform hover:scale-110 hover:z-30 cursor-pointer ${i === 0 ? '' : overlapClass}`}
+                        style={{ zIndex: i + 1 }}
+                      >
+                        <TrophyImage 
+                          league="NHL" 
+                          className="w-14 h-14 sm:w-20 sm:h-20 shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] filter brightness-105" 
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -331,7 +441,7 @@ export default function RetirementScreen() {
 
           <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
             <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-4 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
-              CAREER HISTORY (CLICK TO EXPAND)
+              CAREER HISTORY
             </h3>
 
             {!player.seasonHistory || player.seasonHistory.length === 0 ? (
@@ -349,11 +459,21 @@ export default function RetirementScreen() {
                          className="w-full text-left p-3 sm:p-4 flex items-center justify-between gap-2 hover:bg-[#1a2230] transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <TeamLogo teamId={stint.team} league={stint.league} isAHL={stint.league === 'AHL'} size="small" className="shrink-0" />
+                          {stint.isNational ? (
+                            natObj?.img ? (
+                              <img src={natObj.img} alt={fullCountryName} className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-full object-cover border border-[rgba(255,255,255,0.1)]" />
+                            ) : (
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 bg-[#1a2230] rounded-full flex items-center justify-center border border-[rgba(255,255,255,0.1)] text-lg">🌍</div>
+                            )
+                          ) : (
+                            <TeamLogo teamId={stint.team} league={stint.league} isAHL={stint.league === 'AHL'} size="small" className="shrink-0" />
+                          )}
                           <div className="min-w-0">
-                            <h4 className="text-base sm:text-lg font-black text-white sports-font leading-tight mb-0.5 break-words">{getFullTeamName(stint.team, stint.league)}</h4>
+                            <h4 className="text-base sm:text-lg font-black text-white sports-font leading-tight mb-0.5 break-words">
+                              {stint.isNational ? `Team ${fullCountryName}` : getFullTeamName(stint.team, stint.league)}
+                            </h4>
                             <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
-                              {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.league}
+                              {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.isNational ? 'International' : stint.league}
                             </p>
                           </div>
                         </div>
@@ -370,7 +490,7 @@ export default function RetirementScreen() {
                             <table className="w-full text-left text-sm sm:text-base whitespace-nowrap">
                                 <thead className="bg-[#101410] border-b border-[rgba(255,255,255,0.05)] text-slate-500 font-bold tracking-widest uppercase text-xs">
                                     <tr>
-                                        <th className="px-4 py-3 font-medium">Season</th>
+                                        <th className="px-4 py-3 font-medium">{stint.isNational ? 'Tournament' : 'Season'}</th>
                                         <th className="px-3 py-3 font-medium text-center">GP</th>
                                         <th className="px-3 py-3 font-medium text-center">{isG ? 'SV%' : 'G'}</th>
                                         <th className="px-3 py-3 font-medium text-center">{isG ? 'GAA' : 'A'}</th>
@@ -382,8 +502,12 @@ export default function RetirementScreen() {
                                 <tbody className="divide-y divide-[rgba(255,255,255,0.04)] text-slate-300">
                                     {stint.seasons.map((season, sIdx) => (
                                         <tr key={sIdx} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                                            <td className="px-4 py-3.5 font-bold text-[#3b82f6] whitespace-nowrap">{season.year} / {season.year + 1}</td>
-                                            <td className="px-3 py-3.5 text-center font-black number-font text-lg">{season.games || 0}</td>
+                                            <td className="px-4 py-3.5 font-bold text-[#3b82f6] whitespace-nowrap">
+                                               {season.league === 'INTL' ? season.tournamentName : `${season.year} / ${season.year + 1}`}
+                                            </td>
+                                            <td className="px-3 py-3.5 text-center font-black number-font text-lg">
+                                               {season.games || 0}
+                                            </td>
                                             <td className="px-3 py-3.5 text-center font-black text-[#22E748] number-font text-lg">
                                                {isG ? (season.shots > 0 ? (season.saves / season.shots).toFixed(3).replace('0.', '.') : '.000') : (season.goals || 0)}
                                             </td>
@@ -394,7 +518,7 @@ export default function RetirementScreen() {
                                                {isG ? (season.shutouts || 0) : ((season.goals || 0) + (season.assists || 0))}
                                             </td>
                                             <td className="px-3 py-3.5 text-center font-black number-font text-slate-400 hidden sm:table-cell text-lg">
-                                               {isG ? '60:00' : (season.plusMinus > 0 ? `+${season.plusMinus}` : (season.plusMinus || 0))}
+                                               {season.league === 'INTL' ? '-' : (isG ? '60:00' : (season.plusMinus > 0 ? `+${season.plusMinus}` : (season.plusMinus || 0)))}
                                             </td>
                                             <td className="px-4 py-2 w-full">
                                                <div className="flex flex-wrap gap-2 items-center">
@@ -410,11 +534,24 @@ export default function RetirementScreen() {
                                                        let text = aw.replace(/^\d{4}\s/, '');
                                                        
                                                        text = text.replace(/\s\d{4}$/, '');
-                                                       text = text.replace('Gold, Olympics', 'Olympic Gold');
-                                                       text = text.replace('Gold, World Juniors', 'WJC Gold');
-                                                       text = text.replace('Gold, World Championship', 'WC Gold');
-                                                       text = text.replace('Promotion, World Championship', 'WC Promotion');
-                                                       text = text.replace('Survival, World Championship', 'WC Survival');
+                                                       if (season.league === 'INTL') {
+                                                           if (text.includes('Gold')) text = 'Gold Medal';
+                                                           else if (text.includes('Silver')) text = 'Silver Medal';
+                                                           else if (text.includes('Bronze')) text = 'Bronze Medal';
+                                                           else if (text.includes('Promotion')) text = 'Promotion';
+                                                           else if (text.includes('Survival')) text = 'Survival';
+                                                       } else {
+                                                           text = text.replace('Gold, Olympics', 'Olympic Gold');
+                                                           text = text.replace('Gold, World Juniors', 'WJC Gold');
+                                                           text = text.replace('Gold, World Championship', 'WC Gold');
+                                                           text = text.replace('Promotion, World Championship', 'WC Promotion');
+                                                           text = text.replace('Survival, World Championship', 'WC Survival');
+                                                           
+                                                           // Shorten lengthy CHL/AHL MVP awards
+                                                           if (text.includes('Most Valuable Player')) {
+                                                               text = text.replace('Most Valuable Player', 'MVP');
+                                                           }
+                                                       }
 
                                                        const imgUrl = getAwardImage(aw) || getAwardImage(text);
                                                        let colorClass = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';

@@ -43,6 +43,7 @@ import IntlMinigameScreen from './screens/IntlMinigameScreen';
 import RecapScreen from './screens/RecapScreen';
 import PlayoffsScreen from './screens/PlayoffsScreen';
 import TransferScreen from './screens/TransferScreen';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import { advanceToOffseason as _advanceToOffseason } from './handlers/advanceToOffseason';
 import { handleTrain as _handleTrain } from './handlers/handleTrain';
@@ -332,7 +333,15 @@ function App() {
     const pool = nhlTeams || [];
     const draftedBy = pool[Math.floor(Math.random() * pool.length)];
 
-    setPlayer(p => ({ ...p, rights: draftedBy?.id, draftTeam: draftedBy?.id || null, draftLeague: p.league, idolatry: capIdol(p.idolatry + idolBoost) }));
+    setPlayer(p => ({ 
+      ...p, 
+      rights: draftedBy?.id, 
+      draftTeam: draftedBy?.id || null, 
+      draftLeague: p.league, 
+      draftPick: overallPick, 
+      draftRound: round, 
+      idolatry: capIdol(p.idolatry + idolBoost) 
+    }));
 
     if (overallPick === 1) unlockAchievement('first_overall');
     if (overallPick <= 32) unlockAchievement('first_round_pick');
@@ -420,7 +429,12 @@ function App() {
         setActiveMinigame(explicitId);
     } else {
         const pool = getMinigamePool(player.pos) || [];
-        if (pool.length === 0) return;
+        if (pool.length === 0) {
+            // FAILSAFE: If the minigame pool is empty, safely push the user to the next screen instead of hanging.
+            setTimeout(() => proceedToNextScreen(null, context, player), 0);
+            return;
+        }
+        // eslint-disable-next-line react-hooks/purity
         const pick = pool[Math.floor(Math.random() * pool.length)];
         setActiveMinigame(pick.id);
     }
@@ -457,21 +471,22 @@ function App() {
     }
 
     if (minigameContext === 'wjc' || minigameContext === 'olympics') {
-      const nat = safeNationalities.find(n => n.id === player.nat);
-      const countryName = nat?.sentenceName || nat?.name || 'your country';
+      const defaultNat = safeNationalities.find(n => n.id === player.nat);
+      const currentTier = player.natTier || defaultNat?.tier || 1;
+      const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
       let updatedPlayer = { ...player };
       let resultMsg, resultEffect;
 
       if (isWin) {
-        const isTier12 = !nat || nat.tier <= 2;
-        const isTier3 = nat?.tier === 3;
+        const isTier12 = currentTier <= 2;
 
         if (isTier12) unlockAchievement('gold_medal');
         const withOvr = applyOvrDelta(player, 1);
         updatedPlayer = { ...withOvr, idolatry: capIdol(withOvr.idolatry + 50), ovr: recomputeOvr(withOvr) };
         
-        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 ? 'Olympics' : 'World Championship');
-        const achievementName = isTier12 ? 'Gold' : (isTier3 ? 'Survival' : 'Promotion');
+        const isOlympicYear = currentYear % 4 === 0;
+        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 && isOlympicYear ? 'Olympics' : 'World Championship');
+        const achievementName = isTier12 ? 'Gold' : 'Promotion';
         const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
         updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
@@ -481,13 +496,31 @@ function App() {
             updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
         }
 
-        const actionWord = isTier12 ? 'secured Gold' : (isTier3 ? 'avoided relegation' : 'secured promotion');
+        const actionWord = isTier12 ? 'secured Gold' : 'secured promotion';
         resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
         resultEffect = { idol: 50, ovr: reward?.win?.ovr || 1, rel: { media: 20 } }; 
+
+        if (!isTier12) {
+            if (currentTier === 3) {
+                updatedPlayer.natTier = 2;
+                updatedPlayer.natDiv = 'Top Division';
+                resultMsg += ' Your nation has been promoted to the Top Division!';
+            } else if (currentTier >= 4) {
+                updatedPlayer.natTier = 3;
+                updatedPlayer.natDiv = 'Division I-A';
+                resultMsg += ' Your nation has been promoted to Division I-A!';
+            }
+        }
       } else {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
         resultMsg = `${msg} A devastating loss for ${countryName}.`;
         resultEffect = { idol: -5, rel: { media: -15 } }; 
+
+        if (currentTier === 2 || currentTier === 3) {
+             updatedPlayer.natTier = currentTier + 1;
+             updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
+             resultMsg += ' Your nation has been relegated to a lower division.';
+        }
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
@@ -551,19 +584,20 @@ function App() {
     }
 
     if (minigameContext === 'wjc' || minigameContext === 'olympics') {
-      const nat = safeNationalities.find(n => n.id === player.nat);
-      const countryName = nat?.sentenceName || nat?.name || 'your country';
+      const defaultNat = safeNationalities.find(n => n.id === player.nat);
+      const currentTier = player.natTier || defaultNat?.tier || 1;
+      const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
       let resultMsg, resultEffect;
 
       if (isWin) {
-        const isTier12 = !nat || nat.tier <= 2;
-        const isTier3 = nat?.tier === 3;
-
+        const isTier12 = currentTier <= 2;
+        
         if (isTier12) unlockAchievement('gold_medal');
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
         
-        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 ? 'Olympics' : 'World Championship');
-        const achievementName = isTier12 ? 'Gold' : (isTier3 ? 'Survival' : 'Promotion');
+        const isOlympicYear = currentYear % 4 === 0;
+        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 && isOlympicYear ? 'Olympics' : 'World Championship');
+        const achievementName = isTier12 ? 'Gold' : 'Promotion';
         const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
         
         updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
@@ -573,13 +607,31 @@ function App() {
             updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
         }
 
-        const actionWord = isTier12 ? 'secured Gold' : (isTier3 ? 'avoided relegation' : 'secured promotion');
+        const actionWord = isTier12 ? 'secured Gold' : 'secured promotion';
         resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
         resultEffect = { idol: 50, ovr: payout?.ovr || 1, rel: { media: 20 } }; 
+
+        if (!isTier12) {
+            if (currentTier === 3) {
+                updatedPlayer.natTier = 2;
+                updatedPlayer.natDiv = 'Top Division';
+                resultMsg += ' Your nation has been promoted to the Top Division!';
+            } else if (currentTier >= 4) {
+                updatedPlayer.natTier = 3;
+                updatedPlayer.natDiv = 'Division I-A';
+                resultMsg += ' Your nation has been promoted to Division I-A!';
+            }
+        }
       } else {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
         resultMsg = `${msg} A devastating loss for ${countryName}.`;
         resultEffect = { idol: -5, rel: { media: -15 } }; 
+
+        if (currentTier === 2 || currentTier === 3) {
+             updatedPlayer.natTier = currentTier + 1;
+             updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
+             resultMsg += ' Your nation has been relegated to a lower division.';
+        }
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
@@ -596,7 +648,7 @@ function App() {
 
   const ctx = {
     player, playoffs, seasonRecap, isAmateur, currentYear,
-    safeEuroLeagues, safeJuniorLeagues, activeEvent, minigameContext,
+    safeEuroLeagues, safeJuniorLeagues, safeNationalities, activeEvent, minigameContext,
     setActiveEvent, setActivePress, setEventFeedback, setFreeAgencyOffers,
     setHasDemandedTrade, setIntlResult, setMinigameContext, setPendingPlayoffs,
     setPendingSeasonResult, setPlayer, setPlayoffs, setScreen,
@@ -1006,24 +1058,26 @@ function App() {
         )}
 
         <div className="w-full flex-1 min-w-0 flex flex-col gap-4 mt-2 lg:mt-0">
-          {screen === 'creation' && <CreationScreen />}
-          {screen === 'retirement' && <RetirementScreen />}
-          {screen === 'press' && <PressScreen />}
-          {screen === 'press-result' && <PressResultScreen />}
-          {screen === 'combine' && <CombineScreen />}
-          {screen === 'draft' && <DraftScreen />}
-          {screen === 'preseason' && <PreseasonScreen />}
-          {screen === 'arbitration_minigame' && <ArbitrationScreen />}
-          {screen === 'trade-deadline' && <TradeDeadlineScreen />}
-          {screen === 'intl-minigame' && <IntlMinigameScreen />}
-          {screen === 'recap' && <RecapScreen />}
-          {screen === 'event' && <EventScreen />}
-          {screen === 'minigame' && <MinigameScreen />}
-          {screen === 'playoffs' && <PlayoffsScreen />}
-          {screen === 'memorial-cup' && <MemorialCupScreen />}
-          {screen === 'transfer' && <TransferScreen />}
-          {screen === 'negotiation' && <NegotiationScreen />}
-          {screen === 'all-star' && <AllStarScreen />}
+          <ErrorBoundary key={screen} onRecover={() => setScreen('preseason')}>
+            {screen === 'creation' && <CreationScreen />}
+            {screen === 'retirement' && <RetirementScreen />}
+            {screen === 'press' && <PressScreen />}
+            {screen === 'press-result' && <PressResultScreen />}
+            {screen === 'combine' && <CombineScreen />}
+            {screen === 'draft' && <DraftScreen />}
+            {screen === 'preseason' && <PreseasonScreen />}
+            {screen === 'arbitration_minigame' && <ArbitrationScreen />}
+            {screen === 'trade-deadline' && <TradeDeadlineScreen />}
+            {screen === 'intl-minigame' && <IntlMinigameScreen />}
+            {screen === 'recap' && <RecapScreen />}
+            {screen === 'event' && <EventScreen />}
+            {screen === 'minigame' && <MinigameScreen />}
+            {screen === 'playoffs' && <PlayoffsScreen />}
+            {screen === 'memorial-cup' && <MemorialCupScreen />}
+            {screen === 'transfer' && <TransferScreen />}
+            {screen === 'negotiation' && <NegotiationScreen />}
+            {screen === 'all-star' && <AllStarScreen />}
+          </ErrorBoundary>
         </div>
       </div> 
       <div className="mt-1 text-center border-t border-[rgba(255,255,255,0.05)] pt-4">

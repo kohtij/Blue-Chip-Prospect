@@ -1,10 +1,11 @@
-import 'react';
+import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { LEAGUE_CONFIG, getOpponentPool, nhlTeams } from '../data/teams';
 import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTradeRequest';
 
 export default function TradeDeadlineScreen() {
+  const [isProcessing, setIsProcessing] = useState(false);
   const { advanceToOffseason, hasDemandedTrade, pendingSeasonResult, player, runPostSeasonFlow, setActiveEvent, setHasDemandedTrade, setScreen, setSeasonRecap, unlockAchievement } = useAppContext();
   return (() => {
           const res = pendingSeasonResult;
@@ -24,81 +25,97 @@ export default function TradeDeadlineScreen() {
           const isContender = standings <= playoffSpots;
 
           const handleSkip = () => {
-             const currentLg = res.currentLg;
-             const isExpiring = player.contract?.years === 1 || ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg);
-             const totalTeamsInLeague = getOpponentPool(currentLg)?.length || 20;
-             const isRebuilding = standings > (totalTeamsInLeague * 0.6);
-             
-             let eliteThreshold = 82;
-             if (['AHL', 'SHL', 'LIIGA'].includes(currentLg)) eliteThreshold = 72;
-             if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
-             const isElite = player.ovr >= eliteThreshold;
+             if (isProcessing) return;
+             setIsProcessing(true);
 
-             const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
+             try {
+               const currentLg = res.currentLg;
+               const isExpiring = player.contract?.years === 1 || ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg);
+               const totalTeamsInLeague = getOpponentPool(currentLg)?.length || 20;
+               const isRebuilding = standings > (totalTeamsInLeague * 0.6);
 
-             if (['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < tradeChance) {
-                  const isAHL = currentLg === 'AHL';
-                  let tradeLg = isAHL ? 'NHL' : currentLg;
-                  
-                  let pool = (getOpponentPool(tradeLg) || []).filter(t => t.id !== res.currentTeam && t.id !== 'NTDP');
-                  if (isAHL) {
-                     const pTeam = (nhlTeams||[]).find(t => t.ahlId === res.currentTeam);
-                     if (pTeam) pool = pool.filter(t => t.id !== pTeam.id);
-                  }
+               let eliteThreshold = 82;
+               if (['AHL', 'SHL', 'LIIGA'].includes(currentLg)) eliteThreshold = 72;
+               if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
+               const isElite = player.ovr >= eliteThreshold;
 
-                  if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
-                  
-                  const destTeam = pool[Math.floor(Math.random() * pool.length)];
-                  const destStandings = Math.floor(Math.random() * (playoffSpots - 2)) + 1; 
+               const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
 
-                  let targetTeamObj = destTeam;
-                  let targetLg = tradeLg;
-                  let eventDesc = `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the **${getFullTeamName(destTeam.id, tradeLg)}**.`;
-                  let feedback = `You packed your bags and joined your new squad.`;
-                  
-                  if (isAHL && destTeam.ahlId) {
-                      const ahlName = getFullTeamName(destTeam.ahlId, 'AHL');
-                      targetTeamObj = { id: destTeam.ahlId, name: ahlName };
-                      targetLg = 'AHL';
-                      eventDesc = `Your NHL parent club decided to cash in on your value and shipped your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have immediately been assigned to their AHL affiliate, the **${ahlName}**.`;
-                      feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
-                  }
-                  
-                  if (player.contract?.nmc) {
-                      setActiveEvent({
-                         title: 'WAIVE YOUR NMC?',
-                         desc: `Your GM called you in. The team is struggling, and they have a massive trade package lined up from the **${getFullTeamName(destTeam.id, tradeLg)}**. You hold a No-Movement Clause. Will you waive it?`,
-                         choices: [
-                            { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { idol: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                            { label: 'Enforce NMC (Veto Trade)', isRisky: false, feedback: 'You invoked your NMC. The GM was frustrated, but you are staying put.', effect: { idol: 20, ovr: 0, rel: { coach: -15 } } }
-                         ],
-                         isTradeDeadlineEvent: true
-                      });
-                  } else {
-                      setActiveEvent({
-                         title: '11TH HOUR BLOCKBUSTER!',
-                         desc: eventDesc,
-                         choices: [
-                            { label: 'Embrace the fresh start', isRisky: false, feedback: feedback, effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                            { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
-                         ],
-                         isTradeDeadlineEvent: true
-                      });
-                  }
-                  setScreen('event');
-             } else {
-                 setSeasonRecap(res.recap);
-                 runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, 2026 + (player.stats?.seasonsPlayed || 0), standings);
-                 
-                 // FAILSAFE: If downstream flow (like a minigame pool failure) silently aborts 
-                 // without changing the screen, force the transition to prevent a dead click.
-                 setTimeout(() => {
-                     setScreen(currentScreen => currentScreen === 'trade-deadline' ? 'recap' : currentScreen);
-                 }, 50);
+               if (['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < tradeChance) {
+                    const isAHL = currentLg === 'AHL';
+                    let tradeLg = isAHL ? 'NHL' : currentLg;
+
+                    let pool = (getOpponentPool(tradeLg) || []).filter(t => t.id !== res.currentTeam && t.id !== 'NTDP');
+                    if (isAHL) {
+                       const pTeam = (nhlTeams||[]).find(t => t.ahlId === res.currentTeam);
+                       if (pTeam) pool = pool.filter(t => t.id !== pTeam.id);
+                    }
+
+                    if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
+
+                    const destTeam = pool[Math.floor(Math.random() * pool.length)];
+                    const destStandings = Math.floor(Math.random() * (playoffSpots - 2)) + 1;
+
+                    let targetTeamObj = destTeam;
+                    let targetLg = tradeLg;
+                    let eventDesc = `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the **${getFullTeamName(destTeam.id, tradeLg)}**.`;
+                    let feedback = `You packed your bags and joined your new squad.`;
+
+                    if (isAHL && destTeam.ahlId) {
+                        const ahlName = getFullTeamName(destTeam.ahlId, 'AHL');
+                        targetTeamObj = { id: destTeam.ahlId, name: ahlName };
+                        targetLg = 'AHL';
+                        eventDesc = `Your NHL parent club decided to cash in on your value and shipped your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have immediately been assigned to their AHL affiliate, the **${ahlName}**.`;
+                        feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
+                    }
+
+                    if (player.contract?.nmc) {
+                        setActiveEvent({
+                           title: 'WAIVE YOUR NMC?',
+                           desc: `Your GM called you in. The team is struggling, and they have a massive trade package lined up from the **${getFullTeamName(destTeam.id, tradeLg)}**. You hold a No-Movement Clause. Will you waive it?`,
+                           choices: [
+                              { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { idol: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                              { label: 'Enforce NMC (Veto Trade)', isRisky: false, feedback: 'You invoked your NMC. The GM was frustrated, but you are staying put.', effect: { idol: 20, ovr: 0, rel: { coach: -15 } } }
+                           ],
+                           isTradeDeadlineEvent: true
+                        });
+                    } else {
+                        setActiveEvent({
+                           title: '11TH HOUR BLOCKBUSTER!',
+                           desc: eventDesc,
+                           choices: [
+                              { label: 'Embrace the fresh start', isRisky: false, feedback: feedback, effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                              { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                           ],
+                           isTradeDeadlineEvent: true
+                        });
+                    }
+                    setScreen('event');
+               } else {
+                   setSeasonRecap(res.recap);
+                   try {
+                      runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, 2026 + (player.stats?.seasonsPlayed || 0), standings);
+                   } catch (e) {
+                      // If postseason flow throws, log it and let the failsafe below rescue the click.
+                      console.error('[TradeDeadlineScreen] runPostSeasonFlow threw:', e);
+                   }
+               }
+             } finally {
+                // FAILSAFE: no matter what happened above, release the lock and guarantee a
+                // visible screen transition. If runPostSeasonFlow or the event branch already
+                // set screen to something else, this leaves it alone. If they didn't (or threw),
+                // this forces recap. Also always resets isProcessing so a stuck click can never
+                // permanently lock the buttons on this screen.
+                setTimeout(() => {
+                   setIsProcessing(false);
+                   setScreen(currentScreen => currentScreen === 'trade-deadline' ? 'recap' : currentScreen);
+                }, 100);
              }
           };
 
           const handleTradeRequest = () => {
+             if (isProcessing) return;
+             setIsProcessing(true);
              _handleTradeRequest(
                { hasDemandedTrade, setHasDemandedTrade, unlockAchievement, player, setActiveEvent, setScreen },
                { res, playoffSpots }
