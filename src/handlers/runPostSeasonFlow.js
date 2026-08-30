@@ -2,7 +2,7 @@
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { getOpponentPool, getPrimaryRival } from '../data/teams';
 import { eventDeck } from '../data/economy';
-import { PRESS_QUESTIONS, getJournalistsForLeague } from '../utils/appHelpers';
+import { PRESS_QUESTIONS, getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
 import { checkPlayoffs } from './checkPlayoffs';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) {
@@ -117,10 +117,10 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, franchiseDuo: 2 } }));
         setActiveEvent({
             title: '💼 THE BUSINESS OF HOCKEY',
-            desc: `Your best friend on the team is entering a contract year. The GM pulls you aside and says they can't afford to keep both of you under the salary cap unless you agree to restructure your own contract and take a massive pay cut.`,
+            desc: `Your best friend on the team is entering a contract year. The GM pulls you aside and says they can't afford to keep both of you under the salary cap unless you agree to restructure your own contract and defer a massive chunk of your salary.`,
             choices: [
-                { label: 'Take the Pay Cut for Him', isRisky: false, feedback: 'You sacrificed millions of dollars to keep your duo together. The fans worship your loyalty.', effect: { idol: 100, ovr: 1, money: -2500000, rel: { teammates: 50, coach: 20 } } },
-                { label: 'Keep Your Money', isRisky: false, feedback: 'You told the GM hockey is a business. Your friend was traded the next day. The locker room is stunned, and you feel entirely alone.', effect: { idol: -50, ovr: -2, money: 0, rel: { teammates: -40 } } }
+                { label: 'Restructure & Defer Salary', isRisky: false, feedback: 'You deferred millions of dollars to keep your duo together. The fans worship your loyalty.', effect: { idol: 100, ovr: 1, money: -2500000, rel: { teammates: 50, coach: 20 } } },
+                { label: 'Keep Your Contract Intact', isRisky: false, feedback: 'You told the GM hockey is a business. Your friend was traded the next day. The locker room is stunned, and you feel entirely alone.', effect: { idol: -50, ovr: -2, money: 0, rel: { teammates: -40 } } }
             ],
             madePlayoffs
         });
@@ -454,7 +454,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
 
     const rivalObj = getPrimaryRival(currentTeam, currentLg);
     if (rivalObj && Math.random() < 0.35) {
-      const rivalName = rivalObj.name || rivalObj.id;
+      const rivalName = getFullTeamName(rivalObj.id, currentLg);
       const isGoalie = player.pos === 'G';
 
       const fullChoicesPool = [

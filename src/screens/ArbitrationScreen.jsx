@@ -1,24 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getRole } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
 
 export default function ArbitrationScreen() {
   const { arbState, player, setActiveEvent, setArbState, setScreen } = useAppContext();
-  
-  // Track which arguments have been used so you can't just spam the same one 3 times
   const [usedArgs, setUsedArgs] = useState([]);
 
-  // NEW: Arbitrator Mood state
   const mood = arbState.mood ?? 50;
-  const moodModifier = (mood - 50) * 0.006; // +/- 30% max swing
+  const moodModifier = (mood - 50) * 0.006; 
 
-  // Dynamic Argument 1: On-Ice Impact (Checks attributes)
   const statSum = player.pos === 'G' ? (player.skating + player.hockeyIQ) : (player.shooting + player.hockeyIQ);
   const baseImpactChance = statSum > 165 ? 0.90 : statSum > 145 ? 0.65 : 0.35;
   const impactChance = Math.max(0.1, Math.min(0.95, baseImpactChance + moodModifier));
 
-  // Dynamic Argument 2: Leadership & Character (Checks relationships)
   const relSum = (player.relationships?.teammates || 50) + (player.relationships?.coach || 50);
   const baseLeadChance = relSum >= 150 ? 0.95 : relSum >= 110 ? 0.70 : 0.30;
   const leadershipChance = Math.max(0.1, Math.min(0.95, baseLeadChance + moodModifier));
@@ -71,12 +66,37 @@ export default function ArbitrationScreen() {
     setUsedArgs(prev => [...prev, argType]);
   };
 
+  // Auto-advance when out of arguments
+  useEffect(() => {
+    if (arbState.rounds === 0) {
+      const timer = setTimeout(() => {
+        const finalSalary = Math.round(arbState.currentRuling / 25000) * 25000;
+        setActiveEvent({
+          title: '⚖️ ARBITRATION CONCLUDED',
+          desc: `The hearing is over. The independent arbitrator has slammed the gavel and made a binding ruling.\n\nYou are awarded a 1-year, ${formatMoney(finalSalary)} contract.`,
+          choices: [
+            {
+              label: 'Sign Binding Contract',
+              isRisky: false,
+              feedback: `You are locked in for 1 year at ${formatMoney(finalSalary)}. The relationship with the front office is bruised after the hearing.`,
+              effect: { idol: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
+              action: 'ACCEPT_ARBITRATION',
+              actionData: { team: arbState.offerData.team, salary: finalSalary, years: 1, role: getRole(finalSalary, player) }
+            }
+          ],
+          isOffseasonEvent: true
+        });
+        setScreen('event');
+      }, 1500); 
+      return () => clearTimeout(timer);
+    }
+  }, [arbState.rounds, arbState.currentRuling, arbState.offerData.team, player, setActiveEvent, setScreen]);
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-[#040505]">
       <div className="w-full max-w-2xl space-y-6">
         <div className="game-panel p-6 sm:p-8 border border-[rgba(255,255,255,0.08)] bg-[#0a0d0a] shadow-2xl relative">
           
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
             <div>
               <span className="text-[10px] sm:text-xs font-bold text-[#ef4444] uppercase tracking-widest font-sans border border-[#ef4444]/30 px-2.5 py-1 rounded bg-[#ef4444]/10">
@@ -89,7 +109,6 @@ export default function ArbitrationScreen() {
             <div className="text-3xl sm:text-4xl text-white opacity-50">⚖️</div>
           </div>
 
-          {/* Negotiation Scale */}
           <div className="mb-8 bg-[#101410] p-4 rounded-xl border border-white/5 shadow-inner">
             <div className="flex justify-between text-[10px] sm:text-xs text-slate-400 font-bold mb-2 uppercase sports-font">
               <span>Team Offer: {formatMoney(arbState.teamOffer)}</span>
@@ -108,7 +127,6 @@ export default function ArbitrationScreen() {
               <div className="number-font text-3xl sm:text-4xl text-white drop-shadow-md">{formatMoney(arbState.currentRuling)}</div>
             </div>
             
-            {/* NEW: Arbitrator Mood Meter */}
             <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.05)]">
               <div className="flex justify-between text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
                 <span>Arbitrator Mood: Annoyed</span>
@@ -123,7 +141,6 @@ export default function ArbitrationScreen() {
             </div>
           </div>
 
-          {/* Action Log */}
           <div className="mb-6 h-36 overflow-y-auto bg-black/40 border border-[rgba(255,255,255,0.05)] rounded-xl p-4 space-y-3 shadow-inner">
             {arbState.log.map((msg, i) => (
               <p key={i} className={`text-xs sm:text-sm font-sans leading-relaxed ${i === 0 ? 'text-white font-bold' : 'text-slate-400 border-l-2 pl-3 border-[rgba(255,255,255,0.1)]'}`}>
@@ -132,7 +149,6 @@ export default function ArbitrationScreen() {
             ))}
           </div>
 
-          {/* Arguments / Resolution */}
           {arbState.rounds > 0 ? (
             <div className="space-y-4 fade-up">
               <h4 className="sports-font text-slate-300 text-sm uppercase tracking-widest text-center mb-4">Arguments Remaining: <span className="text-[#3b82f6] text-lg">{arbState.rounds}</span></h4>
@@ -173,7 +189,6 @@ export default function ArbitrationScreen() {
                   <div className="text-xs text-slate-400 font-sans">Aggressively compare yourself to the highest-paid players in the league. <span className="text-red-400 font-bold">High risk of backfiring.</span></div>
                 </button>
 
-                {/* NEW: Early Settle Button (Only shows after 1st argument) */}
                 {arbState.rounds < 3 && (
                   <button
                     onClick={() => setArbState(prev => ({ ...prev, rounds: 0 }))}
@@ -185,30 +200,9 @@ export default function ArbitrationScreen() {
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                const finalSalary = Math.round(arbState.currentRuling / 25000) * 25000;
-                setActiveEvent({
-                  title: '⚖️ ARBITRATION CONCLUDED',
-                  desc: `The hearing is over. The independent arbitrator has slammed the gavel and made a binding ruling.\n\nYou are awarded a 1-year, ${formatMoney(finalSalary)} contract.`,
-                  choices: [
-                    {
-                      label: 'Sign Binding Contract',
-                      isRisky: false,
-                      feedback: `You are locked in for 1 year at ${formatMoney(finalSalary)}. The relationship with the front office is bruised after the hearing.`,
-                      effect: { idol: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
-                      action: 'ACCEPT_ARBITRATION',
-                      actionData: { team: arbState.offerData.team, salary: finalSalary, years: 1, role: getRole(finalSalary, player) }
-                    }
-                  ],
-                  isOffseasonEvent: true
-                });
-                setScreen('event');
-              }}
-              className="w-full btn-primary py-4 rounded-xl text-lg sm:text-xl mt-6 sports-font tracking-widest uppercase shadow-2xl animate-pulse"
-            >
-              AWAIT FINAL VERDICT ➔
-            </button>
+            <div className="w-full py-4 text-center text-slate-400 font-bold tracking-widest uppercase animate-pulse">
+               The Arbitrator is finalizing the ruling...
+            </div>
           )}
         </div>
       </div>

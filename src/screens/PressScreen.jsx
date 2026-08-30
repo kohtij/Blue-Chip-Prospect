@@ -59,10 +59,17 @@ export default function PressScreen() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
                 {answerKeys.map((vibeKey) => {
                   const vibe = PRESS_VIBES[vibeKey];
+                  
+                  // Pick a string deterministically to satisfy React purity rules
+                  const seed = (player.age || 18) + activePress.currentQ + (player.stats?.seasonsPlayed || 0);
+                  const answerText = Array.isArray(q.answers[vibeKey]) 
+                    ? q.answers[vibeKey][seed % q.answers[vibeKey].length]
+                    : q.answers[vibeKey];
+
                   return (
                     <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-4 sm:p-5 rounded-xl transition-colors group flex flex-col justify-center cursor-pointer h-auto">
                        <p className="text-sm sm:text-base text-slate-300 font-medium group-hover:text-white transition-colors italic leading-relaxed">
-                         "{q.answers[vibeKey]}"
+                         "{answerText}"
                        </p>
                        
                        {player.hockeyIQ >= 75 && (

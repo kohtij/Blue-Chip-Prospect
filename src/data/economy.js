@@ -120,9 +120,10 @@ export const eventDeck = [
     title: 'Vegas in the Off-Week',
     desc: 'The boys are planning a wild trip on the bye week. Tempting, but camp intensity is ramping up.',
     choices: [
-      { label: 'Go all in with the boys', isRisky: true, successChance: 0.5, successFeedback: 'Elite team bonding. The chemistry carried right onto the ice.', successEffect: { idol: 15, ovr: 1, money: -300000 }, failFeedback: 'You showed up to camp gassed and out of shape. Bad look.', failEffect: { idol: 0, ovr: -3, money: -300000 } },
-      { label: 'Skip it, hit the gym', isRisky: false, feedback: 'While they nursed hangovers, you got a head start on the season.', effect: { idol: 0, ovr: 2, money: 0 } }
-    ]
+      { label: 'Go all in with the boys', isRisky: true, successChance: 0.5, successFeedback: 'Elite team bonding. The chemistry carried right onto the ice.', successEffect: { idol: 15, ovr: 1, money: -300000, rel: { teammates: 25 } }, failFeedback: 'You showed up to camp gassed and out of shape. Bad look.', failEffect: { idol: 0, ovr: -3, money: -300000, rel: { coach: -20 } } },
+      { label: 'Skip it, hit the gym', isRisky: false, feedback: 'While they nursed hangovers, you got a head start on the season.', effect: { idol: 0, ovr: 2, money: 0, rel: { coach: 10 } } }
+    ],
+    isSeasonEvent: true // <--- FIX FOR BUG #2: Allows the event to route back to the season!
   },
   {
     title: 'The Captaincy Vote',

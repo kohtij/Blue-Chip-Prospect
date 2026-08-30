@@ -118,6 +118,17 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
          }
 
          // Generate the Current Club offer
+         const currentClubStanding = actingLeague === 'NHL' ? Math.floor(Math.random() * 32) + 1 : null;
+         let ccState = 'Current Club';
+         if (actingLeague === 'NHL') {
+             if (currentClubStanding <= 8) ccState = 'Contender';
+             else if (currentClubStanding <= 16) ccState = 'Competitor';
+             else if (currentClubStanding <= 24) ccState = 'Outsider';
+             else ccState = 'Rebuilder';
+         } else if (player.league === 'AHL' || player.ovr < 75) {
+             ccState = 'Two-Way Contract';
+         }
+
          offers.push({
            team: actingTeam,
            league: actingLeague,
@@ -126,7 +137,8 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
            years: isRFA && player.ovr < 82 ? 1 : maxYears,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
            idolHit: 10,
-           state: (player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Contract' : 'Current Club'
+           state: ccState,
+           standing: currentClubStanding
          });
 
          // NEW: HOMETOWN DISCOUNT (For Beloved UFAs)

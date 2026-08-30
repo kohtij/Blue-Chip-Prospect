@@ -273,80 +273,208 @@ export const PRESS_QUESTIONS = [
     q: "You came up big tonight. What was going through your mind on that play?",
     forPos: 'all', tag: 'positive',
     answers: {
-      professional: "I was just trying to make the right read and let the puck do the work.",
-      passionate:   "The fans deserved that one. I could hear them getting louder every shift.",
-      humble:       "The guys in front of me did all the work. I was just in the right spot.",
-      cocky:        "Honestly, I saw it opening up before it happened. It's the standard I set."
+      professional: [
+        "I was just trying to make the right read and let the puck do the work.",
+        "Just sticking to our structure, taking what they give us.",
+        "Saw the lane open up and trusted the systems we practice."
+      ],
+      passionate: [
+        "The fans deserved that one. I could hear them getting louder every shift.",
+        "I just wanted to step up for the boys. We needed a spark.",
+        "Pure adrenaline. When the building gets that loud, you just feed off it."
+      ],
+      humble: [
+        "The guys in front of me did all the work. I was just in the right spot.",
+        "Honestly, it was a great play by my linemates. All I had to do was finish it.",
+        "Just a fortunate bounce, really. Team effort all the way."
+      ],
+      cocky: [
+        "Honestly, I saw it opening up before it happened. It's the standard I set.",
+        "That's why I'm out there in those situations. I expect to make those plays.",
+        "I knew I had the goalie beat before it even left my stick."
+      ]
     }
   },
   {
     q: "The team's been streaking. What's clicking in the room?",
     forPos: 'all', tag: 'positive',
     answers: {
-      professional: "Systems. We're executing the game plan for a full sixty minutes now.",
-      passionate:   "The belief. Everyone in that room is playing for the guy next to them.",
-      humble:       "Coach's message. He's the one setting the tone; we're just following it.",
-      cocky:        "Talent. This roster's finally showing what it can do."
+      professional: [
+        "Systems. We're executing the game plan for a full sixty minutes now.",
+        "We're playing a strong 200-foot game and managing the puck well.",
+        "Just taking it one shift at a time, getting pucks deep."
+      ],
+      passionate: [
+        "The belief. Everyone in that room is playing for the guy next to them.",
+        "We're going to war for each other out there. The culture is incredible.",
+        "It's the heart. We refuse to be outworked right now."
+      ],
+      humble: [
+        "Coach's message. He's the one setting the tone; we're just following it.",
+        "We're just getting some good bounces and sticking to the details.",
+        "Goaltending has been bailing us out when we make mistakes, honestly."
+      ],
+      cocky: [
+        "Talent. This roster's finally showing what it can do.",
+        "We're just a better hockey team than the guys we're playing.",
+        "Nobody can skate with us when we play our game. Simple as that."
+      ]
     }
   },
   {
     q: "Tough loss out there. Where did the game slip away?",
     forPos: 'all', tag: 'negative',
     answers: {
-      professional: "Special teams. We gave them too many looks on the power play.",
-      passionate:   "Compete. They wanted it more in the third and it showed.",
-      humble:       "On me. I could have been better in a couple of spots that mattered.",
-      cocky:        "One bounce. That game was ours; the scoreboard just doesn't show it."
+      professional: [
+        "Special teams. We gave them too many looks on the power play.",
+        "Puck management in the neutral zone. We fed their transition game.",
+        "We got away from our forecheck and let them dictate the pace."
+      ],
+      passionate: [
+        "Compete. They wanted it more in the third and it showed.",
+        "We were flat, and it's completely unacceptable for this group.",
+        "We let our goalie out to dry. We have to be way tougher in front of our net."
+      ],
+      humble: [
+        "On me. I could have been better in a couple of spots that mattered.",
+        "I need to be sharper. I made some mistakes that cost us momentum.",
+        "I didn't execute when the team needed a play. Need to look in the mirror."
+      ],
+      cocky: [
+        "One bounce. That game was ours; the scoreboard just doesn't show it.",
+        "They got lucky. 9 times out of 10 we win that hockey game.",
+        "We beat ourselves. They didn't do anything special to beat us."
+      ]
     }
   },
   {
     q: "You've been snake-bit at the net lately. What are you seeing?",
     forPos: 'skater', tag: 'negative',
     answers: {
-      professional: "Pucks aren't going in, but the chances are there. I trust the process.",
-      passionate:   "It's driving me crazy. I want to be the guy who breaks a game open.",
-      humble:       "I need to get to harder areas. That's on me.",
-      cocky:        "They'll go in. Snipers get streaky; my ceiling is way higher than this."
+      professional: [
+        "Pucks aren't going in, but the chances are there. I trust the process.",
+        "Just need to keep putting pucks on net and getting traffic in front.",
+        "Not changing my game. Keep playing a 200-foot game and it'll come."
+      ],
+      passionate: [
+        "It's driving me crazy. I want to be the guy who breaks a game open.",
+        "I'm fighting it right now, but I'm going to work twice as hard to snap out.",
+        "It's frustrating, but I just have to battle through it for the boys."
+      ],
+      humble: [
+        "I need to get to harder areas. That's on me.",
+        "I'm gripping the stick a bit too tight. Need to relax and make plays.",
+        "My linemates are finding me, I just need to bear down and finish for them."
+      ],
+      cocky: [
+        "They'll go in. Snipers get streaky; my ceiling is way higher than this.",
+        "I'm not worried. Once one goes in, the floodgates are going to open.",
+        "Goalies are just getting lucky right now. My release is perfectly fine."
+      ]
     }
   },
   {
     q: "You've had a rough stretch in net. What are you working on?",
     forPos: 'goalie', tag: 'negative',
     answers: {
-      professional: "Tracking pucks through traffic. It's technical, we're addressing it.",
-      passionate:   "I want the ball in my hands. Every night. I don't hide from tough games.",
-      humble:       "Everything. I need to be better. Full stop.",
-      cocky:        "One bad week doesn't define me. I'm the guy in this crease for a reason."
+      professional: [
+        "Tracking pucks through traffic. It's technical, we're addressing it.",
+        "Just working with the goalie coach on depth and angle control.",
+        "Resetting my fundamentals. Keeping my feet set and staying square."
+      ],
+      passionate: [
+        "I want the ball in my hands. Every night. I don't hide from tough games.",
+        "I hate letting the team down. I'm grinding every day to lock it back down.",
+        "It burns. I demand better from myself to give these guys a chance to win."
+      ],
+      humble: [
+        "Everything. I need to be better. Full stop.",
+        "I'm not making the timely saves right now. I have to find a way to step up.",
+        "The guys are playing hard in front of me, I just need to bail them out more."
+      ],
+      cocky: [
+        "One bad week doesn't define me. I'm the guy in this crease for a reason.",
+        "I'll bounce back. My track record speaks for itself.",
+        "I'm an elite goaltender. Slumps happen. I'm not stressing it."
+      ]
     }
   },
   {
     q: "There's a big divisional matchup coming up. Any message for the other guys?",
     forPos: 'all', tag: 'positive',
     answers: {
-      professional: "Respect their group. It'll come down to details and discipline.",
-      passionate:   "Bring it. Our building. Our fans. We'll be ready.",
-      humble:       "We need to worry about ourselves before we talk about anybody else.",
-      cocky:        "They should be worried. We're playing our best hockey right now."
+      professional: [
+        "Respect their group. It'll come down to details and discipline.",
+        "It's a four-point game. We just need to focus on our structure.",
+        "They're a good team. We need to be sharp and stay out of the box."
+      ],
+      passionate: [
+        "Bring it. Our building. Our fans. We'll be ready.",
+        "These are the games you wake up for. It's going to be an absolute war.",
+        "We're going to make it a long night for them. Heavy, physical hockey."
+      ],
+      humble: [
+        "We need to worry about ourselves before we talk about anybody else.",
+        "We respect their roster. We just need to play our game and see what happens.",
+        "It's going to be a tough test. We just have to show up ready to work."
+      ],
+      cocky: [
+        "They should be worried. We're playing our best hockey right now.",
+        "We know we're the team to beat in this division.",
+        "If we play our game, they can't skate with us. It's on them to try and stop us."
+      ]
     }
   },
   {
     q: "Trade deadline rumors have your name in them. Any comment?",
     forPos: 'all', tag: 'negative',
     answers: {
-      professional: "That's a business matter. My focus is on the next game.",
-      passionate:   "I love it here. I want to win here. That's all I'll say.",
-      humble:       "Above my pay grade. I just try to play well and let the rest sort itself out.",
-      cocky:        "Any team would be lucky to have me. That's not for me to worry about."
+      professional: [
+        "That's a business matter. My focus is entirely on the next game.",
+        "I don't control the front office. I just control my effort on the ice.",
+        "Whatever happens, happens. I'm just here to play hockey."
+      ],
+      passionate: [
+        "I love it here. I want to win here. That's all I'll say.",
+        "This is my city. I bleed for this team and I don't want to go anywhere.",
+        "I'll fight for this crest until they tell me I can't anymore."
+      ],
+      humble: [
+        "Above my pay grade. I just try to play well and let the rest sort itself out.",
+        "I'm just grateful to be playing in this league. The rest is noise.",
+        "I just want to be a good teammate while I'm here."
+      ],
+      cocky: [
+        "Any team would be lucky to have me. That's not for me to worry about.",
+        "My value is obvious. If they move me, I'll go dominate somewhere else.",
+        "I'm an elite player. Teams are going to call. That's just how it works."
+      ]
     }
   },
   {
     q: "You just hit a big personal milestone. Take us through what it means.",
     forPos: 'all', tag: 'positive',
     answers: {
-      professional: "It's a marker along the way. Nice to check off, then back to work.",
-      passionate:   "For my family. For everyone who believed in me when nobody else did.",
-      humble:       "Wouldn't have gotten there without every teammate I've had.",
-      cocky:        "Just the beginning. There's a lot more where that came from."
+      professional: [
+        "It's a marker along the way. Nice to check off, then back to work.",
+        "It's a nice accomplishment, but we're focused on the bigger picture.",
+        "Consistency is key. Happy to reach it, but the job isn't done."
+      ],
+      passionate: [
+        "For my family. For everyone who believed in me when nobody else did.",
+        "It's emotional. A lot of blood, sweat, and tears went into this moment.",
+        "I love this game so much. To achieve this in front of these fans is incredible."
+      ],
+      humble: [
+        "Wouldn't have gotten there without every teammate I've had.",
+        "I've been lucky to play with some amazing players who made this possible.",
+        "It's a team milestone really. I'm just the beneficiary of great linemates."
+      ],
+      cocky: [
+        "Just the beginning. There's a lot more where that came from.",
+        "I expect greatness from myself. This is exactly where I planned to be.",
+        "Look at my game. It was only a matter of time before I hit this."
+      ]
     }
   }
 ];

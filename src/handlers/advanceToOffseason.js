@@ -287,8 +287,11 @@ export function advanceToOffseason(ctx) {
     const rightsExpireAge = (player.draftLeague && ['OHL', 'WHL', 'QMJHL'].includes(player.draftLeague)) ? 20 : 22;
     const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
     
-    const needsRightsDecision = isCurrentlyAmateur && player.rights && player.age >= rightsExpireAge;
-    const isAgingOut = isCurrentlyAmateur && !player.rights && player.age >= amateurAgeOut;
+    const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
+    const isNcaaAgedOut = currentLeague === 'NCAA' && ncaaSeasons >= 4;
+    
+    const needsRightsDecision = isCurrentlyAmateur && player.rights && (player.age >= rightsExpireAge || isNcaaAgedOut);
+    const isAgingOut = isCurrentlyAmateur && !player.rights && (player.age >= amateurAgeOut || isNcaaAgedOut);
 
     if (needsRightsDecision || isAgingOut) {
        if (player.rights) {

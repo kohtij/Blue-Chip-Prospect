@@ -504,11 +504,11 @@ function App() {
             if (currentTier === 3) {
                 updatedPlayer.natTier = 2;
                 updatedPlayer.natDiv = 'Top Division';
-                resultMsg += ' Your nation has been promoted to the Top Division!';
+                resultMsg += ' Your nation has been promoted from Division I-A to the Top Division!';
             } else if (currentTier >= 4) {
                 updatedPlayer.natTier = 3;
                 updatedPlayer.natDiv = 'Division I-A';
-                resultMsg += ' Your nation has been promoted to Division I-A!';
+                resultMsg += ' Your nation has been promoted from Division I-B to Division I-A!';
             }
         }
       } else {
@@ -519,7 +519,8 @@ function App() {
         if (currentTier === 2 || currentTier === 3) {
              updatedPlayer.natTier = currentTier + 1;
              updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
-             resultMsg += ' Your nation has been relegated to a lower division.';
+             const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
+             resultMsg += ` Your nation has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
         }
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
@@ -615,11 +616,11 @@ function App() {
             if (currentTier === 3) {
                 updatedPlayer.natTier = 2;
                 updatedPlayer.natDiv = 'Top Division';
-                resultMsg += ' Your nation has been promoted to the Top Division!';
+                resultMsg += ' Your nation has been promoted from Division I-A to the Top Division!';
             } else if (currentTier >= 4) {
                 updatedPlayer.natTier = 3;
                 updatedPlayer.natDiv = 'Division I-A';
-                resultMsg += ' Your nation has been promoted to Division I-A!';
+                resultMsg += ' Your nation has been promoted from Division I-B to Division I-A!';
             }
         }
       } else {
@@ -630,7 +631,8 @@ function App() {
         if (currentTier === 2 || currentTier === 3) {
              updatedPlayer.natTier = currentTier + 1;
              updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
-             resultMsg += ' Your nation has been relegated to a lower division.';
+             const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
+             resultMsg += ` Your nation has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
         }
       }
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);

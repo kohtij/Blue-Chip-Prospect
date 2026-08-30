@@ -95,9 +95,19 @@ const ShootoutGame = ({ player, onComplete }) => {
         </button>
       ))}
 
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-1 rounded-full font-black number-font text-xl shadow-lg border border-slate-700">
-         {status === 'playing' ? `${(timeLeft / 1000).toFixed(1)}s` : status === 'won' ? 'GOAL' : 'NO GOAL'}
-      </div>
+      {/* Time Remaining Pill */}
+      {status === 'playing' && (
+         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-1 rounded-full font-black number-font text-xl shadow-lg border border-slate-700 z-20">
+            {(timeLeft / 1000).toFixed(1)}s
+         </div>
+      )}
+
+      {/* Centered Outcome Pill */}
+      {status !== 'playing' && (
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 text-white px-8 py-3 rounded-full font-black sports-font text-4xl shadow-[0_0_40px_rgba(0,0,0,0.9)] border-2 border-slate-500 z-50 whitespace-nowrap tracking-widest">
+            {status === 'won' ? 'GOAL' : 'NO GOAL'}
+         </div>
+      )}
     </div>
   );
 };

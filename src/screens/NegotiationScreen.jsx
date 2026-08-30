@@ -13,7 +13,6 @@ export default function NegotiationScreen() {
     let isSuccess = true;
     let trustHit = 0; 
     
-    // 👔 THE SUPER AGENT IMPACT
     const dmgMult = hasAgent ? 0.4 : 1.0; 
     const succBoost = hasAgent ? 0.25 : 0; 
 
@@ -21,25 +20,25 @@ export default function NegotiationScreen() {
       damage = (Math.floor(Math.random() * 10) + 5) * dmgMult; 
       bumpSalary = Math.round(negotiation.originalOffer.salary * 0.03 / 25000) * 25000;
       label = "Safe Salary";
-      trustHit = 5; 
+      trustHit = 2; 
     } else if (type === 'hardball') {
       damage = (Math.floor(Math.random() * 25) + 15) * dmgMult; 
       bumpSalary = Math.round(negotiation.originalOffer.salary * 0.08 / 25000) * 25000;
       label = "Hardball Salary";
-      trustHit = -3; 
+      trustHit = -15; 
     } else if (type === 'bluff') {
       const success = Math.random() < (0.40 + succBoost);
       if (success) {
         damage = 5 * dmgMult;
         bumpSalary = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
         label = "Bold Bluff (Success)";
-        trustHit = -5; 
+        trustHit = -10; 
       } else {
         damage = 45 * dmgMult;
         bumpSalary = 0;
         isSuccess = false;
         label = "Bold Bluff (Failed)";
-        trustHit = -8; 
+        trustHit = -25; 
       }
     } else if (type === 'term_up') {
        const success = Math.random() < (0.50 + succBoost);
@@ -47,10 +46,12 @@ export default function NegotiationScreen() {
            damage = 10 * dmgMult;
            bumpYears = 1;
            label = "More Term";
+           trustHit = -5;
        } else {
            damage = 25 * dmgMult;
            isSuccess = false;
            label = "More Term (Failed)";
+           trustHit = -10;
        }
     } else if (type === 'term_down') {
        const success = Math.random() < (0.60 + succBoost);
@@ -58,14 +59,15 @@ export default function NegotiationScreen() {
            damage = 5 * dmgMult;
            bumpYears = -1;
            label = "Less Term";
+           trustHit = -5;
        } else {
            damage = 15 * dmgMult;
            isSuccess = false;
            label = "Less Term (Failed)";
+           trustHit = -10;
        }
     }
 
-    // Apply the trust hit directly to the player state
     if (trustHit !== 0) {
         setPlayer(p => ({
             ...p,
@@ -82,12 +84,15 @@ export default function NegotiationScreen() {
     if (newPatience <= 0) {
        const penalty = Math.round(negotiation.originalOffer.salary * 0.15 / 25000) * 25000;
        
-       // NEW: Burning bridges damages your league-wide reputation!
        setPlayer(p => ({
            ...p,
            stats: {
                ...p.stats,
                reputation: Math.max(50, (p.stats?.reputation ?? 100) - 5)
+           },
+           relationships: {
+               ...p.relationships,
+               coach: Math.max(0, (p.relationships?.coach || 50) - 40)
            }
        }));
 
