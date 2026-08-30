@@ -80,7 +80,7 @@ export default function TransferScreen() {
                   const hasPlayedFor = (player.teamsPlayedFor || []).includes(o.team);
                   const isLovedStatus = player.idolatry >= 400;
                   const isReturnHome = isDraftTeam && player.team !== o.team && hasPlayedFor && isLovedStatus;
-                  const isExtension = o.state === 'Current Club' || o.state === 'Two-Way Contract';
+                  const isExtension = o.team === owningTeam || ['EXTENSION', 'QUALIFYING OFFER', 'RFA EXTENSION', 'HOMETOWN DISCOUNT'].includes(o.type);
 
                   let topBorder = 'border-[rgba(255,255,255,0.065)]';
                   if (isExtension) { topBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]'; }
@@ -136,7 +136,7 @@ export default function TransferScreen() {
                                    o.state === 'Rebuilder' ? 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30' :
                                    'bg-[#22E748]/10 text-[#22E748] border-[#22E748]/30'
                                 }`}>
-                                   {o.state === 'Current Club' ? 'Staying Put' : o.state}
+                                   {isExtension ? 'Staying Put' : o.state}
                                 </span>
                                 {o.standing && (
                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">

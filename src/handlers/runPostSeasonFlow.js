@@ -431,8 +431,36 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // Track dynamic IIHF Divisions for Olympic/WC Eligibility
     const playerNatData = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B' };
     const activeNatDiv = player.natDiv || playerNatData.division;
+    const natTier = player.natTier || playerNatData.tier || 4;
+
+    // THE GROUP STAGE SIMULATOR
+    const determineStakes = (isWJC, isOlympicYear) => {
+        let baseScore = Math.random() * 50; // Hockey RNG (0-50)
+        if (natTier === 1) baseScore += 50; // Tier 1 powerhouse (50-100)
+        if (natTier === 2) baseScore += 25; // Tier 2 contender (25-75)
+
+        // Player Impact Modifier
+        let impact = 0;
+        if (pOvr >= 85) impact = 25; // Superstar carry
+        else if (pOvr >= 75) impact = 10; // Solid contributor
+        else if (pOvr <= 65 && !isWJC) impact = -10; // Depth players drag down senior rosters, but not WJC
+
+        const total = baseScore + impact;
+        
+        if (activeNatDiv === 'Top Division') {
+            if (total >= 90) return 'GOLD';
+            if (total >= 60) return 'BRONZE';
+            
+            // Olympics have no relegation. If a top team chokes, they play a meaningless consolation game.
+            return isOlympicYear ? 'CONSOLATION' : 'SURVIVAL'; 
+        } else {
+            if (total >= 70) return 'PROMOTION';
+            return 'CONSOLATION';
+        }
+    };
     
     if (pAge <= 19 && Math.random() > 0.4) {
+      setPlayer(p => ({ ...p, intlStakes: determineStakes(true, false) }));
       setIntlResult(null);
       setMinigameContext('wjc');
       setScreen('intl-minigame');
@@ -440,11 +468,14 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
     
     if (pAge > 19 && pOvr >= 78) {
-       const isOlympicYear = nextYear % 4 === 0;
+       const isOlympicYear = nextYear % 4 === 2;
        const isTopDiv = activeNatDiv === 'Top Division';
        
-       // Top Division gets Olympics every 4 years. Lower divisions get World Championships to fight for promotion.
-       if ((isTopDiv && isOlympicYear) || (!isTopDiv && Math.random() > 0.4)) {
+       // Top Division plays Olympics (4 yrs) & World Champs (Annual). Lower divisions play World Champs (Annual).
+       const playSenior = (isTopDiv && isOlympicYear) || (!isOlympicYear && Math.random() > 0.3) || (!isTopDiv && Math.random() > 0.4);
+
+       if (playSenior) {
+          setPlayer(p => ({ ...p, intlStakes: determineStakes(false, isOlympicYear), isOlympicYear }));
           setIntlResult(null);
           setMinigameContext('olympics');
           setScreen('intl-minigame');
@@ -638,6 +669,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         title: `🔥 RIVALRY NIGHT: VS THE ${rivalName.toUpperCase()}`,
         desc: `It's rivalry night against ${rivalName}! The arena is sold out, national television is covering the game, and the fans are desperate for a statement win. How do you approach the game?`,
         choices: selectedChoices,
+        isSeasonEvent: true,
         isDemotionEvent: false,
         madePlayoffs
       });

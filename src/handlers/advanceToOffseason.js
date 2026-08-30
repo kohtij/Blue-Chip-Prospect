@@ -112,9 +112,15 @@ export function advanceToOffseason(ctx) {
     }
 
     // 1. ELC SLIDE RULE
-    // If the player is under an NHL contract but playing in juniors, the contract slides (the year is not burned).
+    // If the player is under an NHL contract but playing in juniors, or playing in the AHL under age 24 during their first 2 pro seasons, the contract slides.
     // We restore the year that simulateSeason decremented.
-    if (updatedContract && safeJuniorLeagues.includes(currentLeague) && player.age <= 20) {
+    const isJuniorSlide = safeJuniorLeagues.includes(currentLeague) && player.age <= 20;
+    const proSeasons = player.stats?.seasonsPlayed || 0;
+    
+    // We check for $925k to ensure we are only sliding actual ELCs, not random 1-year AHL veteran deals
+    const isAhlSlide = currentLeague === 'AHL' && player.age < 24 && proSeasons <= 2 && updatedContract?.salary === 925000;
+
+    if (updatedContract && (isJuniorSlide || isAhlSlide)) {
         updatedContract.years = Math.min(3, updatedContract.years + 1);
     }
 

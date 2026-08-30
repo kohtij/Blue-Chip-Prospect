@@ -475,54 +475,80 @@ function App() {
       const currentTier = player.natTier || defaultNat?.tier || 1;
       const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
       let updatedPlayer = { ...player };
-      let resultMsg, resultEffect;
+      let resultMsg = '', resultEffect = {};
+
+      const isOlympicYear = player.isOlympicYear || false;
+      const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
+      const stake = player.intlStakes || 'GOLD';
+      let awardName = '';
 
       if (isWin) {
-        const isTier12 = currentTier <= 2;
-
-        if (isTier12) unlockAchievement('gold_medal');
-        const withOvr = applyOvrDelta(player, 1);
-        updatedPlayer = { ...withOvr, idolatry: capIdol(withOvr.idolatry + 50), ovr: recomputeOvr(withOvr) };
+        updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
         
-        const isOlympicYear = currentYear % 4 === 0;
-        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 && isOlympicYear ? 'Olympics' : 'World Championship');
-        const achievementName = isTier12 ? 'Gold' : 'Promotion';
-        const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
-        
-        updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
-        
-        if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
-            const lastIdx = updatedPlayer.seasonHistory.length - 1;
-            updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
-        }
+        // Note: Use `reward?.win?.ovr` if in handleMinigameChoice, or `payout?.ovr` if in handleInteractiveResult
+        // Since both functions use this block, we will safely default to +1 OVR if undefined
+        const withOvr = applyOvrDelta(updatedPlayer, 1); 
+        updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
 
-        const actionWord = isTier12 ? 'secured Gold' : 'secured promotion';
-        resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
-        resultEffect = { idol: 50, ovr: reward?.win?.ovr || 1, rel: { media: 20 } }; 
-
-        if (!isTier12) {
+        if (stake === 'GOLD') {
+            awardName = 'Gold';
+            resultMsg = `${msg} You won the Gold Medal for ${countryName}!`;
+            unlockAchievement('gold_medal');
+        } else if (stake === 'BRONZE') {
+            awardName = 'Bronze';
+            resultMsg = `${msg} You secured the Bronze Medal for ${countryName}!`;
+        } else if (stake === 'SURVIVAL') {
+            resultMsg = `${msg} You avoided relegation! ${countryName} survives in the Top Division.`;
+        } else if (stake === 'PROMOTION') {
             if (currentTier === 3) {
                 updatedPlayer.natTier = 2;
                 updatedPlayer.natDiv = 'Top Division';
-                resultMsg += ' Your nation has been promoted from Division I-A to the Top Division!';
-            } else if (currentTier >= 4) {
+                resultMsg = `${msg} Your nation has been promoted from Division I-A to the Top Division!`;
+            } else {
                 updatedPlayer.natTier = 3;
                 updatedPlayer.natDiv = 'Division I-A';
-                resultMsg += ' Your nation has been promoted from Division I-B to Division I-A!';
+                resultMsg = `${msg} Your nation has been promoted from Division I-B to Division I-A!`;
             }
+        } else {
+            resultMsg = `${msg} A solid win to end the tournament on a high note.`;
         }
+        resultEffect = { idol: 50, ovr: 1, rel: { media: 20 } }; 
       } else {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
-        resultMsg = `${msg} A devastating loss for ${countryName}.`;
         resultEffect = { idol: -5, rel: { media: -15 } }; 
 
-        if (currentTier === 2 || currentTier === 3) {
-             updatedPlayer.natTier = currentTier + 1;
-             updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
-             const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
-             resultMsg += ` Your nation has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
+        if (stake === 'GOLD') {
+            awardName = 'Silver';
+            resultMsg = `${msg} A heartbreaking loss in the final, but you secured the Silver Medal for ${countryName}.`;
+        } else if (stake === 'BRONZE') {
+            resultMsg = `${msg} You fell short in the Bronze Medal game. Fourth place for ${countryName}.`;
+        } else if (stake === 'SURVIVAL') {
+            if (currentTier === 2 || currentTier === 3) {
+                 updatedPlayer.natTier = currentTier + 1;
+                 updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
+                 const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
+                 resultMsg = `${msg} A devastating loss. ${countryName} has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
+            }
+        } else if (stake === 'PROMOTION') {
+            resultMsg = `${msg} You fell short of promotion this year.`;
+        } else {
+            resultMsg = `${msg} A tough loss to end the tournament.`;
         }
       }
+
+      if (awardName) {
+          const medalString = `${awardName}, ${tournamentName} ${currentYear}`;
+          updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
+          if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
+              const lastIdx = updatedPlayer.seasonHistory.length - 1;
+              updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
+          }
+      }
+
+      // Cleanup our temporary tracking variables
+      delete updatedPlayer.intlStakes;
+      delete updatedPlayer.isOlympicYear;
+
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
       setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
@@ -588,53 +614,77 @@ function App() {
       const defaultNat = safeNationalities.find(n => n.id === player.nat);
       const currentTier = player.natTier || defaultNat?.tier || 1;
       const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
-      let resultMsg, resultEffect;
+      let updatedPlayer = { ...player };
+      let resultMsg = '', resultEffect = {};
+
+      const isOlympicYear = player.isOlympicYear || false;
+      const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
+      const stake = player.intlStakes || 'GOLD';
+      let awardName = '';
 
       if (isWin) {
-        const isTier12 = currentTier <= 2;
+        updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
         
-        if (isTier12) unlockAchievement('gold_medal');
-        updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
-        
-        const isOlympicYear = currentYear % 4 === 0;
-        const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isTier12 && isOlympicYear ? 'Olympics' : 'World Championship');
-        const achievementName = isTier12 ? 'Gold' : 'Promotion';
-        const medalString = `${achievementName}, ${tournamentName} ${currentYear}`;
-        
-        updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
-        
-        if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
-            const lastIdx = updatedPlayer.seasonHistory.length - 1;
-            updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
-        }
+        // Note: Use `reward?.win?.ovr` if in handleMinigameChoice, or `payout?.ovr` if in handleInteractiveResult
+        // Since both functions use this block, we will safely default to +1 OVR if undefined
+        const withOvr = applyOvrDelta(updatedPlayer, 1); 
+        updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
 
-        const actionWord = isTier12 ? 'secured Gold' : 'secured promotion';
-        resultMsg = `${msg} You ${actionWord} for ${countryName}!`;
-        resultEffect = { idol: 50, ovr: payout?.ovr || 1, rel: { media: 20 } }; 
-
-        if (!isTier12) {
+        if (stake === 'GOLD') {
+            awardName = 'Gold';
+            resultMsg = `${msg} You won the Gold Medal for ${countryName}!`;
+            unlockAchievement('gold_medal');
+        } else if (stake === 'BRONZE') {
+            awardName = 'Bronze';
+            resultMsg = `${msg} You secured the Bronze Medal for ${countryName}!`;
+        } else if (stake === 'SURVIVAL') {
+            resultMsg = `${msg} You avoided relegation! ${countryName} survives in the Top Division.`;
+        } else if (stake === 'PROMOTION') {
             if (currentTier === 3) {
                 updatedPlayer.natTier = 2;
                 updatedPlayer.natDiv = 'Top Division';
-                resultMsg += ' Your nation has been promoted from Division I-A to the Top Division!';
-            } else if (currentTier >= 4) {
+                resultMsg = `${msg} Your nation has been promoted from Division I-A to the Top Division!`;
+            } else {
                 updatedPlayer.natTier = 3;
                 updatedPlayer.natDiv = 'Division I-A';
-                resultMsg += ' Your nation has been promoted from Division I-B to Division I-A!';
+                resultMsg = `${msg} Your nation has been promoted from Division I-B to Division I-A!`;
             }
+        } else {
+            resultMsg = `${msg} A solid win to end the tournament on a high note.`;
         }
+        resultEffect = { idol: 50, ovr: 1, rel: { media: 20 } }; 
       } else {
         updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
-        resultMsg = `${msg} A devastating loss for ${countryName}.`;
         resultEffect = { idol: -5, rel: { media: -15 } }; 
 
-        if (currentTier === 2 || currentTier === 3) {
-             updatedPlayer.natTier = currentTier + 1;
-             updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
-             const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
-             resultMsg += ` Your nation has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
+        if (stake === 'GOLD') {
+            awardName = 'Silver';
+            resultMsg = `${msg} A heartbreaking loss in the final, but you secured the Silver Medal for ${countryName}.`;
+        } else if (stake === 'BRONZE') {
+            resultMsg = `${msg} You fell short in the Bronze Medal game. Fourth place for ${countryName}.`;
+        } else if (stake === 'SURVIVAL') {
+            if (currentTier === 2 || currentTier === 3) {
+                 updatedPlayer.natTier = currentTier + 1;
+                 updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
+                 const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
+                 resultMsg = `${msg} A devastating loss. ${countryName} has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
+            }
+        } else if (stake === 'PROMOTION') {
+            resultMsg = `${msg} You fell short of promotion this year.`;
+        } else {
+            resultMsg = `${msg} A tough loss to end the tournament.`;
         }
       }
+
+      if (awardName) {
+          const medalString = `${awardName}, ${tournamentName} ${currentYear}`;
+          updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
+          if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
+              const lastIdx = updatedPlayer.seasonHistory.length - 1;
+              updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
+          }
+      }
+
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
       setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
@@ -687,6 +737,18 @@ function App() {
     }
 
     if (player.league === 'NHL' && (player.ovr < demoteThresh || needsAHLDevelopment)) {
+      
+      // 🛡️ VETERAN & LEGEND PROTECTIONS 🛡️
+      
+      // 1. NMC Protection: A player with a No-Movement Clause legally cannot be waived.
+      if (player.contract?.nmc) return null;
+      
+      // 2. Franchise Legend Protection: High fan status keeps you on the NHL roster. You will ride the bench in the NHL out of respect.
+      if (player.idolatry >= 600) return null;
+      
+      // 3. Veteran Contract Grace: Teams rarely waive high-earning vets just for dropping a few OVR points below the threshold.
+      if (player.age >= 32 && (player.contract?.salary || 0) >= 2000000 && player.ovr >= demoteThresh - 4) return null;
+
       if (isTop10Pick && isUnder20) return null; 
       if (juniorsEligible && hasCHLHistory && Math.random() > 0.5) return null;
       else if (juniorsEligible && hasCHLHistory) return { team: chlSeason ? chlSeason.team : (player.draftTeam || 'UNK'), lg: chlSeason ? chlSeason.league : 'OHL', reason: '9_GAME_RULE' };

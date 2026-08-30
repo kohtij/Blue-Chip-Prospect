@@ -58,6 +58,12 @@ export default function AllStarScreen() {
      setPhase('declined');
   };
 
+const handleQuickSim = () => {
+     setCarpetFeedback({ msg: "You kept a low profile and saved your energy for the regular season.", idolHit: 5, mediaHit: 0, coachHit: 0 });
+     setSkillsFeedback({ msg: "You made a brief, respectful appearance at the skills competition.", ovrBoost: 0, idolBoost: 5, eventName: 'Weekend Sim', time: 10 });
+     setPhase('result');
+  };
+
   const handleCaptainDraft = (strategy) => {
      setCaptainStrategy(strategy);
      setPhase('red-carpet');
@@ -140,15 +146,27 @@ export default function AllStarScreen() {
                      <button onClick={() => handleCaptainDraft('power')} className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#ef4444]/50 text-white font-black sports-font uppercase py-3 px-6 rounded-lg transition-transform hover:scale-105 shadow-[0_0_15px_rgba(239,68,68,0.2)] cursor-pointer">💥 Raw Power</button>
                      <button onClick={() => handleCaptainDraft('grit')} className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#22E748]/50 text-white font-black sports-font uppercase py-3 px-6 rounded-lg transition-transform hover:scale-105 shadow-[0_0_15px_rgba(34,231,72,0.2)] cursor-pointer">🧱 200-Foot Game</button>
                  </div>
+                 
+                 {/* NEW QUICK SIM BUTTON */}
+                 <button onClick={handleQuickSim} className="mt-6 bg-slate-800 border border-slate-600 text-slate-300 hover:text-white py-2 px-6 rounded-lg font-black sports-font uppercase tracking-widest transition-colors cursor-pointer w-full sm:w-auto mx-auto block">
+                    QUICK SIM WEEKEND
+                 </button>
+
                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-6">Your choice will provide a buff in the Skills Competition</p>
               </div>
            ) : (
               <div className="bg-[#101410] border border-[#3b82f6]/30 p-8 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.1)]">
                  <h3 className="text-2xl font-black text-white sports-font uppercase mb-3">{player.league === 'NCAA' ? 'ALL-AMERICAN' : 'ALL-STAR'} SELECTION</h3>
                  <p className="text-slate-300 font-sans mb-8">Congratulations, you've been selected to represent your team at the {eventName}! Enjoy the festivities and put on a show.</p>
-                 <button onClick={() => setPhase('red-carpet')} className="btn-primary py-4 px-10 rounded-xl font-black sports-font text-xl uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer">
-                    HEAD TO RED CARPET
-                 </button>
+                 
+                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                   <button onClick={() => setPhase('red-carpet')} className="btn-primary py-4 px-10 rounded-xl font-black sports-font text-xl uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer flex-1">
+                      HEAD TO RED CARPET
+                   </button>
+                   <button onClick={handleQuickSim} className="bg-slate-800 border border-slate-600 text-slate-300 hover:text-white py-4 px-6 rounded-xl font-black sports-font text-lg uppercase tracking-widest transition-colors cursor-pointer sm:w-1/3">
+                      QUICK SIM
+                   </button>
+                 </div>
               </div>
            )}
            

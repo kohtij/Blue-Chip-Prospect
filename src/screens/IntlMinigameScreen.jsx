@@ -51,23 +51,46 @@ export default function IntlMinigameScreen() {
   
   const [prepPhase, setPrepPhase] = useState(true);
   const [prepFeedback, setPrepFeedback] = useState(null);
-  
   const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
 
   const nat = safeNationalities.find(n => n.id === player.nat);
   const countryName = nat?.sentenceName || nat?.name || 'your country';
 
-  const tourneyName = minigameContext === 'wjc' ? 'World Junior Championship' 
-                    : minigameContext === 'olympics' ? 'Winter Games' 
-                    : 'World Championship';
+  // State "Locks": This forces the UI to remember the stakes even after App.jsx wipes them!
+  const [initialStake] = useState(player.intlStakes || 'GOLD');
+  const [isOlympic] = useState(player.isOlympicYear || false);
+  const [initialDiv] = useState(player.natDiv || nat?.division || 'Top Division');
 
-  // --- Dynamic Match Naming based on Nation Tier ---
-  const isTier12 = !nat || nat.tier <= 2;
-  const isTier3 = nat?.tier === 3;
-  
-  const matchLabel = isTier12 ? 'Gold Medal game' : isTier3 ? 'Top Division Survival game' : 'Division Promotion game';
-  const winTitle = isTier12 ? 'GOLD MEDAL' : isTier3 ? 'SURVIVAL SECURED' : 'PROMOTION SECURED';
-  const winIcon = isTier12 ? '🥇' : isTier3 ? '🛡️' : '📈';
+  // --- Dynamic Match Naming & UI Colors based on Stakes ---
+  let winTitle = 'TOURNAMENT WIN';
+  let winIcon = '🏆';
+  let resultColor = intlResult?.isWin ? 'text-[#22E748]' : 'text-[#ef4444]';
+  let resultBg = intlResult?.isWin ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]';
+
+  if (initialStake === 'GOLD') {
+      winTitle = intlResult?.isWin ? 'GOLD MEDAL' : 'SILVER MEDAL';
+      winIcon = intlResult?.isWin ? '🥇' : '🥈';
+      if (!intlResult?.isWin) {
+          resultColor = 'text-slate-300';
+          resultBg = 'border-slate-400/50 bg-slate-400/[0.06]';
+      }
+  } else if (initialStake === 'BRONZE') {
+      winTitle = intlResult?.isWin ? 'BRONZE MEDAL' : '4TH PLACE';
+      winIcon = intlResult?.isWin ? '🥉' : '💔';
+      if (intlResult?.isWin) {
+          resultColor = 'text-[#F59E0B]';
+          resultBg = 'border-[#F59E0B]/50 bg-[#F59E0B]/[0.06]';
+      }
+  } else if (initialStake === 'SURVIVAL') {
+      winTitle = intlResult?.isWin ? 'SURVIVAL SECURED' : 'RELEGATED';
+      winIcon = intlResult?.isWin ? '🛡️' : '📉';
+  } else if (initialStake === 'PROMOTION') {
+      winTitle = intlResult?.isWin ? 'PROMOTION SECURED' : 'PROMOTION FAILED';
+      winIcon = intlResult?.isWin ? '📈' : '🛑';
+  } else if (initialStake === 'CONSOLATION') {
+      winTitle = intlResult?.isWin ? 'CONSOLATION WIN' : 'TOURNAMENT EXIT';
+      winIcon = intlResult?.isWin ? '🤝' : '💔';
+  }
 
   const handlePrepChoice = useCallback((c) => {
      let isWin = true;
@@ -108,13 +131,25 @@ export default function IntlMinigameScreen() {
 
   return (
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
-      <h2 className="flex justify-center items-center gap-1 text-4xl sm:text-5xl font-black mb-4 text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center">
-        <span className="shrink-0">🌍</span>
-        <span>{tourneyName}</span>
-        <span className="shrink-0">🌍</span>
-      </h2>
-      <p className="text-base sm:text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-left">
-        You are representing <span className="font-black text-white flex items-center gap-2">{countryName} <img src={nat?.img} alt={player.nat} className="w-6 h-4 object-cover rounded-[2px] border border-slate-600" /></span> in the {matchLabel}!
+      <div className="flex flex-col items-center justify-center mb-6">
+          <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-4 py-1.5 rounded-full mb-3 shadow-inner">
+              CURRENT TIER: {initialDiv}
+          </span>
+          <h2 className="flex justify-center items-center gap-2 text-3xl sm:text-5xl font-black text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center drop-shadow-md">
+            <span className="shrink-0">🌍</span>
+            <span>{minigameContext === 'wjc' ? 'WORLD JUNIORS' : (isOlympic ? 'WINTER OLYMPICS' : 'WORLD CHAMPIONSHIP')}</span>
+            <span className="shrink-0">🌍</span>
+          </h2>
+      </div>
+
+      <p className="text-sm sm:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-center">
+        You are representing <strong className="text-white">{countryName}</strong> in a {
+            initialStake === 'GOLD' ? 'Gold Medal Game' :
+            initialStake === 'BRONZE' ? 'Bronze Medal Game' :
+            initialStake === 'SURVIVAL' ? 'must-win Relegation Scare' :
+            initialStake === 'PROMOTION' ? 'must-win Promotion Final' :
+            'Consolation Game'
+        }!
       </p>
 
       {/* PHASE 1: PRE-TOURNAMENT PREPARATION SCENARIO */}
@@ -208,11 +243,24 @@ export default function IntlMinigameScreen() {
       {/* PHASE 3: FINAL MEDAL RESULT */}
       {intlResult && (
         <div className="max-w-2xl mx-auto mt-2 fade-up">
-          <div className={`rounded-2xl border-2 p-6 sm:p-10 flex flex-col items-center text-center ${intlResult.isWin ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]'}`}>
-            <div className="text-5xl sm:text-6xl mb-3">{intlResult.isWin ? winIcon : '💔'}</div>
-            <h3 className={`text-2xl sm:text-4xl font-black sports-font uppercase tracking-tighter mb-4 ${intlResult.isWin ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-              {intlResult.isWin ? winTitle : 'HEARTBREAK'}
+          <div className={`rounded-2xl border-2 p-6 sm:p-10 flex flex-col items-center text-center ${resultBg}`}>
+            <div className="text-5xl sm:text-6xl mb-3 drop-shadow-lg">{winIcon}</div>
+            <h3 className={`text-2xl sm:text-4xl font-black sports-font uppercase tracking-tighter mb-4 ${resultColor}`}>
+              {winTitle}
             </h3>
+
+            {/* Division Progression Badges */}
+            {initialStake === 'PROMOTION' && intlResult.isWin && (
+                <div className="bg-[#22E748]/20 border border-[#22E748]/50 text-[#22E748] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-lg mb-4 animate-pulse">
+                    PROMOTED TO {player.natDiv}
+                </div>
+            )}
+            {initialStake === 'SURVIVAL' && !intlResult.isWin && (
+                <div className="bg-[#ef4444]/20 border border-[#ef4444]/50 text-[#ef4444] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-lg mb-4">
+                    RELEGATED TO {player.natDiv}
+                </div>
+            )}
+
             <p className="text-base sm:text-xl italic text-slate-300 mb-6 font-sans leading-relaxed">"{intlResult.msg}"</p>
 
             <div className="flex justify-center items-center gap-2 flex-wrap">
@@ -228,7 +276,7 @@ export default function IntlMinigameScreen() {
               ) : null}
             </div>
             
-            {/* DRAFT STOCK EVOLUTION (Only for undrafted prospects!) */}
+            {/* DRAFT STOCK EVOLUTION */}
             {player.age <= 18 && !player.rights && minigameContext === 'wjc' && (
                <p className={`mt-6 text-sm sm:text-base font-black sports-font uppercase tracking-widest ${intlResult.isWin ? 'text-[#3b82f6]' : 'text-[#ef4444]'}`}>
                  {intlResult.isWin ? "📈 SCOUTS ARE BUZZING. YOUR DRAFT STOCK IS RISING!" : "📉 SCOUTS NOTICED THE STRUGGLES. DRAFT STOCK TOOK A HIT."}

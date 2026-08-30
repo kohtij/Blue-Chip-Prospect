@@ -91,7 +91,9 @@ export function handleTrain(ctx, t) {
   } else {
      setPendingSeasonResult(result);
      
-     const isAllStar = recap.awards?.some(a => a.includes('All-Star') || a.includes('All-American'));
+     // Winter Olympics fall on 2026, 2030, 2034 (year % 4 === 2)
+     const isOlympicYear = ctx.currentYear % 4 === 2;
+     const isAllStar = !isOlympicYear && recap.awards?.some(a => a.includes('All-Star') || a.includes('All-American'));
      
      const wasAHLtoNHL = player.league === 'AHL' && currentLg === 'NHL';
      const wasECHLtoAHL = player.league === 'ECHL' && currentLg === 'AHL';

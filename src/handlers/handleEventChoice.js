@@ -117,7 +117,53 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'DEMOTE_TO_JUNIORS') {
     const targetJuniorTeam = player.chlRights || player.juniorTeam || 'UNK';
     const targetJuniorLeague = player.chlRightsLeague || player.juniorLeague || 'OHL';
-    updated.team = targetJuniorTeam; updated.league = targetJuniorLeague;
+    
+    // Generate the 9-game NHL stint to officially add to history
+    const isG = player.pos === 'G';
+    const sGames = isG ? (Math.floor(Math.random() * 3) + 2) : 9; // Goalies usually back up and start 2-4 games
+    
+    let sG = 0, sA = 0, sSaves = 0, sShots = 0, sShutouts = 0, sPM = 0;
+    
+    if (isG) {
+        sShots = sGames * (25 + Math.floor(Math.random() * 10));
+        sSaves = Math.floor(sShots * (0.880 + (Math.random() * 0.040)));
+    } else {
+        sG = Math.floor(Math.random() * 3); // 0-2 goals
+        sA = Math.floor(Math.random() * 4); // 0-3 assists
+        sPM = Math.floor(Math.random() * 7) - 3; // -3 to +3
+    }
+    
+    const nhlStint = {
+        year: ctx.currentYear,
+        team: player.team,
+        league: player.league,
+        games: sGames,
+        goals: sG,
+        assists: sA,
+        points: sG + sA,
+        plusMinus: sPM,
+        saves: sSaves,
+        shots: sShots,
+        shutouts: sShutouts,
+        awards: []
+    };
+
+    // Log the stint in career history
+    updated.seasonHistory = [...(updated.seasonHistory || []), nhlStint];
+    
+    // Add to career totals so they instantly show on the Dashboard
+    updated.stats = {
+        ...updated.stats,
+        games: (updated.stats?.games || 0) + sGames,
+        goals: (updated.stats?.goals || 0) + sG,
+        assists: (updated.stats?.assists || 0) + sA,
+        saves: (updated.stats?.saves || 0) + sSaves,
+        shots: (updated.stats?.shots || 0) + sShots,
+        shutouts: (updated.stats?.shutouts || 0) + sShutouts
+    };
+
+    updated.team = targetJuniorTeam; 
+    updated.league = targetJuniorLeague;
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), targetJuniorTeam]));
   } else if (actionStr === 'ACCEPT_ARBITRATION') {
     updated.team = choice.actionData.team; updated.league = 'NHL';
