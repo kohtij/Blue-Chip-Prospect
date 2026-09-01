@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
 import { applyOvrDelta, recomputeOvr, capIdol } from '../utils/gameHelpers';
 
-// Move the static pool completely outside the component so it doesn't re-create on render
 const PREP_SCENARIOS = [
   {
     title: "🍽️ THE TEAM DINNER",
@@ -49,6 +48,8 @@ const PREP_SCENARIOS = [
 export default function IntlMinigameScreen() {
   const { activeEvent, handleMinigameChoice, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer, setSeasonEvents } = useAppContext();
   
+  // New State for Pass 2: The Group Stage Summary Phase
+  const [showSummary, setShowSummary] = useState(!!player.intlData);
   const [prepPhase, setPrepPhase] = useState(true);
   const [prepFeedback, setPrepFeedback] = useState(null);
   const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
@@ -60,6 +61,7 @@ export default function IntlMinigameScreen() {
   const [initialStake] = useState(player.intlStakes || 'GOLD');
   const [isOlympic] = useState(player.isOlympicYear || false);
   const [initialDiv] = useState(player.natDiv || nat?.division || 'Top Division');
+  const [groupData] = useState(player.intlData || null);
 
   // --- Dynamic Match Naming & UI Colors based on Stakes ---
   let winTitle = 'TOURNAMENT WIN';
@@ -67,7 +69,9 @@ export default function IntlMinigameScreen() {
   let resultColor = intlResult?.isWin ? 'text-[#22E748]' : 'text-[#ef4444]';
   let resultBg = intlResult?.isWin ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]';
 
+  let upcomingMatchText = 'CONSOLATION GAME';
   if (initialStake === 'GOLD') {
+      upcomingMatchText = 'GOLD MEDAL GAME';
       winTitle = intlResult?.isWin ? 'GOLD MEDAL' : 'SILVER MEDAL';
       winIcon = intlResult?.isWin ? '🥇' : '🥈';
       if (!intlResult?.isWin) {
@@ -75,6 +79,7 @@ export default function IntlMinigameScreen() {
           resultBg = 'border-slate-400/50 bg-slate-400/[0.06]';
       }
   } else if (initialStake === 'BRONZE') {
+      upcomingMatchText = 'BRONZE MEDAL GAME';
       winTitle = intlResult?.isWin ? 'BRONZE MEDAL' : '4TH PLACE';
       winIcon = intlResult?.isWin ? '🥉' : '💔';
       if (intlResult?.isWin) {
@@ -82,12 +87,15 @@ export default function IntlMinigameScreen() {
           resultBg = 'border-[#F59E0B]/50 bg-[#F59E0B]/[0.06]';
       }
   } else if (initialStake === 'SURVIVAL') {
+      upcomingMatchText = 'MUST-WIN RELEGATION SCARE';
       winTitle = intlResult?.isWin ? 'SURVIVAL SECURED' : 'RELEGATED';
       winIcon = intlResult?.isWin ? '🛡️' : '📉';
   } else if (initialStake === 'PROMOTION') {
+      upcomingMatchText = 'MUST-WIN PROMOTION FINAL';
       winTitle = intlResult?.isWin ? 'PROMOTION SECURED' : 'PROMOTION FAILED';
       winIcon = intlResult?.isWin ? '📈' : '🛑';
   } else if (initialStake === 'CONSOLATION') {
+      upcomingMatchText = 'CONSOLATION MATCH';
       winTitle = intlResult?.isWin ? 'CONSOLATION WIN' : 'TOURNAMENT EXIT';
       winIcon = intlResult?.isWin ? '🤝' : '💔';
   }
@@ -119,14 +127,14 @@ export default function IntlMinigameScreen() {
 
   const gameChoices = player.pos === 'G'
     ? [
-        { label: 'Swallow Rebound', tag: 'AGI', desc: 'Absorb the initial shot cleanly into your chest to deny any second-chance opportunities.', hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.4 + player.physicality / 200, win: 'You smothered the rebound!', fail: 'You gave up a juicy rebound.' },
-        { label: 'Direct Traffic', tag: 'IQ', desc: 'Completely control crease positioning and shout out defensive assignments during the rush.', hover: 'hover:border-[#22E748]', pill: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', chance: 0.4 + player.hockeyIQ / 200, win: 'You perfectly directed traffic!', fail: 'You were out of position.' },
-        { label: 'Desperation Save', tag: 'REF + AGI', desc: 'Make an acrobatic wind-mill glove save on a late backdoor cross-crease pass.', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.4 + (player.shooting + player.physicality) / 400, win: 'You made an unbelievable save!', fail: "Couldn't get there in time." },
+        { label: 'Swallow Rebound', tag: 'AGI', isRisky: false, desc: 'Play conservative angles and absorb the initial shot cleanly.', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.85, win: 'You played a structurally perfect game.', fail: 'You fought the puck and gave up a bad rebound.' },
+        { label: 'Aggressive Challenge', tag: 'IQ + AGI', isRisky: true, desc: 'Aggressively challenge their star sniper way out of the crease.', hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.45 + player.hockeyIQ / 200, win: 'You completely shut down their top line!', fail: 'You were caught out of position and they scored into an empty net.' },
+        { label: 'Desperation Save', tag: 'REF + AGI', isRisky: true, desc: 'Bait the backdoor pass and attempt an acrobatic wind-mill glove save.', hover: 'hover:border-[#ef4444]', pill: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30', chance: 0.40 + (player.shooting + player.physicality) / 400, win: 'You made a highlight-reel, game-saving stop!', fail: "You guessed wrong and they scored easily." },
       ]
     : [
-        { label: 'Big Hit', tag: 'PHY', desc: 'Step into their star forward along the boards to set an aggressive physical tone.', hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.4 + player.physicality / 200, win: 'You laid a massive hit!', fail: 'You missed the hit.' },
-        { label: 'Find Open Ice', tag: 'IQ', desc: 'Read the defensive coverage to slip into the high slot for a clean, unguarded shot.', hover: 'hover:border-[#22E748]', pill: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', chance: 0.4 + player.hockeyIQ / 200, win: 'You found the soft spot!', fail: 'Skated into coverage.' },
-        { label: 'Rush the Net', tag: 'SKT + SHT', desc: 'Burn past their defenseman down the wing and drive hard toward the net for a goal.', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.4 + (player.skating + player.shooting) / 400, win: 'You ripped it top shelf!', fail: 'Fumbled the puck.' },
+        { label: 'Dump and Chase', tag: 'IQ', isRisky: false, desc: 'Play smart, situational hockey to maintain possession and eat the clock.', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.85, win: 'You executed the system perfectly.', fail: 'You turned the puck over at the blue line.' },
+        { label: 'Big Hit', tag: 'PHY', isRisky: true, desc: 'Step up and try to completely level their star forward along the boards.', hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.45 + player.physicality / 200, win: 'You laid a massive, momentum-shifting hit!', fail: 'You missed the hit and gave up an odd-man rush.' },
+        { label: 'Rush the Net', tag: 'SKT + SHT', isRisky: true, desc: 'Attempt to split the defense and drive hard toward the net for a goal.', hover: 'hover:border-[#ef4444]', pill: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30', chance: 0.40 + (player.skating + player.shooting) / 400, win: 'You ripped it top shelf to win the game!', fail: 'You were stripped of the puck and caused a counter-attack.' },
       ];
 
   return (
@@ -142,18 +150,77 @@ export default function IntlMinigameScreen() {
           </h2>
       </div>
 
-      <p className="text-sm sm:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-center">
-        You are representing <strong className="text-white">{countryName}</strong> in a {
-            initialStake === 'GOLD' ? 'Gold Medal Game' :
-            initialStake === 'BRONZE' ? 'Bronze Medal Game' :
-            initialStake === 'SURVIVAL' ? 'must-win Relegation Scare' :
-            initialStake === 'PROMOTION' ? 'must-win Promotion Final' :
-            'Consolation Game'
-        }!
-      </p>
+      {!showSummary && (
+          <p className="text-sm sm:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-center animate-fade-in">
+            You are representing <strong className="text-white">{countryName}</strong> in a {upcomingMatchText}!
+          </p>
+      )}
+
+      {/* PHASE 0: GROUP STAGE SUMMARY */}
+      {showSummary && groupData && (
+        <div className="max-w-3xl mx-auto fade-up mb-6">
+            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-8 rounded-xl shadow-2xl text-left mb-6">
+                <div className="flex justify-between items-end border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
+                    <div>
+                        <h3 className="text-2xl font-black text-white uppercase sports-font">Group Stage Summary</h3>
+                        <p className="text-slate-400 font-sans text-sm mt-1">{groupData.gamesPlayed} Game Round-Robin • Team {countryName}</p>
+                    </div>
+                    <div className="text-right hidden sm:block">
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${initialStake === 'GOLD' || initialStake === 'BRONZE' || initialStake === 'PROMOTION' ? 'bg-[#22E748]/10 text-[#22E748] border-[#22E748]/30' : 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30'}`}>
+                            {upcomingMatchText}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-[#1a2230] p-4 sm:p-5 rounded-lg border border-[rgba(255,255,255,0.05)] flex flex-col items-center justify-center shadow-inner">
+                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest uppercase mb-1">Group Placement</p>
+                        <p className="text-3xl sm:text-4xl font-black text-white sports-font">
+                            {groupData.placement} <span className="text-lg text-slate-500">/ {groupData.groupSize}</span>
+                        </p>
+                    </div>
+                    <div className="bg-[#1a2230] p-4 sm:p-5 rounded-lg border border-[rgba(255,255,255,0.05)] flex flex-col items-center justify-center shadow-inner">
+                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest uppercase mb-1">Record (W-L-OTL)</p>
+                        <p className="text-3xl sm:text-4xl font-black text-white sports-font">
+                            <span className="text-[#22E748]">{groupData.record.w}</span>-
+                            <span className="text-[#ef4444]">{groupData.record.l}</span>-
+                            <span className="text-[#F59E0B]">{groupData.record.otl}</span>
+                        </p>
+                    </div>
+                </div>
+
+                {player.pos !== 'G' && (
+                    <div className="bg-[#1a2230] p-4 sm:p-6 rounded-lg border border-[rgba(255,255,255,0.05)] text-center mb-6 shadow-inner">
+                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest uppercase mb-4">Your Tournament Stats</p>
+                        <div className="grid grid-cols-3 divide-x divide-[rgba(255,255,255,0.1)]">
+                            <div className="flex flex-col items-center">
+                                <p className="text-3xl sm:text-4xl font-black text-white sports-font">{groupData.stats.g}</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Goals</p>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <p className="text-3xl sm:text-4xl font-black text-white sports-font">{groupData.stats.a}</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Assists</p>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <p className="text-3xl sm:text-4xl font-black text-[#3b82f6] sports-font">{groupData.stats.g + groupData.stats.a}</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Points</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            
+            <button 
+                onClick={() => setShowSummary(false)} 
+                className="btn-primary w-full py-4 sm:py-5 rounded-xl text-lg sm:text-xl sports-font tracking-widest uppercase shadow-2xl transition-transform hover:scale-[1.02]"
+            >
+                ADVANCE TO {upcomingMatchText} ➔
+            </button>
+        </div>
+      )}
 
       {/* PHASE 1: PRE-TOURNAMENT PREPARATION SCENARIO */}
-      {prepPhase && !intlResult && (
+      {!showSummary && prepPhase && !intlResult && (
         <div className="max-w-2xl mx-auto fade-up">
            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-8 rounded-xl shadow-2xl text-left mb-6">
               <h3 className="text-2xl font-black text-[#3b82f6] mb-3 uppercase sports-font">{scenario.title}</h3>
@@ -185,10 +252,10 @@ export default function IntlMinigameScreen() {
       )}
 
       {/* PHASE 2: THE GAME DECISION */}
-      {!prepPhase && !intlResult && (
+      {!showSummary && !prepPhase && !intlResult && (
       <div className="fade-up">
         {prepFeedback && (
-            <div className={`mb-8 p-4 border rounded-xl inline-block ${prepFeedback.isWin ? 'border-[#22E748]/50 bg-[#22E748]/10 text-[#22E748]' : 'border-red-500/50 bg-red-500/10 text-red-400'}`}>
+            <div className={`mb-8 p-4 border rounded-xl inline-block shadow-md ${prepFeedback.isWin ? 'border-[#22E748]/50 bg-[#22E748]/10 text-[#22E748]' : 'border-red-500/50 bg-red-500/10 text-red-400'}`}>
                 <p className="font-bold text-sm tracking-wide uppercase">{prepFeedback.msg}</p>
             </div>
         )}
@@ -196,7 +263,7 @@ export default function IntlMinigameScreen() {
           {gameChoices.map((c, i) => (
             <button
               key={i}
-              onClick={() => handleMinigameChoice(c.chance, c.win, c.fail)}
+              onClick={() => handleMinigameChoice(c.chance, c.win, c.fail, { isRisky: c.isRisky, baseTeamChance: 0.50 })}
               className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] ${c.hover} p-5 sm:p-6 rounded-xl transition-all cursor-pointer flex flex-col justify-between items-center text-left group shadow-lg min-h-[200px]`}
             >
               <div className="w-full">
@@ -216,7 +283,7 @@ export default function IntlMinigameScreen() {
                   SUCCESS ODDS: <span className={`font-black sports-font text-xs ml-1 ${c.chance >= 0.65 ? 'text-[#22E748]' : c.chance >= 0.50 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>{Math.round(c.chance * 100)}%</span>
                 </p>
 
-                <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                <div className="flex justify-center items-center gap-1.5 flex-wrap mt-1">
                   {String(c.tag).split('+').map((statLabel, idx) => {
                     const s = statLabel.trim();
                     let colorCls = 'text-white bg-white/10 border-white/30'; 
@@ -232,6 +299,12 @@ export default function IntlMinigameScreen() {
                       </span>
                     );
                   })}
+                  {/* Pass 2: Show if play is safe/risky on the button itself */}
+                  {c.isRisky ? (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30">RISKY</span>
+                  ) : (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30">SAFE</span>
+                  )}
                 </div>
               </div>
             </button>

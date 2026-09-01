@@ -92,35 +92,38 @@ export default function RetirementScreen() {
             }
         });
 
-        if (intlAwards.length > 0) {
-            // Deterministic simulation based on season year & player state (pure function)
+        // Check if we saved native stats, OR if it's an old save with a medal
+        if (season.intlData || intlAwards.length > 0) {
             const seed = (season.year * 17 + (player.number || 1) * 31) % 100;
-            const simGames = 5 + (seed % 3); // 5 to 7 games
-            let simGoals = 0, simAssists = 0, simSaves = 0, simShots = 0, simShutouts = 0, simPM = 0;
+            
+            // Use real data if available, fallback to faking it for legacy saves
+            const simGames = season.intlData?.gamesPlayed ?? (5 + (seed % 3));
+            let simGoals = season.intlData?.stats?.g ?? 0;
+            let simAssists = season.intlData?.stats?.a ?? 0;
+            let simSaves = 0, simShots = 0, simShutouts = 0, simPM = 0;
 
             if (player.pos === 'G') {
-                simShots = simGames * (20 + (seed % 15));
-                simSaves = Math.floor(simShots * (0.900 + ((seed % 40) * 0.001)));
-                simShutouts = seed % 2;
+                simShots = season.intlData?.stats?.shots ?? (simGames * (20 + (seed % 15)));
+                simSaves = season.intlData?.stats?.saves ?? Math.floor(simShots * (0.900 + ((seed % 40) * 0.001)));
+                simShutouts = season.intlData?.stats?.sho ?? (seed % 2);
             } else {
-                const isDef = ['LD', 'RD'].includes(player.pos);
-                simGoals = Math.floor(simGames * (isDef ? (0.1 + (seed % 20) * 0.01) : (0.3 + (seed % 30) * 0.01)));
-                simAssists = Math.floor(simGames * (isDef ? (0.2 + (seed % 30) * 0.01) : (0.4 + (seed % 30) * 0.01)));
-                simPM = (seed % 12) - 2;
+                if (!season.intlData) {
+                    const isDef = ['LD', 'RD'].includes(player.pos);
+                    simGoals = Math.floor(simGames * (isDef ? (0.1 + (seed % 20) * 0.01) : (0.3 + (seed % 30) * 0.01)));
+                    simAssists = Math.floor(simGames * (isDef ? (0.2 + (seed % 30) * 0.01) : (0.4 + (seed % 30) * 0.01)));
+                }
+                simPM = season.intlData?.stats?.pm ?? ((seed % 12) - 2);
             }
 
-            // Detect tournament name from the award string and prepend the year
-            const firstAward = intlAwards[0] || '';
-            let baseName = 'International Tournament';
-            if (firstAward.includes('World Juniors') || firstAward.includes('WJC')) {
-                baseName = 'World Junior Championship';
-            } else if (firstAward.includes('Olympics')) {
-                baseName = 'Winter Olympic Games';
-            } else if (firstAward.includes('World Championship')) {
-                baseName = 'IIHF World Championship';
+            let tournamentName = season.intlData?.tournamentName;
+            if (!tournamentName) {
+                const firstAward = intlAwards[0] || '';
+                let baseName = 'International Tournament';
+                if (firstAward.includes('World Juniors') || firstAward.includes('WJC')) baseName = 'World Junior Championship';
+                else if (firstAward.includes('Olympics')) baseName = 'Winter Olympic Games';
+                else if (firstAward.includes('World Championship')) baseName = 'IIHF World Championship';
+                tournamentName = `${season.year} ${baseName}`;
             }
-
-            const tournamentName = `${season.year} ${baseName}`;
 
             intlSeasons.push({
                 year: season.year,
@@ -179,11 +182,16 @@ export default function RetirementScreen() {
     }
 
     let primaryTeam = player.team;
+    let primaryLeague = player.league; // NEW: Track the league of your most played team!
+    
     if (teamStints.length > 0) {
       const sortedStints = [...teamStints].filter(s => !s.isNational).sort((a, b) => b.games - a.games);
-      if (sortedStints.length > 0) primaryTeam = sortedStints[0].team;
+      if (sortedStints.length > 0) {
+          primaryTeam = sortedStints[0].team;
+          primaryLeague = sortedStints[0].league; 
+      }
     }
-    const primaryTeamName = getFullTeamName(primaryTeam, player.league);
+    const primaryTeamName = getFullTeamName(primaryTeam, primaryLeague);
 
     const cityWords = primaryTeamName.split(' ');
     const cityName = cityWords.length > 1 ? cityWords[0] : primaryTeamName;
@@ -199,7 +207,7 @@ export default function RetirementScreen() {
       'VGK': 'T-Mobile Arena', 'WSH': 'Capital One Arena', 'WPG': 'Canada Life Centre', 'UTA': 'Delta Center'
     };
 
-    const arenaName = player.league === 'NHL' && NHL_ARENAS[primaryTeam] ? NHL_ARENAS[primaryTeam] : `${cityName} Arena`;
+    const arenaName = primaryLeague === 'NHL' && NHL_ARENAS[primaryTeam] ? NHL_ARENAS[primaryTeam] : `${cityName} Arena`;
     const stanleyCups = (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length;
     
     const aggregatedAwards = {};
@@ -226,8 +234,8 @@ export default function RetirementScreen() {
         <div className="w-full max-w-4xl space-y-4">
           
           <div className="game-panel p-6 sm:p-10 text-center border-2 border-[#3b82f6] relative overflow-hidden bg-gradient-to-b from-[#101410] to-[#080a08] shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-            <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
-              <div className="flex flex-wrap items-center gap-2">
+            {/* Unified flex container centered together */}
+            <div className="flex flex-wrap justify-center items-center gap-2 mb-4 sm:mb-6">
                 <span className="text-[10px] sm:text-xs font-black tracking-widest text-slate-400 uppercase bg-black/40 px-3.5 sm:px-4 rounded-full border border-slate-700/80 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
                   RETIRED AT AGE {player.age}
                 </span>
@@ -237,10 +245,9 @@ export default function RetirementScreen() {
                 <span className="text-[10px] sm:text-xs font-black tracking-widest text-[#c084fc] uppercase bg-[#c084fc]/10 px-3.5 sm:px-4 rounded-full border border-[#c084fc]/30 inline-flex items-center justify-center h-8 sm:h-9 leading-none">
                   🎯 {draftLabel}
                 </span>
-              </div>
-              <span className={`text-[10px] sm:text-xs font-black tracking-widest uppercase px-3.5 sm:px-4 rounded-full border inline-flex items-center justify-center h-8 sm:h-9 leading-none ${isLegend ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'}`}>
-                {isLegend ? 'HALL OF FAME CAREER' : 'CAREER ACCOMPLISHED'}
-              </span>
+                <span className={`text-[10px] sm:text-xs font-black tracking-widest uppercase px-3.5 sm:px-4 rounded-full border inline-flex items-center justify-center h-8 sm:h-9 leading-none ${isLegend ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'}`}>
+                  {isLegend ? 'HALL OF FAME CAREER' : 'CAREER ACCOMPLISHED'}
+                </span>
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-black text-white number-font uppercase tracking-tight mb-1">
@@ -403,11 +410,11 @@ export default function RetirementScreen() {
               </div>
               
               <div className="bg-[#101410] p-4 rounded-xl border border-[#3b82f6]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-2 shadow-inner">
-                <p className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.value || 50000)}</p>
+                <p className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.peakValue || player.stats?.value || 50000)}</p>
                 <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">PEAK VALUE</p>
               </div>
               <div className="bg-[#101410] p-4 rounded-xl border border-[#22E748]/30 flex flex-col items-center justify-center min-h-[90px] col-span-1 sm:col-span-3 shadow-inner">
-                <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.earnings || 0)}</p>
+                <p className="text-2xl sm:text-4xl font-black text-[#22E748] sports-font leading-none mb-2 drop-shadow-md">{formatMoney(player.stats?.careerEarnings || player.stats?.earnings || 0)}</p>
                 <p className="text-[10px] font-bold text-slate-500 uppercase leading-none tracking-widest">CAREER EARNINGS</p>
               </div>
             </div>
@@ -615,8 +622,8 @@ export default function RetirementScreen() {
                   id: Date.now(), name: player.name, pos: player.pos, number: player.number,
                   games: nhlGames, points: isGoalie ? svPct : nhlPoints,
                   cups: (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length,
-                  awards: totalIndividualAwards, earnings: player.stats?.earnings || 0,
-                  team: primaryTeamName, logo: primaryTeam,
+                  awards: totalIndividualAwards, earnings: player.stats?.careerEarnings || player.stats?.earnings || 0,
+                  team: primaryTeamName, logo: primaryTeam, league: primaryLeague,
                   isLegend: scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer',
                   careerScore: scoreData.total, 
                 };

@@ -129,17 +129,33 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
              ccState = 'Two-Way Contract';
          }
 
+         // 1. Generate the true Fair-Market Extension (for everyone)
          offers.push({
            team: actingTeam,
            league: actingLeague,
-           type: isRFA ? (player.ovr >= 82 ? 'RFA EXTENSION' : 'QUALIFYING OFFER') : 'EXTENSION',
-           salary: isRFA && player.ovr < 82 ? qoSalary : (actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary),
-           years: isRFA && player.ovr < 82 ? 1 : maxYears,
+           type: isRFA ? 'RFA EXTENSION' : 'EXTENSION',
+           salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary,
+           years: maxYears,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
            idolHit: 10,
            state: ccState,
            standing: currentClubStanding
          });
+
+         // 2. Inject the bare-minimum Qualifying Offer (Legal requirement for RFAs)
+         if (isRFA) {
+             offers.push({
+               team: actingTeam,
+               league: actingLeague,
+               type: 'QUALIFYING OFFER',
+               salary: qoSalary,
+               years: 1, // QOs are strictly 1-year deals
+               role: 'Two-Way Deal', // QOs offer no roster guarantees
+               idolHit: 0,
+               state: ccState,
+               standing: currentClubStanding
+             });
+         }
 
          // NEW: HOMETOWN DISCOUNT (For Beloved UFAs)
          if (!isRFA && actingLeague === 'NHL' && (player.idolatry || 0) >= 600) {

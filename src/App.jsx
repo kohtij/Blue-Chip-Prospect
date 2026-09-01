@@ -445,8 +445,28 @@ function App() {
 
   const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
     // eslint-disable-next-line react-hooks/purity
-    const isWin = Math.random() < successChance;
-    const msg = isWin ? successMsg : failMsg;
+    const isPlayerSuccess = Math.random() < successChance;
+    const isRisky = reward?.isRisky !== false; // Default to true for legacy minigames
+    
+    let isWin; 
+    let msg = isPlayerSuccess ? successMsg : failMsg;
+
+    if (isRisky) {
+        // Star player decides the game. If you succeed, the team wins. If you fail, you cost them the game.
+        isWin = isPlayerSuccess;
+    } else {
+        // Safe play. The team relies on baseline odds (default 50%), heavily swung +/- 15% by your success.
+        const baseOdds = reward?.baseTeamChance || 0.50;
+        // eslint-disable-next-line react-hooks/purity
+        isWin = Math.random() < (baseOdds + (isPlayerSuccess ? 0.15 : -0.15));
+        
+        // Contextualize the message if player succeeded but team lost, or vice versa
+        if (isPlayerSuccess && !isWin) {
+            msg = successMsg + " But despite your solid effort, the team still fell short.";
+        } else if (!isPlayerSuccess && isWin) {
+            msg = failMsg + " Fortunately, your teammates bailed you out for the win!";
+        }
+    }
 
     if (minigameContext === 'memcup') {
       if (isWin) {
@@ -536,13 +556,26 @@ function App() {
         }
       }
 
+      // 1. Award the medal globally
       if (awardName) {
           const medalString = `${awardName}, ${tournamentName} ${currentYear}`;
           updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
-          if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
-              const lastIdx = updatedPlayer.seasonHistory.length - 1;
-              updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
-          }
+      }
+
+      // 2. ALWAYS save the tournament appearance and real stats to the season history!
+      if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
+          const lastIdx = updatedPlayer.seasonHistory.length - 1;
+          const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
+          if (awardName) currentAwards.push(`${awardName}, ${tournamentName} ${currentYear}`);
+          
+          updatedPlayer.seasonHistory[lastIdx] = { 
+              ...updatedPlayer.seasonHistory[lastIdx], 
+              awards: currentAwards,
+              intlData: {
+                  tournamentName: `${currentYear} ${tournamentName}`,
+                  ...player.intlData // Natively injects our new backend group stage stats!
+              }
+          };
       }
 
       // Cleanup our temporary tracking variables
@@ -563,7 +596,11 @@ function App() {
       ...withOvr,
       idolatry: capIdol(withOvr.idolatry + (outcome.idol || 0)),
       ovr: recomputeOvr(withOvr),
-      stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcome.money || 0) },
+      stats: { 
+          ...withOvr.stats, 
+          earnings: (withOvr.stats?.earnings || 0) + (outcome.money || 0),
+          careerEarnings: (withOvr.stats?.careerEarnings || withOvr.stats?.earnings || 0) + (outcome.money || 0)
+      },
       relationships: {
         coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (outcome.rel?.coach || 0))),
         teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (outcome.rel?.teammates || 0))),
@@ -583,7 +620,11 @@ function App() {
     const withOvr = applyOvrDelta(player, payout.ovr || 0);
     let updatedPlayer = {
       ...withOvr, idolatry: capIdol(withOvr.idolatry + (payout.idol || 0)), ovr: recomputeOvr(withOvr),
-      stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (payout.money || 0) },
+      stats: { 
+          ...withOvr.stats, 
+          earnings: (withOvr.stats?.earnings || 0) + (payout.money || 0),
+          careerEarnings: (withOvr.stats?.careerEarnings || withOvr.stats?.earnings || 0) + (payout.money || 0)
+      },
       relationships: {
         coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (payout.rel?.coach || 0))),
         teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (payout.rel?.teammates || 0))),
@@ -676,13 +717,26 @@ function App() {
         }
       }
 
+      // 1. Award the medal globally
       if (awardName) {
           const medalString = `${awardName}, ${tournamentName} ${currentYear}`;
           updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
-          if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
-              const lastIdx = updatedPlayer.seasonHistory.length - 1;
-              updatedPlayer.seasonHistory[lastIdx] = { ...updatedPlayer.seasonHistory[lastIdx], awards: [...(updatedPlayer.seasonHistory[lastIdx].awards || []), medalString] };
-          }
+      }
+
+      // 2. ALWAYS save the tournament appearance and real stats to the season history!
+      if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
+          const lastIdx = updatedPlayer.seasonHistory.length - 1;
+          const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
+          if (awardName) currentAwards.push(`${awardName}, ${tournamentName} ${currentYear}`);
+          
+          updatedPlayer.seasonHistory[lastIdx] = { 
+              ...updatedPlayer.seasonHistory[lastIdx], 
+              awards: currentAwards,
+              intlData: {
+                  tournamentName: `${currentYear} ${tournamentName}`,
+                  ...player.intlData // Natively injects our new backend group stage stats!
+              }
+          };
       }
 
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
@@ -708,7 +762,25 @@ function App() {
     unlockAchievement, triggerMinigame, generateTraining,
   };
 
-  const advanceToOffseason = () => _advanceToOffseason(ctx);
+  const advanceToOffseason = () => {
+    const isAgedOutJunior = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(player.league) && player.age >= 21;
+    const isAgedOutNCAA = player.league === 'NCAA' && player.age >= 24;
+    
+    if (isAgedOutJunior || isAgedOutNCAA) {
+        setActiveEvent({
+            title: 'AMATEUR GRADUATION',
+            desc: isAgedOutNCAA 
+                ? `You have exhausted your NCAA collegiate eligibility. Your amateur career has concluded and it is time to turn pro.`
+                : `You have officially aged out of major junior hockey. Your amateur career has concluded and it is time to turn pro.`,
+            choices: [{ label: 'Enter Free Agency', effect: { idol: 0, ovr: 0 } }],
+            isOffseasonEvent: true
+        });
+        setScreen('event');
+        return;
+    }
+    
+    _advanceToOffseason(ctx);
+  };
   const handleTrain        = (t) => _handleTrain(ctx, t);
   const checkEarlyDemotion = () => {
     const isUnder20 = player.age < 20;
@@ -950,9 +1022,20 @@ function App() {
       const stats = { ...p.stats, earnings: (p.stats?.earnings || 0) - item.cost };
       if (item.type === 'consumable') return { ...p, stats, buffs: [...(p.buffs || []), item] };
       const next = { ...p, stats, inventory: [...(p.inventory || []), item.id] };
+      
+      // Apply the intended stats
       if (item.effect?.stamina) next.stamina = cap((next.stamina || 50) + item.effect.stamina);
       if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ || 50) + item.effect.hockeyIQ);
       if (item.effect?.idolatry) next.idolatry = capIdol(next.idolatry + item.effect.idolatry);
+      if (item.effect?.physicality) next.physicality = cap((next.physicality || 50) + item.effect.physicality);
+      if (item.effect?.shooting) next.shooting = cap((next.shooting || 50) + item.effect.shooting);
+      if (item.effect?.skating) next.skating = cap((next.skating || 50) + item.effect.skating);
+      
+      // Safety net: Catch the "power" typo and route it to physicality
+      if (item.effect?.power) next.physicality = cap((next.physicality || 50) + item.effect.power);
+      
+      // Recompute OVR so the upgrade instantly reflects on the player card
+      next.ovr = recomputeOvr(next);
       return next;
     });
   };
@@ -963,14 +1046,21 @@ function App() {
 
     if (currentEvent?.isTradeDeadlineEvent) {
        const recapToUse = seasonRecap || pendingSeasonResult?.recap;
-       if (recapToUse) setSeasonRecap(recapToUse);
-       
        const tradeAction = currentEvent.choices?.find(c => c.action === 'ACCEPT_TRADE_DEADLINE');
        
-       // FIX: Verify the player actually changed teams before assigning new playoff standings (prevents the NMC Veto bug)
+       // Verify the player actually changed teams before assigning new playoff standings (prevents the NMC Veto bug)
        const didTrade = currentPlayer.team !== player.team;
        const newTeamMadePlayoffs = didTrade ? (tradeAction?.actionData?.madePlayoffs ?? recapToUse?.madePlayoffs ?? false) : (recapToUse?.madePlayoffs ?? false);
        const newTeamStandings = didTrade ? (tradeAction?.actionData?.teamStandings ?? recapToUse?.standings ?? 16) : (recapToUse?.standings ?? 16);
+       
+       // FIX: Update the actual Season Recap object with the new team's playoff status so the end-of-year screen reads correctly!
+       if (recapToUse) {
+           setSeasonRecap({
+               ...recapToUse,
+               madePlayoffs: newTeamMadePlayoffs,
+               standings: newTeamStandings
+           });
+       }
        
        runPostSeasonFlow(currentPlayer.age, currentPlayer.ovr, currentPlayer.league, currentPlayer.team, newTeamMadePlayoffs, 2026 + (currentPlayer.stats?.seasonsPlayed || 0), newTeamStandings);
        return;

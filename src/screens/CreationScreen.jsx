@@ -271,7 +271,7 @@ export default function CreationScreen() {
                            <div key={c.id} className="bg-[#101410] border border-[rgba(255,255,255,0.08)] p-4 rounded-xl flex items-center gap-4 group hover:border-[#3b82f6]/50 transition-colors">
                              
                              <div className="w-12 h-12 shrink-0 flex items-center justify-center bg-black/40 rounded-lg border border-[rgba(255,255,255,0.05)]">
-                               {c.logo ? <TeamLogo teamId={c.logo} league={'NHL'} size="small" /> : <span className="text-2xl">🏒</span>}
+                               {c.logo ? <TeamLogo teamId={c.logo} league={c.league || 'NHL'} isAHL={c.league === 'AHL'} size="small" /> : <span className="text-2xl">🏒</span>}
                              </div>
                              
                              <div className="min-w-0 flex-1">

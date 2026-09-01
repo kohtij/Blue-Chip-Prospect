@@ -1,13 +1,13 @@
-import  { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const FaceoffGame = ({ player, onComplete }) => {
    const [status, setStatus] = useState('waiting');
    const [msg, setMsg] = useState('WAIT FOR GREEN...');
+   const [warnings, setWarnings] = useState(0); // Track false starts
    const doneRef = useRef(false);
    const startTimeRef = useRef(null);
 
-   // Added a delay so the player can actually read their reaction time before the screen advances!
    const finish = useCallback((win, delay = 1500) => {
      if (doneRef.current) return;
      doneRef.current = true;
@@ -20,9 +20,8 @@ const FaceoffGame = ({ player, onComplete }) => {
       const to = setTimeout(() => {
          setStatus('ready');
          setMsg('CLICK NOW!');
-         startTimeRef.current = Date.now(); // Start the timer exactly when it turns green
+         startTimeRef.current = Date.now();
 
-         // Higher IQ gives you a much larger reaction window before AI wins
          const aiTime = Math.max(250, 600 - (player.hockeyIQ * 2));
          innerTo = setTimeout(() => {
            setStatus(prev => {
@@ -41,9 +40,14 @@ const FaceoffGame = ({ player, onComplete }) => {
 
    const handleClick = () => {
      if (status === 'waiting') {
-       setStatus('done');
-       setMsg('FALSE START!');
-       finish(false);
+       if (warnings === 0) {
+           setWarnings(1);
+           setMsg('WARNING: TOO EARLY!');
+       } else {
+           setStatus('done');
+           setMsg('EJECTED! (TOO EARLY)');
+           finish(false); // Triggers standard minigame failure penalty
+       }
      } else if (status === 'ready') {
        const reactionTime = Date.now() - startTimeRef.current;
        setStatus('done');

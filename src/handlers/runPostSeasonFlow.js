@@ -434,33 +434,87 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const natTier = player.natTier || playerNatData.tier || 4;
 
     // THE GROUP STAGE SIMULATOR
-    const determineStakes = (isWJC, isOlympicYear) => {
-        let baseScore = Math.random() * 50; // Hockey RNG (0-50)
-        if (natTier === 1) baseScore += 50; // Tier 1 powerhouse (50-100)
-        if (natTier === 2) baseScore += 25; // Tier 2 contender (25-75)
+    const simulateGroupStage = (isWJC, isOlympicYear) => {
+        const tourneyType = isWJC ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
+        let groupSize = 6; 
+        const isTopDiv = activeNatDiv === 'Top Division';
 
-        // Player Impact Modifier
-        let impact = 0;
-        if (pOvr >= 85) impact = 25; // Superstar carry
-        else if (pOvr >= 75) impact = 10; // Solid contributor
-        else if (pOvr <= 65 && !isWJC) impact = -10; // Depth players drag down senior rosters, but not WJC
-
-        const total = baseScore + impact;
-        
-        if (activeNatDiv === 'Top Division') {
-            if (total >= 90) return 'GOLD';
-            if (total >= 60) return 'BRONZE';
-            
-            // Olympics have no relegation. If a top team chokes, they play a meaningless consolation game.
-            return isOlympicYear ? 'CONSOLATION' : 'SURVIVAL'; 
-        } else {
-            if (total >= 70) return 'PROMOTION';
-            return 'CONSOLATION';
+        if (isTopDiv) {
+            groupSize = isOlympicYear ? 4 : (isWJC ? 5 : 8);
         }
+
+        let w = 0, l = 0, otl = 0;
+        let g = 0, a = 0;
+        let pts = 0;
+        const gamesPlayed = groupSize - 1;
+
+        // Simulate each game in the round robin
+        for (let i = 0; i < gamesPlayed; i++) {
+            let winChance = 0.5; 
+            if (natTier === 1) winChance = 0.7; 
+            if (natTier === 2) winChance = 0.55; 
+            if (natTier === 3) winChance = 0.4; 
+            if (natTier === 4) winChance = 0.3; 
+
+            // Player Impact Modifier
+            if (pOvr >= 85) winChance += 0.20;
+            else if (pOvr >= 75) winChance += 0.10;
+            else if (pOvr <= 65 && !isWJC) winChance -= 0.10; 
+
+            const roll = Math.random();
+            if (roll < winChance - 0.1) { w++; pts += 3; } 
+            else if (roll < winChance) { w++; pts += 2; } 
+            else if (roll < winChance + 0.1) { otl++; pts += 1; l++; } 
+            else { l++; } 
+
+            // Stat Tracking
+            if (player.pos !== 'G') {
+                const ptChance = (pOvr / 100) * (isWJC ? 1.5 : 1.0);
+                if (Math.random() < ptChance) g++;
+                if (Math.random() < ptChance * 1.2) a++;
+            }
+        }
+
+        // Determine Final Group Placement 
+        const ptRatio = pts / (gamesPlayed * 3);
+        let placement;
+        if (ptRatio > 0.8) placement = 1;
+        else if (ptRatio > 0.6) placement = 2;
+        else if (ptRatio > 0.4) placement = Math.ceil(groupSize / 2);
+        else if (ptRatio > 0.2) placement = groupSize - 1;
+        else placement = groupSize;
+
+        // Determine Final Stakes based on real IIHF Rules
+        let finalStakes;
+        if (isTopDiv) {
+            if (isOlympicYear) {
+                finalStakes = placement <= 2 ? (Math.random() > 0.5 ? 'GOLD' : 'BRONZE') : 'CONSOLATION';
+            } else if (isWJC) {
+                finalStakes = placement <= 4 ? (Math.random() > 0.5 ? 'GOLD' : 'BRONZE') : 'SURVIVAL';
+            } else {
+                finalStakes = placement <= 4 ? (Math.random() > 0.5 ? 'GOLD' : 'BRONZE') : (placement === 8 ? 'SURVIVAL' : 'CONSOLATION');
+            }
+        } else {
+            finalStakes = placement === 1 ? 'PROMOTION' : (placement === groupSize ? 'SURVIVAL' : 'CONSOLATION');
+        }
+
+        return {
+            intlData: {
+                tourneyType,
+                division: isOlympicYear ? 'Olympic Tournament' : activeNatDiv,
+                gamesPlayed,
+                record: { w, l, otl, pts },
+                stats: { g, a },
+                placement,
+                groupSize,
+            },
+            intlStakes: finalStakes
+        };
     };
-    
+
     if (pAge <= 19 && Math.random() > 0.4) {
-      setPlayer(p => ({ ...p, intlStakes: determineStakes(true, false) }));
+      const sim = simulateGroupStage(true, false);
+      setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes }));
       setIntlResult(null);
       setMinigameContext('wjc');
       setScreen('intl-minigame');
@@ -471,11 +525,11 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
        const isOlympicYear = nextYear % 4 === 2;
        const isTopDiv = activeNatDiv === 'Top Division';
        
-       // Top Division plays Olympics (4 yrs) & World Champs (Annual). Lower divisions play World Champs (Annual).
        const playSenior = (isTopDiv && isOlympicYear) || (!isOlympicYear && Math.random() > 0.3) || (!isTopDiv && Math.random() > 0.4);
 
        if (playSenior) {
-          setPlayer(p => ({ ...p, intlStakes: determineStakes(false, isOlympicYear), isOlympicYear }));
+          const sim = simulateGroupStage(false, isOlympicYear);
+          setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes, isOlympicYear }));
           setIntlResult(null);
           setMinigameContext('olympics');
           setScreen('intl-minigame');

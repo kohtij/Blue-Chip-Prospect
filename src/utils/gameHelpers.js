@@ -172,8 +172,19 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings }
 
   if (rating >= 8.5) {
     if (player.league === 'NHL') {
-      awards.push('NHL All-Star');
-      if (rating >= 9.2) awards.push('1st Team All-Star');
+      // THE ALL-STAR FIX:
+      // You must be a true star (83+ OVR) OR have an unbelievably elite season (9.0+ Rating) to get the nod.
+      const isTrueStar = player.ovr >= 83;
+      const isHavingEliteSeason = rating >= 9.0;
+      
+      if (isTrueStar || isHavingEliteSeason) {
+          awards.push('NHL All-Star');
+      }
+      
+      // 1st Team All-Star is for the absolute best of the best
+      if (rating >= 9.2 && player.ovr >= 85) {
+          awards.push('1st Team All-Star');
+      }
     } else if (['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
       awards.push(`${player.league} 1st All-Star Team`);
     } else if (player.league === 'NCAA') {
@@ -545,7 +556,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
     stats: {
       ...p.stats,
       value: newVal,
+      peakValue: Math.max((p.stats.peakValue || p.stats.value || 0), newVal),
       earnings: (p.stats.earnings || 0) + (p.contract?.salary || 0), 
+      careerEarnings: (p.stats.careerEarnings || p.stats.earnings || 0) + (p.contract?.salary || 0), 
       peakOvr: newPeakOvr,
       careerHighGoals: Math.max(p.stats.careerHighGoals || 0, g),
       seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,

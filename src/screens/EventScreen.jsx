@@ -4,6 +4,17 @@ import { useAppContext } from '../AppContext';
 export default function EventScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { activeEvent, handleEventChoice, player } = useAppContext();
+
+  // SAFEGUARD 1: Reset the click lock whenever a new event appears (chained
+  // events — e.g. Rivalry Night resolving into a follow-up event — reuse this
+  // same component instance without unmounting, so state doesn't naturally
+  // reset. Without this, the second event's buttons render disabled from the
+  // previous click's lock.
+   const [prevEvent, setPrevEvent] = useState(activeEvent);
+   if (activeEvent !== prevEvent) {
+       setPrevEvent(activeEvent);
+       setIsProcessing(false);
+   }
   
   if (!activeEvent) {
       return (
@@ -62,22 +73,43 @@ export default function EventScreen() {
                   <button key={i} disabled={isProcessing} onClick={() => {
                       if (isProcessing) return;
                       setIsProcessing(true);
-                      let modChoice = { ...c };
-                      if (activeEvent.title?.includes('COMMERCIAL') || activeEvent.title?.includes('SPONSOR') || activeEvent.title?.includes('ENDORSEMENT')) {
-                          const tTrust = player.relationships?.teammates || 50;
-                          let relHit = 0;
-                          if (tTrust < 45) relHit = -15; 
-                          else if (tTrust > 75) relHit = 5; 
-                          
-                          if (relHit !== 0) {
-                              modChoice.effect = {
-                                  ...modChoice.effect,
-                                  rel: { ...(modChoice.effect?.rel || {}), teammates: (modChoice.effect?.rel?.teammates || 0) + relHit }
-                              };
-                          }
+
+                      // SAFEGUARD 3: force-release the lock after 1.5s no matter
+                      // what — nuclear backstop in case handleEventChoice silently
+                      // fails to transition the screen. If the transition works
+                      // normally, this component unmounts and the timeout is
+                      // harmless. If not, buttons unlock so the player can retry
+                      // instead of being permanently stuck.
+                      const releaseTimeout = setTimeout(() => setIsProcessing(false), 1500);
+
+                      try {
+                        let modChoice = { ...c };
+                        if (activeEvent.title?.includes('COMMERCIAL') || activeEvent.title?.includes('SPONSOR') || activeEvent.title?.includes('ENDORSEMENT')) {
+                            const tTrust = player.relationships?.teammates || 50;
+                            let relHit = 0;
+                            if (tTrust < 45) relHit = -15;
+                            else if (tTrust > 75) relHit = 5;
+
+                            if (relHit !== 0) {
+                                modChoice.effect = {
+                                    ...modChoice.effect,
+                                    rel: { ...(modChoice.effect?.rel || {}), teammates: (modChoice.effect?.rel?.teammates || 0) + relHit }
+                                };
+                            }
+                        }
+                        handleEventChoice(modChoice);
+                      } catch (e) {
+                        // SAFEGUARD 2: if handleEventChoice throws (like the
+                        // safeNationalities crash from an earlier turn), log it
+                        // and release the lock so the player can try again.
+                        // React ErrorBoundaries don't catch event-handler errors,
+                        // so this try/catch is what keeps a click-handler crash
+                        // from permanently locking the buttons.
+                        console.error('[EventScreen] handleEventChoice threw:', e);
+                        clearTimeout(releaseTimeout);
+                        setIsProcessing(false);
                       }
-                      handleEventChoice(modChoice);
-                  }} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-center gap-2 shadow-lg h-auto">
+                  }} className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all flex flex-col justify-center gap-2 shadow-lg h-auto ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                     <div className="flex justify-between items-start sm:items-center w-full gap-4">
                        <span className="text-sm sm:text-base font-bold text-left leading-tight">{c.label}</span>
                        <div className="flex items-center gap-2 shrink-0 mt-1 sm:mt-0">
