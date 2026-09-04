@@ -127,6 +127,26 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         setScreen('event');
         return;
     }
+    
+       
+    // ==========================================
+    // STORYLINE 1.75: THE LEADERSHIP GROUP (Alternate Captain)
+    // ==========================================
+    // Trigger: Established NHL player (3+ seasons, 82+ OVR), high coach trust, not already a captain.
+    if (!player.isCaptain && !player.isAlternate && currentLg === 'NHL' && player.stats?.seasonsPlayed >= 3 && coachTrustLvl >= 65 && pOvr >= 82 && Math.random() < 0.15 && !player.storylines?.alternateGiven) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, alternateGiven: true } }));
+        setActiveEvent({
+            title: '🅰️ THE LEADERSHIP GROUP',
+            desc: `The coach called you into his office. He loves your work ethic and the way the younger guys look up to you. He wants to stitch an "A" on your sweater this season to officially make you part of the leadership group.`,
+            choices: [
+                { label: 'Accept the Responsibility', isRisky: false, feedback: 'You are officially an Alternate Captain! The boys in the room are thrilled for you.', effect: { idol: 25, ovr: 1, rel: { coach: 15, teammates: 15 } }, action: 'MAKE_ALTERNATE' }
+            ],
+            madePlayoffs
+        });
+        setScreen('event');
+        return;
+    }
+    
     // ==========================================
     // STORYLINE 2: LOCKER ROOM POLITICS
     // ==========================================
@@ -429,84 +449,109 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
     
     // Track dynamic IIHF Divisions for Olympic/WC Eligibility
-    const playerNatData = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B' };
+    const playerNatData = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B', id: player.nat, name: 'Unknown' };
     const activeNatDiv = player.natDiv || playerNatData.division;
-    const natTier = player.natTier || playerNatData.tier || 4;
 
     // THE GROUP STAGE SIMULATOR
     const simulateGroupStage = (isWJC, isOlympicYear) => {
         const tourneyType = isWJC ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
-        let groupSize = 6; 
         const isTopDiv = activeNatDiv === 'Top Division';
 
+        let groupA 
+        let groupB = [];
+
+        // 1. Draw the actual opponents based on real tiers
         if (isTopDiv) {
-            groupSize = isOlympicYear ? 4 : (isWJC ? 5 : 8);
-        }
-
-        let w = 0, l = 0, otl = 0;
-        let g = 0, a = 0;
-        let pts = 0;
-        const gamesPlayed = groupSize - 1;
-
-        // Simulate each game in the round robin
-        for (let i = 0; i < gamesPlayed; i++) {
-            let winChance = 0.5; 
-            if (natTier === 1) winChance = 0.7; 
-            if (natTier === 2) winChance = 0.55; 
-            if (natTier === 3) winChance = 0.4; 
-            if (natTier === 4) winChance = 0.3; 
-
-            // Player Impact Modifier
-            if (pOvr >= 85) winChance += 0.20;
-            else if (pOvr >= 75) winChance += 0.10;
-            else if (pOvr <= 65 && !isWJC) winChance -= 0.10; 
-
-            const roll = Math.random();
-            if (roll < winChance - 0.1) { w++; pts += 3; } 
-            else if (roll < winChance) { w++; pts += 2; } 
-            else if (roll < winChance + 0.1) { otl++; pts += 1; l++; } 
-            else { l++; } 
-
-            // Stat Tracking
-            if (player.pos !== 'G') {
-                const ptChance = (pOvr / 100) * (isWJC ? 1.5 : 1.0);
-                if (Math.random() < ptChance) g++;
-                if (Math.random() < ptChance * 1.2) a++;
-            }
-        }
-
-        // Determine Final Group Placement 
-        const ptRatio = pts / (gamesPlayed * 3);
-        let placement;
-        if (ptRatio > 0.8) placement = 1;
-        else if (ptRatio > 0.6) placement = 2;
-        else if (ptRatio > 0.4) placement = Math.ceil(groupSize / 2);
-        else if (ptRatio > 0.2) placement = groupSize - 1;
-        else placement = groupSize;
-
-        // Determine Final Stakes based on real IIHF Rules
-        let finalStakes;
-        if (isTopDiv) {
-            if (isOlympicYear) {
-                finalStakes = placement <= 2 ? (Math.random() > 0.5 ? 'GOLD' : 'BRONZE') : 'CONSOLATION';
-            } else if (isWJC) {
-                finalStakes = placement <= 4 ? (Math.random() > 0.5 ? 'GOLD' : 'BRONZE') : 'SURVIVAL';
-            } else {
-                finalStakes = placement <= 4 ? (Math.random() > 0.5 ? 'GOLD' : 'BRONZE') : (placement === 8 ? 'SURVIVAL' : 'CONSOLATION');
-            }
+            const topTeams = ctx.safeNationalities.filter(n => n.division === 'Top Division' && n.id !== player.nat);
+            const shuffled = [...topTeams].sort(() => 0.5 - Math.random());
+            groupA = [ { ...playerNatData, isPlayer: true }, ...shuffled.slice(0, 4) ];
+            groupB = shuffled.slice(4, 9);
         } else {
-            finalStakes = placement === 1 ? 'PROMOTION' : (placement === groupSize ? 'SURVIVAL' : 'CONSOLATION');
+            const lowerTeams = ctx.safeNationalities.filter(n => n.division === activeNatDiv && n.id !== player.nat);
+            const shuffled = [...lowerTeams].sort(() => 0.5 - Math.random());
+            groupA = [ { ...playerNatData, isPlayer: true }, ...shuffled.slice(0, 5) ];
+        }
+
+        // 2. Simulate Round Robin Backend
+        const simGroup = (group) => {
+            let standings = group.map(t => ({ ...t, w: 0, l: 0, otl: 0, pts: 0, g: 0, a: 0 }));
+            for (let i = 0; i < standings.length; i++) {
+                for (let j = i + 1; j < standings.length; j++) {
+                    const t1 = standings[i];
+                    const t2 = standings[j];
+                    
+                    let t1WinChance = 0.5 + ((t2.tier - t1.tier) * 0.15);
+                    if (t1.isPlayer) t1WinChance += (pOvr >= 85 ? 0.2 : pOvr >= 75 ? 0.1 : 0);
+                    if (t2.isPlayer) t1WinChance -= (pOvr >= 85 ? 0.2 : pOvr >= 75 ? 0.1 : 0);
+                    t1WinChance = Math.max(0.1, Math.min(0.9, t1WinChance));
+
+                    const roll = Math.random();
+                    if (roll < t1WinChance - 0.1) { t1.w++; t1.pts += 3; t2.l++; }
+                    else if (roll < t1WinChance) { t1.w++; t1.pts += 2; t2.otl++; t2.pts += 1; }
+                    else if (roll < t1WinChance + 0.1) { t2.w++; t2.pts += 2; t1.otl++; t1.pts += 1; }
+                    else { t2.w++; t2.pts += 3; t1.l++; }
+
+                    if (t1.isPlayer && player.pos !== 'G') {
+                        if (Math.random() < pOvr/100 * 1.5) t1.g++;
+                        if (Math.random() < pOvr/100 * 1.5) t1.a++;
+                    } else if (t2.isPlayer && player.pos !== 'G') {
+                        if (Math.random() < pOvr/100 * 1.5) t2.g++;
+                        if (Math.random() < pOvr/100 * 1.5) t2.a++;
+                    }
+                }
+            }
+            return standings.sort((a, b) => b.pts - a.pts);
+        };
+
+        const groupAStandings = simGroup(groupA);
+        const groupBStandings = isTopDiv ? simGroup(groupB) : [];
+
+        const playerRecord = groupAStandings.find(t => t.isPlayer);
+        const placement = groupAStandings.findIndex(t => t.isPlayer) + 1;
+
+        let finalStakes;
+        let bracket = null;
+
+        // 3. Map the Knockout Bracket if Top Division
+        if (isTopDiv) {
+            // RULE: The Olympics do not have relegation/survival games.
+            finalStakes = placement <= 4 ? 'QUARTERFINAL' : (isOlympicYear ? 'CONSOLATION' : 'SURVIVAL');
+            
+            bracket = {
+                qf: [
+                    { id: 'QF1', t1: groupAStandings[0], t2: groupBStandings[3], winner: null },
+                    { id: 'QF2', t1: groupBStandings[1], t2: groupAStandings[2], winner: null },
+                    { id: 'QF3', t1: groupBStandings[0], t2: groupAStandings[3], winner: null },
+                    { id: 'QF4', t1: groupAStandings[1], t2: groupBStandings[2], winner: null }
+                ],
+                sf: [
+                    { id: 'SF1', t1: null, t2: null, winner: null, loser: null },
+                    { id: 'SF2', t1: null, t2: null, winner: null, loser: null }
+                ],
+                medal: {
+                    gold: { t1: null, t2: null, winner: null },
+                    bronze: { t1: null, t2: null, winner: null }
+                }
+            };
+        } else {
+            // RULE: The Olympics do not have promotion/relegation for lower divisions.
+            finalStakes = isOlympicYear 
+                ? 'CONSOLATION' 
+                : (placement === 1 ? 'PROMOTION' : (placement === groupA.length ? 'SURVIVAL' : 'CONSOLATION'));
         }
 
         return {
             intlData: {
                 tourneyType,
                 division: isOlympicYear ? 'Olympic Tournament' : activeNatDiv,
-                gamesPlayed,
-                record: { w, l, otl, pts },
-                stats: { g, a },
+                gamesPlayed: groupA.length - 1,
+                record: { w: playerRecord.w, l: playerRecord.l, otl: playerRecord.otl, pts: playerRecord.pts },
+                stats: { g: playerRecord.g, a: playerRecord.a },
                 placement,
-                groupSize,
+                groupSize: groupA.length,
+                groupA: groupAStandings,
+                groupB: groupBStandings,
+                bracket
             },
             intlStakes: finalStakes
         };
@@ -771,7 +816,13 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         triggerMinigame('season');
     } else {
         setMinigameContext('season');
-        const deck = eventDeck || [];
+        let deck = eventDeck || [];
+        
+        // RULE: USA Hockey does not trade players around the USHL
+        if (player.team === 'NTDP') {
+            deck = deck.filter(e => !(e.choices || []).some(c => c.action === 'ACCEPT_TRADE_DEADLINE' || c.action === 'TRADE_HOLDOUT'));
+        }
+
         if (deck.length > 0) {
            const randomEvt = deck[Math.floor(Math.random() * deck.length)];
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });

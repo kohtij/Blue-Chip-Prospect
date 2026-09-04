@@ -45,59 +45,72 @@ const PREP_SCENARIOS = [
   }
 ];
 
+// Helper component for drawing the bracket
+  const BracketMatch = ({ match, title }) => (
+      <div className="bg-[#1a2230] border border-[rgba(255,255,255,0.065)] rounded-lg p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold uppercase w-full shadow-inner relative overflow-hidden">
+          <div className="text-slate-500 mb-2 border-b border-[rgba(255,255,255,0.05)] pb-1.5 tracking-widest">{title}</div>
+          <div className={`flex justify-between items-center ${match.winner?.id === match.t1?.id ? 'text-[#22E748]' : (match.t1?.isPlayer ? 'text-[#3b82f6]' : 'text-slate-300')}`}>
+              <span className="flex items-center gap-2">
+                 {match.t1?.img ? <img src={match.t1.img} className="w-4 h-3 object-cover rounded-[1px] opacity-90" alt="" /> : <span className="w-4"></span>}
+                 {match.t1?.id || 'TBD'}
+              </span>
+              {match.winner && match.winner.id === match.t1?.id && <span className="text-[10px]">✓</span>}
+          </div>
+          <div className={`flex justify-between items-center mt-2 ${match.winner?.id === match.t2?.id ? 'text-[#22E748]' : (match.t2?.isPlayer ? 'text-[#3b82f6]' : 'text-slate-300')}`}>
+              <span className="flex items-center gap-2">
+                 {match.t2?.img ? <img src={match.t2.img} className="w-4 h-3 object-cover rounded-[1px] opacity-90" alt="" /> : <span className="w-4"></span>}
+                 {match.t2?.id || 'TBD'}
+              </span>
+              {match.winner && match.winner.id === match.t2?.id && <span className="text-[10px]">✓</span>}
+          </div>
+      </div>
+  );
+
 export default function IntlMinigameScreen() {
   const { activeEvent, handleMinigameChoice, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer, setSeasonEvents } = useAppContext();
   
-  // New State for Pass 2: The Group Stage Summary Phase
-  const [showSummary, setShowSummary] = useState(!!player.intlData);
-  const [prepPhase, setPrepPhase] = useState(true);
+  // TOURNAMENT HUB VIEWS: 'standings' | 'bracket' | 'prep' | 'game' | 'result'
+  const [view, setView] = useState(player.intlData ? 'standings' : 'prep');
   const [prepFeedback, setPrepFeedback] = useState(null);
   const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
 
   const nat = safeNationalities.find(n => n.id === player.nat);
   const countryName = nat?.sentenceName || nat?.name || 'your country';
 
-  // State "Locks": This forces the UI to remember the stakes even after App.jsx wipes them!
-  const [initialStake] = useState(player.intlStakes || 'GOLD');
+  const [initialStake, setInitialStake] = useState(player.intlStakes || 'GOLD');
   const [isOlympic] = useState(player.isOlympicYear || false);
   const [initialDiv] = useState(player.natDiv || nat?.division || 'Top Division');
-  const [groupData] = useState(player.intlData || null);
+  
+  // Extract tournament progression
+  const groupData = player.intlData || null;
+  const isTopDiv = initialDiv === 'Top Division';
+  
+  // Track what stage of the bracket we are in
+  const [tournamentStage, setTournamentStage] = useState(() => {
+     if (initialStake === 'QUARTERFINAL') return 'QF';
+     if (initialStake === 'SEMIFINAL') return 'SF';
+     return 'MEDAL';
+  });
 
-  // --- Dynamic Match Naming & UI Colors based on Stakes ---
-  let winTitle = 'TOURNAMENT WIN';
-  let winIcon = '🏆';
-  let resultColor = intlResult?.isWin ? 'text-[#22E748]' : 'text-[#ef4444]';
-  let resultBg = intlResult?.isWin ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]';
-
+  // Find your opponent for the current stage!
+  let opponent = null;
   let upcomingMatchText = 'CONSOLATION GAME';
-  if (initialStake === 'GOLD') {
-      upcomingMatchText = 'GOLD MEDAL GAME';
-      winTitle = intlResult?.isWin ? 'GOLD MEDAL' : 'SILVER MEDAL';
-      winIcon = intlResult?.isWin ? '🥇' : '🥈';
-      if (!intlResult?.isWin) {
-          resultColor = 'text-slate-300';
-          resultBg = 'border-slate-400/50 bg-slate-400/[0.06]';
-      }
-  } else if (initialStake === 'BRONZE') {
-      upcomingMatchText = 'BRONZE MEDAL GAME';
-      winTitle = intlResult?.isWin ? 'BRONZE MEDAL' : '4TH PLACE';
-      winIcon = intlResult?.isWin ? '🥉' : '💔';
-      if (intlResult?.isWin) {
-          resultColor = 'text-[#F59E0B]';
-          resultBg = 'border-[#F59E0B]/50 bg-[#F59E0B]/[0.06]';
-      }
-  } else if (initialStake === 'SURVIVAL') {
-      upcomingMatchText = 'MUST-WIN RELEGATION SCARE';
-      winTitle = intlResult?.isWin ? 'SURVIVAL SECURED' : 'RELEGATED';
-      winIcon = intlResult?.isWin ? '🛡️' : '📉';
-  } else if (initialStake === 'PROMOTION') {
-      upcomingMatchText = 'MUST-WIN PROMOTION FINAL';
-      winTitle = intlResult?.isWin ? 'PROMOTION SECURED' : 'PROMOTION FAILED';
-      winIcon = intlResult?.isWin ? '📈' : '🛑';
-  } else if (initialStake === 'CONSOLATION') {
-      upcomingMatchText = 'CONSOLATION MATCH';
-      winTitle = intlResult?.isWin ? 'CONSOLATION WIN' : 'TOURNAMENT EXIT';
-      winIcon = intlResult?.isWin ? '🤝' : '💔';
+  
+  if (initialStake === 'QUARTERFINAL') upcomingMatchText = 'QUARTERFINAL';
+  else if (initialStake === 'SEMIFINAL') upcomingMatchText = 'SEMIFINAL';
+  else if (initialStake === 'GOLD') upcomingMatchText = 'GOLD MEDAL GAME';
+  else if (initialStake === 'BRONZE') upcomingMatchText = 'BRONZE MEDAL GAME';
+  else if (initialStake === 'SURVIVAL') upcomingMatchText = 'MUST-WIN RELEGATION SCARE';
+  else if (initialStake === 'PROMOTION') upcomingMatchText = 'MUST-WIN PROMOTION FINAL';
+
+  if (groupData?.bracket) {
+      let currentMatches = [];
+      if (tournamentStage === 'QF') currentMatches = groupData.bracket.qf;
+      else if (tournamentStage === 'SF') currentMatches = groupData.bracket.sf;
+      else if (tournamentStage === 'MEDAL') currentMatches = [groupData.bracket.medal[initialStake.toLowerCase()]];
+      
+      const myMatch = currentMatches.find(m => m?.t1?.isPlayer || m?.t2?.isPlayer);
+      if (myMatch) opponent = myMatch.t1?.isPlayer ? myMatch.t2 : myMatch.t1;
   }
 
   const handlePrepChoice = useCallback((c) => {
@@ -122,8 +135,60 @@ export default function IntlMinigameScreen() {
      setSeasonEvents(prev => [...prev, { feedback: msg, effect }]);
      
      setPrepFeedback({ msg, isWin, effect });
-     setPrepPhase(false);
+     setView('game');
   }, [player, setPlayer, setSeasonEvents]);
+
+  // --- Hub Advancement Logic ---
+  // When you click Continue on the Result Screen, we either update the bracket and stay, or leave.
+  const handleContinue = () => {
+        setIntlResult(null);
+        if (!groupData || !groupData.bracket || !['QF', 'SF'].includes(tournamentStage) || !intlResult?.isWin) {
+            // End of tournament (or no bracket exists)
+            proceedToNextScreen(activeEvent, minigameContext, player);
+            return;
+        }
+
+        // We won a bracket game! Time to advance the tournament simulation
+        const b = { ...groupData.bracket };
+        let nextStake = null;
+        let nextStage = null;
+
+        // Helper to auto-sim the AI vs AI matches
+        const simMatch = (m) => m.t1 && m.t2 ? (Math.random() > 0.5 ? m.t1 : m.t2) : null;
+
+        if (tournamentStage === 'QF') {
+            b.qf.forEach(m => {
+                if (m.t1?.isPlayer || m.t2?.isPlayer) m.winner = m.t1.isPlayer ? m.t1 : m.t2;
+                else m.winner = simMatch(m);
+            });
+            b.sf[0].t1 = b.qf[0].winner; b.sf[0].t2 = b.qf[1].winner;
+            b.sf[1].t1 = b.qf[2].winner; b.sf[1].t2 = b.qf[3].winner;
+            nextStake = 'SEMIFINAL';
+            nextStage = 'SF';
+        } else if (tournamentStage === 'SF') {
+            b.sf.forEach(m => {
+                if (m.t1?.isPlayer || m.t2?.isPlayer) {
+                    m.winner = m.t1.isPlayer ? m.t1 : m.t2;
+                    m.loser = m.t1.isPlayer ? m.t2 : m.t1;
+                } else {
+                    m.winner = simMatch(m);
+                    m.loser = m.winner === m.t1 ? m.t2 : m.t1;
+                }
+            });
+            b.medal.gold.t1 = b.sf[0].winner; b.medal.gold.t2 = b.sf[1].winner;
+            b.medal.bronze.t1 = b.sf[0].loser; b.medal.bronze.t2 = b.sf[1].loser;
+            nextStake = 'GOLD';
+            nextStage = 'MEDAL';
+        }
+
+        if (nextStake) {
+            setPlayer(p => ({ ...p, intlStakes: nextStake, intlData: { ...p.intlData, bracket: b } }));
+            setInitialStake(nextStake);
+            setTournamentStage(nextStage);
+            setPrepFeedback(null);
+            setView('bracket');
+        }
+  };
 
   const gameChoices = player.pos === 'G'
     ? [
@@ -137,7 +202,7 @@ export default function IntlMinigameScreen() {
         { label: 'Rush the Net', tag: 'SKT + SHT', isRisky: true, desc: 'Attempt to split the defense and drive hard toward the net for a goal.', hover: 'hover:border-[#ef4444]', pill: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30', chance: 0.40 + (player.skating + player.shooting) / 400, win: 'You ripped it top shelf to win the game!', fail: 'You were stripped of the puck and caused a counter-attack.' },
       ];
 
-  return (
+    return (
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
       <div className="flex flex-col items-center justify-center mb-6">
           <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-4 py-1.5 rounded-full mb-3 shadow-inner">
@@ -150,77 +215,117 @@ export default function IntlMinigameScreen() {
           </h2>
       </div>
 
-      {!showSummary && (
+      {view !== 'standings' && view !== 'bracket' && !intlResult && (
           <p className="text-sm sm:text-lg text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center flex-wrap gap-2 text-center animate-fade-in">
-            You are representing <strong className="text-white">{countryName}</strong> in a {upcomingMatchText}!
+            You are representing <strong className="text-white">{countryName}</strong> in a {upcomingMatchText}
+            {opponent && <> against <strong className="text-[#ef4444]">Team {opponent.name}</strong>!</>}
           </p>
       )}
 
-      {/* PHASE 0: GROUP STAGE SUMMARY */}
-      {showSummary && groupData && (
-        <div className="max-w-3xl mx-auto fade-up mb-6">
-            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-8 rounded-xl shadow-2xl text-left mb-6">
+      {/* VIEW: STANDINGS */}
+      {view === 'standings' && !intlResult && groupData && (
+        <div className="max-w-4xl mx-auto fade-up mb-6">
+            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-8 rounded-xl shadow-2xl text-left mb-6">
                 <div className="flex justify-between items-end border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
                     <div>
-                        <h3 className="text-2xl font-black text-white uppercase sports-font">Group Stage Summary</h3>
-                        <p className="text-slate-400 font-sans text-sm mt-1">{groupData.gamesPlayed} Game Round-Robin • Team {countryName}</p>
-                    </div>
-                    <div className="text-right hidden sm:block">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${initialStake === 'GOLD' || initialStake === 'BRONZE' || initialStake === 'PROMOTION' ? 'bg-[#22E748]/10 text-[#22E748] border-[#22E748]/30' : 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30'}`}>
-                            {upcomingMatchText}
-                        </span>
+                        <h3 className="text-2xl font-black text-white uppercase sports-font">Tournament Hub</h3>
+                        <p className="text-slate-400 font-sans text-sm mt-1">Round Robin Results</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-[#1a2230] p-4 sm:p-5 rounded-lg border border-[rgba(255,255,255,0.05)] flex flex-col items-center justify-center shadow-inner">
-                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest uppercase mb-1">Group Placement</p>
-                        <p className="text-3xl sm:text-4xl font-black text-white sports-font">
-                            {groupData.placement} <span className="text-lg text-slate-500">/ {groupData.groupSize}</span>
-                        </p>
-                    </div>
-                    <div className="bg-[#1a2230] p-4 sm:p-5 rounded-lg border border-[rgba(255,255,255,0.05)] flex flex-col items-center justify-center shadow-inner">
-                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest uppercase mb-1">Record (W-L-OTL)</p>
-                        <p className="text-3xl sm:text-4xl font-black text-white sports-font">
-                            <span className="text-[#22E748]">{groupData.record.w}</span>-
-                            <span className="text-[#ef4444]">{groupData.record.l}</span>-
-                            <span className="text-[#F59E0B]">{groupData.record.otl}</span>
-                        </p>
-                    </div>
+                <div className={`grid grid-cols-1 ${isTopDiv ? 'lg:grid-cols-2' : ''} gap-6 mb-6`}>
+                    {[groupData.groupA, groupData.groupB].map((group, gIdx) => {
+                        if (!group || group.length === 0) return null;
+                        return (
+                           <div key={gIdx} className="bg-[#1a2230] rounded-lg border border-[rgba(255,255,255,0.05)] overflow-hidden">
+                               <div className="bg-black/40 px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-[rgba(255,255,255,0.05)]">
+                                   Group {gIdx === 0 ? 'A' : 'B'}
+                               </div>
+                               <table className="w-full text-left text-xs sm:text-sm">
+                                   <thead>
+                                       <tr className="text-slate-500 bg-black/20">
+                                           <th className="px-3 py-2 font-medium w-6 text-center">#</th>
+                                           <th className="px-2 py-2 font-medium">Nation</th>
+                                           <th className="px-2 py-2 font-medium text-center">W</th>
+                                           <th className="px-2 py-2 font-medium text-center">L</th>
+                                           <th className="px-2 py-2 font-medium text-center">OTL</th>
+                                           <th className="px-3 py-2 font-bold text-white text-center">PTS</th>
+                                       </tr>
+                                   </thead>
+                                   <tbody className="divide-y divide-[rgba(255,255,255,0.02)]">
+                                       {group.map((t, i) => (
+                                           <tr key={i} className={`${t.isPlayer ? 'bg-[#3b82f6]/10 text-white' : 'text-slate-300'} ${isTopDiv && i === 4 ? 'opacity-50' : ''}`}>
+                                               <td className="px-3 py-2.5 text-center font-bold">{i + 1}</td>
+                                               <td className="px-2 py-2.5 font-bold flex items-center gap-2">
+                                                   <img src={t.img} className="w-4 h-3 object-cover rounded-[1px] opacity-90" alt="" />
+                                                   {t.id}
+                                               </td>
+                                               <td className="px-2 py-2.5 text-center">{t.w}</td>
+                                               <td className="px-2 py-2.5 text-center">{t.l}</td>
+                                               <td className="px-2 py-2.5 text-center text-slate-500">{t.otl}</td>
+                                               <td className="px-3 py-2.5 text-center font-black text-[#22E748]">{t.pts}</td>
+                                           </tr>
+                                       ))}
+                                   </tbody>
+                               </table>
+                           </div>
+                        );
+                    })}
                 </div>
-
-                {player.pos !== 'G' && (
-                    <div className="bg-[#1a2230] p-4 sm:p-6 rounded-lg border border-[rgba(255,255,255,0.05)] text-center mb-6 shadow-inner">
-                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold tracking-widest uppercase mb-4">Your Tournament Stats</p>
-                        <div className="grid grid-cols-3 divide-x divide-[rgba(255,255,255,0.1)]">
-                            <div className="flex flex-col items-center">
-                                <p className="text-3xl sm:text-4xl font-black text-white sports-font">{groupData.stats.g}</p>
-                                <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Goals</p>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <p className="text-3xl sm:text-4xl font-black text-white sports-font">{groupData.stats.a}</p>
-                                <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Assists</p>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <p className="text-3xl sm:text-4xl font-black text-[#3b82f6] sports-font">{groupData.stats.g + groupData.stats.a}</p>
-                                <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Points</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
             
             <button 
-                onClick={() => setShowSummary(false)} 
+                onClick={() => setView(groupData.bracket ? 'bracket' : 'prep')} 
                 className="btn-primary w-full py-4 sm:py-5 rounded-xl text-lg sm:text-xl sports-font tracking-widest uppercase shadow-2xl transition-transform hover:scale-[1.02]"
             >
-                ADVANCE TO {upcomingMatchText} ➔
+                ADVANCE TO {groupData.bracket ? 'KNOCKOUT BRACKET' : upcomingMatchText} ➔
             </button>
         </div>
       )}
 
-      {/* PHASE 1: PRE-TOURNAMENT PREPARATION SCENARIO */}
-      {!showSummary && prepPhase && !intlResult && (
+      {/* VIEW: BRACKET */}
+      {view === 'bracket' && !intlResult && groupData?.bracket && (
+        <div className="max-w-4xl mx-auto fade-up mb-6">
+            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-8 rounded-xl shadow-2xl text-left mb-6">
+                <div className="flex justify-between items-end border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
+                    <div>
+                        <h3 className="text-2xl font-black text-white uppercase sports-font">Knockout Stage</h3>
+                        <p className="text-slate-400 font-sans text-sm mt-1">Single Elimination Bracket</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* QF Column */}
+                    <div className="flex flex-col gap-3">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[rgba(255,255,255,0.05)] pb-1 mb-1">Quarterfinals</div>
+                        {groupData.bracket.qf.map(m => <BracketMatch key={m.id} match={m} title={m.id} />)}
+                    </div>
+                    {/* SF Column */}
+                    <div className="flex flex-col gap-3 md:pt-8">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[rgba(255,255,255,0.05)] pb-1 mb-1">Semifinals</div>
+                        {groupData.bracket.sf.map(m => <BracketMatch key={m.id} match={m} title={m.id} />)}
+                    </div>
+                    {/* Medal Column */}
+                    <div className="flex flex-col gap-3 md:pt-16">
+                        <div className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-widest border-b border-[#F59E0B]/30 pb-1 mb-1">Medal Rounds</div>
+                        <BracketMatch match={groupData.bracket.medal.gold} title="Gold Medal Game" />
+                        <div className="mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[rgba(255,255,255,0.05)] pb-1 mb-1">Bronze Match</div>
+                        <BracketMatch match={groupData.bracket.medal.bronze} title="3rd Place Game" />
+                    </div>
+                </div>
+            </div>
+            
+            <button 
+                onClick={() => setView('prep')} 
+                className="btn-primary w-full py-4 sm:py-5 rounded-xl text-lg sm:text-xl sports-font tracking-widest uppercase shadow-2xl transition-transform hover:scale-[1.02]"
+            >
+                PLAY {upcomingMatchText} ➔
+            </button>
+        </div>
+      )}
+
+      {/* VIEW: PREP */}
+      {view === 'prep' && !intlResult && (
         <div className="max-w-2xl mx-auto fade-up">
            <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-8 rounded-xl shadow-2xl text-left mb-6">
               <h3 className="text-2xl font-black text-[#3b82f6] mb-3 uppercase sports-font">{scenario.title}</h3>
@@ -251,8 +356,8 @@ export default function IntlMinigameScreen() {
         </div>
       )}
 
-      {/* PHASE 2: THE GAME DECISION */}
-      {!showSummary && !prepPhase && !intlResult && (
+      {/* VIEW: GAME */}
+      {view === 'game' && !intlResult && (
       <div className="fade-up">
         {prepFeedback && (
             <div className={`mb-8 p-4 border rounded-xl inline-block shadow-md ${prepFeedback.isWin ? 'border-[#22E748]/50 bg-[#22E748]/10 text-[#22E748]' : 'border-red-500/50 bg-red-500/10 text-red-400'}`}>
@@ -299,7 +404,6 @@ export default function IntlMinigameScreen() {
                       </span>
                     );
                   })}
-                  {/* Pass 2: Show if play is safe/risky on the button itself */}
                   {c.isRisky ? (
                       <span className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30">RISKY</span>
                   ) : (
@@ -313,55 +417,35 @@ export default function IntlMinigameScreen() {
       </div>
       )}
 
-      {/* PHASE 3: FINAL MEDAL RESULT */}
+      {/* VIEW: RESULT */}
       {intlResult && (
         <div className="max-w-2xl mx-auto mt-2 fade-up">
-          <div className={`rounded-2xl border-2 p-6 sm:p-10 flex flex-col items-center text-center ${resultBg}`}>
-            <div className="text-5xl sm:text-6xl mb-3 drop-shadow-lg">{winIcon}</div>
-            <h3 className={`text-2xl sm:text-4xl font-black sports-font uppercase tracking-tighter mb-4 ${resultColor}`}>
-              {winTitle}
+          <div className={`rounded-2xl border-2 p-6 sm:p-10 flex flex-col items-center text-center ${intlResult.isWin ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]'}`}>
+            <h3 className={`text-2xl sm:text-4xl font-black sports-font uppercase tracking-tighter mb-4 ${intlResult.isWin ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+              {intlResult.isWin ? 'VICTORY!' : 'DEFEAT!'}
             </h3>
-
-            {/* Division Progression Badges */}
-            {initialStake === 'PROMOTION' && intlResult.isWin && (
-                <div className="bg-[#22E748]/20 border border-[#22E748]/50 text-[#22E748] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-lg mb-4 animate-pulse">
-                    PROMOTED TO {player.natDiv}
-                </div>
-            )}
-            {initialStake === 'SURVIVAL' && !intlResult.isWin && (
-                <div className="bg-[#ef4444]/20 border border-[#ef4444]/50 text-[#ef4444] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-lg mb-4">
-                    RELEGATED TO {player.natDiv}
-                </div>
-            )}
 
             <p className="text-base sm:text-xl italic text-slate-300 mb-6 font-sans leading-relaxed">"{intlResult.msg}"</p>
 
             <div className="flex justify-center items-center gap-2 flex-wrap">
-              {intlResult.effect?.idol ? (
+              {intlResult.effect?.idol !== undefined && intlResult.effect?.idol !== 0 ? (
                 <span className={`text-xs sm:text-sm font-black sports-font tracking-widest px-3 py-1.5 rounded-lg border ${intlResult.effect.idol >= 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
                   {intlResult.effect.idol >= 0 ? '📈' : '📉'} {intlResult.effect.idol > 0 ? '+' : ''}{intlResult.effect.idol} FANS
                 </span>
               ) : null}
-              {intlResult.effect?.ovr ? (
+              {intlResult.effect?.ovr !== undefined && intlResult.effect?.ovr !== 0 ? (
                 <span className={`text-xs sm:text-sm font-black sports-font tracking-widest px-3 py-1.5 rounded-lg border ${intlResult.effect.ovr >= 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
                   {intlResult.effect.ovr > 0 ? '+' : ''}{intlResult.effect.ovr} OVR
                 </span>
               ) : null}
             </div>
-            
-            {/* DRAFT STOCK EVOLUTION */}
-            {player.age <= 18 && !player.rights && minigameContext === 'wjc' && (
-               <p className={`mt-6 text-sm sm:text-base font-black sports-font uppercase tracking-widest ${intlResult.isWin ? 'text-[#3b82f6]' : 'text-[#ef4444]'}`}>
-                 {intlResult.isWin ? "📈 SCOUTS ARE BUZZING. YOUR DRAFT STOCK IS RISING!" : "📉 SCOUTS NOTICED THE STRUGGLES. DRAFT STOCK TOOK A HIT."}
-               </p>
-            )}
           </div>
             
           <button
-            onClick={() => { setIntlResult(null); proceedToNextScreen(activeEvent, minigameContext, player); }}
+            onClick={handleContinue}
             className="btn-primary py-4 px-12 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest w-full mt-6 shadow-2xl"
           >
-            CONTINUE CAREER ➔
+            CONTINUE ➔
           </button>
         </div>
       )}

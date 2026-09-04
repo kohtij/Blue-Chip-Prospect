@@ -101,6 +101,10 @@ export function handleEventChoice(ctx, choice) {
     }
   } else if (actionStr === 'MAKE_CAPTAIN') {
     updated.isCaptain = true;
+    updated.isAlternate = false;
+  } else if (actionStr === 'MAKE_ALTERNATE') {
+    updated.isAlternate = true;
+    updated.isCaptain = false;
   } else if (actionStr === 'TEAM_MEETING') {
     updated.storylines = { ...(updated.storylines || {}), lastMeetingYear: ctx.currentYear };
   } else if (actionStr === 'ACCEPT_IMPORT_DRAFT') {

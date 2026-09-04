@@ -44,6 +44,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
 
     let baseSalary;
     let maxYears;
+    let minYears = 1; // NEW: Ensure bridge deals don't roll 1-year terms
+
+    const isRFA = actingLeague === 'NHL' && player.age < 27;
 
     // Force NHL logic if actingLeague is NHL. Impossible to get $165k here.
     if (actingLeague === 'NHL') {
@@ -53,12 +56,15 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       if (player.ovr >= 85 || isSuperstar) {
         baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi * repMod;
         maxYears = 8;
+        if (isRFA) minYears = 5; // Young stars sign long-term
       } else if (player.ovr >= 80) {
         baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi * repMod;
         maxYears = 5;
+        if (isRFA) minYears = 3; // Standard Bridge Deal
       } else if (player.ovr >= 75) {
         baseSalary = (2000000 + ((player.ovr - 75) * 500000)) * multi * repMod;
         maxYears = 3;
+        if (isRFA) minYears = 2; // Short Bridge Deal
       } else {
         baseSalary = (leagueMinimum + 150000 + ((player.ovr - 70) * 100000)) * multi * repMod;
         maxYears = 2;
@@ -67,10 +73,12 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       if (isSuperstar) {
          baseSalary = Math.max(baseSalary, 10500000 * multi * repMod);
          maxYears = Math.max(maxYears, 8);
+         if (isRFA) minYears = 6;
       }
 
       if (player.age >= 37) {
          maxYears = Math.min(maxYears, 1);
+         minYears = 1;
       } else if (player.age >= 35) {
          maxYears = Math.min(maxYears, 2);
       } else if (player.age >= 32) {
@@ -88,7 +96,6 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     baseSalary = Math.max(leagueMinimum, Math.round(baseSalary / 25000) * 25000);
     let offers = [];
     
-    const isRFA = actingLeague === 'NHL' && player.age < 27;
     const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(actingLeague);
     
     const coachTrust = player.relationships?.coach || 50; // B2: Front Office Consumer
@@ -157,14 +164,17 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
              });
          }
 
-         // NEW: HOMETOWN DISCOUNT (For Beloved UFAs)
-         if (!isRFA && actingLeague === 'NHL' && (player.idolatry || 0) >= 600) {
+         // NEW: HOMETOWN DISCOUNT (For Beloved Players)
+         // Note: RFAs can now take hometown discounts too, signing long-term for less AAV to help the cap.
+         if (actingLeague === 'NHL' && (player.idolatry || 0) >= 600) {
+             // We base the cut on the TRUE baseSalary, regardless of if the QO inflated the perceived baseline.
+             const discountSalary = Math.max(leagueMinimum, Math.round((baseSalary * 0.65) / 25000) * 25000);
              offers.push({
                  team: actingTeam,
                  league: actingLeague,
                  type: 'HOMETOWN DISCOUNT',
-                 salary: Math.round((baseSalary * 0.65) / 25000) * 25000, // 35% pay cut to help the cap
-                 years: Math.min(8, maxYears + 2), // Rewarded with maximum term security
+                 salary: discountSalary,
+                 years: Math.min(8, Math.max(5, maxYears + 2)), // Guaranteed long-term security
                  role: getRole(baseSalary, player),
                  idolHit: 100, // Massive loyalty boost
                  state: 'Staying Put',
@@ -283,12 +293,16 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
             
             const getsNMC = targetLg === 'NHL' && player.age >= 26 && player.ovr >= 85 && Math.random() > 0.4;
             
+            // Use our new minYears constraint to prevent weird 1-year bridge deals for RFAs
+            let offerYears = Math.floor(Math.random() * (maxYears - minYears + 1)) + minYears;
+            offerYears = Math.min(7, offerYears);
+            
             offers.push({
               team: t,
               league: targetLg,
               type: isTradeRequest ? 'TRADE' : 'FREE AGENCY',
               salary: offerSalary,
-              years: Math.min(7, Math.floor(Math.random() * maxYears) + 1),
+              years: offerYears,
               role: targetLg === 'NHL' ? getRole(offerSalary, player) : 'Pro Roster',
               idolHit: getTransferImpact(actingTeam, t),
               state: teamState,

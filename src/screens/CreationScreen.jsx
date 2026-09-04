@@ -30,13 +30,131 @@ export default function CreationScreen() {
   };
 
   return (
-          <div className="min-h-screen flex items-center justify-center p-6 bg-[#040505] text-white">
-            <div className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748]">
-              <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font text-sm sm:text-base">A HOCKEY GAME</h2>
-              <h1 className="text-5xl sm:text-6xl font-black mb-8 text-white italic sports-font uppercase tracking-tighter">BLUE CHIP PROSPECT</h1>
+          <div className="min-h-screen flex items-center justify-center p-6 text-white relative">
+
+            {/* LAYER 1: base radial ambient glow — dim green heartbeat at center,
+                fading to deep black at the edges. Using fixed positioning ensures 
+                it covers the entire browser window seamlessly. */}
+            <div
+              className="fixed inset-0 pointer-events-none z-[-1]"
+              style={{
+                background: 'radial-gradient(ellipse 80% 60% at center, rgba(16, 40, 24, 1) 0%, rgba(8, 16, 12, 1) 40%, #030303 100%)'
+              }}
+            />
+
+            {/* LAYER 2: spotlight cone from above — like arena rigging casting
+                a soft beam down onto the panel. */}
+            <div
+              className="fixed inset-0 pointer-events-none z-[-1]"
+              style={{
+                background: 'radial-gradient(ellipse 50% 90% at center top, rgba(34, 231, 72, 0.10) 0%, transparent 60%)'
+              }}
+            />
+
+            {/* LAYER 3: vignette — darkens the outer corners so the eye is
+                drawn firmly to the center. */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.4) 100%)'
+              }}
+            />
+
+            {/* LAYER 4: faint rink-line pattern — abstract circles suggesting
+                a hockey rink's face-off circles, extremely low opacity. Sits
+                well behind everything else. */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.04]"
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle at 20% 30%, transparent 80px, rgba(34,231,72,0.5) 82px, transparent 84px),
+                  radial-gradient(circle at 80% 70%, transparent 80px, rgba(34,231,72,0.5) 82px, transparent 84px),
+                  radial-gradient(circle at 50% 50%, transparent 120px, rgba(34,231,72,0.4) 122px, transparent 124px)
+                `
+              }}
+            />
+
+            {/* LAYER 5: drifting ice particles — 12 slow-rising specks with
+                staggered timings and positions. Pure CSS, no state, no
+                intervals, zero JS overhead. */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {[...Array(12)].map((_, i) => (
+                <span
+                  key={`particle-${i}`}
+                  className="absolute rounded-full bg-white"
+                  style={{
+                    width: `${1 + (i % 3)}px`,
+                    height: `${1 + (i % 3)}px`,
+                    left: `${(i * 8.3) % 100}%`,
+                    bottom: '-10px',
+                    opacity: 0,
+                    boxShadow: '0 0 4px rgba(34,231,72,0.6)',
+                    animation: `creationDrift ${18 + (i % 6) * 3}s linear ${i * 2.5}s infinite`
+                  }}
+                />
+              ))}
+            </div>
+
+            <style>{`
+              @keyframes creationBorderPulse {
+                0%, 100% { box-shadow: 0 0 30px rgba(34, 231, 72, 0.20), 0 0 0 1px rgba(34, 231, 72, 0.10); }
+                50%      { box-shadow: 0 0 60px rgba(34, 231, 72, 0.45), 0 0 0 1px rgba(34, 231, 72, 0.28); }
+              }
+              @keyframes creationTitleShimmer {
+                0%, 85%, 100% { background-position: -200% center; opacity: 0; }
+                88%           { opacity: 1; }
+                95%           { background-position: 200% center; opacity: 1; }
+                98%           { opacity: 0; }
+              }
+              @keyframes creationTitleGlow {
+                0%, 100% { text-shadow: 0 0 20px rgba(34, 231, 72, 0.15), 0 0 40px rgba(34, 231, 72, 0.08); }
+                50%      { text-shadow: 0 0 25px rgba(34, 231, 72, 0.35), 0 0 60px rgba(34, 231, 72, 0.18); }
+              }
+              @keyframes creationDrift {
+                0%   { transform: translateY(0) translateX(0);      opacity: 0; }
+                10%  { opacity: 0.6; }
+                50%  { transform: translateY(-50vh) translateX(20px); opacity: 0.8; }
+                90%  { opacity: 0.4; }
+                100% { transform: translateY(-105vh) translateX(-15px); opacity: 0; }
+              }
+              
+              .creation-title-wrap {
+                position: relative;
+                display: inline-block;
+                /* OVERFLOW HIDDEN REMOVED: The glow can now bleed seamlessly! */
+                animation: creationTitleGlow 5s ease-in-out infinite;
+              }
+              .creation-title-shimmer {
+                position: absolute; inset: 0; pointer-events: none;
+                background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.8) 50%, transparent 65%);
+                background-size: 200% auto;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: creationTitleShimmer 12s linear infinite;
+              }
+              
+            `}</style>
+
+            <div
+              className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748] relative z-10"
+              style={{ animation: 'creationBorderPulse 5s ease-in-out infinite' }}
+            >
+              <h2 className="text-[#22E748] font-bold tracking-widest mb-3 sports-font text-sm sm:text-base">A HOCKEY GAME</h2>
+              <h1 className="text-5xl sm:text-7xl font-black mb-3 text-white italic sports-font uppercase tracking-tighter">
+                <span className="creation-title-wrap">
+                  BLUE CHIP PROSPECT
+                  <span className="creation-title-shimmer" aria-hidden="true">BLUE CHIP PROSPECT</span>
+                </span>
+              </h1>
+              <p className="text-slate-400 font-sans text-xs sm:text-sm tracking-[0.25em] uppercase mb-2">
+                Your choice · Your legacy
+              </p>
+              <p className="text-slate-400 font-sans text-xs sm:text-sm tracking-[0.15em] uppercase mb-6">
+                How far will you go?
+              </p>
 
               <input
-                type="text" placeholder="Your Last Name"
+                type="text" placeholder="Your Name"
                 className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-lg mb-4 text-center font-bold focus:border-[#22E748] outline-none transition-all font-sans"
                 onChange={(e) => setPlayer({ ...player, name: e.target.value })}
               />

@@ -285,16 +285,20 @@ export function advanceToOffseason(ctx) {
     // Euro Leagues are PRO leagues, not amateurs!
     const isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
     
-    if (player.age === 18 && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
+    // Calculate age-out limits before the draft check so we can use them to define the eligible window
+    const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
+    const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
+    const isNcaaAgedOut = currentLeague === 'NCAA' && ncaaSeasons >= 4;
+
+    // A player is draft eligible if they are 18 or older, but haven't aged out of amateur eligibility
+    const isDraftEligibleAge = player.age >= 18 && player.age < amateurAgeOut && !isNcaaAgedOut;
+    
+    if (isDraftEligibleAge && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
       setScreen('combine');
       return;
     }
 
     const rightsExpireAge = (player.draftLeague && ['OHL', 'WHL', 'QMJHL'].includes(player.draftLeague)) ? 20 : 22;
-    const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
-    
-    const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
-    const isNcaaAgedOut = currentLeague === 'NCAA' && ncaaSeasons >= 4;
     
     const needsRightsDecision = isCurrentlyAmateur && player.rights && (player.age >= rightsExpireAge || isNcaaAgedOut);
     const isAgingOut = isCurrentlyAmateur && !player.rights && (player.age >= amateurAgeOut || isNcaaAgedOut);

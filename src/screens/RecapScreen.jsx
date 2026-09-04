@@ -35,17 +35,17 @@ export default function RecapScreen() {
                  if (seasonRecap?.memCupStatus === 'won') {
                      narrativeTitle = 'MEMORIAL CUP CHAMPIONS';
                      narrative = `Absolute glory. You conquered ${leagueWithArticle(player.league)} and lifted the Memorial Cup, cementing your legacy as a junior hockey legend.`;
-                 } else if (seasonRecap?.memCupStatus === 'lost') {
-                     narrativeTitle = 'REGIONAL CHAMPIONS';
-                     narrative = `You dominated your league and lifted the ${titles.cupName}, but fell agonizingly short in the Memorial Cup against the nation's best. A bittersweet, but incredible season.`;
+            } else if (seasonRecap?.memCupStatus === 'lost') {
+                         narrativeTitle = 'REGIONAL CHAMPIONS';
+                         narrative = `You dominated your league and lifted the ${titles?.cupName || 'Championship'}, but fell agonizingly short in the Memorial Cup against the nation's best. A bittersweet, but incredible season.`;
+                     } else {
+                         narrativeTitle = `${formatLeagueName(player.league)} CHAMPIONS`;
+                         narrative = `You climbed the mountain and won the ${titles?.cupName || 'Championship'}!`;
+                     }
                  } else {
-                     narrativeTitle = `${formatLeagueName(player.league)} CHAMPIONS`;
-                     narrative = `You climbed the mountain and won the ${titles.cupName}!`;
+                     narrativeTitle = 'CHAMPIONS';
+                     narrative = `Absolute glory. You climbed the mountain and won the ${titles?.cupName || 'Championship'}!`;
                  }
-             } else {
-                 narrativeTitle = 'CHAMPIONS';
-                 narrative = `Absolute glory. You climbed the mountain and won the ${titles.cupName}!`;
-             }
           } else if (madePlayoffsForNarrative) {
               if (pw === maxWins - 1) {
                   narrativeTitle = 'GAME 7 HEARTBREAK';
@@ -167,10 +167,10 @@ export default function RecapScreen() {
                   <>
                     <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-2`}>
                       {seasonRecap?.titleWon === 1 
-                        ? `🏆 Won the ${titles.cupName}!` 
+                        ? `🏆 Won the ${titles?.cupName || 'Championship'}!` 
                         : seasonRecap?.confTitleWon
-                          ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles.final}.`
-                          : seasonRecap?.playoffWins === 0 
+                          ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles?.final || 'Finals'}.`
+                          : seasonRecap?.playoffWins === 0
                             ? '🧹 Swept in the first round.' 
                             : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
                     </li>

@@ -510,7 +510,22 @@ export default function RetirementScreen() {
                                     {stint.seasons.map((season, sIdx) => (
                                         <tr key={sIdx} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
                                             <td className="px-4 py-3.5 font-bold text-[#3b82f6] whitespace-nowrap">
-                                               {season.league === 'INTL' ? season.tournamentName : `${season.year} / ${season.year + 1}`}
+                                               <div className="flex items-center gap-2">
+                                                   {/* Added tabular-nums and a minimum width to lock the text size */}
+                                                   <span className="inline-block min-w-[105px] tabular-nums">
+                                                       {season.league === 'INTL' ? season.tournamentName : `${season.year} / ${season.year + 1}`}
+                                                   </span>
+                                                   {season.isCaptain && (
+                                                       <span className="bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-[9px] font-black px-1.5 h-4 rounded uppercase tracking-widest inline-flex items-center justify-center leading-none shadow-sm min-w-[18px]">
+                                                         C
+                                                       </span>
+                                                   )}
+                                                   {season.isAlternate && !season.isCaptain && (
+                                                       <span className="bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6] text-[9px] font-black px-1.5 h-4 rounded uppercase tracking-widest inline-flex items-center justify-center leading-none shadow-sm min-w-[18px]">
+                                                         A
+                                                       </span>
+                                                   )}
+                                               </div>
                                             </td>
                                             <td className="px-3 py-3.5 text-center font-black number-font text-lg">
                                                {season.games || 0}
@@ -535,6 +550,7 @@ export default function RetirementScreen() {
                                                          <span>{season.league === 'NHL' ? 'Stanley Cup' : 'Championship'}</span>
                                                        </span>
                                                    )}
+                                                   
                                                    {(season.awards || [])
                                                        .filter(aw => !aw.toLowerCase().includes('1st team all-star'))
                                                        .map((aw, aIdx) => {
