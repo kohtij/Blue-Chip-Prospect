@@ -1159,6 +1159,11 @@ function App() {
   return (
       <AppContext.Provider value={contextValue}>
     <div className="min-h-screen p-2 sm:p-6 flex flex-col font-sans bg-[#040505] text-white relative">
+      {/* NEW: Global style to fix iOS Safari white overscroll bleed */}
+      <style>{`
+        html, body { background-color: #040505; }
+      `}</style>
+      
       {achievementToast && (
         <div 
           className="fixed top-12 right-4 sm:top-16 sm:right-6 z-50 max-w-[260px] sm:max-w-xs bg-[#101410] border-2 border-[#F59E0B] p-4 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-4 pointer-events-none"
@@ -1261,15 +1266,14 @@ function App() {
           </ErrorBoundary>
         </div>
       </div> 
-      <div className="mt-1 text-center border-t border-[rgba(255,255,255,0.05)] pt-4">
+      <div className="mt-auto text-center border-t border-[rgba(255,255,255,0.05)] pt-6 pb-6 w-full">
          <a 
             href="https://x.com/ferreirahockey"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed top-4 right-4 z-50 bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] hover:border-[#3b82f6] text-slate-400 hover:text-[#3b82f6] text-[10px] sm:text-xs font-bold uppercase tracking-widest font-sans transition-colors px-3 py-2 rounded-lg shadow-lg"
->
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block sm:fixed sm:top-4 sm:right-4 z-50 bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] hover:border-[#3b82f6] text-slate-400 hover:text-[#3b82f6] text-[10px] sm:text-xs font-bold uppercase tracking-widest font-sans transition-colors px-3 py-2 rounded-lg shadow-lg"
+         >
             Have Feedback? Reach out to me!
-
          </a>
       </div>
     </div>

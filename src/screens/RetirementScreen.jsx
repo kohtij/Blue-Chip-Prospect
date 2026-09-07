@@ -275,18 +275,20 @@ export default function RetirementScreen() {
             </div>
 
             {stanleyCups > 0 && (
-              <div className="game-panel mt-4 p-4 sm:p-6 bg-gradient-to-r from-[#F59E0B]/20 via-[#101410] to-[#F59E0B]/20 border-2 border-[#F59E0B] rounded-2xl flex items-center justify-between shadow-[0_0_25px_rgba(245,158,11,0.2)] overflow-hidden">
-                <div className="flex items-center gap-4 text-left shrink-0 z-10">
-                  <span className="text-4xl sm:text-5xl">💍</span>
-                  <div>
-                    <p className="text-xs font-black text-[#F59E0B] uppercase tracking-widest">CHAMPIONSHIP MANTLE</p>
-                    <h3 className="text-xl sm:text-2xl font-black text-white sports-font">
+              <div className="game-panel mt-4 p-4 sm:p-6 bg-gradient-to-r from-[#F59E0B]/20 via-[#101410] to-[#F59E0B]/20 border-2 border-[#F59E0B] rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_25px_rgba(245,158,11,0.2)] overflow-hidden">
+                
+                {/* Changed to min-w-0 to allow text wrapping, removed shrink-0 */}
+                <div className="flex items-center gap-3 sm:gap-4 text-left z-10 min-w-0 w-full sm:w-auto">
+                  <span className="text-4xl sm:text-5xl shrink-0">💍</span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-black text-[#F59E0B] uppercase tracking-widest leading-tight mb-0.5">CHAMPIONSHIP MANTLE</p>
+                    <h3 className="text-lg sm:text-2xl font-black text-white sports-font leading-none break-words">
                       {stanleyCups}x STANLEY CUP CHAMPION
                     </h3>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end pl-4">
+                <div className="flex items-center justify-center sm:justify-end pl-0 sm:pl-4 w-full sm:w-auto">
                   {Array.from({ length: stanleyCups }).map((_, i) => {
                     // Dynamically increase the overlap if the player has a massive dynasty
                     let overlapClass = "-ml-6 sm:-ml-6"; // Default overlap
