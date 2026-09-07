@@ -102,9 +102,9 @@ const ShootoutGame = ({ player, onComplete }) => {
          </div>
       )}
 
-      {/* Centered Outcome Pill */}
+      {/* Top-Centered Outcome Pill */}
       {status !== 'playing' && (
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 text-white px-8 py-3 rounded-full font-black sports-font text-4xl shadow-[0_0_40px_rgba(0,0,0,0.9)] border-2 border-slate-500 z-50 whitespace-nowrap tracking-widest">
+         <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/95 text-white px-8 py-3 rounded-full font-black sports-font text-4xl shadow-[0_0_40px_rgba(0,0,0,0.9)] border-2 border-slate-500 z-50 whitespace-nowrap tracking-widest">
             {status === 'won' ? 'GOAL' : 'NO GOAL'}
          </div>
       )}

@@ -94,7 +94,10 @@ export default function DraftScreen() {
           THE {getFullTeamName(seasonRecap?.draftedBy?.id, 'NHL').toUpperCase()} ARE PROUD TO SELECT, FROM {['SHL', 'LIIGA'].includes(seasonRecap?.juniorLeague) ? '' : 'THE '}{getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
         </h3>
         
-        <h2 className="text-5xl sm:text-6xl font-black text-[#3b82f6] sports-font uppercase mt-2">{player.name}</h2>
+        {/* Added break-words, w-full, and responsive sizing so long names wrap cleanly and maintain box padding */}
+        <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-[#3b82f6] sports-font uppercase mt-2 w-full px-2 sm:px-4 break-words">
+          {player.name}
+        </h2>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">

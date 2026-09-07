@@ -1100,7 +1100,7 @@ function App() {
        else { generateTraining(currentPlayer.pos); setScreen('preseason'); }
        return;
     }
-    if (currentEvent?.isSeasonEvent) { setScreen('preseason'); return; }
+    
     if (currentMgContext === 'memcup') { setScreen('memorial-cup'); return; }
 
     if (currentMgContext === 'wjc' || currentMgContext === 'olympics') {

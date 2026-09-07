@@ -109,8 +109,8 @@ export default function EventScreen() {
                         clearTimeout(releaseTimeout);
                         setIsProcessing(false);
                       }
-                  }} className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all flex flex-col justify-center gap-2 shadow-lg h-auto ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                    <div className="flex justify-between items-start sm:items-center w-full gap-4">
+                  }} className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white p-4 sm:p-5 rounded-xl text-left transition-all flex flex-col justify-center gap-2 shadow-lg h-full ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <div className="flex justify-between items-center w-full gap-4">
                        <span className="text-sm sm:text-base font-bold text-left leading-tight">{c.label}</span>
                        <div className="flex items-center gap-2 shrink-0 mt-1 sm:mt-0">
                          {c.isDevBoost && <span className="bg-[#22E748]/10 text-[#22E748] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#22E748]/30">+DEV BOOST</span>}

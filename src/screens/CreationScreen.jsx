@@ -154,7 +154,7 @@ export default function CreationScreen() {
               </p>
 
               <input
-                type="text" placeholder="Your Name"
+                type="text" placeholder="YOUR NAME"
                 className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-lg mb-4 text-center font-bold focus:border-[#22E748] outline-none transition-all font-sans"
                 onChange={(e) => setPlayer({ ...player, name: e.target.value })}
               />
