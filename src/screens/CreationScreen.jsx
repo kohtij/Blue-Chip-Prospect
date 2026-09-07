@@ -10,6 +10,17 @@ export default function CreationScreen() {
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
   const [isQuickStarting, setIsQuickStarting] = useState(false);
+  
+  // NEW: Minecraft-style random splash text for the rookie card badge
+  const [splashText] = useState(() => {
+    const texts = [
+      "BAR DOWN", "TOP CHEESE", "WHEEL, SNIPE, CELLY",
+      "GENERATIONAL", "FRANCHISE SAVIOR", "DIRTY DANGLES", "PUCKS IN DEEP",
+      "LIGHT THE LAMP", "TAPE TO TAPE", "FUTURE HOF'ER", "CLUTCH", "PING!", "REAL GUD PRO",
+      "GAME 7 HERO", "DRAFT STEAL", "FORECHECK, BACKCHECK, PAYCHECK", "TOE DRAG RELEASE"
+    ];
+    return texts[Math.floor(Math.random() * texts.length)];
+  });
     
   const [savedCareers] = useState(() => {
     try { return JSON.parse(localStorage.getItem('hockey_career_history') || '[]'); } 
@@ -96,10 +107,6 @@ export default function CreationScreen() {
             </div>
 
             <style>{`
-              @keyframes creationBorderPulse {
-                0%, 100% { box-shadow: 0 0 30px rgba(34, 231, 72, 0.20), 0 0 0 1px rgba(34, 231, 72, 0.10); }
-                50%      { box-shadow: 0 0 60px rgba(34, 231, 72, 0.45), 0 0 0 1px rgba(34, 231, 72, 0.28); }
-              }
               @keyframes creationTitleShimmer {
                 0%, 85%, 100% { background-position: -200% center; opacity: 0; }
                 88%           { opacity: 1; }
@@ -118,10 +125,52 @@ export default function CreationScreen() {
                 100% { transform: translateY(-105vh) translateX(-15px); opacity: 0; }
               }
               
+              /* NEW: Holographic Trading Card CSS */
+              @keyframes foilShimmer {
+                0% { background-position: 200% center; }
+                100% { background-position: -200% center; }
+              }
+              @keyframes cardFloat {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-8px); }
+              }
+              
+              .rookie-card {
+                position: relative;
+                background: linear-gradient(135deg, #111a14 0%, #080c0a 100%);
+                box-shadow: 
+                  0 0 0 1px rgba(255,255,255,0.05),
+                  0 20px 50px rgba(0,0,0,0.5),
+                  inset 0 0 0 2px rgba(34, 231, 72, 0.2);
+              }
+
+              .rookie-card::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                border-radius: inherit;
+                pointer-events: none;
+                background: linear-gradient(
+                  115deg, 
+                  transparent 20%, 
+                  rgba(34, 231, 72, 0.05) 30%, 
+                  rgba(255, 255, 255, 0.15) 45%, 
+                  rgba(34, 231, 72, 0.05) 60%, 
+                  transparent 80%
+                );
+                background-size: 200% auto;
+                mix-blend-mode: color-dodge;
+                animation: foilShimmer 8s linear infinite;
+              }
+              
+              .jumbotron-text {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                text-shadow: 0 0 8px rgba(34,231,72,0.4);
+              }
+              
               .creation-title-wrap {
                 position: relative;
                 display: inline-block;
-                /* OVERFLOW HIDDEN REMOVED: The glow can now bleed seamlessly! */
                 animation: creationTitleGlow 5s ease-in-out infinite;
               }
               .creation-title-shimmer {
@@ -132,32 +181,36 @@ export default function CreationScreen() {
                 -webkit-text-fill-color: transparent;
                 animation: creationTitleShimmer 12s linear infinite;
               }
-              
             `}</style>
 
-            <div
-              className="w-full max-w-xl game-panel p-6 sm:p-10 text-center border-t-2 border-t-[#22E748] relative z-10"
-              style={{ animation: 'creationBorderPulse 5s ease-in-out infinite' }}
-            >
-              <h2 className="text-[#22E748] font-bold tracking-widest mb-3 sports-font text-sm sm:text-base">A HOCKEY GAME</h2>
-              <h1 className="text-5xl sm:text-7xl font-black mb-3 text-white italic sports-font uppercase tracking-tighter">
-                <span className="creation-title-wrap">
-                  BLUE CHIP PROSPECT
-                  <span className="creation-title-shimmer" aria-hidden="true">BLUE CHIP PROSPECT</span>
-                </span>
-              </h1>
-              <p className="text-slate-400 font-sans text-xs sm:text-sm tracking-[0.25em] uppercase mb-2">
-                Your choice · Your legacy
-              </p>
-              <p className="text-slate-400 font-sans text-xs sm:text-sm tracking-[0.15em] uppercase mb-6">
-                How far will you go?
-              </p>
-
-              <input
-                type="text" placeholder="YOUR NAME"
-                className="w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-lg mb-4 text-center font-bold focus:border-[#22E748] outline-none transition-all font-sans"
-                onChange={(e) => setPlayer({ ...player, name: e.target.value })}
-              />
+            <div className="w-full max-w-xl p-2 sm:p-3 bg-white/5 rounded-2xl shadow-2xl backdrop-blur-sm border border-white/10 relative z-10">
+              
+              {/* The "Protective Sleeve" wraps the actual rookie card */}
+              <div className="rookie-card rounded-xl p-6 sm:p-10 text-center relative overflow-hidden">
+                
+                {/* Random Splash Text Replaces "FUTURE WATCH" */}
+                <h2 className="text-[#22E748] font-bold tracking-widest mb-2 sports-font text-sm sm:text-base relative z-10 uppercase">
+                  {splashText}
+                </h2>
+                
+                <h1 className="text-5xl sm:text-7xl font-black mb-1 text-white italic sports-font uppercase tracking-tighter drop-shadow-lg relative z-10">
+                  <span className="creation-title-wrap">
+                    BLUE CHIP PROSPECT
+                    <span className="creation-title-shimmer" aria-hidden="true">BLUE CHIP PROSPECT</span>
+                  </span>
+                </h1>
+                
+                <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest mb-6 relative z-10">
+                </p>              
+                
+                {/* Silver Stamped Name Input */}
+                <div className="relative mb-8 max-w-sm mx-auto z-10">
+                  <input
+                    type="text" placeholder="ENTER PLAYER NAME"
+                    className="w-full bg-transparent text-white placeholder:text-slate-700 border-b-2 border-slate-700 pb-2 text-center text-2xl sm:text-3xl font-black sports-font uppercase focus:border-slate-300 outline-none transition-all drop-shadow-sm"
+                    onChange={(e) => setPlayer({ ...player, name: e.target.value })}
+                  />
+                                  </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                 {[
@@ -287,8 +340,10 @@ export default function CreationScreen() {
                   </button>
                 </div>
               )}
+              
+              </div> {/* <-- NEW: Closes the .rookie-card div safely! */}
 
-              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-6 w-full flex flex-col gap-3">
+              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-6 w-full flex flex-col gap-3 relative z-10">
                 <button 
                   type="button"
                   onClick={() => { setShowAchievementsMenu(!showAchievementsMenu); setShowRecordsMenu(false); }}

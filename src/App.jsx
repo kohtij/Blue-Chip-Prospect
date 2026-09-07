@@ -595,7 +595,8 @@ function App() {
 
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
-      setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
+      // NEW: Added the 'feedback' property so the IntlMinigameScreen can display the text!
+      setIntlResult({ isWin, msg: resultMsg, feedback: resultMsg, effect: resultEffect });
       return; 
     }
 
@@ -760,7 +761,8 @@ function App() {
 
       setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
       setPlayer(updatedPlayer);
-      setIntlResult({ isWin, msg: resultMsg, effect: resultEffect });
+      // NEW: Added the 'feedback' property here as well!
+      setIntlResult({ isWin, msg: resultMsg, feedback: resultMsg, effect: resultEffect });
       return; 
     }
 

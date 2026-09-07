@@ -140,7 +140,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
          offers.push({
            team: actingTeam,
            league: actingLeague,
-           type: isRFA ? 'RFA EXTENSION' : 'EXTENSION',
+           type: 'EXTENSION', // FIX: Forces the UI to actually render this fair-market offer!
            salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary,
            years: maxYears,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
