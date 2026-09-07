@@ -53,26 +53,36 @@ export default function TransferScreen() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-5xl mx-auto pb-6 px-2 sm:px-0">
               {(() => {
-                // 1. Group offers by Team ID to merge Hometown Discounts
+                // 1. Group offers perfectly: 1 Card per Team
                 const groupedOffers = {};
                 (freeAgencyOffers || []).forEach(o => {
-                   if (!groupedOffers[o.team]) {
-                      groupedOffers[o.team] = { main: o, discount: null };
+                   const key = o.team;
+                   if (!groupedOffers[key]) {
+                      groupedOffers[key] = { main: null, qo: null, discount: null };
+                   }
+                   
+                   if (o.type === 'QUALIFYING OFFER') {
+                      groupedOffers[key].qo = o;
+                   } else if (o.type === 'HOMETOWN DISCOUNT') {
+                      groupedOffers[key].discount = o;
                    } else {
-                      // If we find a second offer from the same team, check which is the discount
-                      if (o.idolHit === 100) {
-                         groupedOffers[o.team].discount = o;
-                      } else {
-                         groupedOffers[o.team].discount = groupedOffers[o.team].main;
-                         groupedOffers[o.team].main = o;
-                      }
+                      groupedOffers[key].main = o;
+                   }
+                });
+
+                // Fallback: If a team ONLY issued a QO (no extension), make the QO the main card.
+                Object.values(groupedOffers).forEach(group => {
+                   if (!group.main && group.qo) {
+                       group.main = group.qo;
+                       group.qo = null;
                    }
                 });
 
                 // 2. Map over the grouped offers to render single cards
-                return Object.values(groupedOffers).map((group, i) => {
+                return Object.values(groupedOffers).filter(g => g.main).map((group, i) => {
                   const o = group.main;
                   const discountOffer = group.discount;
+                  const qoOffer = group.qo;
                   
                   const rivalObj = getPrimaryRival ? getPrimaryRival(player.team, player.league) : null;
                   const isRival = rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team);
@@ -184,6 +194,30 @@ export default function TransferScreen() {
 
                       <div className="mt-auto flex flex-col gap-2 z-10 relative">
                          
+                         {/* INJECTED QUALIFYING OFFER & ARBITRATION BUTTONS */}
+                         {qoOffer && (
+                           <div className="w-full flex gap-2 mb-1">
+                             <button 
+                               onClick={() => signContract(qoOffer)} 
+                               className="flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest font-black text-[9px] sm:text-[10px] transition-all active:scale-95 border border-slate-600 bg-[#1a2230] text-slate-300 hover:bg-[#232d3f] flex flex-col items-center leading-tight shadow-md"
+                             >
+                               <span>📋 ACCEPT Q.O.</span>
+                               <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
+                                 {qoOffer.salary >= 1000000 ? `$${(qoOffer.salary / 1000000).toFixed(1)}M/yr` : `$${(qoOffer.salary / 1000).toFixed(0)}K/yr`}
+                               </span>
+                             </button>
+                             <button 
+                               onClick={() => handleArbitration(qoOffer)} 
+                               className="flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest font-black text-[9px] sm:text-[10px] transition-all active:scale-95 border border-[#ef4444]/50 bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444]/20 flex flex-col items-center leading-tight shadow-[0_0_10px_rgba(239,68,68,0.15)]"
+                             >
+                               <span>⚖️ ARBITRATION</span>
+                               <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
+                                 1-Yr Hearing
+                               </span>
+                             </button>
+                           </div>
+                         )}
+
                          {/* INJECTED SECONDARY DISCOUNT BUTTON (MOVED UP) */}
                          {discountOffer && (
                            <button 
@@ -210,7 +244,7 @@ export default function TransferScreen() {
 
                          {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && o.type !== 'SCHOLARSHIP')) && (
                            <div className="flex gap-2 mt-1">
-                             {o.type === 'QUALIFYING OFFER' && (
+                             {o.type === 'QUALIFYING OFFER' && !qoOffer && (
                                <button onClick={() => handleArbitration(o)} className="flex-1 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
                                  ARBITRATION
                                </button>
