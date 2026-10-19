@@ -200,9 +200,16 @@ export default function IntlMinigameScreen() {
         }
   };
 
-  
+  const wrappedOnComplete = (isWin) => {
+      handleInteractiveResult(
+          isWin, 
+          { win: {}, loss: {} }, // Dummy reward object to prevent the crash
+          "You executed perfectly for your country!", 
+          "You fell short under the immense pressure of the tournament."
+      );
+  };
 
-    return (
+  return (
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
       <div className="flex flex-col items-center justify-center mb-6">
           <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-4 py-1.5 rounded-full mb-3 shadow-inner">
@@ -366,13 +373,13 @@ export default function IntlMinigameScreen() {
         )}
         
         <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-6 rounded-xl shadow-2xl">
-            {activeMgKey === 'breakaway' && <BreakawayGame onComplete={handleInteractiveResult} player={player} />}
-            {activeMgKey === 'faceoff' && <FaceoffGame onComplete={handleInteractiveResult} player={player} />}
-            {activeMgKey === 'deflection' && <DeflectionGame onComplete={handleInteractiveResult} player={player} />}
-            {activeMgKey === 'shootout' && <ShootoutGame onComplete={handleInteractiveResult} player={player} />}
-            {activeMgKey === 'onetimer' && <OneTimerGame onComplete={handleInteractiveResult} player={player} />}
-            {activeMgKey === 'crease' && <CreaseGame onComplete={handleInteractiveResult} player={player} />}
-            {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'breakaway' && <BreakawayGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'faceoff' && <FaceoffGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'deflection' && <DeflectionGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'shootout' && <ShootoutGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'onetimer' && <OneTimerGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'crease' && <CreaseGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={wrappedOnComplete} player={player} />}
         </div>
       </div>
       )}

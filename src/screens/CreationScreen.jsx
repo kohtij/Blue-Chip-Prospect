@@ -198,11 +198,7 @@ export default function CreationScreen() {
                     BLUE CHIP PROSPECT
                     <span className="creation-title-shimmer" aria-hidden="true">BLUE CHIP PROSPECT</span>
                   </span>
-                </h1>
-                
-                <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest mb-6 relative z-10">
-                  Start your text-based hockey career simulator
-                </p>              
+                </h1>            
                 
                 {/* Silver Stamped Name Input */}
                 <div className="relative mb-8 max-w-sm mx-auto z-10">
