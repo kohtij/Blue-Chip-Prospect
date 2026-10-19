@@ -340,7 +340,7 @@ function App() {
       draftLeague: p.league, 
       draftPick: overallPick, 
       draftRound: round, 
-      idolatry: capIdol(p.idolatry + idolBoost) 
+      idolatry: capIdol(p.fanStatus + idolBoost) 
     }));
 
     if (overallPick === 1) unlockAchievement('first_overall');
@@ -967,15 +967,15 @@ function App() {
       let newRelationships;
       if (isNewTeam) {
          let baseTrust = 50; let mediaTrust = 50;
-         if (p.idolatry >= 800) { baseTrust = 75; mediaTrust = 80; } 
-         else if (p.idolatry >= 400) { baseTrust = 60; mediaTrust = 65; }
+         if (p.fanStatus >= 800) { baseTrust = 75; mediaTrust = 80; } 
+         else if (p.fanStatus >= 400) { baseTrust = 60; mediaTrust = 65; }
          newRelationships = { coach: baseTrust, teammates: baseTrust, media: mediaTrust };
       } else {
          newRelationships = { coach: Math.min(100, (p.relationships?.coach || 50) + 10), teammates: Math.min(100, (p.relationships?.teammates || 50) + 10), media: Math.min(100, (p.relationships?.media || 50) + 5) };
       }
       const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
       const updatedPlayer = {
-        ...p, team: o.team, league: o.league || 'NHL', idolatry: capIdol(p.idolatry + (o.idolHit || 0)), 
+        ...p, team: o.team, league: o.league || 'NHL', idolatry: capIdol(p.fanStatus + (o.idolHit || 0)), 
         teamsPlayedFor: newTeams, contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc },
         relationships: newRelationships,
         // FIX: Strip captaincy if moving to a new team
@@ -989,12 +989,19 @@ function App() {
 
     if (o.type === 'TRADE') {
         const resToUse = pendingSeasonResult || { recap: seasonRecap };
+        const newMadePlayoffs = o.standing ? o.standing <= 16 : false;
+        const newStandings = o.standing || 16;
+
         if (resToUse && resToUse.recap) {
-            setSeasonRecap(resToUse.recap);
+            setSeasonRecap({
+                ...resToUse.recap,
+                madePlayoffs: newMadePlayoffs,
+                standings: newStandings
+            });
         }
         if (resToUse) {
             // FIX: Use the fully updated player state so the Dashboard doesn't crash during the handoff
-            runPostSeasonFlow(fullyUpdatedPlayer.age, fullyUpdatedPlayer.ovr, o.league || 'NHL', o.team, o.standing ? o.standing <= 16 : false, 2026 + (fullyUpdatedPlayer.stats?.seasonsPlayed || 0), o.standing || 16);
+            runPostSeasonFlow(fullyUpdatedPlayer.age, fullyUpdatedPlayer.ovr, o.league || 'NHL', o.team, newMadePlayoffs, 2026 + (fullyUpdatedPlayer.stats?.seasonsPlayed || 0), newStandings);
             return; 
         }
     }

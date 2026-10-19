@@ -257,7 +257,7 @@ export default function RecapScreen() {
                 {player.league === 'NCAA' && (
                    <button onClick={() => {
                        unlockAchievement('transfer_portal'); 
-                       setPlayer(p => ({ ...p, idolatry: capIdol(p.idolatry - 15) }));
+                       setPlayer(p => ({ ...p, idolatry: capIdol(p.fanStatus - 15) }));
 
                        let pool = ncaaTeams?.filter(t => t.id !== player.team) || [];
                        pool = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);

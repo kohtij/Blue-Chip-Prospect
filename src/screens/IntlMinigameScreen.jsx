@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
-import { applyOvrDelta, recomputeOvr, capIdol } from '../utils/gameHelpers';
+import { applyOvrDelta, recomputeOvr, capFanStatus } from '../utils/gameHelpers';
 
 const PREP_SCENARIOS = [
   {
@@ -67,12 +67,16 @@ const PREP_SCENARIOS = [
   );
 
 export default function IntlMinigameScreen() {
-  const { activeEvent, handleMinigameChoice, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer, setSeasonEvents } = useAppContext();
+  const { 
+    BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame, ShotBlockGame, OneTimerGame,
+    activeEvent, handleInteractiveResult, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer, setSeasonEvents 
+  } = useAppContext();
   
   // TOURNAMENT HUB VIEWS: 'standings' | 'bracket' | 'prep' | 'game' | 'result'
   const [view, setView] = useState(player.intlData ? 'standings' : 'prep');
+  const [activeMgKey, setActiveMgKey] = useState(null);
   const [prepFeedback, setPrepFeedback] = useState(null);
-  const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
+    const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
 
   const nat = safeNationalities.find(n => n.id === player.nat);
   const countryName = nat?.sentenceName || nat?.name || 'your country';
@@ -127,13 +131,19 @@ export default function IntlMinigameScreen() {
      const withOvr = applyOvrDelta(player, effect.ovr || 0);
      const updatedPlayer = {
         ...withOvr,
-        idolatry: capIdol(withOvr.idolatry + (effect.idol || 0)),
+        fanStatus: capFanStatus((withOvr.fanStatus || withOvr.idolatry || 0) + (effect.fanStatus || effect.idol || 0)),
         ovr: recomputeOvr(withOvr)
      };
      
      setPlayer(updatedPlayer);
      setSeasonEvents(prev => [...prev, { feedback: msg, effect }]);
      
+     // FIX: Select the random minigame here, outside of the render cycle
+     const skaterGames = ['breakaway', 'faceoff', 'deflection', 'shootout', 'onetimer'];
+     const goalieGames = ['crease', 'shotblock', 'shootout'];
+     const pool = updatedPlayer.pos === 'G' ? goalieGames : skaterGames;
+     setActiveMgKey(pool[Math.floor(Math.random() * pool.length)]);
+
      setPrepFeedback({ msg, isWin, effect });
      setView('game');
   }, [player, setPlayer, setSeasonEvents]);
@@ -190,17 +200,7 @@ export default function IntlMinigameScreen() {
         }
   };
 
-  const gameChoices = player.pos === 'G'
-    ? [
-        { label: 'Swallow Rebound', tag: 'AGI', isRisky: false, desc: 'Play conservative angles and absorb the initial shot cleanly.', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.85, win: 'You played a structurally perfect game.', fail: 'You fought the puck and gave up a bad rebound.' },
-        { label: 'Aggressive Challenge', tag: 'IQ + AGI', isRisky: true, desc: 'Aggressively challenge their star sniper way out of the crease.', hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.45 + player.hockeyIQ / 200, win: 'You completely shut down their top line!', fail: 'You were caught out of position and they scored into an empty net.' },
-        { label: 'Desperation Save', tag: 'REF + AGI', isRisky: true, desc: 'Bait the backdoor pass and attempt an acrobatic wind-mill glove save.', hover: 'hover:border-[#ef4444]', pill: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30', chance: 0.40 + (player.shooting + player.physicality) / 400, win: 'You made a highlight-reel, game-saving stop!', fail: "You guessed wrong and they scored easily." },
-      ]
-    : [
-        { label: 'Dump and Chase', tag: 'IQ', isRisky: false, desc: 'Play smart, situational hockey to maintain possession and eat the clock.', hover: 'hover:border-[#3b82f6]', pill: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30', chance: 0.85, win: 'You executed the system perfectly.', fail: 'You turned the puck over at the blue line.' },
-        { label: 'Big Hit', tag: 'PHY', isRisky: true, desc: 'Step up and try to completely level their star forward along the boards.', hover: 'hover:border-[#F59E0B]', pill: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', chance: 0.45 + player.physicality / 200, win: 'You laid a massive, momentum-shifting hit!', fail: 'You missed the hit and gave up an odd-man rush.' },
-        { label: 'Rush the Net', tag: 'SKT + SHT', isRisky: true, desc: 'Attempt to split the defense and drive hard toward the net for a goal.', hover: 'hover:border-[#ef4444]', pill: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30', chance: 0.40 + (player.skating + player.shooting) / 400, win: 'You ripped it top shelf to win the game!', fail: 'You were stripped of the puck and caused a counter-attack.' },
-      ];
+  
 
     return (
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
@@ -356,63 +356,23 @@ export default function IntlMinigameScreen() {
         </div>
       )}
 
-      {/* VIEW: GAME */}
-      {view === 'game' && !intlResult && (
-      <div className="fade-up">
+      {/* VIEW: GAME (REAL MINIGAMES) */}
+      {view === 'game' && !intlResult && activeMgKey && (
+      <div className="fade-up max-w-2xl mx-auto w-full">
         {prepFeedback && (
-            <div className={`mb-8 p-4 border rounded-xl inline-block shadow-md ${prepFeedback.isWin ? 'border-[#22E748]/50 bg-[#22E748]/10 text-[#22E748]' : 'border-red-500/50 bg-red-500/10 text-red-400'}`}>
+            <div className={`mb-6 p-4 border rounded-xl inline-block shadow-md ${prepFeedback.isWin ? 'border-[#22E748]/50 bg-[#22E748]/10 text-[#22E748]' : 'border-red-500/50 bg-red-500/10 text-red-400'}`}>
                 <p className="font-bold text-sm tracking-wide uppercase">{prepFeedback.msg}</p>
             </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
-          {gameChoices.map((c, i) => (
-            <button
-              key={i}
-              onClick={() => handleMinigameChoice(c.chance, c.win, c.fail, { isRisky: c.isRisky, baseTeamChance: 0.50 })}
-              className={`bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] ${c.hover} p-5 sm:p-6 rounded-xl transition-all cursor-pointer flex flex-col justify-between items-center text-left group shadow-lg min-h-[200px]`}
-            >
-              <div className="w-full">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-black text-xl sm:text-2xl text-white sports-font leading-tight group-hover:scale-105 transition-transform">
-                    {c.label}
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-400 font-sans leading-relaxed mb-4">
-                  {c.desc}
-                </p>
-              </div>
-
-              {/* ODDS & REWARD BADGES */}
-              <div className="w-full bg-black/40 rounded-lg p-2.5 border border-[rgba(255,255,255,0.04)] flex flex-col items-center justify-center gap-1.5 font-sans mt-auto">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                  SUCCESS ODDS: <span className={`font-black sports-font text-xs ml-1 ${c.chance >= 0.65 ? 'text-[#22E748]' : c.chance >= 0.50 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>{Math.round(c.chance * 100)}%</span>
-                </p>
-
-                <div className="flex justify-center items-center gap-1.5 flex-wrap mt-1">
-                  {String(c.tag).split('+').map((statLabel, idx) => {
-                    const s = statLabel.trim();
-                    let colorCls = 'text-white bg-white/10 border-white/30'; 
-                    if (['PHY'].includes(s)) colorCls = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'; 
-                    if (['SKT', 'AGI'].includes(s)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'; 
-                    if (['SHT', 'REF'].includes(s)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30'; 
-                    if (['IQ'].includes(s)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30'; 
-                    if (['STA'].includes(s)) colorCls = 'text-[#06b6d4] bg-[#06b6d4]/10 border-[#06b6d4]/30';
-                    
-                    return (
-                      <span key={idx} className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border ${colorCls}`}>
-                        {s}
-                      </span>
-                    );
-                  })}
-                  {c.isRisky ? (
-                      <span className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30">RISKY</span>
-                  ) : (
-                      <span className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30">SAFE</span>
-                  )}
-                </div>
-              </div>
-            </button>
-          ))}
+        
+        <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-6 rounded-xl shadow-2xl">
+            {activeMgKey === 'breakaway' && <BreakawayGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'faceoff' && <FaceoffGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'deflection' && <DeflectionGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'shootout' && <ShootoutGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'onetimer' && <OneTimerGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'crease' && <CreaseGame onComplete={handleInteractiveResult} player={player} />}
+            {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={handleInteractiveResult} player={player} />}
         </div>
       </div>
       )}

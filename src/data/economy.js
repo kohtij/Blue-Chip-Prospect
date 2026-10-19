@@ -1,20 +1,27 @@
 // --- ECONOMY & EVENTS ---
 
 export const shopItems = [
-  { id: 'coach', type: 'staff', name: 'Elite Trainer', cost: 8000000, desc: 'Delays stat decline past age 30.', effect: { declineModifier: 0.5 } },
-  { id: 'physio', type: 'staff', name: 'Personal Physio', cost: 6500000, desc: '+4 STM. Injury prevention.', effect: { stamina: 4 } },
-  { id: 'psych', type: 'staff', name: 'Sports Psych', cost: 5000000, desc: '+5 IQ. Better event outcomes.', effect: { hockeyIQ: 5 } },
-  { id: 'agent', type: 'staff', name: 'Super Agent', cost: 12000000, desc: 'Increases contract offers by 15%.', effect: { salaryModifier: 1.15 } },
-  { id: 'skates', type: 'consumable', name: 'Custom Skates', cost: 1500000, descSkaters: '+4 SKT.', descGoalies: '+4 POS.', duration: 1, effect: { skating: 4 } },
-  { id: 'supplements', type: 'consumable', name: 'Legal Supplements', cost: 2000000, descSkaters: '+5 PHY.', descGoalies: '+5 AGI.', duration: 2, effect: { physicality: 5 } },
-  { id: 'analyst', type: 'consumable', name: 'Video Analyst', cost: 1200000, desc: '+3 IQ.', duration: 1, effect: { hockeyIQ: 3 } },
-  { id: 'car', type: 'luxury', name: 'Sports Car', cost: 500000, desc: '+5 Fan Status', effect: { fanstatus: 5 } },
-  { id: 'house', type: 'luxury', name: 'Penthouse', cost: 3500000, desc: '+25 Fan Status', effect: { fanstatus: 25 } },
-  { id: 'jet', type: 'luxury', name: 'Private Jet', cost: 25000000, desc: '+100 Fan Status', effect: { fanstatus: 100 } },
-  { id: 'charity_foundation', type: 'luxury', name: 'Charity Foundation', cost: 2500000, desc: 'Establish a massive local foundation. Huge boost to public image.', effect: { fanstatus: 800 } },
-  { id: 'hypercar_collection', type: 'luxury', name: 'Hypercar Collection', cost: 3500000, desc: 'A fleet of multi-million dollar cars for your garage.', effect: { fanstatus: 400 } },
-  { id: 'private_jet', type: 'luxury', name: 'Private Jet', cost: 7500000, desc: 'Travel in ultimate comfort. Completely negates road-trip fatigue.', effect: { stamina: 5, fanstatus: 200 } },
-  { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 12000000, desc: 'Buy an ownership stake in a CHL franchise. Boosts your Hockey IQ and legacy.', effect: { hockeyIQ: 3, fanstatus: 500 } }
+  // Affordable Fatigue & Training (Consumables)
+  { id: 'cryo', type: 'consumable', name: 'Cryotherapy Sessions', cost: 15000, desc: '+2 STM. Faster recovery.', duration: 1, effect: { stamina: 2 } },
+  { id: 'chef', type: 'consumable', name: 'Private Nutritionist', cost: 45000, desc: '+3 PHY. Elite diet plan.', duration: 2, effect: { physicality: 3 } },
+  { id: 'skills_camp', type: 'consumable', name: 'Off-Season Skills Camp', cost: 80000, descSkaters: '+3 SKT.', descGoalies: '+3 POS.', duration: 1, effect: { skating: 3 } },
+  { id: 'video_coach', type: 'consumable', name: 'Personal Video Coach', cost: 30000, desc: '+2 IQ. Study the tape.', duration: 1, effect: { hockeyIQ: 2 } },
+  
+  // Staff (Permanent but scaled down costs)
+  { id: 'physio', type: 'staff', name: 'Full-Time Physio', cost: 150000, desc: '+5 STM permanently. Injury prevention.', effect: { stamina: 5 } },
+  { id: 'psych', type: 'staff', name: 'Sports Psychologist', cost: 120000, desc: '+5 IQ permanently.', effect: { hockeyIQ: 5 } },
+  { id: 'agent', type: 'staff', name: 'Super Agent', cost: 250000, desc: 'Increases contract offers by 15%.', effect: { salaryModifier: 1.15 } },
+  { id: 'coach', type: 'staff', name: 'Elite Off-Season Trainer', cost: 400000, desc: 'Delays stat decline past age 30.', effect: { declineModifier: 0.5 } },
+  
+  // Luxury & Lifestyle (Fan Status Sinks)
+  { id: 'watch', type: 'luxury', name: 'Designer Watch', cost: 25000, desc: '+15 Fan Status', effect: { fanStatus: 15 } },
+  { id: 'sports_car', type: 'luxury', name: 'Custom Sports Car', cost: 180000, desc: '+100 Fan Status', effect: { fanStatus: 100 } },
+  { id: 'charity_gala', type: 'luxury', name: 'Host Charity Gala', cost: 75000, desc: 'Huge PR boost. +250 Fan Status', effect: { fanStatus: 250 } },
+  { id: 'hyperbaric', type: 'luxury', name: 'Hyperbaric Chamber', cost: 120000, desc: 'Ultimate recovery. Permanent +3 STM', effect: { stamina: 3 } },
+  
+  // The "Millionaire" Legacy Tier
+  { id: 'penthouse', type: 'luxury', name: 'City Penthouse', cost: 2500000, desc: '+800 Fan Status', effect: { fanStatus: 800 } },
+  { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 8000000, desc: 'Legacy secured. +4 IQ, +1500 Fan Status', effect: { hockeyIQ: 4, fanStatus: 1500 } }
 ];
 
 export const skaterTrainingPool = [

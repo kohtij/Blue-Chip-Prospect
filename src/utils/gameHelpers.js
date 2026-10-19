@@ -8,7 +8,7 @@ export const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5
 
 export const cap = (val) => Math.min(100, Math.max(0, val));
 
-export const capIdol = (val) => Math.min(1000, Math.max(0, val));
+export const capFanStatus = (val) => Math.min(1000, Math.max(0, val));
 
 export const formatMoney = (amount) => {
   if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
@@ -16,7 +16,7 @@ export const formatMoney = (amount) => {
   return `$${amount}`;
 };
 
-export const getIdolTier = (pts) => {
+export const getFanTier = (pts) => {
   if (pts < 100) return { label: 'Unknown', next: 100, req: 100 - pts, nextLabel: 'Known' };
   if (pts < 300) return { label: 'Known', next: 300, req: 300 - pts, nextLabel: 'Loved' };
   if (pts < 600) return { label: 'Loved', next: 600, req: 600 - pts, nextLabel: 'Icon' };
@@ -57,9 +57,9 @@ export const choiceChance = (player, choice) => {
 };
 
 export const CHOICE_REWARD = {
-  safe:   { win: { idol: 3 },  loss: { idol: -2 } },
-  skill:  { win: { idol: 7 },  loss: { idol: -3 } },
-  gamble: { win: { idol: 15, money: 300000 }, loss: { idol: -8 } },
+  safe:   { win: { fanStatus: 3 },  loss: { fanStatus: -2 } },
+  skill:  { win: { fanStatus: 7 },  loss: { fanStatus: -3 } },
+  gamble: { win: { fanStatus: 15, money: 300000 }, loss: { fanStatus: -8 } },
 };
 
 export const recomputeOvr = (p) => {
@@ -518,7 +518,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const newIq = p.hockeyIQ + st.hockeyIQ;
   const newPhy = p.physicality + st.physicality;
 
-  const idolGain = isJuniorLg
+  const fanStatusGain = isJuniorLg
     ? Math.floor((g + a) / 20)
     : (playedLg === 'AHL' ? Math.floor((g + a + (sho * 5)) / 15) : Math.floor((g + a + (sho * 5)) / 3));
 
@@ -551,7 +551,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
     physicality: cap(newPhy),
     hockeyIQ: cap(newIq),
     stamina: cap(newSta),
-    idolatry: capIdol(p.idolatry + idolGain),
+    fanStatus: capFanStatus((p.fanStatus || p.idolatry || 0) + fanStatusGain),
     contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
