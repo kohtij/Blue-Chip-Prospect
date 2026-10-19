@@ -195,12 +195,6 @@ function App() {
   }, [player.age, player.league, player.stats?.awards, player.stats?.titles, screen, unlockAchievement]);
 
   useEffect(() => {
-    let link = document.querySelector("link[rel*='icon']");
-    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.getElementsByTagName('head')[0].appendChild(link); }
-    link.type = 'image/png'; link.href = '/favicon.png';
-  }, []);
-
-  useEffect(() => {
     if (screen === 'playoffs') document.title = "Blue Chip Prospect | Playoffs";
     else if (screen === 'transfer') document.title = "Blue Chip Prospect | Free Agency";
     else document.title = "Blue Chip Prospect";
@@ -1167,7 +1161,7 @@ function App() {
       `}</style>
       
       {achievementToast && (
-        <div 
+        <div data-nosnippet
           className="fixed top-12 right-4 sm:top-16 sm:right-6 z-50 max-w-[260px] sm:max-w-xs bg-[#101410] border-2 border-[#F59E0B] p-4 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-4 pointer-events-none"
           style={{ animation: 'toastLifecycle 4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
         >

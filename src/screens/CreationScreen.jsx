@@ -212,7 +212,7 @@ export default function CreationScreen() {
                   />
                                   </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+              <div data-nosnippet className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                 {[
                   { id: 'LW', name: 'Left Wing', num: 13 },
                   { id: 'C', name: 'Center', num: 97 },
@@ -233,7 +233,7 @@ export default function CreationScreen() {
               </div>
 
               {!showManualSetup ? (
-                 <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
+                 <div data-nosnippet className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
                    <button 
                      onClick={() => setShowManualSetup(true)} 
                      disabled={!player.name} 
@@ -265,7 +265,7 @@ export default function CreationScreen() {
                    </button>
                  </div>
               ) : (
-                <div className="animate-fade-in">
+                <div data-nosnippet className="animate-fade-in">
                   <div className="flex items-center justify-between mb-4">
                      <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase">Select Junior League</h3>
                      <button onClick={() => setShowManualSetup(false)} className="text-xs font-bold text-slate-500 hover:text-white uppercase cursor-pointer">Cancel</button>
@@ -341,9 +341,9 @@ export default function CreationScreen() {
                 </div>
               )}
               
-              </div> {/* <-- NEW: Closes the .rookie-card div safely! */}
+              </div>
 
-              <div className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-6 w-full flex flex-col gap-3 relative z-10">
+              <div data-nosnippet className="border-t border-[rgba(255,255,255,0.065)] pt-6 mt-6 w-full flex flex-col gap-3 relative z-10">
                 <button 
                   type="button"
                   onClick={() => { setShowAchievementsMenu(!showAchievementsMenu); setShowRecordsMenu(false); }}
