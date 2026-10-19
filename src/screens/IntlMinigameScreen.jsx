@@ -15,7 +15,7 @@ const PREP_SCENARIOS = [
     title: "🏞️ THE DAY OFF",
     desc: "You have a full day off before the finals. You can either stay in your room and study tape, or join the guys for a hike around the host city's famous landmarks.",
     choices: [
-      { label: 'Study Film', isRisky: false, desc: 'Review the opponent\'s powerplay.', winEffect: { idol: 0, ovr: 1 }, win: "You picked up on their defensive tendencies and feel prepared." },
+      { label: 'Study Film', isRisky: false, desc: 'Review the opponent\'s powerplay.', winEffect: { idol: 0, ovr: 1 }, win: "You picked up on their defensive tendencies and feel especially prepared." },
       { label: 'Go Sightseeing', isRisky: true, chance: 0.6, desc: 'Great for the mind, risky for the legs.', winEffect: { idol: 20, ovr: 1 }, failEffect: { idol: -5, ovr: -2 }, win: "The fresh air and team bonding completely cleared your head!", fail: "You walked 10 miles and your legs feel like absolute lead." }
     ]
   },

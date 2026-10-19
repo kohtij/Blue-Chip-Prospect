@@ -1,4 +1,4 @@
-import { capIdol, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
+import { capFanStatus, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
 import { getRole } from '../utils/appHelpers';
 import { getOpponentPool } from '../data/teams';
 
@@ -181,7 +181,7 @@ export function handleEventChoice(ctx, choice) {
   const withOvr = applyOvrDelta(updated, outcomeEffect?.ovr || 0);
   const finalPlayer = {
     ...withOvr,
-    idolatry: capIdol(withOvr.idolatry + (outcomeEffect?.idol || 0)),
+    idolatry: capFanStatus(withOvr.idolatry + (outcomeEffect?.idol || 0)),
     ovr: recomputeOvr(withOvr),
     stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) },
     relationships: {
