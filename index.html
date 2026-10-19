@@ -3,15 +3,64 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Core SEO -->
+    <title>Blue Chip Prospect | Free Hockey Career Simulator</title>
+    <meta name="description" content="A free text-based hockey career simulator. Start as a 16-year-old prospect, make the draft, sign contracts, play minigames and chase the Stanley Cup." />
+    <link rel="canonical" href="https://blue-chip-prospect.com/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#040505" />
+
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Blue Chip Prospect</title> 
-    
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph (Social Previews) -->
+    <meta property="og:title" content="Blue Chip Prospect | Free Hockey Career Simulator" />
+    <meta property="og:description" content="A free text-based hockey career simulator. Start as a 16-year-old prospect, make the draft, sign contracts, play minigames and chase the Stanley Cup." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://blue-chip-prospect.com/" />
+    <meta property="og:site_name" content="Blue Chip Prospect" />
+    <meta property="og:image" content="https://blue-chip-prospect.com/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Blue Chip Prospect",
+      "description": "A free text-based hockey career simulator. Start as a 16-year-old prospect, make the draft, sign contracts, play minigames and chase the Stanley Cup.",
+      "url": "https://blue-chip-prospect.com/",
+      "image": "https://blue-chip-prospect.com/og-image.png",
+      "genre": ["Sports", "Simulation"],
+      "gamePlatform": "Web Browser",
+      "applicationCategory": "Game",
+      "inLanguage": "en",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Antonio Ferreira",
+        "sameAs": "https://x.com/ferreirahockey"
+      }
+    }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
   </head>
   <body>
+    <noscript>
+      <h2>Welcome to Blue Chip Prospect</h2>
+      <p>Blue Chip Prospect is a free text-based hockey career simulator. You start as a 16-year-old junior hockey player and make choices that shape your entire career. Play minigames, negotiate contracts, and try to win the Stanley Cup to build your legacy.</p>
+    </noscript>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-

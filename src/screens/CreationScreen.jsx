@@ -201,6 +201,7 @@ export default function CreationScreen() {
                 </h1>
                 
                 <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest mb-6 relative z-10">
+                  Start your text-based hockey career simulator
                 </p>              
                 
                 {/* Silver Stamped Name Input */}
