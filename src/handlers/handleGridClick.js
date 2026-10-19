@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { capIdol, generatePlayoffDeck } from '../utils/gameHelpers';
+import { capFanStatus, generatePlayoffDeck } from '../utils/gameHelpers';
 import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
 export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
@@ -154,7 +154,7 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
           overallStatus = 'won_cup';
           playerUpdates = p => ({
             ...p,
-            idolatry: capIdol(p.idolatry + 30),
+            idolatry: capFanStatus(p.idolatry + 30),
             stats: { ...p.stats, titles: (p.stats.titles || 0) + 1 }
           });
           if (player.league === 'NHL') unlockAchievement('stanley_cup');

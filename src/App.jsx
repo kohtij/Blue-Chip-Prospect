@@ -7,7 +7,7 @@ import {
 import { shopItems, skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool } from './data/minigames';
 import {
-  cap, capIdol, formatMoney, getIdolTier, applyOvrDelta, recomputeOvr
+  cap, capFanStatus, formatMoney, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
 import {
   makeInitialPlayer, getRole, getWinsNeeded,
@@ -340,7 +340,7 @@ function App() {
       draftLeague: p.league, 
       draftPick: overallPick, 
       draftRound: round, 
-      idolatry: capIdol(p.fanStatus + idolBoost) 
+      idolatry: capFanStatus(p.fanStatus + idolBoost) 
     }));
 
     if (overallPick === 1) unlockAchievement('first_overall');
@@ -412,7 +412,7 @@ function App() {
 
     const withOvr = applyOvrDelta(player, ovrDelta);
     const updatedPlayer = { 
-      ...withOvr, idolatry: capIdol(withOvr.idolatry + idolDelta), ovr: recomputeOvr(withOvr),
+      ...withOvr, idolatry: capFanStatus(withOvr.idolatry + idolDelta), ovr: recomputeOvr(withOvr),
       relationships: {
         ...withOvr.relationships,
         media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + mediaDelta)),
@@ -515,7 +515,7 @@ function App() {
       } else {
           // Standard Medal/Survival Stakes
           if (isWin) {
-            updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
+            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
             const withOvr = applyOvrDelta(updatedPlayer, 1); 
             updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
 
@@ -543,7 +543,7 @@ function App() {
             }
             resultEffect = { idol: 50, ovr: 1, rel: { media: 20 } }; 
           } else {
-            updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
+            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry - 5);
             resultEffect = { idol: -5, rel: { media: -15 } }; 
 
             if (stake === 'GOLD') {
@@ -600,7 +600,7 @@ function App() {
     const withOvr = applyOvrDelta(player, outcome.ovr || 0);
     const updatedPlayer = {
       ...withOvr,
-      idolatry: capIdol(withOvr.idolatry + (outcome.idol || 0)),
+      idolatry: capFanStatus(withOvr.idolatry + (outcome.idol || 0)),
       ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
@@ -625,7 +625,7 @@ function App() {
 
     const withOvr = applyOvrDelta(player, payout.ovr || 0);
     let updatedPlayer = {
-      ...withOvr, idolatry: capIdol(withOvr.idolatry + (payout.idol || 0)), ovr: recomputeOvr(withOvr),
+      ...withOvr, idolatry: capFanStatus(withOvr.idolatry + (payout.idol || 0)), ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
           earnings: (withOvr.stats?.earnings || 0) + (payout.money || 0),
@@ -640,7 +640,7 @@ function App() {
     
     if (minigameContext === 'memcup') {
         if (isWin && memCup.round === 1) {
-            updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + 50);
+            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + 50);
             updatedPlayer.stats = { ...updatedPlayer.stats, memCupBoost: 50, titles: (updatedPlayer.stats.titles || 0) + 1 };
             if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
                 const lastIdx = updatedPlayer.seasonHistory.length - 1;
@@ -681,7 +681,7 @@ function App() {
       } else {
           // Standard Medal/Survival Stakes
           if (isWin) {
-            updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
+            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
             const withOvr = applyOvrDelta(updatedPlayer, 1); 
             updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
 
@@ -709,7 +709,7 @@ function App() {
             }
             resultEffect = { idol: 50, ovr: 1, rel: { media: 20 } }; 
           } else {
-            updatedPlayer.idolatry = capIdol(updatedPlayer.idolatry - 5);
+            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry - 5);
             resultEffect = { idol: -5, rel: { media: -15 } }; 
 
             if (stake === 'GOLD') {
@@ -975,7 +975,7 @@ function App() {
       }
       const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
       const updatedPlayer = {
-        ...p, team: o.team, league: o.league || 'NHL', idolatry: capIdol(p.fanStatus + (o.idolHit || 0)), 
+        ...p, team: o.team, league: o.league || 'NHL', idolatry: capFanStatus(p.fanStatus + (o.idolHit || 0)), 
         teamsPlayedFor: newTeams, contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc },
         relationships: newRelationships,
         // FIX: Strip captaincy if moving to a new team
@@ -1056,7 +1056,7 @@ function App() {
       // Apply the intended stats
       if (item.effect?.stamina) next.stamina = cap((next.stamina || 50) + item.effect.stamina);
       if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ || 50) + item.effect.hockeyIQ);
-      if (item.effect?.idolatry) next.idolatry = capIdol(next.idolatry + item.effect.idolatry);
+      if (item.effect?.idolatry) next.idolatry = capFanStatus(next.idolatry + item.effect.idolatry);
       if (item.effect?.physicality) next.physicality = cap((next.physicality || 50) + item.effect.physicality);
       if (item.effect?.shooting) next.shooting = cap((next.shooting || 50) + item.effect.shooting);
       if (item.effect?.skating) next.skating = cap((next.skating || 50) + item.effect.skating);
@@ -1135,7 +1135,7 @@ function App() {
   ctx.proceedToNextScreen = proceedToNextScreen;
   ctx.checkPlayoffs = checkPlayoffs;
 
-  const tier = getIdolTier(player.idolatry);
+  const tier = getFanTier(player.idolatry);
 
   const contextValue = {
     BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame,

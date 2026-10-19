@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppContext } from '../AppContext';
-import { applyOvrDelta, recomputeOvr, capIdol } from '../utils/gameHelpers';
+import { applyOvrDelta, recomputeOvr, capFanStatus } from '../utils/gameHelpers';
 import AllStarAccuracy from '../components/AllStarAccuracy';
 import AllStarHardestShot from '../components/AllStarHardestShot';
 import AllStarFastestSkater from '../components/AllStarFastestSkater';
@@ -108,7 +108,7 @@ const handleQuickSim = () => {
       const withOvr = applyOvrDelta(p, totalOvr);
       return {
           ...withOvr,
-          idolatry: capIdol(withOvr.idolatry + totalIdol),
+          idolatry: capFanStatus(withOvr.idolatry + totalIdol),
           ovr: recomputeOvr(withOvr),
           relationships: {
              ...withOvr.relationships,

@@ -1,7 +1,7 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { LEAGUE_CONFIG, getOpponentPool, getPrimaryRival, ncaaTeams } from '../data/teams';
-import { capIdol, formatMoney } from '../utils/gameHelpers';
+import { capFanStatus, formatMoney } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle } from '../utils/gameHelpers';
 
 export default function RecapScreen() {
@@ -257,7 +257,7 @@ export default function RecapScreen() {
                 {player.league === 'NCAA' && (
                    <button onClick={() => {
                        unlockAchievement('transfer_portal'); 
-                       setPlayer(p => ({ ...p, idolatry: capIdol(p.fanStatus - 15) }));
+                       setPlayer(p => ({ ...p, idolatry: capFanStatus(p.fanStatus - 15) }));
 
                        let pool = ncaaTeams?.filter(t => t.id !== player.team) || [];
                        pool = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
