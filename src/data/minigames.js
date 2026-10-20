@@ -92,11 +92,44 @@ export const interactiveMinigames = [
     title: 'TRAINING CAMP BATTLE',
     desc: 'You are battling a veteran for the final top-6 roster spot. The coach is watching closely. When the whistle blows (screen flashes GREEN), click immediately to win the puck battle!',
     accent: 'emerald',
-    gameType: 'faceoff', // We can reuse the Faceoff reflex mechanic for a generic "puck battle"
-    pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], // Everyone
+    gameType: 'faceoff', 
+    pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], 
     reward: { win: { idol: 10, ovr: 1, rel: { coach: 25 } }, loss: { idol: -5, ovr: -1, rel: { coach: -25 } } },
     successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
     failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
+  },
+  {
+    id: 'breakout',
+    title: 'THE BREAKOUT',
+    desc: 'Find the open winger under heavy forecheck pressure.',
+    accent: 'blue',
+    gameType: 'breakout',
+    pos: ['LD', 'RD'],
+    reward: { win: { idol: 15, ovr: 1, rel: { coach: 15 } }, loss: { idol: -10, ovr: 0, rel: { coach: -10 } } },
+    successMsg: "Tape to tape! You bypassed the forecheck beautifully.",
+    failMsg: "Turnover! You passed it right to the forechecker."
+  },
+  {
+    id: 'screened',
+    title: 'SCREENED SHOT',
+    desc: 'React to a shot you cannot see until the very last second.',
+    accent: 'emerald',
+    gameType: 'screened',
+    pos: ['G'],
+    reward: { win: { idol: 25, ovr: 1, rel: { teammates: 10 } }, loss: { idol: -10, ovr: 0 } },
+    successMsg: "What a reflex save! You fought through the screen.",
+    failMsg: "Beaten clean. You couldn't track it through the traffic."
+  },
+  {
+    id: 'zone_battle',
+    title: 'NET FRONT BATTLE',
+    desc: 'Fight the defenseman for position to tip the puck.',
+    accent: 'amber',
+    gameType: 'zone_battle',
+    pos: ['C', 'LW', 'RW', 'LD', 'RD'],
+    reward: { win: { idol: 20, ovr: 1 }, loss: { idol: -5, ovr: 0 } },
+    successMsg: "You boxed out the defender and got the tip!",
+    failMsg: "You lost leverage and got pushed out of the crease."
   }
 ];
 

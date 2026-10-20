@@ -10,10 +10,10 @@ export default function DeflectionGame({ player, onComplete }) {
   const iq = getActiveStat(player, 'hockeyIQ');
   
   // Physicality determines how wide the "perfect screen" window is
-  const sweetSpotMin = Math.max(10, 70 - Math.floor((physicality - 50) / 4));
-  const sweetSpotMax = Math.min(95, 85 + Math.floor((physicality - 50) / 4));
+  const sweetSpotMin = Math.max(40, 78 - Math.floor((physicality - 50) / 5));
+  const sweetSpotMax = Math.min(95, 85 + Math.floor((physicality - 50) / 5));
   // Hockey IQ determines how slowly the play develops (giving you better timing control)
-  const speed = Math.max(0.6, 1.4 - ((iq - 50) * 0.01));
+  const speed = Math.max(1.2, 2.5 - ((iq - 50) * 0.015)); // Significantly faster bar
   
   const intervalRef = useRef(null);
 

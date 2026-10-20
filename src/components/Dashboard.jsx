@@ -73,7 +73,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
         style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${teamBg} 12%, #12161c) 0%, #0a0d0a 38%)` }}
       >
         <div className="absolute top-0 left-0 right-0 h-[3px] opacity-90 z-0" style={{ background: `linear-gradient(90deg, transparent, ${frameColor}, transparent)` }}></div>
-        {player.ovr >= 90 && <div className="bluechip-foil-overlay"></div>}
+        {(player.ovr >= 90 || player.isGenerational) && <div className="bluechip-foil-overlay"></div>}
 
         <div className="relative z-10 flex flex-col gap-4 sm:gap-5 h-full w-full flex-1">
 

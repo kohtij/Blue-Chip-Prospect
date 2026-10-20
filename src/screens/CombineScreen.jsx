@@ -140,15 +140,15 @@ export default function CombineScreen() {
   const [vo2Active, setVo2Active] = useState(false);
   const [vo2Done, setVo2Done] = useState(false);
   const [vo2Score, setVo2Score] = useState(0);
-  const [vo2Time, setVo2Time] = useState(10);
+  const [vo2Time, setVo2Time] = useState(5);
   const [vo2Result, setVo2Result] = useState(null);
 
   const finishVo2 = useCallback((score) => {
     setVo2Done(true);
     let pts, msg;
-    if (score >= 45) { pts = 2; msg = "Elite endurance! You barely broke a sweat."; }
-    else if (score >= 32) { pts = 1; msg = "Solid motor. You can handle top-four minutes."; }
-    else if (score >= 20) { pts = 0; msg = "Average cardio. Better hit the bike this summer."; }
+    if (score >= 23) { pts = 2; msg = "Elite endurance! You barely broke a sweat."; }
+    else if (score >= 16) { pts = 1; msg = "Solid motor. You can handle top-four minutes."; }
+    else if (score >= 10) { pts = 0; msg = "Average cardio. Better hit the bike this summer."; }
     else { pts = -1; msg = "You gassed out completely. Scouts are concerned."; }
     setCombineScore(s => s + pts);
     setVo2Result({ pts, msg, finalScore: score, unit: 'STRIDES' });
@@ -174,7 +174,7 @@ export default function CombineScreen() {
   }, [vo2Active, vo2Time, vo2Score, finishVo2]);
 
   const startVo2 = () => {
-    setVo2Active(true); setVo2Score(0); setVo2Time(10); setVo2Done(false);
+    setVo2Active(true); setVo2Score(0); setVo2Time(5); setVo2Done(false);
   };
 
   // ==========================================

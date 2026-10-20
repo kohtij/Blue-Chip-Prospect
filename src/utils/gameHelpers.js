@@ -157,7 +157,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings }
       if (pts >= 105) awards.push('Art Ross Trophy');
       if (isDefense && pts >= 75) awards.push('Norris Trophy');
       if (isGoalie && svPct >= 0.920 && games >= 40) awards.push('Vezina Trophy');
-      if (player.stats?.seasonsPlayed === 1 && pts >= 65) awards.push('Calder Trophy');
+      if (player.stats?.seasonsPlayed === 1 && (pts >= 65 || (isGoalie && svPct >= 0.915 && games >= 40))) awards.push('Calder Trophy');
       
       if (g > 92) {
          if (careerHighGoals > 92) {

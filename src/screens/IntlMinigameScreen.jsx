@@ -1,46 +1,70 @@
 import { useState, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
-import { applyOvrDelta, recomputeOvr, capFanStatus } from '../utils/gameHelpers';
+import { capFanStatus } from '../utils/gameHelpers';
 
 const PREP_SCENARIOS = [
   {
     title: "🍽️ THE TEAM DINNER",
-    desc: "The night before the massive tournament finale, the coaches have arranged a standard buffet at the hotel, but some teammates want to sneak out and try the famous local street food.",
+    desc: "The coaches arranged a standard buffet, but some teammates want to sneak out for famous local street food.",
     choices: [
-      { label: 'Eat at the Hotel', isRisky: false, desc: 'Safe carbs. You feel perfectly fine.', winEffect: { idol: 0, ovr: 1 }, win: "You ate the bland pasta. Not exciting, but safe." },
-      { label: 'Try Local Street Food', isRisky: true, chance: 0.5, desc: 'Could be amazing energy, or a long night in the bathroom.', winEffect: { idol: 15, ovr: 2 }, failEffect: { idol: -10, ovr: -2 }, win: "The food was incredible! You feel incredibly energized.", fail: "Food poisoning. You spent the night hugging the toilet." }
+      { label: 'Eat at the Hotel', isRisky: false, desc: 'Safe carbs.', winEffect: { fanStatus: 5 }, win: "You ate the bland pasta. Not exciting, but safe." },
+      { label: 'Try Local Street Food', isRisky: true, chance: 0.5, desc: 'Could be amazing energy, or a disaster.', winEffect: { fanStatus: 25 }, failEffect: { fanStatus: -15 }, win: "The food was incredible! Great team bonding.", fail: "Food poisoning. You spent the night hugging the toilet." }
     ]
   },
   {
     title: "🏞️ THE DAY OFF",
-    desc: "You have a full day off before the finals. You can either stay in your room and study tape, or join the guys for a hike around the host city's famous landmarks.",
+    desc: "You have a full day off. Stay in your room to study tape, or join the guys for a hike around the city.",
     choices: [
-      { label: 'Study Film', isRisky: false, desc: 'Review the opponent\'s powerplay.', winEffect: { idol: 0, ovr: 1 }, win: "You picked up on their defensive tendencies and feel especially prepared." },
-      { label: 'Go Sightseeing', isRisky: true, chance: 0.6, desc: 'Great for the mind, risky for the legs.', winEffect: { idol: 20, ovr: 1 }, failEffect: { idol: -5, ovr: -2 }, win: "The fresh air and team bonding completely cleared your head!", fail: "You walked 10 miles and your legs feel like absolute lead." }
+      { label: 'Study Film', isRisky: false, desc: 'Review the opponent\'s powerplay.', winEffect: { fanStatus: 5 }, win: "You picked up on their tendencies and feel prepared." },
+      { label: 'Go Sightseeing', isRisky: true, chance: 0.6, desc: 'Great for the mind, risky for the legs.', winEffect: { fanStatus: 30 }, failEffect: { fanStatus: -10 }, win: "The fresh air and bonding cleared your head!", fail: "You walked 10 miles and your legs feel like lead." }
     ]
   },
   {
     title: "🎤 THE MEDIA SCRUM",
-    desc: "The international press surrounds your locker. They are practically begging for a controversial headline about tomorrow's matchup against your biggest rivals.",
+    desc: "The international press is begging for a controversial headline about tomorrow's matchup against your rivals.",
     choices: [
-      { label: 'Give Cliché Answers', isRisky: false, desc: '"Pucks deep, 110%, etc."', winEffect: { idol: 5, ovr: 0 }, win: "Boring, but you avoided giving them bulletin board material." },
-      { label: 'Guarantee a Victory', isRisky: true, chance: 0.4, desc: 'Call your shot on the global stage.', winEffect: { idol: 50, ovr: 2 }, failEffect: { idol: -30, ovr: -1 }, win: "The fans loved the swagger! You are oozing with confidence.", fail: "The media ripped your arrogance, and the immense pressure is getting to you." }
+      { label: 'Give Cliché Answers', isRisky: false, desc: '"Pucks deep, 110%, etc."', winEffect: { fanStatus: 5 }, win: "Boring, but you avoided giving them bulletin board material." },
+      { label: 'Guarantee a Victory', isRisky: true, chance: 0.4, desc: 'Call your shot on the global stage.', winEffect: { fanStatus: 60 }, failEffect: { fanStatus: -35 }, win: "The fans loved the swagger! You are oozing with confidence.", fail: "The media ripped your arrogance, adding immense pressure." }
     ]
   },
   {
     title: "🏒 EQUIPMENT TINKERING",
-    desc: "A representative from your stick sponsor drops off a new, experimental prototype right before practice and asks you to use it in the final.",
+    desc: "Your stick sponsor drops off an experimental prototype right before practice.",
     choices: [
-      { label: 'Stick to the Old Reliable', isRisky: false, desc: 'Use the gear that got you here.', winEffect: { idol: 0, ovr: 1 }, win: "No surprises. You feel totally comfortable with your setup." },
-      { label: 'Use the Prototype', isRisky: true, chance: 0.5, desc: 'Could have an insane kick point, or feel completely foreign.', winEffect: { idol: 15, ovr: 2 }, failEffect: { idol: -5, ovr: -2 }, win: "The puck jumps off the blade! Your shot feels absolutely lethal.", fail: "You can't feel the puck at all. A huge mistake trying it now." }
+      { label: 'Stick to Old Reliable', isRisky: false, desc: 'Use the gear that got you here.', winEffect: { fanStatus: 0 }, win: "No surprises. You feel totally comfortable." },
+      { label: 'Use the Prototype', isRisky: true, chance: 0.5, desc: 'Could feel amazing, or completely foreign.', winEffect: { fanStatus: 20 }, failEffect: { fanStatus: -10 }, win: "The puck jumps off the blade! You feel lethal.", fail: "You can't feel the puck at all. A huge mistake." }
     ]
   },
   {
     title: "👀 PRE-GAME WARMUPS",
-    desc: "You step onto the ice for warmups. The opposing team is staring you down from the red line, trying to intimidate you in front of the hostile crowd.",
+    desc: "The opposing team is staring you down from the red line, trying to intimidate you.",
     choices: [
-      { label: 'Focus on Stretching', isRisky: false, desc: 'Ignore them and get your body ready.', winEffect: { idol: 0, ovr: 1 }, win: "You ignored the noise and got a great sweat going." },
-      { label: 'Stare Them Down', isRisky: true, chance: 0.55, desc: 'Skate to the red line and send a message.', winEffect: { idol: 25, ovr: 1 }, failEffect: { idol: -15, ovr: -1 }, win: "You didn't blink. They looked away first. You are in their heads.", fail: "You tripped on a puck while trying to look intimidating. Extremely embarrassing." }
+      { label: 'Focus on Stretching', isRisky: false, desc: 'Ignore them and get ready.', winEffect: { fanStatus: 5 }, win: "You ignored the noise and got a great sweat going." },
+      { label: 'Stare Them Down', isRisky: true, chance: 0.55, desc: 'Skate to the red line and send a message.', winEffect: { fanStatus: 30 }, failEffect: { fanStatus: -20 }, win: "You didn't blink. You are in their heads.", fail: "You tripped while trying to look intimidating. Embarrassing." }
+    ]
+  },
+  {
+    title: "📱 LOCKER ROOM DISTRACTION",
+    desc: "A massive rumor about your NHL club is trending on social media right before puck drop.",
+    choices: [
+      { label: 'Turn Phone Off', isRisky: false, desc: 'Block the noise.', winEffect: { fanStatus: 0 }, win: "You locked in and kept your focus on the tournament." },
+      { label: 'Post a Cryptic Reply', isRisky: true, chance: 0.4, desc: 'Stir the pot for engagement.', winEffect: { fanStatus: 50 }, failEffect: { fanStatus: -25 }, win: "The internet went wild. Your brand is soaring.", fail: "Fans called you selfish for focusing on drama over the tournament." }
+    ]
+  },
+  {
+    title: "🤒 THE MINOR TWEAK",
+    desc: "You felt a slight pull in your groin during morning skate. The trainers leave it up to you.",
+    choices: [
+      { label: 'Play Through It', isRisky: true, chance: 0.6, desc: 'Risk aggravating it for glory.', winEffect: { fanStatus: 40 }, failEffect: { fanStatus: -15 }, win: "You gutted it out and the pain faded away. A warrior effort.", fail: "You looked a step slow all night and hurt the team." },
+      { label: 'Take an Injection', isRisky: false, desc: 'Numb the pain completely.', winEffect: { fanStatus: 5 }, win: "You can't feel a thing. Good to go." }
+    ]
+  },
+  {
+    title: "🤝 THE CAPTAIN'S CALL",
+    desc: "The locker room is tense. The captain asks you to lead the pre-game speech.",
+    choices: [
+      { label: 'Deliver a Fiery Speech', isRisky: true, chance: 0.5, desc: 'Fire up the boys.', winEffect: { fanStatus: 25 }, failEffect: { fanStatus: -10 }, win: "The room was ready to run through a brick wall!", fail: "You stumbled over your words. The veterans rolled their eyes." },
+      { label: 'Keep it Brief', isRisky: false, desc: 'Let your play do the talking.', winEffect: { fanStatus: 5 }, win: "You said a few quiet words and strapped on your helmet." }
     ]
   }
 ];
@@ -68,8 +92,8 @@ const PREP_SCENARIOS = [
 
 export default function IntlMinigameScreen() {
   const { 
-    BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame, ShotBlockGame, OneTimerGame,
-    activeEvent, handleInteractiveResult, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer, setSeasonEvents 
+    BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame, ShotBlockGame, OneTimerGame, ZoneBattleGame,
+    activeEvent, handleInteractiveResult, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer
   } = useAppContext();
   
   // TOURNAMENT HUB VIEWS: 'standings' | 'bracket' | 'prep' | 'game' | 'result'
@@ -128,25 +152,21 @@ export default function IntlMinigameScreen() {
          msg = isWin ? c.win : c.fail;
      }
 
-     const withOvr = applyOvrDelta(player, effect.ovr || 0);
      const updatedPlayer = {
-        ...withOvr,
-        fanStatus: capFanStatus((withOvr.fanStatus || withOvr.idolatry || 0) + (effect.fanStatus || effect.idol || 0)),
-        ovr: recomputeOvr(withOvr)
+        ...player,
+        fanStatus: capFanStatus((player.fanStatus || player.idolatry || 0) + (effect.fanStatus || effect.idol || 0))
      };
      
      setPlayer(updatedPlayer);
-     setSeasonEvents(prev => [...prev, { feedback: msg, effect }]);
      
-     // FIX: Select the random minigame here, outside of the render cycle
-     const skaterGames = ['breakaway', 'faceoff', 'deflection', 'shootout', 'onetimer'];
+     const skaterGames = ['breakaway', 'faceoff', 'deflection', 'shootout', 'onetimer', 'breakout', 'zone_battle'];
      const goalieGames = ['crease', 'shotblock', 'shootout'];
      const pool = updatedPlayer.pos === 'G' ? goalieGames : skaterGames;
      setActiveMgKey(pool[Math.floor(Math.random() * pool.length)]);
 
      setPrepFeedback({ msg, isWin, effect });
      setView('game');
-  }, [player, setPlayer, setSeasonEvents]);
+  }, [player, setPlayer]);
 
   // --- Hub Advancement Logic ---
   // When you click Continue on the Result Screen, we either update the bracket and stay, or leave.
@@ -380,6 +400,7 @@ export default function IntlMinigameScreen() {
             {activeMgKey === 'onetimer' && <OneTimerGame onComplete={wrappedOnComplete} player={player} />}
             {activeMgKey === 'crease' && <CreaseGame onComplete={wrappedOnComplete} player={player} />}
             {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'zone_battle' && <ZoneBattleGame onComplete={wrappedOnComplete} player={player} />}
         </div>
       </div>
       )}

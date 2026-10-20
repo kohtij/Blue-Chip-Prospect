@@ -34,6 +34,7 @@ import DeflectionGame from './components/DeflectionGame';
 import ShotBlockGame from './components/ShotBlockGame';
 import BreakawayGame from './components/BreakawayGame';
 import OneTimerGame from './components/OneTimerGame';
+import ZoneBattleGame from './components/ZoneBattleGame';
 import { AppContext } from './AppContext';
 import CreationScreen from './screens/CreationScreen';
 import RetirementScreen from './screens/RetirementScreen';
@@ -425,12 +426,23 @@ function App() {
   };
 
   const triggerMinigame = (context = 'season', explicitId = null) => {
+    const pool = getMinigamePool(player.pos) || [];
+    
     if (explicitId) {
-        setActiveMinigame(explicitId);
+        const isValidForPos = pool.some(m => m.id === explicitId);
+        if (isValidForPos) {
+            setActiveMinigame(explicitId);
+        } else {
+            // eslint-disable-next-line react-hooks/purity
+            const pick = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+            if (pick) setActiveMinigame(pick.id);
+            else {
+                setTimeout(() => proceedToNextScreen(null, context, player), 0);
+                return;
+            }
+        }
     } else {
-        const pool = getMinigamePool(player.pos) || [];
         if (pool.length === 0) {
-            // FAILSAFE: If the minigame pool is empty, safely push the user to the next screen instead of hanging.
             setTimeout(() => proceedToNextScreen(null, context, player), 0);
             return;
         }
@@ -571,7 +583,7 @@ function App() {
           }
       }
 
-      // ALWAYS save the tournament appearance and real stats to the season history!
+// ALWAYS save the tournament appearance and real stats to the season history!
       if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
           const lastIdx = updatedPlayer.seasonHistory.length - 1;
           const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
@@ -587,11 +599,15 @@ function App() {
           };
       }
 
-      setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
+      // FIX: Only write to the season recap if the tournament is over!
+      const isTournamentOver = !isWin || ['GOLD', 'BRONZE', 'SURVIVAL', 'PROMOTION'].includes(stake);
+      if (isTournamentOver) {
+          setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
+      }
+      
       setPlayer(updatedPlayer);
-      // NEW: Added the 'feedback' property so the IntlMinigameScreen can display the text!
       setIntlResult({ isWin, msg: resultMsg, feedback: resultMsg, effect: resultEffect });
-      return; 
+      return;
     }
 
     const payout = reward || { win: { idol: 5 }, loss: { idol: -2 } };
@@ -620,12 +636,14 @@ function App() {
   };
 
   const handleInteractiveResult = (isWin, reward, successMsg, failMsg) => {
-    const payout = isWin ? reward.win : reward.loss;
+    const payout = isWin ? (reward?.win || {}) : (reward?.loss || {});
     const msg = isWin ? successMsg : failMsg;
 
     const withOvr = applyOvrDelta(player, payout.ovr || 0);
     let updatedPlayer = {
-      ...withOvr, idolatry: capFanStatus(withOvr.idolatry + (payout.idol || 0)), ovr: recomputeOvr(withOvr),
+      ...withOvr, 
+      fanStatus: capFanStatus((withOvr.fanStatus || withOvr.idolatry || 0) + (payout.fanStatus || payout.idol || 0)), 
+      ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
           earnings: (withOvr.stats?.earnings || 0) + (payout.money || 0),
@@ -638,9 +656,47 @@ function App() {
       }
     };
     
+    // NEW FINALS LOGIC
+    if (minigameContext === 'finals') {
+      const finalRound = playoffs.bracket.length - 1;
+      const rWN = getWinsNeeded(playoffs.currentLg, finalRound);
+
+      setPlayoffs(prev => {
+        const newBracket = [...prev.bracket];
+        const roundMatches = [...newBracket[finalRound]];
+        const pIndex = roundMatches.findIndex(m => m.isPlayerSeries);
+        if (pIndex >= 0) {
+            const m = { ...roundMatches[pIndex] };
+            const pIsT1 = m.team1 === player.team || m.team1?.id === player.team;
+            if (isWin) {
+                m.wins1 = pIsT1 ? rWN : rWN - 1;
+                m.wins2 = pIsT1 ? rWN - 1 : rWN;
+                m.status = 'won';
+            } else {
+                m.wins1 = pIsT1 ? rWN - 1 : rWN;
+                m.wins2 = pIsT1 ? rWN : rWN - 1;
+                m.status = 'lost';
+            }
+            roundMatches[pIndex] = m;
+            newBracket[finalRound] = roundMatches;
+        }
+        return { ...prev, bracket: newBracket, overallStatus: isWin ? 'won_cup' : 'eliminated' };
+      });
+
+      updatedPlayer.fanStatus = Math.min(1000, (updatedPlayer.fanStatus || 0) + (isWin ? 100 : -25));
+
+      setPlayer(updatedPlayer);
+      setSeasonEvents(prevEvents => [...prevEvents, { 
+        feedback: isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.", 
+        effect: { fanStatus: isWin ? 100 : -25, ovr: 0, money: 0 } 
+      }]);
+      setScreen('playoffs');
+      return;
+    }
+
     if (minigameContext === 'memcup') {
         if (isWin && memCup.round === 1) {
-            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + 50);
+            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || updatedPlayer.idolatry || 0) + 50);
             updatedPlayer.stats = { ...updatedPlayer.stats, memCupBoost: 50, titles: (updatedPlayer.stats.titles || 0) + 1 };
             if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
                 const lastIdx = updatedPlayer.seasonHistory.length - 1;
@@ -652,7 +708,7 @@ function App() {
         setMemCup(prev => ({ ...prev, status: isWin ? (prev.round === 0 ? 'semi_won' : 'won') : 'lost', lastFeedback: msg }));
         
         setPlayer(updatedPlayer);
-        setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
+        setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { fanStatus: payout.fanStatus || payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
         proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
         return; 
     }
@@ -669,21 +725,20 @@ function App() {
       let awardName = '';
 
       if (stake === 'QUARTERFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Semifinals!`; resultEffect = { idol: 15, ovr: 0 }; }
-          else { resultMsg = `${msg} A heartbreaking Quarterfinal exit for ${countryName}.`; resultEffect = { idol: -10, ovr: 0 }; }
-          const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
-          updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
+          if (isWin) { resultMsg = `${msg} You advance to the Semifinals!`; resultEffect = { fanStatus: 15, ovr: 0 }; }
+          else { resultMsg = `${msg} A heartbreaking Quarterfinal exit for ${countryName}.`; resultEffect = { fanStatus: -10, ovr: 0 }; }
+          const withOvrIntl = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
+          updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
       } else if (stake === 'SEMIFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Gold Medal Game!`; resultEffect = { idol: 25, ovr: 0 }; }
-          else { resultMsg = `${msg} You fell in the Semifinals and will play for Bronze.`; resultEffect = { idol: -5, ovr: 0 }; }
-          const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
-          updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
+          if (isWin) { resultMsg = `${msg} You advance to the Gold Medal Game!`; resultEffect = { fanStatus: 25, ovr: 0 }; }
+          else { resultMsg = `${msg} You fell in the Semifinals and will play for Bronze.`; resultEffect = { fanStatus: -5, ovr: 0 }; }
+          const withOvrIntl = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
+          updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
       } else {
-          // Standard Medal/Survival Stakes
           if (isWin) {
-            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
-            const withOvr = applyOvrDelta(updatedPlayer, 1); 
-            updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
+            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || updatedPlayer.idolatry || 0) + (stake === 'GOLD' ? 50 : 25));
+            const withOvrIntl = applyOvrDelta(updatedPlayer, 1); 
+            updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
 
             if (stake === 'GOLD') {
                 awardName = 'Gold';
@@ -707,10 +762,10 @@ function App() {
             } else {
                 resultMsg = `${msg} A solid win to end the tournament on a high note.`;
             }
-            resultEffect = { idol: 50, ovr: 1, rel: { media: 20 } }; 
+            resultEffect = { fanStatus: 50, ovr: 1, rel: { media: 20 } }; 
           } else {
-            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry - 5);
-            resultEffect = { idol: -5, rel: { media: -15 } }; 
+            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || updatedPlayer.idolatry || 0) - 5);
+            resultEffect = { fanStatus: -5, rel: { media: -15 } }; 
 
             if (stake === 'GOLD') {
                 awardName = 'Silver';
@@ -737,7 +792,6 @@ function App() {
           }
       }
 
-      // ALWAYS save the tournament appearance and real stats to the season history!
       if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
           const lastIdx = updatedPlayer.seasonHistory.length - 1;
           const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
@@ -753,15 +807,18 @@ function App() {
           };
       }
 
-      setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
+      const isTournamentOver = !isWin || ['GOLD', 'BRONZE', 'SURVIVAL', 'PROMOTION'].includes(stake);
+      if (isTournamentOver) {
+          setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
+      }
+      
       setPlayer(updatedPlayer);
-      // NEW: Added the 'feedback' property here as well!
       setIntlResult({ isWin, msg: resultMsg, feedback: resultMsg, effect: resultEffect });
       return; 
     }
 
     setPlayer(updatedPlayer);
-    setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
+    setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { fanStatus: payout.fanStatus || payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
 
@@ -1139,7 +1196,7 @@ function App() {
 
   const contextValue = {
     BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame,
-    FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame,
+    FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame, ZoneBattleGame,
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
     checkEarlyDemotion, combineColor, combinePhase, combineScore, currentYear,
@@ -1184,7 +1241,7 @@ function App() {
         </div>
       )}
       {isShopOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/80 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-md game-panel h-full flex flex-col border border-[#22E748]">
             <div className="flex justify-between items-center p-6 border-b border-[rgba(255,255,255,0.065)] bg-[#101410] rounded-t-xl">
               <h2 className="text-2xl font-bold text-white sports-font tracking-wide">SHOP</h2>

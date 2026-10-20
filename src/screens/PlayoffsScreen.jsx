@@ -1,12 +1,13 @@
-import 'react';
+import  { useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
 import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
-import TrophyImage from '../components/TrophyImage'
+import TrophyImage from '../components/TrophyImage';
+import { applyOvrDelta, recomputeOvr } from '../utils/gameHelpers';
 
 export default function PlayoffsScreen() {
-  const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setPlayer, setPlayoffs } = useAppContext();
+  const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setPlayer, setPlayoffs, triggerMinigame } = useAppContext();
   
   const activeRound = playoffs.bracket[playoffs.activeRoundIndex];
   const playerMatchIndex = activeRound?.findIndex(m => m.isPlayerSeries);
@@ -60,6 +61,66 @@ export default function PlayoffsScreen() {
   };
 
   const activeOpponentId = activeMatch?.team2?.id || activeMatch?.team2 || 'UNK';
+const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activeOpponentId;
+  const seasonsWithOpponent = (player.seasonHistory || []).filter(s => s.team === activeOpponentId).length;
+  const isFormerTeam = seasonsWithOpponent >= 3;
+  const isBadBlood = isRivalMatchup || isFormerTeam;
+
+  const handleBadBloodAnswer = (choice) => {
+      setPlayoffs(prev => {
+          const newBracket = [...prev.bracket];
+          const roundMatches = [...newBracket[prev.activeRoundIndex]];
+          roundMatches[playerMatchIndex] = { ...activeMatch, badBloodAnswered: true, badBloodChoice: choice };
+          newBracket[prev.activeRoundIndex] = roundMatches;
+          return { ...prev, bracket: newBracket };
+      });
+  };
+
+  useEffect(() => {
+    if (activeMatch && isBadBlood && ['won', 'lost'].includes(activeMatch.status) && !activeMatch.badBloodResolved) {
+       const choice = activeMatch.badBloodChoice || 'safe';
+       let fanStatusDelta = 0;
+       let ovrDelta = 0;
+       let relDelta = { media: 0, coach: 0 };
+       let feedbackMsg = "";
+
+       if (activeMatch.status === 'won') {
+           ovrDelta = 1; 
+           fanStatusDelta = choice === 'guarantee' ? 50 : 15;
+           feedbackMsg = choice === 'guarantee' 
+              ? "You backed up your guarantee and eliminated them! The fans are going wild!" 
+              : "You eliminated your rivals and stayed composed. A huge series win!";
+       } else {
+           relDelta = { media: -15, coach: -15 };
+           fanStatusDelta = choice === 'guarantee' ? -50 : -10;
+           feedbackMsg = choice === 'guarantee' 
+              ? "You guaranteed a win and choked. The media is roasting you." 
+              : "A devastating playoff loss to a familiar foe.";
+       }
+
+       setPlayer(p => {
+          const withOvr = applyOvrDelta(p, ovrDelta);
+          return {
+              ...withOvr,
+              fanStatus: Math.min(1000, Math.max(0, (withOvr.fanStatus || withOvr.idolatry || 0) + fanStatusDelta)),
+              ovr: recomputeOvr(withOvr),
+              relationships: {
+                  ...withOvr.relationships,
+                  media: Math.max(0, (withOvr.relationships?.media || 50) + relDelta.media),
+                  coach: Math.max(0, (withOvr.relationships?.coach || 50) + relDelta.coach)
+              }
+          };
+       });
+
+       setPlayoffs(prev => {
+          const newBracket = [...prev.bracket];
+          const roundMatches = [...newBracket[prev.activeRoundIndex]];
+          roundMatches[playerMatchIndex] = { ...activeMatch, badBloodResolved: true, badBloodFeedback: feedbackMsg };
+          newBracket[prev.activeRoundIndex] = roundMatches;
+          return { ...prev, bracket: newBracket };
+       });
+    }
+  }, [activeMatch, isBadBlood, playerMatchIndex, playoffs.activeRoundIndex, setPlayer, setPlayoffs]);
 
   return (
     <div className="game-panel p-3 sm:p-6 mt-2 border-t-2 border-t-[#F59E0B] flex flex-col items-center relative">
@@ -111,113 +172,55 @@ export default function PlayoffsScreen() {
                   </div>
                 </>
               )}
+              
+              {activeMatch.badBloodFeedback && (
+                 <p className={`mt-4 text-xs sm:text-sm font-bold p-3 border rounded-xl w-full ${activeMatch.status === 'won' ? 'text-[#22E748] border-[#22E748]/30 bg-[#22E748]/10' : 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10'}`}>
+                    {activeMatch.badBloodFeedback}
+                 </p>
+              )}
             </div>
 
-            {/* 3x3 CARD GRID */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {(activeMatch.deck || []).map((item, cIndex) => {
-                const isRevealed = (activeMatch.revealed || []).includes(cIndex);
-                const isOver = ['won', 'lost'].includes(activeMatch.status);
-                const showForcefully = isOver && !isRevealed;
-                const isWinCard = item && (item.isWin || item.win);
-                const isRigged = item && item.rigged && !isRevealed; 
-                
-                let btnClass = 'h-16 sm:h-20 text-2xl sm:text-3xl font-black rounded-lg border transition-all duration-200 flex items-center justify-center sports-font ';
-                
-                if (isRevealed || showForcefully) {
-                  btnClass += isWinCard 
-                    ? 'bg-[#22E748]/20 border-[#22E748] text-[#22E748] shadow-[0_0_10px_rgba(34,231,72,0.3)]' 
-                    : 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444] shadow-[0_0_10px_rgba(239,68,68,0.3)]';
-                } else if (isRigged) {
-                  btnClass += 'bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse cursor-pointer hover:scale-105 active:scale-95';
-                } else {
-                  btnClass += 'bg-[#1a2230] border-[rgba(255,255,255,0.12)] text-slate-400 hover:border-[#3b82f6] hover:text-white hover:scale-105 active:scale-95 cursor-pointer';
-                }
-
-                return (
-                  <button 
-                    key={`card-${cIndex}`} 
-                    onClick={() => handleGridClick(playoffs.activeRoundIndex, playerMatchIndex, cIndex)} 
-                    className={btnClass} 
-                    disabled={isOver || isRevealed}
-                  >
-                    {(isRevealed || showForcefully) ? (isWinCard ? 'W' : 'L') : (isRigged ? '⭐' : '?')}
-                  </button>
-                );
-              })}
-            </div>
-            
-            {/* BOTTOM ACTION AREA */}
-              <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[110px] sm:min-h-[120px]">
-              {activeMatch.status === 'playing' ? (
-                <div className="w-full flex flex-col items-center">
-                  {(() => {
-                    const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
-                    const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
-                    return (
-                      <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">Select a card to play the next game ({formatText})</p>
-                    );
-                  })()}
-
-                  {/* CAPTAINCY ACTION */}
-                  {player.storylines?.lockerRoom === 2 && !activeMatch.speechUsed && (
-                    <div className="w-full mt-1">
-                        <button 
-                          onClick={() => {
-                            setPlayer(p => ({
-                              ...p, relationships: { ...p.relationships, coach: Math.max(0, p.relationships.coach - 10) }
-                            }));
-                            
-                            const updatedBracket = playoffs.bracket.map((r, ri) => {
-                                if (ri === playoffs.activeRoundIndex) {
-                                    return r.map((m, mi) => {
-                                        if (mi === playerMatchIndex) {
-                                            const newDeck = [...m.deck];
-                                            let targetIdx = newDeck.findIndex((c, i) => !(m.revealed || []).includes(i) && !c.isWin && !c.win);
-                                            
-                                            if (targetIdx === -1) {
-                                                targetIdx = newDeck.findIndex((c, i) => !(m.revealed || []).includes(i));
-                                            }
-                                            
-                                            if (targetIdx !== -1) {
-                                                newDeck[targetIdx] = { ...newDeck[targetIdx], isWin: true, win: true, rigged: true };
-                                            }
-                                            return { ...m, deck: newDeck, speechUsed: true };
-                                        }
-                                        return m;
-                                    });
-                                }
-                                return r;
-                            });
-                            
-                            setPlayoffs({ ...playoffs, bracket: updatedBracket });
-                          }}
-                          className="w-full py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 rounded-xl font-black sports-font tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] cursor-pointer text-sm"
-                        >
-                          📢 CAPTAIN'S SPEECH (GUARANTEE NEXT WIN)
-                        </button>
-                        <p className="text-[9px] text-slate-500 font-bold uppercase text-center mt-1">Cost: -10 Coach Trust</p>
-                    </div>
-                  )}
-                  
-                  {activeMatch.speechUsed && (
-                      <div className="w-full mt-1 border border-[#F59E0B]/30 bg-[#F59E0B]/10 py-2 rounded-xl">
-                        <p className="text-[#F59E0B] font-black uppercase tracking-widest text-[10px] sm:text-xs animate-pulse">
-                            📢 SPEECH DELIVERED! CLICK THE GLOWING CARD!
-                        </p>
-                      </div>
-                  )}
-                </div>
-              ) : (
-                <div className="w-full max-w-xs mx-auto animate-fade-in">
-                  {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
-                    <button onClick={advancePlayoffRound} className="btn-primary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(34,231,75,0.2)]">
-                      ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
-                    </button>
-                  )}
-                  
-                  {['won_cup', 'eliminated'].includes(playoffs.overallStatus) && (
-                      <button 
+           {isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
+               <div className="w-full flex flex-col items-center py-4 animate-fade-in">
+                  <h3 className="text-xl sm:text-2xl font-black text-[#ef4444] sports-font uppercase mb-2">BAD BLOOD</h3>
+                  <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
+                     You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. The media surrounds your locker, begging for a headline. How do you respond?
+                  </p>
+                  <div className="flex flex-col gap-3 w-full">
+                     <button 
+                       onClick={() => handleBadBloodAnswer('guarantee')}
+                       className="w-full p-4 rounded-xl bg-[#101410] border border-[#ef4444]/40 hover:bg-[#1a2230] hover:border-[#ef4444] text-[#ef4444] font-bold text-left transition-all cursor-pointer shadow-lg"
+                     >
+                       <div className="font-black sports-font uppercase text-lg mb-1">Guarantee a Series Win</div>
+                       <div className="text-xs font-sans text-slate-400">High Risk, High Reward (+/- 50 Fan Status).</div>
+                     </button>
+                     <button 
+                       onClick={() => handleBadBloodAnswer('safe')}
+                       className="w-full p-4 rounded-xl bg-[#101410] border border-[rgba(255,255,255,0.1)] hover:bg-[#1a2230] hover:border-[#3b82f6] text-white font-bold text-left transition-all cursor-pointer shadow-lg"
+                     >
+                       <div className="font-black sports-font uppercase text-lg mb-1">Play it Safe</div>
+                       <div className="text-xs font-sans text-slate-400">Standard media answers. Focus on the hockey.</div>
+                     </button>
+                  </div>
+               </div>
+            ) : playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? (
+              <div className="w-full flex flex-col items-center py-6 animate-fade-in">
+                 {activeMatch.status === 'playing' ? (
+                   <>
+                     <h3 className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font uppercase mb-3">THE FINAL SHIFT</h3>
+                     <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 max-w-md mx-auto">
+                        Game 7. Third Period. Tie Game. The entire season comes down to this single moment. Your legacy is on the line.
+                     </p>
+                     <button 
+                       onClick={() => triggerMinigame('finals')} 
+                       className="w-full py-4 bg-[#F59E0B] hover:bg-[#d97706] text-black font-black text-xl sports-font tracking-widest uppercase rounded-xl transition-transform shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:scale-105 cursor-pointer"
+                     >
+                       TAKE THE ICE
+                     </button>
+                   </>
+                 ) : (
+                   <div className="w-full max-w-xs mx-auto animate-fade-in mt-4">
+                     <button 
                         onClick={proceedFromPlayoffs} 
                         className={`py-3 px-6 rounded-xl cursor-pointer sports-font tracking-widest w-full font-black text-sm uppercase transition-transform hover:scale-105 ${
                           playoffs.overallStatus === 'eliminated' 
@@ -227,10 +230,118 @@ export default function PlayoffsScreen() {
                       >
                         {playoffs.overallStatus === 'won_cup' ? 'LIFT THE TROPHY' : 'PROCEED TO RECAP'}
                       </button>
+                   </div>
+                 )}
+              </div>
+            ) : (
+              <>
+                {/* 3x3 CARD GRID */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {(activeMatch.deck || []).map((item, cIndex) => {
+                    const isRevealed = (activeMatch.revealed || []).includes(cIndex);
+                    const isOver = ['won', 'lost'].includes(activeMatch.status);
+                    const showForcefully = isOver && !isRevealed;
+                    const isWinCard = item && (item.isWin || item.win);
+                    const isRigged = item && item.rigged && !isRevealed; 
+                    
+                    let btnClass = 'h-16 sm:h-20 text-2xl sm:text-3xl font-black rounded-lg border transition-all duration-200 flex items-center justify-center sports-font ';
+                    
+                    if (isRevealed || showForcefully) {
+                      btnClass += isWinCard 
+                        ? 'bg-[#22E748]/20 border-[#22E748] text-[#22E748] shadow-[0_0_10px_rgba(34,231,72,0.3)]' 
+                        : 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444] shadow-[0_0_10px_rgba(239,68,68,0.3)]';
+                    } else if (isRigged) {
+                      btnClass += 'bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse cursor-pointer hover:scale-105 active:scale-95';
+                    } else {
+                      btnClass += 'bg-[#1a2230] border-[rgba(255,255,255,0.12)] text-slate-400 hover:border-[#3b82f6] hover:text-white hover:scale-105 active:scale-95 cursor-pointer';
+                    }
+
+                    return (
+                      <button 
+                        key={`card-${cIndex}`} 
+                        onClick={() => handleGridClick(playoffs.activeRoundIndex, playerMatchIndex, cIndex)} 
+                        className={btnClass} 
+                        disabled={isOver || isRevealed}
+                      >
+                        {(isRevealed || showForcefully) ? (isWinCard ? 'W' : 'L') : (isRigged ? '⭐' : '?')}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {/* BOTTOM ACTION AREA */}
+                <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[110px] sm:min-h-[120px]">
+                  {activeMatch.status === 'playing' ? (
+                    <div className="w-full flex flex-col items-center">
+                      {(() => {
+                        const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
+                        const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
+                        return (
+                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">Select a card to play the next game ({formatText})</p>
+                        );
+                      })()}
+
+                      {/* CAPTAINCY ACTION */}
+                      {player.storylines?.lockerRoom === 2 && !activeMatch.speechUsed && (
+                        <div className="w-full mt-1">
+                            <button 
+                              onClick={() => {
+                                setPlayer(p => ({
+                                  ...p, relationships: { ...p.relationships, coach: Math.max(0, p.relationships.coach - 10) }
+                                }));
+                                
+                                const updatedBracket = playoffs.bracket.map((r, ri) => {
+                                    if (ri === playoffs.activeRoundIndex) {
+                                        return r.map((m, mi) => {
+                                            if (mi === playerMatchIndex) {
+                                                const newDeck = [...m.deck];
+                                                let targetIdx = newDeck.findIndex((c, i) => !(m.revealed || []).includes(i) && !c.isWin && !c.win);
+                                                
+                                                if (targetIdx === -1) {
+                                                    targetIdx = newDeck.findIndex((c, i) => !(m.revealed || []).includes(i));
+                                                }
+                                                
+                                                if (targetIdx !== -1) {
+                                                    newDeck[targetIdx] = { ...newDeck[targetIdx], isWin: true, win: true, rigged: true };
+                                                }
+                                                return { ...m, deck: newDeck, speechUsed: true };
+                                            }
+                                            return m;
+                                        });
+                                    }
+                                    return r;
+                                });
+                                
+                                setPlayoffs({ ...playoffs, bracket: updatedBracket });
+                              }}
+                              className="w-full py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 rounded-xl font-black sports-font tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] cursor-pointer text-sm"
+                            >
+                              📢 CAPTAIN'S SPEECH (GUARANTEE NEXT WIN)
+                            </button>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase text-center mt-1">Cost: -10 Coach Trust</p>
+                        </div>
+                      )}
+                      
+                      {activeMatch.speechUsed && (
+                          <div className="w-full mt-1 border border-[#F59E0B]/30 bg-[#F59E0B]/10 py-2 rounded-xl">
+                            <p className="text-[#F59E0B] font-black uppercase tracking-widest text-[10px] sm:text-xs animate-pulse">
+                                📢 SPEECH DELIVERED! CLICK THE GLOWING CARD!
+                            </p>
+                          </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-full max-w-xs mx-auto animate-fade-in">
+                      {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
+                        <button onClick={advancePlayoffRound} className="btn-primary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(34,231,75,0.2)]">
+                          ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
       )}
 

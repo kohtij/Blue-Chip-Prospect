@@ -5,8 +5,7 @@ import { findMinigame } from '../data/minigames';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function MinigameScreen() {
-  const { BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame, activeMinigame, handleInteractiveResult, minigameStarted, player, setMinigameStarted } = useAppContext();
-  return (() => {
+  const { BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame, OneTimerGame, ScreenedShotGame, ShootoutGame, ShotBlockGame, ZoneBattleGame, activeMinigame, handleInteractiveResult, minigameStarted, player, setMinigameStarted } = useAppContext();  return (() => {
           const mg = findMinigame(activeMinigame, player.pos);
           const accent = ACCENT[mg?.accent] || ACCENT.blue;
 
@@ -38,7 +37,10 @@ export default function MinigameScreen() {
                      {mg?.gameType === 'deflect' && <DeflectionGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
                      {mg?.gameType === 'block' && <ShotBlockGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
                      {mg?.gameType === 'breakaway' && <BreakawayGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'onetimer' && <OneTimerGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'onetimer' && <OneTimerGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}                   
+                     {mg?.gameType === 'breakout' && <BreakoutGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'screened' && <ScreenedShotGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
+                     {mg?.gameType === 'zone_battle' && <ZoneBattleGame player={player} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
                   </div>
                 </div>
               )}
