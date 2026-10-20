@@ -35,6 +35,8 @@ import ShotBlockGame from './components/ShotBlockGame';
 import BreakawayGame from './components/BreakawayGame';
 import OneTimerGame from './components/OneTimerGame';
 import ZoneBattleGame from './components/ZoneBattleGame';
+import BreakoutGame from './components/BreakoutGame';
+import ScreenedShotGame from './components/ScreenedShotGame';
 import { AppContext } from './AppContext';
 import CreationScreen from './screens/CreationScreen';
 import RetirementScreen from './screens/RetirementScreen';
@@ -114,6 +116,7 @@ function App() {
   const [combineScore, setCombineScore] = useState(0);
   const [combineColor, setCombineColor] = useState('red');
   const combineTimeRef = useRef(0);
+  const minigameLockedRef = useRef(false);
 
   useEffect(() => {
      if (screen === 'combine' && combinePhase === 1) {
@@ -305,6 +308,7 @@ function App() {
     });
     
     generateTraining(player.pos);
+    setSeasonEvents([]);
 
     if (isGen) {
        setActiveEvent({
@@ -426,6 +430,7 @@ function App() {
   };
 
   const triggerMinigame = (context = 'season', explicitId = null) => {
+    minigameLockedRef.current = false;
     const pool = getMinigamePool(player.pos) || [];
     
     if (explicitId) {
@@ -456,23 +461,23 @@ function App() {
   };
 
   const handleMinigameChoice = (successChance, successMsg, failMsg, reward) => {
+    if (minigameLockedRef.current) return;
+    minigameLockedRef.current = true;
+    
     // eslint-disable-next-line react-hooks/purity
     const isPlayerSuccess = Math.random() < successChance;
-    const isRisky = reward?.isRisky !== false; // Default to true for legacy minigames
+    const isRisky = reward?.isRisky !== false; 
     
     let isWin; 
     let msg = isPlayerSuccess ? successMsg : failMsg;
 
     if (isRisky) {
-        // Star player decides the game. If you succeed, the team wins. If you fail, you cost them the game.
         isWin = isPlayerSuccess;
     } else {
-        // Safe play. The team relies on baseline odds (default 50%), heavily swung +/- 15% by your success.
         const baseOdds = reward?.baseTeamChance || 0.50;
         // eslint-disable-next-line react-hooks/purity
         isWin = Math.random() < (baseOdds + (isPlayerSuccess ? 0.15 : -0.15));
         
-        // Contextualize the message if player succeeded but team lost, or vice versa
         if (isPlayerSuccess && !isWin) {
             msg = successMsg + " But despite your solid effort, the team still fell short.";
         } else if (!isPlayerSuccess && isWin) {
@@ -525,7 +530,6 @@ function App() {
           const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
           updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
       } else {
-          // Standard Medal/Survival Stakes
           if (isWin) {
             updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
             const withOvr = applyOvrDelta(updatedPlayer, 1); 
@@ -583,7 +587,6 @@ function App() {
           }
       }
 
-// ALWAYS save the tournament appearance and real stats to the season history!
       if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
           const lastIdx = updatedPlayer.seasonHistory.length - 1;
           const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
@@ -599,7 +602,6 @@ function App() {
           };
       }
 
-      // FIX: Only write to the season recap if the tournament is over!
       const isTournamentOver = !isWin || ['GOLD', 'BRONZE', 'SURVIVAL', 'PROMOTION'].includes(stake);
       if (isTournamentOver) {
           setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
@@ -631,11 +633,17 @@ function App() {
     };
 
     setPlayer(updatedPlayer);
-    setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { idol: outcome.idol || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 } }]);
-    proceedToNextScreen(activeEvent, minigameContext, player);
+    setSeasonEvents(prev => {
+      if (prev.length > 0 && prev[prev.length - 1].feedback === msg) return prev;
+      return [...prev, { feedback: msg, effect: { idol: outcome.idol || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 } }];
+    });
+    proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
 
   const handleInteractiveResult = (isWin, reward, successMsg, failMsg) => {
+   if (minigameLockedRef.current) return;
+   minigameLockedRef.current = true;
+
     const payout = isWin ? (reward?.win || {}) : (reward?.loss || {});
     const msg = isWin ? successMsg : failMsg;
 
@@ -658,13 +666,21 @@ function App() {
     
     // NEW FINALS LOGIC
     if (minigameContext === 'finals') {
-      const finalRound = playoffs.bracket.length - 1;
-      const rWN = getWinsNeeded(playoffs.currentLg, finalRound);
+      // 1. Immediately reset context so it never leaks into offseason or camp minigames
+      setMinigameContext('season');
 
+      // 2. Safely read and update the bracket only if it actually exists
       setPlayoffs(prev => {
+        if (!prev?.bracket || prev.bracket.length === 0) return prev;
+        
+        const finalRound = prev.bracket.length - 1;
+        if (!prev.bracket[finalRound]) return prev;
+
+        const rWN = getWinsNeeded(prev.currentLg || player.league, finalRound);
         const newBracket = [...prev.bracket];
-        const roundMatches = [...newBracket[finalRound]];
+        const roundMatches = [...(newBracket[finalRound] || [])];
         const pIndex = roundMatches.findIndex(m => m.isPlayerSeries);
+
         if (pIndex >= 0) {
             const m = { ...roundMatches[pIndex] };
             const pIsT1 = m.team1 === player.team || m.team1?.id === player.team;
@@ -686,10 +702,11 @@ function App() {
       updatedPlayer.fanStatus = Math.min(1000, (updatedPlayer.fanStatus || 0) + (isWin ? 100 : -25));
 
       setPlayer(updatedPlayer);
-      setSeasonEvents(prevEvents => [...prevEvents, { 
-        feedback: isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.", 
-        effect: { fanStatus: isWin ? 100 : -25, ovr: 0, money: 0 } 
-      }]);
+      const finalMsg = isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.";
+      setSeasonEvents(prev => {
+        if (prev.length > 0 && prev[prev.length - 1].feedback === finalMsg) return prev;
+        return [...prev, { feedback: finalMsg, effect: { fanStatus: isWin ? 100 : -25, ovr: 0, money: 0 } }];
+      });
       setScreen('playoffs');
       return;
     }
@@ -818,7 +835,10 @@ function App() {
     }
 
     setPlayer(updatedPlayer);
-    setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { fanStatus: payout.fanStatus || payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
+    setSeasonEvents(prev => {
+      if (prev.length > 0 && prev[prev.length - 1].feedback === msg) return prev;
+      return [...prev, { feedback: msg, effect: { fanStatus: payout.fanStatus || payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }];
+    });
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
 
@@ -851,6 +871,13 @@ function App() {
         return;
     }
     
+    // RESET POST-SEASON STATE FOR THE NEW YEAR
+    setPlayoffs({ bracket: [], activeRoundIndex: 0, overallStatus: 'playing' });
+    setPendingPlayoffs(null);
+    setPendingSeasonResult(null);
+    setSeasonRecap(null);
+    setSeasonEvents([]);
+
     _advanceToOffseason(ctx);
   };
   const handleTrain        = (t) => _handleTrain(ctx, t);
@@ -972,6 +999,9 @@ function App() {
         const poBucket = statBucket + 'Playoffs'; 
         
         const newHistory = [...(p.seasonHistory || [])];
+        const currentYearString = `${2026 + (p.stats?.seasonsPlayed || 0)}`;
+        const cupName = lg === 'NHL' ? 'Stanley Cup' : lg === 'AHL' ? 'Calder Cup' : 'Championship';
+        
         if (newHistory.length > 0) {
             newHistory[newHistory.length - 1] = { 
                 ...newHistory[newHistory.length - 1], 
@@ -979,17 +1009,24 @@ function App() {
                 playoffGames, 
                 playoffGoals: pG, 
                 playoffAssists: pA,
-                isCaptain: p.isCaptain,     // NEW: Track Captaincy for the year!
-                isAlternate: p.isAlternate  // NEW: Track Alternate status for the year!
+                isCaptain: p.isCaptain,
+                isAlternate: p.isAlternate,
+                awards: isCupWon 
+                   ? [...(newHistory[newHistory.length - 1].awards || []), `${currentYearString} ${cupName}`]
+                   : newHistory[newHistory.length - 1].awards
             };
         }
+        
         const seasonGoals = seasonRecap?.g || 0;
         const currentHigh = p.stats?.careerHighGoals || 0;
 
         return { 
            ...p, seasonHistory: newHistory,
            stats: {
-              ...p.stats, careerHighGoals: Math.max(currentHigh, seasonGoals), 
+              ...p.stats, 
+              titles: isCupWon ? (p.stats.titles || 0) + 1 : (p.stats.titles || 0),
+              awards: isCupWon ? [...(p.stats.awards || []), `${currentYearString} ${cupName}`] : (p.stats.awards || []),
+              careerHighGoals: Math.max(currentHigh, seasonGoals), 
               [poBucket]: {
                  games: (p.stats[poBucket]?.games || 0) + playoffGames, goals: (p.stats[poBucket]?.goals || 0) + pG,
                  assists: (p.stats[poBucket]?.assists || 0) + pA, saves: (p.stats[poBucket]?.saves || 0) + pSaves,
@@ -1064,6 +1101,9 @@ function App() {
     }
 
     generateTraining(player.pos);
+    setSeasonRecap(null);
+    setSeasonEvents([]);
+    setPlayoffs({ bracket: [], activeRoundIndex: 0, overallStatus: 'playing' });
     setScreen('preseason');
   }; 
 
@@ -1131,16 +1171,20 @@ function App() {
     setActiveEvent(null);
     setMinigameContext('season');
 
+    // 1. PRESEASON & TRAINING CAMP ALWAYS RETURN TO PRESEASON
+    if (['preseason', 'training', 'camp'].includes(currentMgContext)) {
+      setScreen('preseason');
+      return;
+    }
+
     if (currentEvent?.isTradeDeadlineEvent) {
        const recapToUse = seasonRecap || pendingSeasonResult?.recap;
        const tradeAction = currentEvent.choices?.find(c => c.action === 'ACCEPT_TRADE_DEADLINE');
        
-       // Verify the player actually changed teams before assigning new playoff standings (prevents the NMC Veto bug)
        const didTrade = currentPlayer.team !== player.team;
        const newTeamMadePlayoffs = didTrade ? (tradeAction?.actionData?.madePlayoffs ?? recapToUse?.madePlayoffs ?? false) : (recapToUse?.madePlayoffs ?? false);
        const newTeamStandings = didTrade ? (tradeAction?.actionData?.teamStandings ?? recapToUse?.standings ?? 16) : (recapToUse?.standings ?? 16);
        
-       // FIX: Update the actual Season Recap object with the new team's playoff status so the end-of-year screen reads correctly!
        if (recapToUse) {
            setSeasonRecap({
                ...recapToUse,
@@ -1173,6 +1217,7 @@ function App() {
       } else setScreen('recap');
       return;
     }
+
     if (!seasonRecap && !pendingPlayoffs) { setScreen('preseason'); return; }
 
     let madePlayoffsFlag = seasonRecap?.madePlayoffs;
@@ -1195,8 +1240,8 @@ function App() {
   const tier = getFanTier(player.idolatry);
 
   const contextValue = {
-    BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame,
-    FilmRoomGame, OneTimerGame, ShootoutGame, ShotBlockGame, ZoneBattleGame,
+    BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame,
+    FilmRoomGame, OneTimerGame, ScreenedShotGame, ShootoutGame, ShotBlockGame, ZoneBattleGame,
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
     checkEarlyDemotion, combineColor, combinePhase, combineScore, currentYear,
@@ -1241,7 +1286,7 @@ function App() {
         </div>
       )}
       {isShopOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 p-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex justify-start bg-black/40 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-md game-panel h-full flex flex-col border border-[#22E748]">
             <div className="flex justify-between items-center p-6 border-b border-[rgba(255,255,255,0.065)] bg-[#101410] rounded-t-xl">
               <h2 className="text-2xl font-bold text-white sports-font tracking-wide">SHOP</h2>

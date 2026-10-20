@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { capFanStatus } from '../utils/gameHelpers';
 
@@ -92,7 +92,7 @@ const PREP_SCENARIOS = [
 
 export default function IntlMinigameScreen() {
   const { 
-    BreakawayGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame, ShotBlockGame, OneTimerGame, ZoneBattleGame,
+    BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame, ShotBlockGame, OneTimerGame, ZoneBattleGame, ScreenedShotGame,
     activeEvent, handleInteractiveResult, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer
   } = useAppContext();
   
@@ -100,7 +100,9 @@ export default function IntlMinigameScreen() {
   const [view, setView] = useState(player.intlData ? 'standings' : 'prep');
   const [activeMgKey, setActiveMgKey] = useState(null);
   const [prepFeedback, setPrepFeedback] = useState(null);
-    const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
+  const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
+
+  const mgLockRef = useRef(false);
 
   const nat = safeNationalities.find(n => n.id === player.nat);
   const countryName = nat?.sentenceName || nat?.name || 'your country';
@@ -142,6 +144,8 @@ export default function IntlMinigameScreen() {
   }
 
   const handlePrepChoice = useCallback((c) => {
+     mgLockRef.current = false; // Reset the lock for the new minigame
+     
      let isWin = true;
      let effect = c.winEffect;
      let msg = c.win;
@@ -221,9 +225,12 @@ export default function IntlMinigameScreen() {
   };
 
   const wrappedOnComplete = (isWin) => {
+      if (mgLockRef.current) return; // Prevent double-firing
+      mgLockRef.current = true;
+      
       handleInteractiveResult(
           isWin, 
-          { win: {}, loss: {} }, // Dummy reward object to prevent the crash
+          { win: {}, loss: {} }, 
           "You executed perfectly for your country!", 
           "You fell short under the immense pressure of the tournament."
       );
@@ -400,6 +407,10 @@ export default function IntlMinigameScreen() {
             {activeMgKey === 'onetimer' && <OneTimerGame onComplete={wrappedOnComplete} player={player} />}
             {activeMgKey === 'crease' && <CreaseGame onComplete={wrappedOnComplete} player={player} />}
             {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={wrappedOnComplete} player={player} />}
+            
+            {/* The New Minigames */}
+            {activeMgKey === 'breakout' && <BreakoutGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'screened' && <ScreenedShotGame onComplete={wrappedOnComplete} player={player} />}
             {activeMgKey === 'zone_battle' && <ZoneBattleGame onComplete={wrappedOnComplete} player={player} />}
         </div>
       </div>

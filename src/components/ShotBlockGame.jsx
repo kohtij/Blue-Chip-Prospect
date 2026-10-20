@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 
 const ShotBlockGame = ({ player, onComplete }) => {
   const [shotLane, setShotLane] = useState(null);
@@ -14,16 +14,20 @@ const ShotBlockGame = ({ player, onComplete }) => {
       return;
     }
 
-    const timer = setTimeout(() => {
-      setShotLane(Math.floor(Math.random() * 3));
-      setPressedLane(null);
-      setResultMsg('');
-      setStatus('active');
-    }, 400 + Math.random() * 800); // Unpredictable delay
+    let timer;
+    // FIX: Only start the countdown for the next shot AFTER the cooldown finishes
+    if (status === 'waiting') {
+      timer = setTimeout(() => {
+        setShotLane(Math.floor(Math.random() * 3));
+        setPressedLane(null);
+        setResultMsg('');
+        setStatus('active');
+      }, 400 + Math.random() * 800);
+    }
 
     return () => clearTimeout(timer);
-  }, [blocks, onComplete]);
-
+  }, [status, blocks, onComplete]);
+  
   // Scaled, high-pressure expiration timer
   useEffect(() => {
     let failTimer;

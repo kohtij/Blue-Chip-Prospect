@@ -1,44 +1,58 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-// Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const FaceoffGame = ({ player, onComplete }) => {
    const [status, setStatus] = useState('waiting');
    const [msg, setMsg] = useState('WAIT FOR GREEN...');
-   const [warnings, setWarnings] = useState(0); // Track false starts
+   const [warnings, setWarnings] = useState(0);
+   
    const doneRef = useRef(false);
    const startTimeRef = useRef(null);
+   const toRef = useRef(null);
+   const innerToRef = useRef(null);
 
    const finish = useCallback((win, delay = 1500) => {
      if (doneRef.current) return;
      doneRef.current = true;
+     
+     // Instantly kill any lingering background timers
+     if (toRef.current) clearTimeout(toRef.current);
+     if (innerToRef.current) clearTimeout(innerToRef.current);
+
      setTimeout(() => onComplete(win), delay);
    }, [onComplete]);
 
    useEffect(() => {
-      const delay = 2000 + Math.random() * 3000; // Random drop between 2-5 seconds
-      let innerTo = null;
-      const to = setTimeout(() => {
+      const delay = 2000 + Math.random() * 3000; 
+      
+      toRef.current = setTimeout(() => {
+         if (doneRef.current) return; // Prevent dropping puck if already ejected
+         
          setStatus('ready');
          setMsg('CLICK NOW!');
          startTimeRef.current = Date.now();
 
-         const aiTime = Math.max(250, 600 - (player.hockeyIQ * 2));
-         innerTo = setTimeout(() => {
-           setStatus(prev => {
-             if (prev === 'ready') {
-               setMsg('TOO SLOW!');
-               finish(false); 
-               return 'done';
-             }
-             return prev;
-           })
+         const aiTime = Math.max(250, 600 - ((player?.hockeyIQ || 50) * 2));
+         
+         innerToRef.current = setTimeout(() => {
+           if (doneRef.current) return;
+           
+           // State update and side-effect are now safely separated
+           setStatus('done');
+           setMsg('TOO SLOW!');
+           finish(false); 
          }, aiTime);
+         
       }, delay);
 
-      return () => { clearTimeout(to); if (innerTo) clearTimeout(innerTo); };
+      return () => { 
+        if (toRef.current) clearTimeout(toRef.current); 
+        if (innerToRef.current) clearTimeout(innerToRef.current); 
+      };
    }, [player, finish]);
 
    const handleClick = () => {
+     if (doneRef.current) return;
+
      if (status === 'waiting') {
        if (warnings === 0) {
            setWarnings(1);
@@ -46,7 +60,7 @@ const FaceoffGame = ({ player, onComplete }) => {
        } else {
            setStatus('done');
            setMsg('EJECTED! (TOO EARLY)');
-           finish(false); // Triggers standard minigame failure penalty
+           finish(false); 
        }
      } else if (status === 'ready') {
        const reactionTime = Date.now() - startTimeRef.current;

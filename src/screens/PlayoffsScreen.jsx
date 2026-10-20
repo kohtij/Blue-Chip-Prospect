@@ -27,14 +27,12 @@ export default function PlayoffsScreen() {
     return typeof label === 'string' && label.length > 3 ? label.substring(0, 3).toUpperCase() : String(label).toUpperCase(); 
   };
 
-  const renderTeamRow = (team, wins, winsNeeded, isFinal = false) => {
+  const renderTeamRow = (team, wins, winsNeeded, isFinal = false, hideScore = false) => {
     const tbd = isTbdTeam(team);
     const teamId = team?.id || team;
     const label = getTeamLabel(team);
     const isWinner = wins >= winsNeeded;
     const teamData = !tbd ? getTeamData(teamId, playoffs.currentLg) : null;
-    
-    // NEW: Check if this bracket slot is the player's arch-rival
     const isRival = getPrimaryRival(player.team, player.league)?.id === teamId;
 
     return (
@@ -55,16 +53,41 @@ export default function PlayoffsScreen() {
           {label}
         </span>
         {isRival && <span className="text-[10px] ml-1 shrink-0 leading-none" title="Arch-Rival">🔥</span>}
-        <span className="font-black sports-font ml-auto">{wins ?? 0}</span>
+        
+        {!hideScore && (
+          <span className="font-black sports-font ml-auto">{wins ?? 0}</span>
+        )}
       </div>
     );
   };
 
   const activeOpponentId = activeMatch?.team2?.id || activeMatch?.team2 || 'UNK';
-const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activeOpponentId;
+  const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activeOpponentId;
   const seasonsWithOpponent = (player.seasonHistory || []).filter(s => s.team === activeOpponentId).length;
   const isFormerTeam = seasonsWithOpponent >= 3;
   const isBadBlood = isRivalMatchup || isFormerTeam;
+
+// Dynamic Series Flavor Text
+  let seriesFlavor = "";
+  if (activeMatch && ['won', 'lost'].includes(activeMatch.status)) {
+      const mIsT1 = activeMatch.team1 === player.team || activeMatch.team1?.id === player.team;
+      const playerWins = mIsT1 ? activeMatch.wins1 : activeMatch.wins2;
+      const oppWins = mIsT1 ? activeMatch.wins2 : activeMatch.wins1;
+      
+      const totalGames = playerWins + oppWins;
+      const wN = getWinsNeeded(playoffs.currentLg, playoffs.activeRoundIndex);
+      const isSweep = oppWins === 0 && activeMatch.status === 'won';
+      const isSwept = playerWins === 0 && activeMatch.status === 'lost';
+      const isMaxGames = totalGames === (wN * 2) - 1; 
+
+      if (playoffs.activeRoundIndex === playoffs.bracket.length - 1) {
+          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A dominant sweep to capture the ultimate prize! You are a champion!" : isMaxGames ? "A legendary final-game victory to win the championship! History is made." : "You conquered the finals and claimed the championship. The glory is yours!";
+          else seriesFlavor = isSwept ? "An embarrassing sweep on the biggest stage. A devastating end to the season." : isMaxGames ? "Heartbreak in the deciding game of the finals. The ultimate prize slips through your fingers." : "A crushing defeat in the finals. You fell just short of hockey immortality.";
+      } else {
+          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "You brought out the brooms! A flawless sweep sends you to the next round." : isMaxGames ? "A grueling, blood-and-guts deciding game victory. You survive and advance." : "A hard-fought series win. Your playoff journey continues.";
+          else seriesFlavor = isSwept ? "Swept out of the playoffs. A humiliating end to a promising season." : isMaxGames ? "A devastating final-game heartbreak. Your postseason run ends here." : "A bitter series defeat. Pack your bags for the summer.";
+      }
+  }
 
   const handleBadBloodAnswer = (choice) => {
       setPlayoffs(prev => {
@@ -130,54 +153,49 @@ const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activ
           <div className="max-w-md sm:max-w-lg md:max-w-xl w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl text-center shadow-lg mx-auto mb-4 shrink-0">
 
             {/* MATCHUP HEADER */}
-            <div className="mb-4 flex flex-col items-center w-full">
-              {activeMatch.status === 'playing' && (
-                <>
-                  <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest mb-3 font-sans">
+            <div className="flex flex-col items-center w-full mb-1">
+              {/* FIXED STATUS BAR (Prevents top text shifting) */}
+              <div className="h-5 flex items-center justify-center w-full mb-3">
+                {activeMatch.status === 'playing' && (
+                  <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest font-sans leading-none">
                       ROUND {playoffs.activeRoundIndex + 1} MATCHUP
                   </p>
-                  <div className="flex items-center justify-start gap-4 w-full px-2">
-                    <TeamLogo teamId={activeOpponentId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
-                    <p className="text-sm text-slate-400 font-bold uppercase sports-font text-left leading-tight">
-                        vs. <span className="text-white font-black text-lg sm:text-xl block mt-0.5">{getFullTeamName(activeOpponentId, playoffs.currentLg)}</span>
-                    </p>
-                  </div>
-                </>
-              )}
-              
-              {activeMatch.status === 'won' && (
-                <>
-                  <p className="text-[11px] sm:text-xs font-black text-[#22E748] uppercase tracking-widest mb-3 font-sans">
+                )}
+                {activeMatch.status === 'won' && (
+                  <p className="text-[11px] sm:text-xs font-black text-[#22E748] uppercase tracking-widest font-sans leading-none">
                       ⚡ SERIES VICTORY! ({activeMatch.wins1}-{activeMatch.wins2})
                   </p>
-                  <div className="flex items-center justify-start gap-4 w-full px-2">
-                    <TeamLogo teamId={activeOpponentId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
-                    <p className="text-sm text-slate-400 font-bold uppercase sports-font text-left leading-tight">
-                        Defeated <span className="text-white font-black text-lg sm:text-xl block mt-0.5">{getFullTeamName(activeOpponentId, playoffs.currentLg)}</span>
-                    </p>
-                  </div>
-                </>
-              )}
-              
-              {activeMatch.status === 'lost' && (
-                <>
-                  <p className="text-[11px] sm:text-xs font-black text-[#ef4444] uppercase tracking-widest mb-3 font-sans">
+                )}
+                {activeMatch.status === 'lost' && (
+                  <p className="text-[11px] sm:text-xs font-black text-[#ef4444] uppercase tracking-widest font-sans leading-none">
                       💔 ELIMINATED ({activeMatch.wins1}-{activeMatch.wins2})
                   </p>
-                  <div className="flex items-center justify-start gap-4 w-full px-2">
-                    <TeamLogo teamId={activeOpponentId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
-                    <p className="text-sm text-slate-400 font-bold uppercase sports-font text-left leading-tight">
-                        Defeated by <span className="text-white font-black text-lg sm:text-xl block mt-0.5">{getFullTeamName(activeOpponentId, playoffs.currentLg)}</span>
-                    </p>
-                  </div>
-                </>
-              )}
-              
-              {activeMatch.badBloodFeedback && (
-                 <p className={`mt-4 text-xs sm:text-sm font-bold p-3 border rounded-xl w-full ${activeMatch.status === 'won' ? 'text-[#22E748] border-[#22E748]/30 bg-[#22E748]/10' : 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10'}`}>
+                )}
+              </div>
+
+              {/* FIXED TEAM LOGO & NAME ROW */}
+              <div className="flex items-center justify-start gap-4 w-full px-2 h-14">
+                <TeamLogo teamId={activeOpponentId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
+                <p className="text-sm text-slate-400 font-bold uppercase sports-font text-left leading-tight">
+                    {activeMatch.status === 'playing' ? 'vs.' : activeMatch.status === 'won' ? 'Defeated' : 'Defeated by'}{' '}
+                    <span className="text-white font-black text-lg sm:text-xl block mt-0.5">
+                      {getFullTeamName(activeOpponentId, playoffs.currentLg)}
+                    </span>
+                </p>
+              </div>
+
+              {/* DEDICATED FIXED-HEIGHT FLAVOR TEXT SLOT */}
+              <div className="w-full h-11 sm:h-12 flex items-center justify-center my-2 px-2">
+                {seriesFlavor ? (
+                  <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md leading-tight animate-fade-in">
+                    {seriesFlavor}
+                  </p>
+                ) : activeMatch.badBloodFeedback ? (
+                  <p className={`text-xs sm:text-sm font-bold p-1.5 border rounded-xl w-full text-center leading-tight ${activeMatch.status === 'won' ? 'text-[#22E748] border-[#22E748]/30 bg-[#22E748]/10' : 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10'}`}>
                     {activeMatch.badBloodFeedback}
-                 </p>
-              )}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
            {isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
@@ -331,10 +349,16 @@ const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activ
                       )}
                     </div>
                   ) : (
-                    <div className="w-full max-w-xs mx-auto animate-fade-in">
+                    <div className="w-full max-w-xs mx-auto animate-fade-in mt-4">
                       {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
                         <button onClick={advancePlayoffRound} className="btn-primary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(34,231,75,0.2)]">
                           ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
+                        </button>
+                      )}
+                      
+                      {activeMatch.status === 'lost' && (
+                        <button onClick={proceedFromPlayoffs} className="bg-[#101410] border border-[#ef4444]/50 hover:bg-[#1a2230] text-[#ef4444] w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer shadow-lg mt-2">
+                          PROCEED TO RECAP ➔
                         </button>
                       )}
                     </div>
@@ -398,11 +422,30 @@ const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activ
                 </div>
                 {playoffs.bracket[playoffs.bracket.length - 1].map((match, mIdx) => {
                   const isLocked = match.status === 'locked';
-                  const rWN = getWinsNeeded(playoffs.currentLg, playoffs.bracket.length - 1);
+                  const finalRoundIdx = playoffs.bracket.length - 1;
+                  const rWN = getWinsNeeded(playoffs.currentLg, finalRoundIdx);
+                  const isVsMode = match.isPlayerSeries && playoffs.overallStatus !== 'eliminated' && playoffs.overallStatus !== 'won_cup';
+
                   return (
-                    <div key={mIdx} className={`relative z-10 rounded-lg p-1.5 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale border-[#F59E0B]/20 bg-[#101410]' : match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'border-[#F59E0B]/50 bg-[#101410]'}`}>
-                      {renderTeamRow(match.team1, match.wins1, rWN, true)}
-                      {renderTeamRow(match.team2, match.wins2, rWN, true)}
+                    <div 
+                      key={mIdx} 
+                      className={`relative z-10 rounded-lg p-1.5 border flex items-center justify-between transition-all duration-300 ${
+                        isLocked 
+                          ? 'opacity-30 grayscale border-[#F59E0B]/20 bg-[#101410]' 
+                          : match.isPlayerSeries 
+                          ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_15px_rgba(59,130,246,0.4)]' 
+                          : 'border-[#F59E0B]/50 bg-[#101410]'
+                      }`}
+                    >
+                      <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+                        {renderTeamRow(match.team1, match.wins1, rWN, true, isVsMode)}
+                        {renderTeamRow(match.team2, match.wins2, rWN, true, isVsMode)}
+                      </div>
+                      {isVsMode && (
+                        <span className="font-black sports-font text-[#F59E0B] text-[10px] ml-1.5 shrink-0 tracking-wider">
+                          VS
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -449,10 +492,32 @@ const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activ
                       const isLocked = match.status === 'locked';
                       const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
                       const isFinal = rIdx === playoffs.bracket.length - 1;
+                      const isVsMode = isFinal && match.isPlayerSeries && playoffs.overallStatus !== 'eliminated' && playoffs.overallStatus !== 'won_cup';
+
                       return (
-                        <div key={mIdx} className={`rounded p-1 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : isFinal ? 'border-[#F59E0B]/50 bg-[#101410]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
-                          {renderTeamRow(match.team1, match.wins1, rWN, isFinal)}
-                          {renderTeamRow(match.team2, match.wins2, rWN, isFinal)}
+                        <div 
+                          key={mIdx} 
+                          className={`rounded p-1 border flex items-center justify-between transition-all duration-300 ${
+                            isLocked 
+                              ? 'opacity-30 grayscale' 
+                              : 'opacity-100'
+                          } ${
+                            match.isPlayerSeries 
+                              ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' 
+                              : isFinal 
+                              ? 'border-[#F59E0B]/50 bg-[#101410]' 
+                              : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'
+                          }`}
+                        >
+                          <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+                            {renderTeamRow(match.team1, match.wins1, rWN, isFinal, isVsMode)}
+                            {renderTeamRow(match.team2, match.wins2, rWN, isFinal, isVsMode)}
+                          </div>
+                          {isVsMode && (
+                            <span className="font-black sports-font text-[#F59E0B] text-[10px] ml-1.5 shrink-0 tracking-wider">
+                              VS
+                            </span>
+                          )}
                         </div>
                       );
                     })}

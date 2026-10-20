@@ -16,9 +16,11 @@ export default function DeflectionGame({ player, onComplete }) {
   const speed = Math.max(1.2, 2.5 - ((iq - 50) * 0.015)); // Significantly faster bar
   
   const intervalRef = useRef(null);
+  const isProcessingRef = useRef(false);
 
   const handlePress = () => {
     if (phase === 'ready') {
+      isProcessingRef.current = false;
       setPhase('active');
       intervalRef.current = setInterval(() => {
         setProgress(p => {
@@ -34,7 +36,9 @@ export default function DeflectionGame({ player, onComplete }) {
   };
 
   const handleRelease = (manualProgress = null) => {
-    if (phase !== 'active') return;
+    if (phase !== 'active' || isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    
     clearInterval(intervalRef.current);
     setPhase('result');
     
