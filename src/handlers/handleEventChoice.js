@@ -29,7 +29,7 @@ export function handleEventChoice(ctx, choice) {
     return; 
   }
 
-  setSeasonEvents(prev => [...prev, { feedback: outcomeFeedback, effect: outcomeEffect || {} }]);
+  setSeasonEvents(prev => [...prev, { feedback: outcomeFeedback, effect: outcomeEffect || {}, perks: choice.perks || [], flaws: choice.flaws || [] }]);
   
   let updated = { ...player };
   const actionStr = choice.action || ''; 

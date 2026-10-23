@@ -2,9 +2,9 @@ import { simulateSeason } from '../utils/gameHelpers';
 import { runPostSeasonFlow } from './runPostSeasonFlow';
 
 export function handleTrain(ctx, t) {
-  const { 
-    player, setHasDemandedTrade, setPendingSeasonResult, 
-    setPlayer, setScreen, setSeasonRecap, setStatChanges, unlockAchievement 
+  const {
+    player, setHasDemandedTrade, setPendingSeasonResult,
+    setPlayer, setScreen, setSeasonRecap, setStatChanges, unlockAchievement
   } = ctx;
 
   setHasDemandedTrade(false);
@@ -13,7 +13,7 @@ export function handleTrain(ctx, t) {
   let gamesMissed = 0;
   if (player.storylines?.naggingInjury) gamesMissed += 15; // Missed 15 games
   if (player.storylines?.injury === 1) gamesMissed += 60; // Missed almost the whole season from the ACL tear!
-  if (player.storylines?.suspended) gamesMissed += 5; 
+  if (player.storylines?.suspended) gamesMissed += 5;
 
   // 1. Run the simulation
   const result = simulateSeason(player, t?.effect, gamesMissed);
@@ -33,7 +33,7 @@ export function handleTrain(ctx, t) {
 
   // 3. Commit State and Push to History
   const historyEntry = {
-      year: 2026 + ((player.stats?.seasonsPlayed || 0)), 
+      year: 2026 + ((player.stats?.seasonsPlayed || 0)),
       team: currentTeam,
       league: currentLg,
       games: recap.games,
@@ -50,13 +50,13 @@ export function handleTrain(ctx, t) {
       gamesWithOriginal: recap.gamesWithOriginal,
       gamesWithNew: recap.gamesWithNew
   };
-  
+
   updatedPlayer.seasonHistory = [...(player.seasonHistory || []), historyEntry];
 
   // Also clear nagging injury status so it doesn't carry over forever
   if (updatedPlayer.storylines?.naggingInjury || updatedPlayer.storylines?.suspended) {
-      updatedPlayer.storylines = { 
-          ...updatedPlayer.storylines, 
+      updatedPlayer.storylines = {
+          ...updatedPlayer.storylines,
           naggingInjury: false,
           suspended: false
       };
@@ -76,11 +76,11 @@ export function handleTrain(ctx, t) {
   }
 
   if (isDemoted || isWaiverClaim || customWaiverEvent === 'DEVELOPMENT' || customWaiverEvent) {
-     setSeasonRecap({ 
-        ...recap, 
-        wasDemotedTo: currentLg, 
+     setSeasonRecap({
+        ...recap,
+        wasDemotedTo: currentLg,
         wasWaived: isWaiverClaim,
-        waiverEvent: customWaiverEvent 
+        waiverEvent: customWaiverEvent
      });
   } else {
      setSeasonRecap(recap);
@@ -90,11 +90,11 @@ export function handleTrain(ctx, t) {
      runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap?.standings || 16);
   } else {
      setPendingSeasonResult(result);
-     
+
      // Winter Olympics fall on 2026, 2030, 2034 (year % 4 === 2)
      const isOlympicYear = ctx.currentYear % 4 === 2;
      const isAllStar = !isOlympicYear && recap.awards?.some(a => a.includes('All-Star') || a.includes('All-American'));
-     
+
      const wasAHLtoNHL = player.league === 'AHL' && currentLg === 'NHL';
      const wasECHLtoAHL = player.league === 'ECHL' && currentLg === 'AHL';
      const wasJuniorToPro = ['OHL', 'WHL', 'QMJHL', 'NCAA'].includes(player.league) && ['NHL', 'AHL'].includes(currentLg);
@@ -115,27 +115,27 @@ export function handleTrain(ctx, t) {
          if (player.pos === 'G') {
              moveDesc = `You step onto the ice for your first official NHL start. The lights are blinding, the crowd is roaring, and you stare down players you grew up watching. The puck drops.`;
              moveChoices = [
-                 { label: 'Play it Safe (Keep it simple)', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
-                 { label: 'Make a Statement', isRisky: true, successChance: 0.5, successFeedback: 'You stood tall in your NHL debut, stopping an early barrage of shots including a highlight-reel glove save. The crowd chanted your name.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You fought the puck early and let in a soft goal. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+                 { label: 'Keep it simple', subLabel: 'Stick to the fundamentals and avoid giving up a bad goal in your first start.', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
+                 { label: 'Make a Statement', subLabel: 'Challenge shooters and go for a highlight-reel save, could backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You stood tall in your NHL debut, stopping an early barrage of shots including a highlight-reel glove save. The crowd chanted your name.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You fought the puck early and let in a soft goal. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
              ];
          } else {
              moveDesc = `You step onto the ice for your first official NHL shift. The lights are blinding, the crowd is roaring, and you line up across from players you grew up watching. The puck drops.`;
              moveChoices = [
-                 { label: 'Play it Safe (Keep it simple)', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
-                 { label: 'Make a Statement', isRisky: true, successChance: 0.5, successFeedback: 'You laid out a veteran on your first shift and scored a point! The arena went wild.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+                 { label: 'Play it Safe', subLabel: 'Keep your game simple and avoid a costly mistake in your first shift.', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { idol: 15, ovr: 0, rel: { coach: 15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' },
+                 { label: 'Make a Statement', subLabel: 'Force the issue early for a highlight-reel moment, could backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You laid out a veteran on your first shift and scored a point! The arena went wild.', successEffect: { idol: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { idol: 0, ovr: -1, rel: { coach: -15 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
              ];
          }
      } else if (oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
          moveTitle = '🥈 THE SILVER STICK (1000 GAMES)';
          moveDesc = `Tonight is your 1000th career NHL game. The team holds a pre-game ceremony, presenting you with the traditional silver stick. The crowd gives you a standing ovation for your incredible longevity.`;
          moveChoices = [
-             { label: 'Soak it in', isRisky: false, feedback: 'A beautiful, emotional night. You are a true ironman of the sport.', effect: { idol: 150, ovr: 1, rel: { teammates: 30, coach: 20 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+             { label: 'Soak it in', subLabel: 'Take a moment to celebrate a career most players never reach.', isRisky: false, feedback: 'A beautiful, emotional night. You are a true ironman of the sport.', effect: { idol: 150, ovr: 1, rel: { teammates: 30, coach: 20 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
          ];
      } else if (oldNhlGames < 500 && newNhlGames >= 500 && currentLg === 'NHL') {
          moveTitle = '💯 500 CAREER GAMES';
          moveDesc = `You've officially played 500 games in the NHL. You are no longer a kid; you are an established veteran in this league. The rookies are starting to look up to you.`;
          moveChoices = [
-             { label: 'Acknowledge the Milestone', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { idol: 50, ovr: 0, rel: { teammates: 10 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
+             { label: 'Acknowledge the Milestone', subLabel: 'A quiet nod to your growing status as a veteran in this league.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { idol: 50, ovr: 0, rel: { teammates: 10 } }, action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' }
          ];
      } else if (isWaiverClaim) {
          moveTitle = '✈️ CLAIMED OFF WAIVERS';
@@ -158,7 +158,7 @@ export function handleTrain(ctx, t) {
      } else if (wasAHLtoNHL) {
          const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
          moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW!' : '📈 CALLED UP';
-         moveDesc = isFirst 
+         moveDesc = isFirst
              ? `The coach pulled you aside after practice with a smile. "Pack your bags. You've been called up." You're making your NHL debut!`
              : `You've been recalled to the NHL roster! Time to prove you belong and stay up for good.`;
      } else if (wasECHLtoAHL) {
@@ -173,10 +173,10 @@ export function handleTrain(ctx, t) {
          ctx.setActiveEvent({
              title: moveTitle,
              desc: moveDesc,
-             choices: moveChoices || [{ 
-                 label: 'Acknowledge', 
-                 effect: { idol: 0, ovr: 0 }, 
-                 action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE' 
+             choices: moveChoices || [{
+                 label: 'Acknowledge',
+                 effect: { idol: 0, ovr: 0 },
+                 action: isAllStar ? 'ROUTE_ALL_STAR' : 'ROUTE_TRADE_DEADLINE'
              }],
              madePlayoffs: false
          });

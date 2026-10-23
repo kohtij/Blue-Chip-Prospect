@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { getActiveStat } from '../utils/gameHelpers';
 
 export default function ZoneBattleGame({ player, onComplete }) {

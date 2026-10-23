@@ -153,9 +153,9 @@ export default function PlayoffsScreen() {
           <div className="max-w-md sm:max-w-lg md:max-w-xl w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl text-center shadow-lg mx-auto mb-4 shrink-0">
 
             {/* MATCHUP HEADER */}
-            <div className="flex flex-col items-center w-full mb-1">
+            <div className="flex flex-col items-center w-full mb-5">
               {/* FIXED STATUS BAR (Prevents top text shifting) */}
-              <div className="h-5 flex items-center justify-center w-full mb-3">
+              <div className="h-5 flex items-center justify-center w-full mb-4">
                 {activeMatch.status === 'playing' && (
                   <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest font-sans leading-none">
                       ROUND {playoffs.activeRoundIndex + 1} MATCHUP
@@ -174,7 +174,7 @@ export default function PlayoffsScreen() {
               </div>
 
               {/* FIXED TEAM LOGO & NAME ROW */}
-              <div className="flex items-center justify-start gap-4 w-full px-2 h-14">
+              <div className="flex items-center justify-start gap-4 w-full px-2">
                 <TeamLogo teamId={activeOpponentId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
                 <p className="text-sm text-slate-400 font-bold uppercase sports-font text-left leading-tight">
                     {activeMatch.status === 'playing' ? 'vs.' : activeMatch.status === 'won' ? 'Defeated' : 'Defeated by'}{' '}
@@ -184,14 +184,16 @@ export default function PlayoffsScreen() {
                 </p>
               </div>
 
-              {/* DEDICATED FIXED-HEIGHT FLAVOR TEXT SLOT */}
-              <div className="w-full h-11 sm:h-12 flex items-center justify-center my-2 px-2">
+              {/* FLAVOR / RESULT TEXT — reserves a consistent minimum height so
+                  filling it in doesn't bump the bracket below, but doesn't
+                  force the old oversized empty box when there's nothing to show */}
+              <div className="w-full min-h-[22px] sm:min-h-[24px] flex items-center justify-center mt-3 px-2">
                 {seriesFlavor ? (
-                  <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md leading-tight animate-fade-in">
+                  <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in">
                     {seriesFlavor}
                   </p>
                 ) : activeMatch.badBloodFeedback ? (
-                  <p className={`text-xs sm:text-sm font-bold p-1.5 border rounded-xl w-full text-center leading-tight ${activeMatch.status === 'won' ? 'text-[#22E748] border-[#22E748]/30 bg-[#22E748]/10' : 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10'}`}>
+                  <p className={`text-xs sm:text-sm font-bold p-2 border rounded-xl w-full text-center leading-relaxed ${activeMatch.status === 'won' ? 'text-[#22E748] border-[#22E748]/30 bg-[#22E748]/10' : 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10'}`}>
                     {activeMatch.badBloodFeedback}
                   </p>
                 ) : null}
@@ -199,8 +201,8 @@ export default function PlayoffsScreen() {
             </div>
 
            {isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
-               <div className="w-full flex flex-col items-center py-4 animate-fade-in">
-                  <h3 className="text-xl sm:text-2xl font-black text-[#ef4444] sports-font uppercase mb-2">BAD BLOOD</h3>
+               <div className="w-full flex flex-col items-center pb-2 animate-fade-in">
+                  <h3 className="text-xl sm:text-2xl font-black text-[#ef4444] sports-font uppercase mb-3">BAD BLOOD</h3>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
                      You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. The media surrounds your locker, begging for a headline. How do you respond?
                   </p>
@@ -222,7 +224,7 @@ export default function PlayoffsScreen() {
                   </div>
                </div>
             ) : playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? (
-              <div className="w-full flex flex-col items-center py-6 animate-fade-in">
+              <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
                  {activeMatch.status === 'playing' ? (
                    <>
                      <h3 className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font uppercase mb-3">THE FINAL SHIFT</h3>
@@ -231,7 +233,7 @@ export default function PlayoffsScreen() {
                      </p>
                      <button 
                        onClick={() => triggerMinigame('finals')} 
-                       className="w-full py-4 bg-[#F59E0B] hover:bg-[#d97706] text-black font-black text-xl sports-font tracking-widest uppercase rounded-xl transition-transform shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:scale-105 cursor-pointer"
+                       className="w-full max-w-sm mx-auto bg-[#F59E0B] hover:bg-[#d97706] text-white py-3 sm:py-4 rounded-xl font-black sports-font tracking-widest uppercase text-sm sm:text-base transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.4)] block"
                      >
                        TAKE THE ICE
                      </button>
@@ -370,14 +372,12 @@ export default function PlayoffsScreen() {
       )}
 
       {/* CONFERENCE HEADERS */}
-      <div className="flex justify-between w-full max-w-5xl px-2 mb-2 mt-2 text-[10px] sm:text-xs md:text-sm font-black sports-font uppercase tracking-wider">
-        {playoffs.hasConfs && (
-        <div className="flex justify-between w-full max-w-5xl px-2 mb-2 mt-2 text-[10px] sm:text-xs md:text-sm font-black sports-font uppercase tracking-wider">
+      {playoffs.hasConfs && (
+        <div className="flex justify-between w-full max-w-5xl px-2 mb-3 text-[10px] sm:text-xs md:text-sm font-black sports-font uppercase tracking-wider">
           <span className="text-[#ef4444]">WESTERN</span>
           <span className="text-[#3b82f6]">EASTERN</span>
         </div>
       )}
-      </div>
 
       {/* BRACKET VIEW */}
       <div className="w-full overflow-x-auto pb-6 border-b border-[rgba(255,255,255,0.065)] scrollbar-hide">

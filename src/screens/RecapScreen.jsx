@@ -243,6 +243,16 @@ export default function RecapScreen() {
                              {ev.effect.physicality > 0 ? '+' : ''}{ev.effect.physicality} PHY
                            </span>
                          )}
+                         {ev.perks?.map((p, idx) => (
+                          <span key={`perk-${idx}`} className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-widest border ${p.color || 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'}`}>
+                              {p.text}
+                          </span>
+                        ))}
+                        {ev.flaws?.map((f, idx) => (
+                          <span key={`flaw-${idx}`} className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-widest text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/30">
+                              {f.text}
+                          </span>
+                        ))}
                        </span>
                      </li>
                    );

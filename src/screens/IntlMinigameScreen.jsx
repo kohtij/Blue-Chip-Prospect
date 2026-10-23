@@ -1,6 +1,20 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { capFanStatus } from '../utils/gameHelpers';
+import { getMinigamePool } from '../data/minigames';
+
+const GAME_TYPE_TO_KEY = {
+  breakaway: 'breakaway',
+  faceoff: 'faceoff',
+  deflect: 'deflection',
+  shootout: 'shootout',
+  onetimer: 'onetimer',
+  crease: 'crease',
+  block: 'shotblock',
+  breakout: 'breakout',
+  screened: 'screened',
+  zone_battle: 'zone_battle',
+};
 
 const PREP_SCENARIOS = [
   {
@@ -93,7 +107,7 @@ const PREP_SCENARIOS = [
 export default function IntlMinigameScreen() {
   const { 
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame, ShotBlockGame, OneTimerGame, ZoneBattleGame, ScreenedShotGame,
-    activeEvent, handleInteractiveResult, intlResult, minigameContext, player, proceedToNextScreen, safeNationalities, setIntlResult, setPlayer
+    activeEvent, handleInteractiveResult, intlResult, minigameContext, player, proceedToNextScreen, resetMinigameLock, safeNationalities, setIntlResult, setPlayer
   } = useAppContext();
   
   // TOURNAMENT HUB VIEWS: 'standings' | 'bracket' | 'prep' | 'game' | 'result'
@@ -144,33 +158,37 @@ export default function IntlMinigameScreen() {
   }
 
   const handlePrepChoice = useCallback((c) => {
-     mgLockRef.current = false; // Reset the lock for the new minigame
-     
-     let isWin = true;
-     let effect = c.winEffect;
-     let msg = c.win;
+   mgLockRef.current = false;
+   resetMinigameLock(); // clears App.jsx's shared lock — this screen runs its
+                         // own minigames directly instead of via triggerMinigame()
 
-     if (c.isRisky) {
-         isWin = Math.random() < c.chance;
-         effect = isWin ? c.winEffect : c.failEffect;
-         msg = isWin ? c.win : c.fail;
-     }
+   let isWin = true;
+   let effect = c.winEffect;
+   let msg = c.win;
 
-     const updatedPlayer = {
-        ...player,
-        fanStatus: capFanStatus((player.fanStatus || player.idolatry || 0) + (effect.fanStatus || effect.idol || 0))
-     };
-     
-     setPlayer(updatedPlayer);
-     
-     const skaterGames = ['breakaway', 'faceoff', 'deflection', 'shootout', 'onetimer', 'breakout', 'zone_battle'];
-     const goalieGames = ['crease', 'shotblock', 'shootout'];
-     const pool = updatedPlayer.pos === 'G' ? goalieGames : skaterGames;
-     setActiveMgKey(pool[Math.floor(Math.random() * pool.length)]);
+   if (c.isRisky) {
+       isWin = Math.random() < c.chance;
+       effect = isWin ? c.winEffect : c.failEffect;
+       msg = isWin ? c.win : c.fail;
+   }
 
-     setPrepFeedback({ msg, isWin, effect });
-     setView('game');
-  }, [player, setPlayer]);
+   const updatedPlayer = {
+      ...player,
+      fanStatus: capFanStatus((player.fanStatus || player.idolatry || 0) + (effect.fanStatus || effect.idol || 0))
+   };
+
+   setPlayer(updatedPlayer);
+
+   const canonicalPool = getMinigamePool(updatedPlayer.pos) || [];
+   const keys = [...new Set(
+      canonicalPool.map(m => GAME_TYPE_TO_KEY[m.gameType]).filter(Boolean)
+   )];
+   const pool = keys.length > 0 ? keys : ['zone_battle'];
+   setActiveMgKey(pool[Math.floor(Math.random() * pool.length)]);
+
+   setPrepFeedback({ msg, isWin, effect });
+   setView('game');
+}, [player, setPlayer, resetMinigameLock]);
 
   // --- Hub Advancement Logic ---
   // When you click Continue on the Result Screen, we either update the bracket and stay, or leave.

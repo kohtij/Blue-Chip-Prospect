@@ -429,6 +429,8 @@ function App() {
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer); 
   };
 
+  const resetMinigameLock = () => { minigameLockedRef.current = false; };
+
   const triggerMinigame = (context = 'season', explicitId = null) => {
     minigameLockedRef.current = false;
     const pool = getMinigamePool(player.pos) || [];
@@ -1258,7 +1260,7 @@ function App() {
     setEventFeedback, setNegotiation, setHasDemandedTrade, setIntlResult, setMemCup,
     setMinigameStarted, setPlayer, setPlayoffs, setScreen,
     setSeasonRecap, setShowAchievementsMenu, showAchievementsMenu, signContract,
-    startNegotiation, triggerMinigame, unlockAchievement, unlockedAchievements,
+    startNegotiation, triggerMinigame, resetMinigameLock, unlockAchievement, unlockedAchievements,
   };
 
   return (

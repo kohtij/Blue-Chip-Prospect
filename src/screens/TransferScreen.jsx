@@ -110,7 +110,7 @@ export default function TransferScreen() {
                         
                         {/* MASSIVE BACKGROUND WATERMARK */}
                         <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] group-hover:opacity-[0.10] grayscale pointer-events-none z-0 transition-all duration-250 ease-in-out">
-                            <div className="w-full h-full flex items-center justify-center transform -rotate-12 scale-[2.5] sm:scale-[3]">
+                            <div className="w-full h-full flex items-center justify-center transform -rotate-6 scale-[3] sm:scale-[3.5]">
                                 <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" />
                             </div>
                         </div>

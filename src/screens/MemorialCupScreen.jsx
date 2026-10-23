@@ -2,6 +2,7 @@ import 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ohlTeams, qmjhlTeams, whlTeams } from '../data/teams';
+import TeamLogo from '../components/TeamLogo';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function MemorialCupScreen() {
@@ -84,22 +85,48 @@ export default function MemorialCupScreen() {
 
               {/* 4-TEAM SHOWCASE */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 w-full max-w-3xl mb-8">
-                 <div className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center min-h-[72px] ${player.league === 'OHL' ? 'bg-[#F59E0B]/10 border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.2)]' : 'bg-[#101410] border-[rgba(255,255,255,0.065)] opacity-60'}`}>
-                    <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">OHL CHAMP</p>
-                    <p className="text-[10px] sm:text-xs font-black text-white sports-font leading-tight break-words">{ohlChamp}</p>
-                 </div>
-                 <div className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center min-h-[72px] ${player.league === 'WHL' ? 'bg-[#F59E0B]/10 border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.2)]' : 'bg-[#101410] border-[rgba(255,255,255,0.065)] opacity-60'}`}>
-                    <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">WHL CHAMP</p>
-                    <p className="text-[10px] sm:text-xs font-black text-white sports-font leading-tight break-words">{whlChamp}</p>
-                 </div>
-                 <div className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center min-h-[72px] ${player.league === 'QMJHL' ? 'bg-[#F59E0B]/10 border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.2)]' : 'bg-[#101410] border-[rgba(255,255,255,0.065)] opacity-60'}`}>
-                    <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">QMJHL CHAMP</p>
-                    <p className="text-[10px] sm:text-xs font-black text-white sports-font leading-tight break-words">{qmjhlChamp}</p>
-                 </div>
-                 <div className="p-2.5 sm:p-3 rounded-xl border text-center bg-[#101410] border-[#F59E0B]/40 shadow-[0_0_8px_rgba(245,158,11,0.15)] flex flex-col justify-center items-center min-h-[72px]">
-                    <p className="text-[8px] sm:text-[9px] font-bold text-[#F59E0B] uppercase font-sans tracking-wider mb-0.5">HOST ({hostTeam.league})</p>
-                    <p className="text-[10px] sm:text-xs font-black text-white sports-font leading-tight break-words">{hostTeam.name}</p>
-                 </div>
+                 {(() => {
+                    const getTeamId = (name, league) => {
+                       const pool = league === 'OHL' ? (ohlTeams || []) : league === 'WHL' ? (whlTeams || []) : (qmjhlTeams || []);
+                       const t = pool.find(team => getFullTeamName(team.id, league) === name);
+                       return t ? t.id : 'UNK';
+                    };
+
+                    const teamsToRender = [
+                       { title: 'OHL CHAMP', name: ohlChamp, lg: 'OHL', active: player.league === 'OHL' },
+                       { title: 'WHL CHAMP', name: whlChamp, lg: 'WHL', active: player.league === 'WHL' },
+                       { title: 'QMJHL CHAMP', name: qmjhlChamp, lg: 'QMJHL', active: player.league === 'QMJHL' },
+                       { title: `HOST (${hostTeam.league})`, name: hostTeam.name, lg: hostTeam.league, active: false, isHost: true }
+                    ];
+
+                    return teamsToRender.map((team, idx) => (
+                       <div key={idx} className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all relative overflow-hidden flex flex-col justify-center items-center gap-1.5 min-h-[90px] ${
+                         team.isHost 
+                           ? 'bg-[#101410] border-[#F59E0B]/40 shadow-[0_0_8px_rgba(245,158,11,0.15)]' 
+                           : team.active 
+                             ? 'bg-[#F59E0B]/10 border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                             : 'bg-[#101410] border-[rgba(255,255,255,0.065)] opacity-60'
+                       }`}>
+                          
+                          {/* MASSIVE BACKGROUND WATERMARK (MATCHING TRANSFER SCREEN) */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] grayscale pointer-events-none z-0">
+                              <div className="w-full h-full flex items-center justify-center transform -rotate-6 scale-[1.6]">
+                                  <TeamLogo teamId={getTeamId(team.name, team.lg)} league={team.lg} isAHL={false} size="large" />
+                              </div>
+                          </div>
+
+                          {/* TEXT LAYER (PULLED TO FRONT) */}
+                          <div className="flex flex-col mt-0.5 relative z-10">
+                             <p className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mb-0.5 ${team.isHost ? 'text-[#F59E0B] font-sans' : 'text-slate-400'}`}>
+                                {team.title}
+                             </p>
+                             <p className="text-[10px] sm:text-xs font-black text-white sports-font leading-tight break-words">
+                                {team.name}
+                             </p>
+                          </div>
+                       </div>
+                    ));
+                 })()}
               </div>
 
               {/* SEMI-FINAL VICTORY INTERMISSION SCREEN */}

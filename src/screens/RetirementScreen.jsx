@@ -15,6 +15,11 @@ export default function RetirementScreen() {
   const natObj = (safeNationalities || []).find(n => n.id === player.nat);
   const fullCountryName = natObj?.name || player.nat || 'UNKNOWN';
 
+  // Some countries go by a short, commonly-known team name rather than the
+  // literal country name (e.g. "Team USA", not "Team United States").
+  const TEAM_NAME_OVERRIDES = { USA: 'USA' };
+  const teamNatName = TEAM_NAME_OVERRIDES[player.nat] || fullCountryName;
+
   return (() => {
     const isLegend = player.idolatry >= 800;
     const isGoalie = player.pos === 'G';
@@ -254,7 +259,7 @@ export default function RetirementScreen() {
               {player.name}
             </h1>
             <p className="text-lg sm:text-2xl font-black text-[#3b82f6] sports-font uppercase tracking-wide mb-3">
-              #{player.number} · {primaryTeamName.toUpperCase()} · TEAM {fullCountryName.toUpperCase()}
+              #{player.number} · {primaryTeamName.toUpperCase()} · TEAM {teamNatName.toUpperCase()}
             </p>
             <p className="text-xs sm:text-sm text-slate-400 font-sans italic mb-6">
               {isLegend ? `Your jersey hangs proudly in the rafters of ${arenaName}.` : 'You officially hang up the skates after a hard-fought career.'}

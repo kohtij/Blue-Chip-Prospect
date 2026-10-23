@@ -29,23 +29,23 @@ export function advanceToOffseason(ctx) {
   // VETERAN CAREER CROSSROADS
     if (player.age >= 37 || (player.age >= 34 && player.ovr < 76)) {
        const choices = [
-         { label: 'Hang up the skates (Retire)', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { idol: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
+         { label: 'Hang up the skates (Retire)', subLabel: 'End your career on your own terms.', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { idol: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
        ];
 
        const hasContract = (player.contract?.years || 0) > 0;
 
        if (hasContract) {
-           choices.push({ label: 'Play out current contract', isRisky: false, feedback: 'You decided to honor your contract and play another year.', effect: { idol: 10, ovr: -2, money: 0 } });
+           choices.push({ label: 'Play out current contract', subLabel: 'Honor the deal and give it one more year.', isRisky: false, feedback: 'You decided to honor your contract and play another year.', effect: { idol: 10, ovr: -2, money: 0 } });
        } else {
            if (player.ovr >= 76 && player.league === 'NHL') {
-               choices.push({ label: 'Push for one more NHL season', isRisky: false, feedback: 'You signed a 1-year veteran extension. Time to chase glory.', effect: { idol: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
+               choices.push({ label: 'Push for one more NHL season', subLabel: 'Sign a short veteran extension to chase one more shot.', isRisky: false, feedback: 'You signed a 1-year veteran extension. Time to chase glory.', effect: { idol: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
            } else if (player.ovr >= 68) {
-               choices.push({ label: 'Attempt a comeback in the AHL', isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { idol: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
+               choices.push({ label: 'Attempt a comeback in the AHL', subLabel: 'Sign a two-way deal and grind it out for a shot back up.', isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { idol: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
            }
        }
-       
+
        if (player.ovr >= 60) {
-           choices.push({ label: 'Sign a Twilight Contract in Europe', isRisky: false, feedback: 'You packed your bags for a European farewell tour. Less travel, bigger ice, pure hockey.', effect: { idol: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
+           choices.push({ label: 'Sign a Twilight Contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You packed your bags for a European farewell tour. Less travel, bigger ice, pure hockey.', effect: { idol: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
        }
 
        if (choices.length === 1) {
@@ -78,6 +78,7 @@ export function advanceToOffseason(ctx) {
             choices: [
                 {
                     label: 'Pack your bags for North America',
+                    subLabel: 'Leave Europe to adjust to the smaller ice ahead of your draft year.',
                     isRisky: false,
                     feedback: `You signed with ${draftingTeam.name}. The smaller ice is an adjustment, but NHL scouts are watching closely.`,
                     effect: { idol: 15, ovr: 1, money: 0 },
@@ -86,6 +87,7 @@ export function advanceToOffseason(ctx) {
                 },
                 {
                     label: 'Stay in Europe',
+                    subLabel: 'Keep developing against grown men, retaining your CHL rights for later.',
                     isRisky: false,
                     feedback: `You decided to stay and play against grown men in Europe. ${draftingTeam.name} will retain your CHL rights just in case you change your mind later.`,
                     effect: { idol: 5, ovr: 1, money: 0 },
@@ -104,7 +106,7 @@ export function advanceToOffseason(ctx) {
     let currentTeam = player.team;
     let currentLeague = player.league;
     let updatedContract = player.contract ? { ...player.contract } : null;
-    
+
     // Always report to NHL Training Camp if you are on an NHL contract
     if (['AHL', 'ECHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLeague) && (player.contract?.salary || 0) >= 500000 && player.rights) {
         currentTeam = player.rights;
@@ -116,7 +118,7 @@ export function advanceToOffseason(ctx) {
     // We restore the year that simulateSeason decremented.
     const isJuniorSlide = safeJuniorLeagues.includes(currentLeague) && player.age <= 20;
     const proSeasons = player.stats?.seasonsPlayed || 0;
-    
+
     // We check for $925k to ensure we are only sliding actual ELCs, not random 1-year AHL veteran deals
     const isAhlSlide = currentLeague === 'AHL' && player.age < 24 && proSeasons <= 2 && updatedContract?.salary === 925000;
 
@@ -127,33 +129,33 @@ export function advanceToOffseason(ctx) {
     // 2. AGING CURVE DECLINE
     let declineSkt = 0;
     let declinePhy = 0;
-    
+
     if (player.age >= 32) {
         declineSkt = Math.random() > 0.4 ? 1 : 2; // 1-2 point drop to skating
         declinePhy = Math.random() > 0.6 ? 1 : 0; // 0-1 point drop to physicality
-        
+
         // Decline accelerates harshly in the late 30s!
         if (player.age >= 35) {
-            declineSkt += 1; 
+            declineSkt += 1;
             declinePhy += 1;
         }
-        
+
         if (declineSkt > 0 || declinePhy > 0) {
             // Calculate the actual OVR drop for the UI pills
-            const tempPlayer = { 
-                ...player, 
-                skating: Math.max(30, (player.skating || 50) - declineSkt), 
-                physicality: Math.max(30, (player.physicality || 50) - declinePhy) 
+            const tempPlayer = {
+                ...player,
+                skating: Math.max(30, (player.skating || 50) - declineSkt),
+                physicality: Math.max(30, (player.physicality || 50) - declinePhy)
             };
             const newOvr = recomputeOvr(tempPlayer);
             const ovrDiff = newOvr - player.ovr;
 
             const declineMsg = `Father Time is undefeated. Your body is aging, and you lost a physical step over the summer.`;
-            
+
             // FIX: Pass the calculated ovr drop and raw stat drops into the effect object
-            setSeasonEvents(prev => [...prev, { 
-                feedback: declineMsg, 
-                effect: { ovr: ovrDiff, idol: 0, money: 0, skating: -declineSkt, physicality: -declinePhy } 
+            setSeasonEvents(prev => [...prev, {
+                feedback: declineMsg,
+                effect: { ovr: ovrDiff, idol: 0, money: 0, skating: -declineSkt, physicality: -declinePhy }
             }]);
         }
     }
@@ -162,22 +164,22 @@ export function advanceToOffseason(ctx) {
     setPlayer(p => {
         const nextSkt = Math.max(30, (p.skating || 50) - declineSkt);
         const nextPhy = Math.max(30, (p.physicality || 50) - declinePhy);
-        
-        const updatedPlayer = { 
-            ...p, 
-            team: currentTeam, 
-            league: currentLeague, 
-            buffs: newBuffs, 
+
+        const updatedPlayer = {
+            ...p,
+            team: currentTeam,
+            league: currentLeague,
+            buffs: newBuffs,
             contract: updatedContract || p.contract,
             skating: nextSkt,
             physicality: nextPhy
         };
-        
+
         // If the player aged out and lost stats, force an immediate OVR recalculation
         if (declineSkt > 0 || declinePhy > 0) {
             updatedPlayer.ovr = recomputeOvr(updatedPlayer);
         }
-        
+
         return updatedPlayer;
     });
 
@@ -189,8 +191,8 @@ export function advanceToOffseason(ctx) {
              title: 'CHL IMPORT DRAFT',
              desc: `You've been selected by the ${getFullTeamName(chlTeam, 'OHL')} in the CHL Import Draft! Will you leave Europe to play major junior in North America?`,
              choices: [
-               { label: 'Move to Canada (Join OHL)', isRisky: false, feedback: 'You packed your bags for North America to prepare for your draft year.', effect: { idol: 5, ovr: 2, money: 0 }, action: 'JOIN_CHL', actionData: chlTeam.id },
-               { label: 'Stay in Europe', isRisky: false, feedback: 'You decided to stay close to home.', effect: { idol: 0, ovr: 1, money: 0 } }
+               { label: 'Move to Canada (Join OHL)', subLabel: 'Leave Europe to prepare for your draft year in the OHL.', isRisky: false, feedback: 'You packed your bags for North America to prepare for your draft year.', effect: { idol: 5, ovr: 2, money: 0 }, action: 'JOIN_CHL', actionData: chlTeam.id },
+               { label: 'Stay in Europe', subLabel: 'Stay close to home for now.', isRisky: false, feedback: 'You decided to stay close to home.', effect: { idol: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
            });
@@ -200,15 +202,20 @@ export function advanceToOffseason(ctx) {
     }
 
     const getsNCAAOffer = currentLeague === 'USHL' ? true : (safeJuniorLeagues.includes(currentLeague) && Math.random() > 0.6);
-    
+
     if (player.age === 17 && getsNCAAOffer && !player.rights) {
          let pool = ncaaTeams ? [...ncaaTeams].sort(() => 0.5 - Math.random()) : [];
-         
+
+         const rating = seasonRecap?.rating || 5;
          let numOffers = 1;
-         if (currentLeague === 'USHL') {
-             const rating = seasonRecap?.rating || 5;
-             if (rating >= 8.0) numOffers = 3;
-             else if (rating >= 7.0) numOffers = 2;
+
+         // 17-year-olds typically hover in the 50s-60s OVR.
+         // A 62+ OVR or an 8.0+ rating is a blue-chip prospect (3 offers).
+         // A 56+ OVR or a 6.5+ rating is a solid prospect (2 offers).
+         if (rating >= 8.0 || player.ovr >= 62) {
+             numOffers = 3;
+         } else if (rating >= 6.5 || player.ovr >= 56) {
+             numOffers = 2;
          }
 
          const offeredTeams = pool.slice(0, numOffers).map(t => {
@@ -226,7 +233,7 @@ export function advanceToOffseason(ctx) {
                  { text: '⚠️ Rebuilding Phase (-1 OVR, -5 Fans)', ovr: -1, idol: -5, money: 0 }
              ];
 
-             const perkCount = Math.floor(Math.random() * 4); 
+             const perkCount = Math.floor(Math.random() * 4);
              const flawCount = Math.floor(Math.random() * 4);
 
              const selectedPerks = [...possiblePerks].sort(() => 0.5 - Math.random()).slice(0, perkCount);
@@ -251,27 +258,28 @@ export function advanceToOffseason(ctx) {
 
          if (offeredTeams.length > 0) {
            const choices = offeredTeams.map(t => ({
-               label: `Commit to ${t.name}`, 
+               label: `Commit to ${t.name}`,
+               subLabel: t.ncaaConf ? `${t.ncaaConf.toUpperCase()}` : 'NCAA D1 PROGRAM',
                perks: t.perks,
                flaws: t.flaws,
-               isRisky: false, 
-               feedback: `You signed your Letter of Intent to play for ${t.name}!`, 
-               effect: { idol: t.finalIdol, ovr: t.finalOvr, money: t.finalMoney }, 
-               action: 'JOIN_NCAA', 
+               isRisky: false,
+               feedback: `You signed your Letter of Intent to play for ${t.name}!`,
+               effect: { idol: t.finalIdol, ovr: t.finalOvr, money: t.finalMoney },
+               action: 'JOIN_NCAA',
                actionData: t.id
            }));
 
-           choices.push({ 
-               label: `Decline (Stay in ${currentLeague})`, 
+           choices.push({
+               label: `Decline (Stay in ${currentLeague})`,
                subLabel: `Forfeit all NCAA offers to remain in the ${currentLeague}.`,
-               isRisky: false, 
-               feedback: `You decided to stay the course in ${currentLeague}.`, 
-               effect: { idol: 0, ovr: 1, money: 0 } 
+               isRisky: false,
+               feedback: `You decided to stay the course in ${currentLeague}.`,
+               effect: { idol: 0, ovr: 1, money: 0 }
            });
 
            setActiveEvent({
              title: 'NCAA RECRUITMENT',
-             desc: numOffers > 1 
+             desc: numOffers > 1
                 ? `Your stellar play in the ${currentLeague} has attracted major attention. Offers are rolling in—some programs offer great perks with no drawbacks, while others have serious baggage. Choose wisely.`
                 : `The head coach of ${offeredTeams[0].name} has offered you a scholarship. Review their program's perks and flaws before committing.`,
              choices: choices,
@@ -284,7 +292,7 @@ export function advanceToOffseason(ctx) {
 
     // Euro Leagues are PRO leagues, not amateurs!
     const isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
-    
+
     // Calculate age-out limits before the draft check so we can use them to define the eligible window
     const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
     const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
@@ -292,14 +300,14 @@ export function advanceToOffseason(ctx) {
 
     // A player is draft eligible if they are 18 or older, but haven't aged out of amateur eligibility
     const isDraftEligibleAge = player.age >= 18 && player.age < amateurAgeOut && !isNcaaAgedOut;
-    
+
     if (isDraftEligibleAge && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
       setScreen('combine');
       return;
     }
 
     const rightsExpireAge = (player.draftLeague && ['OHL', 'WHL', 'QMJHL'].includes(player.draftLeague)) ? 20 : 22;
-    
+
     const needsRightsDecision = isCurrentlyAmateur && player.rights && (player.age >= rightsExpireAge || isNcaaAgedOut);
     const isAgingOut = isCurrentlyAmateur && !player.rights && (player.age >= amateurAgeOut || isNcaaAgedOut);
 
@@ -312,8 +320,8 @@ export function advanceToOffseason(ctx) {
                    title: 'AMATEUR GRADUATION',
                    desc: `Your development window has closed. The ${teamName} still hold your draft rights and have offered you an Entry-Level Contract. If you decline, your rights will expire and you will become an Unrestricted Free Agent.`,
                    choices: [
-                       { label: `Sign ELC with ${teamName}`, isRisky: false, feedback: 'You signed your ELC and are heading to pro camp!', effect: { idol: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
-                       { label: 'Test Free Agency', isRisky: false, feedback: 'You let your draft rights expire to test the open market.', effect: { idol: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                       { label: `Sign ELC with ${teamName}`, subLabel: 'Turn pro immediately on your entry-level deal.', isRisky: false, feedback: 'You signed your ELC and are heading to pro camp!', effect: { idol: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
+                       { label: 'Test Free Agency', subLabel: 'Let your rights expire and look for a better opportunity elsewhere.', isRisky: false, feedback: 'You let your draft rights expire to test the open market.', effect: { idol: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                    ],
                    isOffseasonEvent: true
                });
@@ -322,7 +330,7 @@ export function advanceToOffseason(ctx) {
                    title: 'RIGHTS EXPIRED',
                    desc: `Your development window has closed. The ${teamName} have decided not to offer you a contract. Your draft rights have expired and you are now an Unrestricted Free Agent.`,
                    choices: [
-                       { label: 'Enter Free Agency', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                       { label: 'Enter Free Agency', subLabel: 'Look for a team willing to take a chance on you.', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                    ],
                    isOffseasonEvent: true
                });
@@ -332,7 +340,7 @@ export function advanceToOffseason(ctx) {
                title: 'AMATEUR GRADUATION',
                desc: `You have aged out of amateur hockey as an undrafted free agent. It's time to see if any pro teams are interested in signing you.`,
                choices: [
-                   { label: 'Enter Free Agency', isRisky: false, feedback: 'You are looking for your first pro contract.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                   { label: 'Enter Free Agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You are looking for your first pro contract.', effect: { idol: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                ],
                isOffseasonEvent: true
            });
@@ -348,8 +356,8 @@ export function advanceToOffseason(ctx) {
              title: 'PRO CONTRACT OFFER',
              desc: `The ${teamName} believe you are ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${currentLeague} for another year of development.`,
              choices: [
-               { label: 'Sign ELC (Turn Pro)', isRisky: false, feedback: 'You signed your ELC and are heading to NHL training camp!', effect: { idol: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
-               { label: `Return to ${currentLeague}`, isRisky: false, feedback: 'You chose to develop for another year.', effect: { idol: 0, ovr: 1, money: 0 } }
+               { label: 'Sign ELC (Turn Pro)', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your ELC and are heading to NHL training camp!', effect: { idol: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
+               { label: `Return to ${currentLeague}`, subLabel: 'Spend one more year developing before turning pro.', isRisky: false, feedback: 'You chose to develop for another year.', effect: { idol: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
            });
@@ -358,7 +366,7 @@ export function advanceToOffseason(ctx) {
              title: 'NOT READY FOR PRO',
              desc: `The ${teamName} still hold your rights, but their front office does not believe you are ready for pro hockey yet. You must return to ${currentLeague} for another season.`,
              choices: [
-               { label: `Return to ${currentLeague}`, isRisky: false, feedback: 'You are determined to prove them wrong next season.', effect: { idol: 0, ovr: 1, money: 0 } }
+               { label: `Return to ${currentLeague}`, subLabel: "Keep developing until the organization believes you're ready.", isRisky: false, feedback: 'You are determined to prove them wrong next season.', effect: { idol: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
            });
@@ -371,15 +379,15 @@ export function advanceToOffseason(ctx) {
       generateOffers(ctx, false, currentTeam, currentLeague);
     } else {
       const idol = player.idolatry || 0;
-      
+
       if (idol >= 300 && !player.storylines?.endLocal && currentLeague === 'NHL') {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, endLocal: true } }));
           setActiveEvent({
               title: '🤝 LOCAL SPONSORSHIP',
               desc: `A popular local car dealership wants you for a TV commercial. It's great easy money, but your teammates might relentlessly chirp you for it.`,
               choices: [
-                  { label: 'Do the Commercial ($50k)', isRisky: false, feedback: 'You got paid, but the boys laughed at your acting skills.', effect: { idol: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
-                  { label: 'Pass on it', isRisky: false, feedback: 'You kept your dignity.', effect: { idol: 0, ovr: 0, money: 0 } }
+                  { label: 'Do the Commercial ($50k)', subLabel: 'Easy money, but expect some locker-room ribbing.', isRisky: false, feedback: 'You got paid, but the boys laughed at your acting skills.', effect: { idol: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
+                  { label: 'Pass on it', subLabel: 'Skip the payday and keep your reputation intact.', isRisky: false, feedback: 'You kept your dignity.', effect: { idol: 0, ovr: 0, money: 0 } }
               ],
               isOffseasonEvent: true
           });
@@ -393,8 +401,8 @@ export function advanceToOffseason(ctx) {
               title: '📺 NATIONAL BRAND CAMPAIGN',
               desc: `A major sports equipment brand wants you as the face of their new stick launch. It involves a massive photo shoot and media obligations.`,
               choices: [
-                  { label: 'Sign the Deal ($250k)', isRisky: false, feedback: 'You are on billboards nationwide! But the media obligations cut into your training.', effect: { idol: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
-                  { label: 'Focus on Hockey', isRisky: false, feedback: 'You turned down the money to focus purely on your game.', effect: { idol: 0, ovr: 1, money: 0 } }
+                  { label: 'Sign the Deal ($250k)', subLabel: 'Become a household name, at the cost of some practice time.', isRisky: false, feedback: 'You are on billboards nationwide! But the media obligations cut into your training.', effect: { idol: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
+                  { label: 'Focus on Hockey', subLabel: 'Turn down the spotlight to stay fully locked in.', isRisky: false, feedback: 'You turned down the money to focus purely on your game.', effect: { idol: 0, ovr: 1, money: 0 } }
               ],
               isOffseasonEvent: true
           });
@@ -419,7 +427,7 @@ export function advanceToOffseason(ctx) {
       // RANDOM CAREER TRAJECTORY EVENTS (3% Chance)
       // ==========================================
       const eventRoll = Math.random();
-      
+
       // LATE BLOOMER BREAKOUT
       if (currentLeague === 'NHL' && player.age >= 22 && player.age <= 28 && eventRoll < 0.03 && !player.storylines?.hadBreakout) {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, hadBreakout: true } }));
@@ -427,8 +435,8 @@ export function advanceToOffseason(ctx) {
               title: '🔥 LATE BLOOMER BREAKOUT',
               desc: `Something clicked this offseason. The game has slowed down, your body feels elite, and you are dominating informal scrimmages. The media is predicting a massive breakout year.`,
               choices: [
-                  { label: 'Embrace the Spotlight', isRisky: false, feedback: 'You are ready to take the league by storm.', effect: { idol: 50, ovr: 4, money: 0 } },
-                  { label: 'Keep Your Head Down', isRisky: false, feedback: 'You remain humble, focusing purely on the ice.', effect: { idol: 10, ovr: 5, money: 0 } }
+                  { label: 'Embrace the Spotlight', subLabel: 'Lean into the hype for a bigger immediate boost.', isRisky: false, feedback: 'You are ready to take the league by storm.', effect: { idol: 50, ovr: 4, money: 0 } },
+                  { label: 'Keep Your Head Down', subLabel: 'Stay humble and let your game do the talking.', isRisky: false, feedback: 'You remain humble, focusing purely on the ice.', effect: { idol: 10, ovr: 5, money: 0 } }
               ],
               isOffseasonEvent: true
           });
@@ -443,8 +451,8 @@ export function advanceToOffseason(ctx) {
               title: '📉 OFF-YEAR REGRESSION',
               desc: `You spent the summer enjoying your wealth instead of training. You arrived at camp out of shape, and critics are calling last season a total fluke.`,
               choices: [
-                  { label: 'Ignore the Haters', isRisky: false, feedback: 'You brushed off the media, but your game is noticeably sluggish.', effect: { idol: -20, ovr: -3, money: 0 } },
-                  { label: 'Hire a Private Trainer ($250k)', isRisky: false, feedback: 'You spent a fortune to get back in shape, limiting the damage.', effect: { idol: 10, ovr: -1, money: -250000 } }
+                  { label: 'Ignore the Haters', subLabel: 'Save the money, but your game stays sluggish.', isRisky: false, feedback: 'You brushed off the media, but your game is noticeably sluggish.', effect: { idol: -20, ovr: -3, money: 0 } },
+                  { label: 'Hire a Private Trainer ($250k)', subLabel: 'Spend to get back in shape and limit the damage.', isRisky: false, feedback: 'You spent a fortune to get back in shape, limiting the damage.', effect: { idol: 10, ovr: -1, money: -250000 } }
               ],
               isOffseasonEvent: true
           });
@@ -457,20 +465,22 @@ export function advanceToOffseason(ctx) {
             title: '🏆 CHAMPIONSHIP PARADE',
             desc: `The city is shutting down for your Memorial Cup parade! You are riding on the lead fire truck, holding the trophy high as thousands of fans chant your name. What a way to end the season.`,
             choices: [
-                { 
-                  label: 'Soak it in (Enjoy the moment)', 
-                  isRisky: false, 
-                  feedback: 'A beautiful day. Now it\'s time to rest and prepare for next year.', 
-                  effect: { idol: 50, ovr: 1, rel: { teammates: 20 } } 
+                {
+                  label: 'Soak it in (Enjoy the moment)',
+                  subLabel: 'Enjoy the moment and rest up for next season.',
+                  isRisky: false,
+                  feedback: 'A beautiful day. Now it\'s time to rest and prepare for next year.',
+                  effect: { idol: 50, ovr: 1, rel: { teammates: 20 } }
                 },
-                { 
-                  label: 'Party Hard with the Boys', 
-                  isRisky: true, 
-                  successChance: 0.70, 
-                  successFeedback: 'An absolute legendary celebration that brought the team closer together than ever!', 
-                  successEffect: { idol: 20, ovr: 0, rel: { teammates: 40 } }, 
-                  failFeedback: 'You partied a little too hard and made a fool of yourself on local news.', 
-                  failEffect: { idol: -20, ovr: -1, rel: { media: -20 } } 
+                {
+                  label: 'Party Hard with the Boys',
+                  subLabel: 'Let loose with the team, for better or worse.',
+                  isRisky: true,
+                  successChance: 0.70,
+                  successFeedback: 'An absolute legendary celebration that brought the team closer together than ever!',
+                  successEffect: { idol: 20, ovr: 0, rel: { teammates: 40 } },
+                  failFeedback: 'You partied a little too hard and made a fool of yourself on local news.',
+                  failEffect: { idol: -20, ovr: -1, rel: { media: -20 } }
                 }
             ],
             isOffseasonEvent: true
@@ -487,50 +497,58 @@ export function advanceToOffseason(ctx) {
             title: '⛺ VETERAN TRAINING CAMP',
             desc: `You arrive at camp as an established core player for the ${player.league} season. The coaches know what you bring to the table. Use this time to set the tone for the rookies.`,
             choices: [
-                { 
-                  label: 'Pace Yourself (Avoid Injury)', 
-                  isRisky: false, 
-                  feedback: 'You coasted through camp cleanly. You are 100% ready for opening night.', 
-                  effect: { idol: 10, ovr: 0 } 
+                {
+                  label: 'Pace Yourself',
+                  subLabel: 'Play it safe to stay fresh for opening night, and avoid a reckless injury.',
+                  isRisky: false,
+                  feedback: 'You coasted through camp cleanly. You are 100% ready for opening night.',
+                  effect: { idol: 10, ovr: 0 }
                 },
-                { 
-                  label: 'Dominate Scrimmages', 
-                  isRisky: true, 
-                  successChance: 0.75, 
-                  successFeedback: 'You looked absolutely unstoppable. The media is hyping you up for a career year.', 
-                  successEffect: { idol: 50, ovr: 1, rel: { coach: 15 } }, 
-                  failFeedback: 'You pushed too hard in a meaningless drill and tweaked a muscle.', 
-                  failEffect: { idol: -10, ovr: -1, rel: { coach: -10 } } 
+                {
+                  label: 'Dominate Scrimmages',
+                  subLabel: 'Push hard to set the tone, at some injury risk.',
+                  isRisky: true,
+                  successChance: 0.75,
+                  successFeedback: 'You looked absolutely unstoppable. The media is hyping you up for a career year.',
+                  successEffect: { idol: 50, ovr: 1, rel: { coach: 15 } },
+                  failFeedback: 'You pushed too hard in a meaningless drill and tweaked a muscle.',
+                  failEffect: { idol: -10, ovr: -1, rel: { coach: -10 } }
                 }
             ],
             isOffseasonEvent: true
         });
     } else {
-        let campTitle, campDesc, riskyLabel, riskySuccess, riskyFail, safeLabel, safeFeedback;
+        let campTitle, campDesc, riskyLabel, riskySubLabel, riskySuccess, riskyFail, safeLabel, safeSubLabel, safeFeedback;
 
         if (player.pos === 'G') {
             campTitle = '⛺ CREASE BATTLE';
             campDesc = 'Training camp has opened, and the team has a true goaltending controversy. You are locked in a fierce battle for the starter\'s net.';
-            riskyLabel = 'Battle for the Starting Job (Hit the ice)';
+            riskyLabel = 'Battle for the Starting Job';
+            riskySubLabel = 'Push hard to win the starting net outright.';
             riskySuccess = 'You outplayed your competition in camp and secured the starting job!';
             riskyFail = 'You let in too many soft goals during scrimmages. The coach named you the backup.';
-            safeLabel = 'Accept Backup Duty (Play it safe)';
+            safeLabel = 'Accept Backup Duty';
+            safeSubLabel = 'Settle into a steady backup role without the pressure.';
             safeFeedback = 'You played a quiet, mistake-free camp and accepted the backup role behind the veteran.';
         } else if (['LD', 'RD'].includes(player.pos)) {
             campTitle = '⛺ BLUE LINE BATTLE';
             campDesc = 'Training camp has opened, and there is an open spot in the top-4 defensive pairings. You are locked in a fierce battle for those crucial minutes.';
-            riskyLabel = 'Battle for a Top-4 Spot (Hit the ice)';
+            riskyLabel = 'Battle for a Top-4 Spot';
+            riskySubLabel = 'Push hard to crack the top-4 pairing.';
             riskySuccess = 'You dominated the defensive drills and secured a Top-4 spot!';
             riskyFail = 'You got burned a few times in scrimmages. The coach bumped you down to the bottom pairing.';
-            safeLabel = 'Accept Bottom-Pairing Role (Play it safe)';
+            safeLabel = 'Accept a Bottom-Pairing Role';
+            safeSubLabel = 'Settle into a safer bottom-pairing role.';
             safeFeedback = 'You played a quiet, mistake-free camp and slotted into a safe, third-pairing role.';
         } else {
             campTitle = '⛺ TRAINING CAMP BATTLE';
             campDesc = 'Training camp has opened, and the coach is looking for someone to step up into a top-6 scoring role. You are locked in a fierce roster battle.';
-            riskyLabel = 'Battle for a Top-6 Spot (Hit the ice)';
+            riskyLabel = 'Battle for a Top-6 Spot';
+            riskySubLabel = 'Push hard to crack the top-6 lineup.';
             riskySuccess = 'You showed incredible offensive chemistry in camp and secured a Top-6 spot!';
             riskyFail = 'You forced too many plays and turned the puck over. The coach bumped you down to the checking line.';
-            safeLabel = 'Accept Bottom-6 Role (Play it safe)';
+            safeLabel = 'Accept a Bottom-6 Role';
+            safeSubLabel = 'Settle into a safer bottom-six role.';
             safeFeedback = 'You played a quiet, mistake-free camp and accepted a gritty checking role at the bottom of the lineup.';
         }
 
@@ -538,21 +556,23 @@ export function advanceToOffseason(ctx) {
             title: campTitle,
             desc: campDesc,
             choices: [
-                { 
-                  label: riskyLabel, 
-                  isRisky: true, 
-                  successChance: 0.50, 
-                  successFeedback: riskySuccess, 
-                  successEffect: { idol: 20, ovr: 1, rel: { coach: 20 } }, 
-                  failFeedback: riskyFail, 
+                {
+                  label: riskyLabel,
+                  subLabel: riskySubLabel,
+                  isRisky: true,
+                  successChance: 0.50,
+                  successFeedback: riskySuccess,
+                  successEffect: { idol: 20, ovr: 1, rel: { coach: 20 } },
+                  failFeedback: riskyFail,
                   failEffect: { idol: -10, ovr: -1, rel: { coach: -15 } },
-                  action: 'ROUTE_MINIGAME' 
+                  action: 'ROUTE_MINIGAME'
                 },
-                { 
-                  label: safeLabel, 
-                  isRisky: false, 
-                  feedback: safeFeedback, 
-                  effect: { idol: 0, ovr: 0, rel: { coach: 5 } } 
+                {
+                  label: safeLabel,
+                  subLabel: safeSubLabel,
+                  isRisky: false,
+                  feedback: safeFeedback,
+                  effect: { idol: 0, ovr: 0, rel: { coach: 5 } }
                 }
             ],
             isOffseasonEvent: true
@@ -561,6 +581,6 @@ export function advanceToOffseason(ctx) {
 
     // FIX: Actually route the user to the event screen!
     ctx.setScreen('event');
-    
+
   } // Closes the massive `else` block for players who already have contracts
 } // Closes the entire advanceToOffseason function
