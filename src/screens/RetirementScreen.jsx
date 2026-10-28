@@ -217,17 +217,30 @@ export default function RetirementScreen() {
     
     const aggregatedAwards = {};
     (player.seasonHistory || []).forEach(s => {
-      (s.awards || []).forEach(aw => {
+      // PREVENT DOUBLE COUNTING: Use a Set to ensure an award is only counted once per season
+      const uniqueSeasonAwards = Array.from(new Set(s.awards || []));
+      
+      uniqueSeasonAwards.forEach(aw => {
         let key = aw.replace(/^\d{4}\s/, '').replace(' Trophy', '').replace(' Memorial', '').replace(/\s*\(.+?\)\s*$/, '').trim();
         
         if (key.toLowerCase().includes('1st team all-star')) return;
+        if (key.toLowerCase() === 'stanley cup') return; // Handled separately by stanleyCups counter
         
         key = key.replace(/\s\d{4}$/, '');
-        key = key.replace('Gold, Olympics', 'Olympic Gold');
-        key = key.replace('Gold, World Juniors', 'WJC Gold');
-        key = key.replace('Gold, World Championship', 'WC Gold');
-        key = key.replace('Promotion, World Championship', 'WC Promotion');
-        key = key.replace('Survival, World Championship', 'WC Survival');
+        key = key.replace('Gold, Olympics', 'Olympic Gold Medalist');
+        key = key.replace('Silver, Olympics', 'Olympic Silver Medalist');
+        key = key.replace('Bronze, Olympics', 'Olympic Bronze Medalist');
+        
+        key = key.replace('Gold, World Juniors', 'WJC Gold Medalist');
+        key = key.replace('Silver, World Juniors', 'WJC Silver Medalist');
+        key = key.replace('Bronze, World Juniors', 'WJC Bronze Medalist');
+        
+        key = key.replace('Gold, World Championship', 'WC Gold Medalist');
+        key = key.replace('Silver, World Championship', 'WC Silver Medalist');
+        key = key.replace('Bronze, World Championship', 'WC Bronze Medalist');
+        
+        // Strip out non-medal international events from the final legacy screen
+        if (key.includes('Promotion') || key.includes('Survival')) return;
 
         if (!aggregatedAwards[key]) aggregatedAwards[key] = { name: key, count: 0 };
         aggregatedAwards[key].count++;

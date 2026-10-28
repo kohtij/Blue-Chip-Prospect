@@ -13,7 +13,7 @@ export const interactiveMinigames = [
   {
     id: 'faceoff_draw',
     title: 'THE FACEOFF DRAW',
-    desc: 'Stare down the referee. When the circle flashes GREEN, click as fast as possible to win the draw. Do not jump early!',
+    desc: 'Stare down the referee. When the circle turns green, click as fast as possible to win the draw. Do not jump early!',
     accent: 'amber',
     gameType: 'faceoff',
     pos: ['C'], // Centers only
@@ -90,7 +90,7 @@ export const interactiveMinigames = [
   {
     id: 'camp_battle',
     title: 'TRAINING CAMP BATTLE',
-    desc: 'You are battling a veteran for the final top-6 roster spot. The coach is watching closely. When the whistle blows (screen flashes GREEN), click immediately to win the puck battle!',
+    desc: 'You are battling a veteran for the final top-6 roster spot. The coach is watching closely. When the whistle blows and the screen turns green, click immediately to win the puck battle!',
     accent: 'emerald',
     gameType: 'faceoff', 
     pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], 

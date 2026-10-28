@@ -8,6 +8,9 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
   const [stumble, setStumble] = useState(false);
   
   const timerRef = useRef(null);
+  // Real start time, so the recorded result is exact even if the race finishes
+  // faster than the 50ms display tick (the on-screen clock only resolves to 50ms).
+  const startRef = useRef(null);
   
   // Speed Strategy reduces required strides by 20%
   const targetStrides = strategy === 'speed' ? 24 : 30;
@@ -18,9 +21,9 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
 
   const startGame = () => {
     setGameStarted(true);
-    const start = Date.now();
+    startRef.current = Date.now();
     timerRef.current = setInterval(() => {
-      setTimeMs(Date.now() - start);
+      setTimeMs(Date.now() - startRef.current);
     }, 50);
   };
 
@@ -34,7 +37,11 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
 
       if (newStrides >= targetStrides) {
         clearInterval(timerRef.current);
-        const endTime = timeMs / 1000;
+        // Measure off the wall clock, not the 50ms-resolution display value, so a
+        // very fast finish is still timed correctly instead of reading as 0.
+        const finalElapsedMs = Date.now() - startRef.current;
+        setTimeMs(finalElapsedMs);
+        const endTime = finalElapsedMs / 1000;
         
         let ovrBoost = 0, idolBoost = 0, msg = "";
 

@@ -69,12 +69,18 @@ export default function TradeDeadlineScreen() {
                         feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
                     }
 
+                    // The destination's outlook is generated above but was never shown anywhere,
+                    // so the player reacted to a trade with no idea what they were walking into.
+                    eventDesc += ` They sit **#${destStandings}** in the standings, firmly in a playoff spot.`;
+
                     if (player.contract?.nmc) {
                         setActiveEvent({
                            title: 'WAIVE YOUR NMC?',
                            desc: `Your GM called you in. The team is struggling, and they have a massive trade package lined up from the **${getFullTeamName(destTeam.id, tradeLg)}**. You hold a No-Movement Clause. Will you waive it?`,
                            choices: [
-                              { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { idol: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                              // showTeamCard gives this the full team card (logo, rank, perks and
+                              // flaws) so the destination can be judged before waiving the clause.
+                              { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { idol: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
                               { label: 'Enforce NMC (Veto Trade)', isRisky: false, feedback: 'You invoked your NMC. The GM was frustrated, but you are staying put.', effect: { idol: 20, ovr: 0, rel: { coach: -15 } } }
                            ],
                            isTradeDeadlineEvent: true
@@ -84,8 +90,12 @@ export default function TradeDeadlineScreen() {
                            title: '11TH HOUR BLOCKBUSTER!',
                            desc: eventDesc,
                            choices: [
-                              { label: 'Embrace the fresh start', isRisky: false, feedback: feedback, effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                              { label: 'Trash your old GM to the press', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                              // No showTeamCard here on purpose: the trade has already happened and
+                              // both choices go to the same club, so two identical team cards would
+                              // just repeat the destination twice. These choices are about how you
+                              // react, so they stay as plain choices with a subLabel.
+                              { label: 'Embrace the fresh start', subLabel: 'Report on good terms and leave the bridge standing.', isRisky: false, feedback: feedback, effect: { idol: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
+                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { idol: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { idol: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
                            ],
                            isTradeDeadlineEvent: true
                         });

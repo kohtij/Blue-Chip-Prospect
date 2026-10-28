@@ -1,10 +1,104 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { LEAGUE_CONFIG, getConferences, getDivisions, getOpponentPool, getPlayoffRounds, getTeamConference, getTeamData } from '../data/teams';
-import { generatePlayoffDeck } from '../utils/gameHelpers';
+import { capFanStatus, generatePlayoffDeck } from '../utils/gameHelpers';
+import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
-export function checkPlayoffs(ctx, currentLg, currentTeamId, standings) {
+const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
+
+// Plays one series out with a fixed per-game win chance for team 1.
+function simulateSeries(p1, winsNeeded, gamesPerMatchup) {
+  if (gamesPerMatchup === 1) {
+    const win = Math.random() < p1;
+    return { wins1: win ? 1 : 0, wins2: win ? 0 : 1 };
+  }
+  let wins1 = 0;
+  let wins2 = 0;
+  while (wins1 < winsNeeded && wins2 < winsNeeded) {
+    if (Math.random() < p1) wins1++;
+    else wins2++;
+  }
+  return { wins1, wins2 };
+}
+
+// SIDELINED MODE: the player is injured, so there are no card minigames. The team
+// still plays the full bracket and every series is decided on team strength.
+// Mutates the freshly built bracket and reports how the run ended.
+function simulateBracketWithoutPlayer({ bracket, currentLg, currentTeamId, standings, spots, playerOvr }) {
+  const totalRounds = bracket.length;
+  const seedStrength = clamp(1 - ((standings || 1) - 1) / Math.max(1, spots - 1), 0, 1);
+  // Losing a star hurts: the better the injured player, the bigger the dent.
+  const absencePenalty = clamp((playerOvr - 70) * 0.003, 0, 0.06);
+
+  let playerAlive = true;
+  let lastPlayerRound = 0;
+
+  for (let r = 0; r < totalRounds; r++) {
+    const round = bracket[r];
+
+    // Seed this round from the previous winners, using the same pairing rule the
+    // live bracket uses, and keep the player's club as team1.
+    if (r > 0) {
+      const prev = bracket[r - 1];
+      const prevWN = getWinsNeeded(currentLg, r - 1);
+      for (let i = 0; i < prev.length; i += 2) {
+        const m1 = prev[i];
+        const m2 = prev[i + 1];
+        const slot = Math.floor(i / 2);
+        if (!m1 || !m2 || !round[slot]) continue;
+        const adv1 = m1.wins1 >= prevWN ? m1.team1 : m1.team2;
+        const adv2 = m2.wins1 >= prevWN ? m2.team1 : m2.team2;
+        const isPlayerMatch = playerAlive && (adv1.id === currentTeamId || adv2.id === currentTeamId);
+        let t1 = adv1;
+        let t2 = adv2;
+        if (isPlayerMatch && adv2.id === currentTeamId) { t1 = adv2; t2 = adv1; }
+        round[slot] = {
+          ...round[slot],
+          team1: t1,
+          team2: t2,
+          isPlayerSeries: isPlayerMatch,
+          wins1: 0,
+          wins2: 0,
+          revealed: [],
+          deck: null,
+          status: 'playing'
+        };
+      }
+    }
+
+    const winsNeeded = getWinsNeeded(currentLg, r);
+    const gamesPerMatchup = getGamesPerMatchup(currentLg, r);
+
+    round.forEach((match, i) => {
+      const isPlayerMatch = !!match.isPlayerSeries && playerAlive;
+      // The player's club: a better seed is a better team, later rounds get harder.
+      // Every other series is a coin flip.
+      const p1 = isPlayerMatch
+        ? clamp(0.45 + (0.18 * seedStrength) - (0.02 * r) - absencePenalty, 0.28, 0.66)
+        : 0.5;
+      const result = simulateSeries(p1, winsNeeded, gamesPerMatchup);
+
+      let status = 'simulated';
+      if (isPlayerMatch) {
+        const won = result.wins1 >= winsNeeded;
+        status = won ? 'won' : 'lost';
+        lastPlayerRound = r;
+        if (!won) playerAlive = false;
+      }
+      round[i] = { ...match, wins1: result.wins1, wins2: result.wins2, status };
+    });
+  }
+
+  return {
+    overallStatus: playerAlive ? 'won_cup' : 'eliminated',
+    activeRoundIndex: lastPlayerRound,
+    reachedFinal: lastPlayerRound === totalRounds - 1
+  };
+}
+
+export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {}) {
   const { setPlayoffs, setScreen } = ctx;
+  const sidelined = !!opts.sidelined;
 
     const spots = LEAGUE_CONFIG[currentLg]?.playoffSpots || 16;
     const rounds = getPlayoffRounds(currentLg);
@@ -109,7 +203,8 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings) {
             wins1: 0,
             wins2: 0,
             status: 'playing',
-            deck: isPlayer ? getDeckForRound(1) : null,
+            // A sidelined player plays no minigames, so no deck is dealt.
+            deck: isPlayer && !sidelined ? getDeckForRound(1) : null,
             revealed: [],
             divisionLabel: getDivLabel(m, numMatchups)
           });
@@ -129,6 +224,45 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings) {
         }
       }
       bracket.push(roundMatchups);
+    }
+
+    // INJURED: the club plays on without the player. Decide the whole run up front.
+    if (sidelined) {
+      const run = simulateBracketWithoutPlayer({
+        bracket,
+        currentLg,
+        currentTeamId,
+        standings,
+        spots,
+        playerOvr: ctx.player?.ovr || 70
+      });
+
+      if (run.overallStatus === 'won_cup') {
+        // Still on the roster, so the name goes on the trophy and the fans notice.
+        if (ctx.setPlayer) ctx.setPlayer(p => ({ ...p, idolatry: capFanStatus((p.idolatry || 0) + 15) }));
+        if (ctx.unlockAchievement) {
+          if (currentLg === 'NHL') ctx.unlockAchievement('stanley_cup');
+          if (currentLg === 'AHL') ctx.unlockAchievement('ahl_champ');
+          if (currentLg === 'NCAA') ctx.unlockAchievement('ncaa_champ');
+        }
+      }
+
+      setPlayoffs({
+        bracket,
+        activeRoundIndex: run.activeRoundIndex,
+        overallStatus: run.overallStatus,
+        currentLg,
+        currentTeamId,
+        standings,
+        spots,
+        playerConf,
+        hasConfs,
+        roundsConfig: rounds,
+        playerSidelined: true,
+        confTitleWon: hasConfs && run.reachedFinal
+      });
+      setScreen('playoffs');
+      return;
     }
 
     setPlayoffs({

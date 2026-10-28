@@ -1,8 +1,12 @@
-import  { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import { useAppContext } from '../AppContext';
 
 const ShootoutGame = ({ player, onComplete }) => {
+  const { minigameContext } = useAppContext();
+  const isFinals = minigameContext === 'finals';
+
   const [activeZone, setActiveZone] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(5000);
+  const [timeLeft, setTimeLeft] = useState(isFinals ? 3500 : 5000);
   const [jitter, setJitter] = useState({ x: 0, y: 0 });
   const [status, setStatus] = useState('playing');
   const poolRef = useRef([]);
@@ -37,7 +41,7 @@ const ShootoutGame = ({ player, onComplete }) => {
 
       const baseSpeed = Math.max(400, 1000 - ((player?.shooting || 50) * 4));
       const randomOffset = Math.floor(Math.random() * 201) - 100;
-      const speed = Math.max(300, baseSpeed + randomOffset);
+      const speed = Math.max(isFinals ? 200 : 300, (baseSpeed + randomOffset) * (isFinals ? 0.75 : 1.0));
 
       timeoutId = setTimeout(triggerNextZone, speed);
     };
@@ -60,7 +64,7 @@ const ShootoutGame = ({ player, onComplete }) => {
       clearTimeout(timeoutId);
       clearInterval(timer);
     };
-  }, [player, status, finish]);
+  }, [player, status, finish, isFinals]);
 
   const zones = [
     { id: 0, label: 'TOP LEFT', cls: 'top-4 left-4 w-16 h-16 sm:w-20 sm:h-20' },
@@ -71,8 +75,8 @@ const ShootoutGame = ({ player, onComplete }) => {
   ];
 
   return (
-    <div className="w-full max-w-md mx-auto aspect-[4/3] bg-[#e2e8f0] border-4 border-[#ef4444] rounded-lg relative overflow-hidden flex items-center justify-center shadow-inner">
-      <div className="absolute inset-0 border-8 border-[#ef4444] rounded opacity-50 pointer-events-none"></div>
+    <div className="w-full max-w-md mx-auto aspect-[4/3] bg-slate-100 border-4 border-[#ef4444] rounded-lg relative overflow-hidden flex items-center justify-center shadow-inner" style={{ backgroundImage: 'radial-gradient(#cbd5e1 2px, transparent 2px)', backgroundSize: '16px 16px' }}>
+      <div className="absolute inset-0 border-8 border-[#ef4444] rounded opacity-50 pointer-events-none z-0"></div>
       
       <div className={`w-3/5 h-4/5 ${status === 'won' ? 'bg-[#22E748]/20' : status === 'lost' ? 'bg-[#ef4444]/20' : 'bg-slate-800'} rounded-t-[40%] absolute bottom-0 opacity-80 flex flex-col items-center justify-center transition-colors duration-300`}>
          <span className="text-5xl">{status === 'won' ? '🚨' : status === 'lost' ? '🧱' : '🥅'}</span>
@@ -85,13 +89,19 @@ const ShootoutGame = ({ player, onComplete }) => {
           key={z.id}
           onClick={() => { if (activeZone === z.id) finish(true); }}
           style={activeZone === z.id ? { marginTop: `${jitter.y}px`, marginLeft: `${jitter.x}px` } : {}}
-          className={`absolute rounded-full border-4 transition-colors font-black sports-font text-[10px] sm:text-xs leading-none z-10 ${
+          className={`absolute rounded-full transition-all duration-150 flex items-center justify-center z-10 ${
             activeZone === z.id 
-              ? 'bg-[#22E748]/90 border-[#22E748] text-white shadow-[0_0_20px_#22E748] scale-110 cursor-pointer animate-pulse' 
-              : 'bg-transparent border-[rgba(0,0,0,0.1)] text-transparent pointer-events-none'
+              ? 'bg-[#22E748]/80 border-4 border-[#22E748] shadow-[0_0_30px_#22E748] scale-125 cursor-pointer animate-pulse' 
+              : 'bg-black/10 border-2 border-slate-400/40 pointer-events-none'
           } ${z.cls}`}
         >
-          {activeZone === z.id ? 'SHOOT' : ''}
+          {activeZone === z.id ? (
+             <div className="relative w-full h-full flex items-center justify-center">
+                <div className="absolute w-1 h-full bg-white/70"></div>
+                <div className="absolute w-full h-1 bg-white/70"></div>
+                <div className="w-3 h-3 bg-red-500 rounded-full z-20 shadow-md"></div>
+             </div>
+          ) : null}
         </button>
       ))}
 

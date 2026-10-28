@@ -52,26 +52,46 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     if (actingLeague === 'NHL') {
       const careerAwards = player.stats?.awards || [];
       const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
+      
+      // 1. Calculate Recent Production (Points)
+      const isGoalie = player.pos === 'G';
+      const recentGoals = player.stats?.nhl?.goals || 0;
+      const recentAssists = player.stats?.nhl?.assists || 0;
+      const recentPoints = recentGoals + recentAssists;
+      const seasons = Math.max(1, player.stats?.seasonsPlayed || 1);
+      const avgPoints = recentPoints / seasons; // Rough career/recent average
 
-      if (player.ovr >= 85 || isSuperstar) {
-        baseSalary = (7500000 + ((player.ovr - 85) * 1000000)) * multi * repMod;
+      // 2. Salary Cap Evolution (approx 4% increase per year from 2024)
+      const capInflation = 1 + (Math.max(0, currentYear - 2024) * 0.04);
+
+      // 3. Blended Salary Logic (OVR + Production)
+      const recentSaves = player.stats?.nhl?.saves || 0;
+      const productionValue = !isGoalie 
+          ? (avgPoints * 120000) 
+          : ((recentSaves / seasons) * 4000);
+
+      const ovrValue = (player.ovr >= 70 ? (player.ovr - 70) * 200000 : 0);
+      let calculatedSalary = ((productionValue * 0.6) + (ovrValue * 0.4)) * capInflation * multi * repMod;
+
+      if (player.ovr >= 85 || isSuperstar || avgPoints >= 80) {
+        baseSalary = Math.max(calculatedSalary, 7500000 * capInflation);
         maxYears = 8;
-        if (isRFA) minYears = 5; // Young stars sign long-term
-      } else if (player.ovr >= 80) {
-        baseSalary = (4500000 + ((player.ovr - 80) * 600000)) * multi * repMod;
+        if (isRFA) minYears = 5; 
+      } else if (player.ovr >= 80 || avgPoints >= 50) {
+        baseSalary = Math.max(calculatedSalary, 4500000 * capInflation);
         maxYears = 5;
-        if (isRFA) minYears = 3; // Standard Bridge Deal
-      } else if (player.ovr >= 75) {
-        baseSalary = (2000000 + ((player.ovr - 75) * 500000)) * multi * repMod;
+        if (isRFA) minYears = 3; 
+      } else if (player.ovr >= 75 || avgPoints >= 30) {
+        baseSalary = Math.max(calculatedSalary, 2000000 * capInflation);
         maxYears = 3;
-        if (isRFA) minYears = 2; // Short Bridge Deal
+        if (isRFA) minYears = 2; 
       } else {
-        baseSalary = (leagueMinimum + 150000 + ((player.ovr - 70) * 100000)) * multi * repMod;
+        baseSalary = Math.max(leagueMinimum + 150000, calculatedSalary);
         maxYears = 2;
       }
 
       if (isSuperstar) {
-         baseSalary = Math.max(baseSalary, 10500000 * multi * repMod);
+         baseSalary = Math.max(baseSalary, 10500000 * capInflation * multi * repMod);
          maxYears = Math.max(maxYears, 8);
          if (isRFA) minYears = 6;
       }
@@ -85,7 +105,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
          maxYears = Math.min(maxYears, 4);
       }
 
-      const NHL_MAX_SALARY = 13500000;
+      const NHL_MAX_SALARY = 16500000 * capInflation; // Max contract scales with cap
       baseSalary = Math.min(NHL_MAX_SALARY, baseSalary);
     } else {
       // Minor league / amateur fallback pay

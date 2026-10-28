@@ -114,7 +114,31 @@ export default function IntlMinigameScreen() {
   const [view, setView] = useState(player.intlData ? 'standings' : 'prep');
   const [activeMgKey, setActiveMgKey] = useState(null);
   const [prepFeedback, setPrepFeedback] = useState(null);
-  const [scenario] = useState(() => PREP_SCENARIOS[Math.floor(Math.random() * PREP_SCENARIOS.length)]);
+  const [scenario] = useState(() => {
+      let pool = [...PREP_SCENARIOS];
+      const stakes = player.intlStakes || 'GOLD';
+      
+      if (stakes === 'GOLD' || stakes === 'BRONZE') {
+          pool.push({
+              title: "🥇 THE WEIGHT OF A NATION",
+              desc: "The Prime Minister just called the locker room to wish you luck. The entire country is shutting down to watch this game.",
+              choices: [
+                  { label: 'Embrace the Pressure', isRisky: true, chance: 0.5, desc: 'Use the national spotlight as fuel.', winEffect: { fanStatus: 80 }, failEffect: { fanStatus: -30 }, win: "You thrive in the spotlight! Your confidence is sky high.", fail: "The pressure is suffocating. You feel like you're gripping the stick too tight." },
+                  { label: 'Block Out the Noise', isRisky: false, desc: 'Treat it like just another hockey game.', winEffect: { fanStatus: 10 }, win: "You successfully blocked the noise and kept your heart rate steady." }
+              ]
+          });
+      } else if (stakes === 'SURVIVAL') {
+          pool.push({
+              title: "⚠️ RELEGATION PANIC",
+              desc: "If you lose tonight, your country gets relegated to a lower division. The local federation is threatening to pull funding.",
+              choices: [
+                  { label: 'Play Desperate', isRisky: true, chance: 0.6, desc: 'Sell out physically to keep your country alive.', winEffect: { fanStatus: 40 }, failEffect: { fanStatus: -20 }, win: "Your desperation sparked the room. Everyone is ready for war.", fail: "You look panicked. The anxiety is spreading through the lineup." },
+                  { label: 'Play a Simple Game', isRisky: false, desc: 'Focus on defensive structure and zero mistakes.', winEffect: { fanStatus: 5 }, win: "You settled the room down and committed to a boring, safe game." }
+              ]
+          });
+      }
+      return pool[Math.floor(Math.random() * pool.length)];
+  });
 
   const mgLockRef = useRef(false);
 

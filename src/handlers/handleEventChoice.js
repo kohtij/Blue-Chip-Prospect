@@ -1,5 +1,5 @@
 import { capFanStatus, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
-import { getRole } from '../utils/appHelpers';
+import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { getOpponentPool } from '../data/teams';
 
 export function handleEventChoice(ctx, choice) {
@@ -74,24 +74,17 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'DEMOTE') {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
   } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {
-    const teamId = choice.actionData?.teamObj?.id || choice.actionData?.team?.id || choice.actionData;
-    updated.team = teamId;
-    updated.league = choice.actionData?.lg || player.league;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
-    
-    if (updated.seasonHistory && updated.seasonHistory.length > 0) {
-       const currentSeason = updated.seasonHistory[updated.seasonHistory.length - 1];
-       currentSeason.tradedTo = teamId;
-       currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
-       currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
-    }
-  } else if (actionStr === 'TRADE_HOLDOUT') {
-    if (outcomeEffect === choice.successEffect) {
-        const pool = (getOpponentPool('NHL') || []).filter(t => t.id !== player.team);
-        const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
-        updated.team = destTeam;
-        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
-    }
+        const teamId = choice.actionData?.teamObj?.id || choice.actionData?.team?.id || choice.actionData;
+        updated.team = teamId;
+        updated.league = choice.actionData?.lg || player.league;
+        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
+        
+        if (updated.seasonHistory && updated.seasonHistory.length > 0) {
+           const currentSeason = updated.seasonHistory[updated.seasonHistory.length - 1];
+           currentSeason.tradedTo = teamId;
+           currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
+           currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
+        }
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
   } else if (actionStr === 'CHANGE_LEAGUE') {
@@ -173,6 +166,29 @@ export function handleEventChoice(ctx, choice) {
     updated.team = choice.actionData.team; updated.league = 'NHL';
     updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role };
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
+  } else if (actionStr === 'RESOLVE_DOUBLE_DOWN') {
+    const isSuccess = outcomeEffect === choice.successEffect;
+    if (isSuccess) {
+        // You won the power struggle. You are untouchable.
+        updated.isAlternate = true; 
+    } else {
+        // You lost. BANISHMENT.
+        if (player.league === 'NHL') {
+            // NHL players get buried in the minors (AHL)
+            const nhlPool = getOpponentPool('NHL') || [];
+            const currentTeamObj = nhlPool.find(t => t.id === player.team);
+            const ahlTeamId = currentTeamObj ? currentTeamObj.ahlId : 'UNK';
+            updated.team = ahlTeamId;
+            updated.league = 'AHL';
+            updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), ahlTeamId]));
+        } else {
+            // Junior/Euro players just get spite-traded to a random team
+            const pool = (getOpponentPool(player.league) || []).filter(t => t.id !== player.team);
+            const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
+            updated.team = destTeam;
+            updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
+        }
+    }
   } else if (actionStr === 'INTL_RISKY') {
      triggerMinigame(ctx.minigameContext || 'wjc');
      return;
@@ -228,6 +244,86 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'ROUTE_TRADE_DEADLINE') {
       setActiveEvent(null);
       setScreen('trade-deadline');
+  } else if (actionStr === 'TRADE_HOLDOUT') {
+      // Chain a resolution event instead of proceeding directly to the playoffs
+      const isSuccess = outcomeEffect === choice.successEffect;
+      
+      // Determine if the player is pro to apply fines and pro-specific text
+      const isPro = ['NHL', 'AHL', 'SHL', 'LIIGA'].includes(finalPlayer.league);
+      const fineAmount = isPro ? -250000 : 0;
+      
+      if (isSuccess) {
+          const pool = (getOpponentPool(finalPlayer.league) || []).filter(t => t.id !== player.team);
+          const destTeamObj = pool[Math.floor(Math.random() * pool.length)] || { id: 'UNK' };
+          
+          const willMakePlayoffs = Math.random() > 0.5;
+          const generatedStandings = willMakePlayoffs 
+              ? Math.floor(Math.random() * 16) + 1  // Ranks 1-16
+              : Math.floor(Math.random() * 16) + 17; // Ranks 17-32
+          
+          setActiveEvent({
+              title: 'HOLDOUT RESOLVED: TRADED!',
+              desc: `Your holdout forced management's hand. They finally caved to the pressure and shipped you out to a new destination.`,
+              isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent, // <-- Keeps the routing intact!
+              choices: [
+                  { 
+                     label: 'Accept the Trade and pack your bags', 
+                     action: 'ACCEPT_TRADE_DEADLINE', 
+                     actionData: { teamObj: destTeamObj, lg: finalPlayer.league, madePlayoffs: willMakePlayoffs, teamStandings: generatedStandings, showTeamCard: true },
+                     effect: { idol: 10, ovr: 0, rel: { media: 10 } } 
+                  }
+              ]
+          });
+          setScreen('event');
+      } else {
+          setActiveEvent({
+              title: 'HOLDOUT RESOLVED: STALEMATE',
+              desc: `Management called your bluff. No one met their asking price, and the GM has demanded a face-to-face meeting. You are staying put.`,
+              isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent, // <-- Keeps the routing intact!
+              choices: [
+                  { label: 'Apologize and return to the team', effect: { idol: -25, ovr: 0, money: 0, rel: { coach: -20, teammates: -15 } } },
+                  { 
+                     label: 'Double down and refuse to play', 
+                     action: 'RESOLVE_DOUBLE_DOWN', 
+                     isRisky: true, successChance: 0.3, 
+                     successFeedback: isPro 
+                         ? 'The owner stepped in and fired the GM! You won the power struggle and now essentially run the locker room.' 
+                         : 'Ownership sided with you! The GM backed off and you are now the undisputed star of the franchise.', 
+                     successEffect: { idol: 15, ovr: 0, rel: { coach: 20 } }, 
+                     failFeedback: finalPlayer.league === 'NHL' 
+                         ? 'You were suspended, waived, and banished to the AHL for conduct detrimental to the team.' 
+                         : 'You were suspended indefinitely, then spite-traded to a new team for pennies on the dollar.', 
+                     failEffect: { idol: -40, ovr: -1, money: fineAmount, rel: { media: -30 } } 
+                  }
+              ]
+          });
+          setScreen('event');
+      }
+  } else if (actionStr === 'RESOLVE_DOUBLE_DOWN') {
+      // The double down is a dice roll with big consequences, so show how the
+      // standoff actually ended before moving on. Without this the result is
+      // applied silently and the player is dropped straight into the playoffs.
+      const wonStandoff = outcomeEffect === choice.successEffect;
+      const destName = getFullTeamName(finalPlayer.team, finalPlayer.league);
+      const hasDest = destName && destName !== 'UNK' && finalPlayer.team !== player.team;
+
+      setActiveEvent({
+          title: wonStandoff ? '✊ HOLDOUT WON' : '🚪 HOLDOUT LOST',
+          desc: outcomeFeedback,
+          isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent,
+          choices: [
+              {
+                  label: wonStandoff ? 'Get back on the ice' : 'Accept the fallout',
+                  subLabel: wonStandoff
+                      ? 'You kept your spot and the room is yours.'
+                      : hasDest
+                        ? `You report to ${destName}.`
+                        : 'You report wherever they send you.',
+                  effect: {}
+              }
+          ]
+      });
+      setScreen('event');
   } else {
       setActiveEvent(null);
       proceedToNextScreen(activeEvent, minigameContext, finalPlayer);

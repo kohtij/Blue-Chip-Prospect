@@ -65,11 +65,37 @@ export default function PlayoffsScreen() {
   const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activeOpponentId;
   const seasonsWithOpponent = (player.seasonHistory || []).filter(s => s.team === activeOpponentId).length;
   const isFormerTeam = seasonsWithOpponent >= 3;
-  const isBadBlood = isRivalMatchup || isFormerTeam;
+  const isSidelined = !!playoffs.playerSidelined;
+  // Injured players watch from the press box, so there is no Bad Blood moment.
+  const isBadBlood = !isSidelined && (isRivalMatchup || isFormerTeam);
+
+  // Round-by-round results of the team's run, for the press box summary.
+  const sidelinedRuns = isSidelined
+    ? playoffs.bracket
+        .map((round, rIdx) => {
+          const m = round.find(x => x.isPlayerSeries && ['won', 'lost'].includes(x.status));
+          if (!m) return null;
+          const roundName = rIdx === playoffs.bracket.length - 1
+            ? titles.final
+            : (getPlayoffRounds(playoffs.currentLg)[rIdx]?.name || `Round ${rIdx + 1}`);
+          return {
+            key: `run-${rIdx}`,
+            roundName,
+            won: m.status === 'won',
+            score: `${m.wins1}-${m.wins2}`,
+            opponentId: m.team2?.id || m.team2
+          };
+        })
+        .filter(Boolean)
+    : [];
 
 // Dynamic Series Flavor Text
   let seriesFlavor = "";
-  if (activeMatch && ['won', 'lost'].includes(activeMatch.status)) {
+  if (isSidelined) {
+      seriesFlavor = playoffs.overallStatus === 'won_cup'
+        ? "Your team won it all without you. You were still part of the parade."
+        : "Your team fell short. You watched the whole thing from the press box.";
+  } else if (activeMatch && ['won', 'lost'].includes(activeMatch.status)) {
       const mIsT1 = activeMatch.team1 === player.team || activeMatch.team1?.id === player.team;
       const playerWins = mIsT1 ? activeMatch.wins1 : activeMatch.wins2;
       const oppWins = mIsT1 ? activeMatch.wins2 : activeMatch.wins1;
@@ -184,23 +210,59 @@ export default function PlayoffsScreen() {
                 </p>
               </div>
 
-              {/* FLAVOR / RESULT TEXT — reserves a consistent minimum height so
-                  filling it in doesn't bump the bracket below, but doesn't
-                  force the old oversized empty box when there's nothing to show */}
-              <div className="w-full min-h-[22px] sm:min-h-[24px] flex items-center justify-center mt-3 px-2">
-                {seriesFlavor ? (
+              {/* FLAVOR / RESULT TEXT — the slot reserves enough room for the
+                  longest result line to wrap, so the card grid below never shifts
+                  when the text appears. Measured worst case is 39px on mobile and
+                  46px from sm up; anything longer added later would bump again. */}
+              <div className="w-full min-h-[40px] sm:min-h-[48px] flex items-center justify-center mt-3 px-2">
+                {/* Bad Blood feedback wins over the generic line: it is the result
+                    of a call the player actually made, and it carries the fan and
+                    trust swing. It used to sit below seriesFlavor, which is set for
+                    every finished series, so it could never be reached. Rendered as
+                    plain coloured text rather than a bordered box so it fits the
+                    same reserved slot and nothing shifts. */}
+                {activeMatch.badBloodFeedback ? (
+                  <p className={`font-sans font-bold text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in ${activeMatch.status === 'won' ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                    {activeMatch.badBloodFeedback}
+                  </p>
+                ) : seriesFlavor ? (
                   <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in">
                     {seriesFlavor}
-                  </p>
-                ) : activeMatch.badBloodFeedback ? (
-                  <p className={`text-xs sm:text-sm font-bold p-2 border rounded-xl w-full text-center leading-relaxed ${activeMatch.status === 'won' ? 'text-[#22E748] border-[#22E748]/30 bg-[#22E748]/10' : 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10'}`}>
-                    {activeMatch.badBloodFeedback}
                   </p>
                 ) : null}
               </div>
             </div>
 
-           {isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
+           {isSidelined ? (
+               <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
+                  <h3 className="text-xl sm:text-2xl font-black text-[#F59E0B] sports-font uppercase mb-3">FROM THE PRESS BOX</h3>
+                  <div className="w-full flex flex-col gap-2 mb-5">
+                    {sidelinedRuns.map(run => (
+                      <div key={run.key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1a2230]/60 text-left">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{run.roundName}</p>
+                          <p className="text-xs sm:text-sm text-slate-300 font-sans truncate">vs. {getFullTeamName(run.opponentId, playoffs.currentLg)}</p>
+                        </div>
+                        <span className={`shrink-0 font-black sports-font text-sm ${run.won ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                          {run.won ? 'W' : 'L'} {run.score}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="w-full max-w-xs mx-auto">
+                    <button
+                      onClick={proceedFromPlayoffs}
+                      className={`py-3 px-6 rounded-xl cursor-pointer sports-font tracking-widest w-full font-black text-sm uppercase transition-transform hover:scale-105 ${
+                        playoffs.overallStatus === 'eliminated'
+                          ? 'bg-[#101410] border border-[rgba(255,255,255,0.15)] text-white hover:bg-[#1a2230]'
+                          : 'btn-primary shadow-[0_0_15px_rgba(34,231,75,0.2)]'
+                      }`}
+                    >
+                      {playoffs.overallStatus === 'won_cup' ? 'LIFT THE TROPHY' : 'PROCEED TO RECAP'}
+                    </button>
+                  </div>
+               </div>
+            ) : isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
                <div className="w-full flex flex-col items-center pb-2 animate-fade-in">
                   <h3 className="text-xl sm:text-2xl font-black text-[#ef4444] sports-font uppercase mb-3">BAD BLOOD</h3>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
@@ -264,7 +326,7 @@ export default function PlayoffsScreen() {
                     const isWinCard = item && (item.isWin || item.win);
                     const isRigged = item && item.rigged && !isRevealed; 
                     
-                    let btnClass = 'h-16 sm:h-20 text-2xl sm:text-3xl font-black rounded-lg border transition-all duration-200 flex items-center justify-center sports-font ';
+                    let btnClass = 'h-16 sm:h-20 text-2xl sm:text-3xl font-black rounded-xl border transition-all duration-200 flex items-center justify-center sports-font ';
                     
                     if (isRevealed || showForcefully) {
                       btnClass += isWinCard 

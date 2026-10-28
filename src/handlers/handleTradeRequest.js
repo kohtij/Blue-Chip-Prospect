@@ -1,6 +1,14 @@
 import { getOpponentPool, nhlTeams } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
 
+// North American clubs read naturally with "the" ("the Barrie Colts"); European
+// clubs do not ("Luleå HF"), so the article is decided by the league.
+const NON_NA_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+const namedTeam = (teamId, lg) => {
+  const name = getFullTeamName(teamId, lg);
+  return NON_NA_LEAGUES.includes(lg) ? name : `the ${name}`;
+};
+
 export function handleTradeRequest(ctx, { res, playoffSpots }) {
   const {
     hasDemandedTrade, setHasDemandedTrade, unlockAchievement,
@@ -35,27 +43,30 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
         : Math.floor(Math.random() * 8) + playoffSpots + 1;
       const teamInPlayoffs = teamStandings <= playoffSpots;
 
-      let displayLabel = `Accept Trade to ${teamObj.name}`;
-      let feedback = `The trade went through! You were dealt to ${teamObj.name}.`;
+      let displayLabel = `Accept a trade to ${namedTeam(teamObj.id, tradeLg)}`;
+      let feedback = `The trade went through! You were dealt to ${namedTeam(teamObj.id, tradeLg)}.`;
       let targetTeamObj = teamObj;
       let targetLg = tradeLg;
-      
+
       if (isAHL && teamObj.ahlId) {
           const ahlName = getFullTeamName(teamObj.ahlId, 'AHL');
-          displayLabel = `Accept Trade to ${teamObj.name} (Assigned to ${ahlName})`;
-          feedback = `Traded to the ${teamObj.name} and assigned to their AHL affiliate, the ${ahlName}.`;
+          displayLabel = `Accept a trade to ${namedTeam(teamObj.id, tradeLg)}, assigned to ${namedTeam(teamObj.ahlId, 'AHL')}`;
+          feedback = `Traded to ${namedTeam(teamObj.id, tradeLg)} and assigned to their AHL affiliate, ${namedTeam(teamObj.ahlId, 'AHL')}.`;
           targetTeamObj = { id: teamObj.ahlId, name: ahlName };
           targetLg = 'AHL';
       }
 
       return {
         label: displayLabel,
-        subLabel: `📈 Rank #${teamStandings} (${teamInPlayoffs ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS'})`,
         isRisky: false,
         feedback,
         effect: { idol: -20, ovr: 0, money: 0 },
         action: 'ACCEPT_TRADE_DEADLINE',
-        actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings, madePlayoffs: teamInPlayoffs }
+        // showTeamCard switches EventScreen to the full team card: logo watermark,
+        // playoff/rank badges and the itemized perks and flaws. Without it these
+        // render as plain text choices. The rank and playoff status are shown by
+        // that card, so they no longer need a subLabel here.
+        actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings, madePlayoffs: teamInPlayoffs, showTeamCard: true }
       };
     });
 

@@ -152,10 +152,13 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
           nextActiveIndex = rIndex;
         } else {
           overallStatus = 'won_cup';
+          // NOTE: the title count (stats.titles) and the cup award are recorded
+          // exactly once, in proceedFromPlayoffs. Incrementing titles here as well
+          // double-counted every cup, and the award guard there cannot catch it
+          // because this path adds no award entry to compare against.
           playerUpdates = p => ({
             ...p,
-            idolatry: capFanStatus(p.idolatry + 30),
-            stats: { ...p.stats, titles: (p.stats.titles || 0) + 1 }
+            idolatry: capFanStatus(p.idolatry + 30)
           });
           if (player.league === 'NHL') unlockAchievement('stanley_cup');
           if (player.league === 'AHL') unlockAchievement('ahl_champ');

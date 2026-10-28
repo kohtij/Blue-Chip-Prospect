@@ -1,7 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAppContext } from '../AppContext';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const CreaseGame = ({ player, onComplete }) => {
+   const { minigameContext } = useAppContext();
+   const isFinals = minigameContext === 'finals';
+
    const [moles, setMoles] = useState([]);
    const [score, setScore] = useState(0);
    const [misses, setMisses] = useState(0);
@@ -18,10 +22,10 @@ const CreaseGame = ({ player, onComplete }) => {
      if (score >= 5) { finish(true); return; }
      if (misses >= 3) { finish(false); return; }
 
-     // Higher IQ = Pucks spawn slightly slower
-     const spawnRate = Math.max(450, 1000 - (player.hockeyIQ * 4));
-     // Higher Agility/Reflexes = Pucks stay on screen longer
-     const lifetime = Math.max(600, 1300 - (player.physicality * 3));
+     // Higher IQ = Pucks spawn slightly slower (Speed up by 25% in Finals)
+     const spawnRate = Math.max(isFinals ? 300 : 450, (1000 - (player.hockeyIQ * 4)) * (isFinals ? 0.75 : 1.0));
+     // Higher Agility/Reflexes = Pucks stay on screen longer (Decrease by 25% in Finals)
+     const lifetime = Math.max(isFinals ? 450 : 600, (1300 - (player.physicality * 3)) * (isFinals ? 0.75 : 1.0));
 
      const timeouts = timeoutsRef.current;
      const interval = setInterval(() => {
@@ -50,7 +54,7 @@ const CreaseGame = ({ player, onComplete }) => {
        timeouts.forEach(clearTimeout);
        timeouts.clear();
      };
-   }, [score, misses, player, finish]);
+   }, [score, misses, player, finish, isFinals]);
 
    return (
      <div className="w-full max-w-sm mx-auto">

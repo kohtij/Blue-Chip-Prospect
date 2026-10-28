@@ -184,7 +184,11 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                 desc: `Your relationship with the old-school coach is completely broken, but your elite stats are undeniable. The GM calls you in to resolve this incredibly toxic situation.`,
                 choices: [
                     { label: 'Demand the Coach is Fired', subLabel: 'Use your leverage to push the coach out, at the risk of suspension.', isRisky: true, successChance: 0.6, successFeedback: 'The GM sided with his superstar. The coach was fired the next morning, and the locker room is officially yours.', successEffect: { idol: 20, ovr: 1, rel: { coach: 50, teammates: 20 } }, failFeedback: 'The GM refused to let a player run the team. You were immediately suspended for insubordination.', failEffect: { idol: -25, ovr: -1, money: -50000, rel: { coach: -20, teammates: -20 } } },
-                    { label: 'Demand a Trade', subLabel: 'Ask out and start fresh somewhere else.', isRisky: false, feedback: `You told the GM you want out. Within 24 hours, you were quietly shipped off to ${destTeam.name}.`, effect: { idol: -15, ovr: 0, rel: { coach: 10 } }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: 12, madePlayoffs: true } }
+                    // Left as a plain choice on purpose: this is a fork between two very
+                    // different decisions, not a comparison of destinations, so a full team
+                    // card here would tower over the other choice. The subLabel names the
+                    // destination instead, which was only revealed after choosing.
+                    { label: 'Demand a Trade', subLabel: `Ask out and start fresh with the ${destTeam.name}.`, isRisky: false, feedback: `You told the GM you want out. Within 24 hours, you were quietly shipped off to ${destTeam.name}.`, effect: { idol: -15, ovr: 0, rel: { coach: 10 } }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 12, madePlayoffs: true } }
                 ],
                 madePlayoffs
             });
@@ -256,7 +260,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             desc: `The offseason has arrived. You just received a massive, under-the-table guarantee from a sunny, low-pressure market. They will force a trade to get you and pay you a fortune to escape this toxic media environment.`,
             choices: [
                 { label: 'Stay and Fight', subLabel: 'Pledge your loyalty to the city, for better or worse.', isRisky: true, successChance: 0.5, successFeedback: 'You pledged your loyalty to the city! The fans are weeping tears of joy. You are a local legend.', successEffect: { idol: 150, ovr: 2, rel: { teammates: 20 } }, failFeedback: 'You stayed, but the toxic environment is mentally draining your love for the game.', failEffect: { idol: 10, ovr: -2, rel: { media: -10 } } },
-                { label: 'Take the Money & Escape', subLabel: 'Cash out and leave the toxic market behind.', isRisky: false, feedback: `You packed your bags for ${destTeam.name}. You are rich and stress-free, but your hometown jerseys are burning in the streets.`, effect: { idol: -150, ovr: 0, money: 2500000 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, teamStandings: 8, madePlayoffs: true } }
+                // Plain choice on purpose, same reasoning as the mutiny trade above.
+                { label: 'Take the Money & Escape', subLabel: `Cash out and leave the toxic market behind for the ${destTeam.name}.`, isRisky: false, feedback: `You packed your bags for ${destTeam.name}. You are rich and stress-free, but your hometown jerseys are burning in the streets.`, effect: { idol: -150, ovr: 0, money: 2500000 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 8, madePlayoffs: true } }
             ],
             madePlayoffs
         });
@@ -272,13 +277,68 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // STAGE 1: THE HIT (Random 4% chance anytime after junior hockey)
     if (injuryStage === 0 && player.pos !== 'G' && currentLg !== 'NCAA' && pAge > 18 && Math.random() < 0.04) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 1 } }));
+
+        // If the club qualified, the injury chains into a press box event instead of
+        // dropping the player straight into the card minigames they cannot play.
+        // playerSidelined is what App.jsx reads to run the playoffs as a background
+        // simulation and what PlayoffsScreen reads to show the press box summary.
+        const pressBoxEvent = {
+            title: '🎙️ THE PRESS BOX',
+            desc: `Your teammates open the playoffs without you. Hobbling around on crutches in a suit and tie, you have a front-row seat to their run. How do you spend it?`,
+            choices: [
+                {
+                    label: 'Support your teammates from the press box',
+                    subLabel: 'Be seen backing the group every single night.',
+                    isRisky: false,
+                    feedback: 'You were the loudest voice in the building every night. The room noticed.',
+                    effect: { idol: 20, ovr: 0, rel: { teammates: 20 } }
+                },
+                {
+                    label: 'Grind through rehab instead',
+                    subLabel: 'Skip the spectacle and attack the recovery early.',
+                    isRisky: false,
+                    feedback: 'You spent the run in the training room. Nobody saw it, but you are ahead of schedule.',
+                    effect: { idol: -5, ovr: 1, rel: { coach: 10 } }
+                },
+                {
+                    label: 'Mentor the call-up taking your spot',
+                    subLabel: 'Coach up the kid who replaced you in the lineup.',
+                    isRisky: false,
+                    feedback: 'You walked the rookie through every shift. The staff will remember that.',
+                    effect: { idol: 10, ovr: 0, rel: { coach: 20, teammates: 10 } }
+                },
+                {
+                    label: 'Push your timeline to return early',
+                    subLabel: 'Try to force your way back before the run is over.',
+                    isRisky: true,
+                    successChance: 0.25,
+                    successFeedback: 'You beat the timeline and took warmups with the team. The building lost its mind.',
+                    successEffect: { idol: 40, ovr: 0, rel: { teammates: 20 } },
+                    failFeedback: 'You pushed too hard, re-aggravated the knee, and set your recovery back months.',
+                    failEffect: { idol: -10, ovr: -2, rel: { coach: -15 } }
+                }
+            ],
+            playerSidelined: true,
+            madePlayoffs: true
+        };
+
         setActiveEvent({
             title: '🚑 DEVASTATING INJURY',
-            desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over, and doctors are questioning if you'll ever have the same speed again.`,
+            desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over.`,
             choices: [
-                { label: 'Begin Recovery', isRisky: false, feedback: 'The surgery was successful, but the road back is going to be incredibly difficult. You lost a significant step.', effect: { idol: 15, ovr: -3, money: 0 } }
+                {
+                  label: madePlayoffs ? 'Watch the Playoffs from the Press Box' : 'Begin Recovery',
+                  subLabel: madePlayoffs ? 'Support your teammates as they chase the championship without you.' : 'Start the long road back.',
+                  isRisky: false,
+                  feedback: madePlayoffs
+                    ? 'You cheered the boys on from the press box. The team will do their best without you on the ice.'
+                    : 'The surgery was successful, but the road back is going to be incredibly difficult.',
+                  effect: { idol: 15, ovr: -3, money: 0 }
+                }
             ],
-            madePlayoffs: false // Forces you to miss the playoffs regardless of team standings!
+            // FIX: Don't force them out of the playoffs if the team actually made it!
+            madePlayoffs: madePlayoffs,
+            followUpEvent: madePlayoffs ? pressBoxEvent : null
         });
         setScreen('event');
         return;
@@ -565,7 +625,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         };
     };
 
-    if (pAge <= 19 && Math.random() > 0.4) {
+    // NHL teams do not release full-time roster players for the World Juniors
+    if (pAge <= 19 && currentLg !== 'NHL' && Math.random() > 0.4) {
       const sim = simulateGroupStage(true, false);
       setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes }));
       setIntlResult(null);

@@ -946,7 +946,7 @@ function App() {
   const handleGridClick    = (rIndex, mIndex, cIndex) => _handleGridClick(ctx, rIndex, mIndex, cIndex);
   const generateOffers     = (isTradeRequest = false, overrideTeam = null, overrideLeague = null) =>
                              _generateOffers(ctx, isTradeRequest, overrideTeam, overrideLeague);
-  const checkPlayoffs      = (currentLg, currentTeamId, standings) => _checkPlayoffs(ctx, currentLg, currentTeamId, standings);
+  const checkPlayoffs      = (currentLg, currentTeamId, standings, opts) => _checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts);
   const handleEventChoice  = (choice) => _handleEventChoice(ctx, choice);
 
   const proceedFromPlayoffs = () => {
@@ -957,6 +957,9 @@ function App() {
        const pm = r.find(m => m.isPlayerSeries);
        if (pm) { totalWins += pm.wins1; playoffGames += (pm.wins1 || 0) + (pm.wins2 || 0); }
     });
+    // An injured player sat the run out, so they earn no playoff stats of their own.
+    // The team result still counts.
+    if (playoffs.playerSidelined) playoffGames = 0;
 
     let pG = 0, pA = 0, pSaves = 0, pShots = 0, pSho = 0;
     if (playoffGames > 0) {
@@ -1003,6 +1006,8 @@ function App() {
         const newHistory = [...(p.seasonHistory || [])];
         const currentYearString = `${2026 + (p.stats?.seasonsPlayed || 0)}`;
         const cupName = lg === 'NHL' ? 'Stanley Cup' : lg === 'AHL' ? 'Calder Cup' : 'Championship';
+        // Guard: a cup is recorded once per season even if this path runs twice.
+        const alreadyAwarded = isCupWon && (p.stats?.awards || []).includes(`${currentYearString} ${cupName}`);
         
         if (newHistory.length > 0) {
             newHistory[newHistory.length - 1] = { 
@@ -1013,7 +1018,7 @@ function App() {
                 playoffAssists: pA,
                 isCaptain: p.isCaptain,
                 isAlternate: p.isAlternate,
-                awards: isCupWon 
+                awards: isCupWon && !alreadyAwarded
                    ? [...(newHistory[newHistory.length - 1].awards || []), `${currentYearString} ${cupName}`]
                    : newHistory[newHistory.length - 1].awards
             };
@@ -1026,8 +1031,8 @@ function App() {
            ...p, seasonHistory: newHistory,
            stats: {
               ...p.stats, 
-              titles: isCupWon ? (p.stats.titles || 0) + 1 : (p.stats.titles || 0),
-              awards: isCupWon ? [...(p.stats.awards || []), `${currentYearString} ${cupName}`] : (p.stats.awards || []),
+              titles: isCupWon && !alreadyAwarded ? (p.stats.titles || 0) + 1 : (p.stats.titles || 0),
+              awards: isCupWon && !alreadyAwarded ? [...(p.stats.awards || []), `${currentYearString} ${cupName}`] : (p.stats.awards || []),
               careerHighGoals: Math.max(currentHigh, seasonGoals), 
               [poBucket]: {
                  games: (p.stats[poBucket]?.games || 0) + playoffGames, goals: (p.stats[poBucket]?.goals || 0) + pG,
@@ -1176,6 +1181,25 @@ function App() {
     // 1. PRESEASON & TRAINING CAMP ALWAYS RETURN TO PRESEASON
     if (['preseason', 'training', 'camp'].includes(currentMgContext)) {
       setScreen('preseason');
+      return;
+    }
+
+    // INJURY FOLLOW-UP: a devastating injury in a playoff year chains into the press box.
+    if (currentEvent?.followUpEvent) {
+      setActiveEvent(currentEvent.followUpEvent);
+      setScreen('event');
+      return;
+    }
+
+    // SIDELINED: the club plays on without the player, decided by a background sim.
+    if (currentEvent?.playerSidelined) {
+      if (pendingPlayoffs) {
+        const pp = pendingPlayoffs;
+        setPendingPlayoffs(null);
+        checkPlayoffs(pp.lg, pp.team, pp.standings, { sidelined: true });
+      } else {
+        checkPlayoffs(currentPlayer.league, currentPlayer.team, seasonRecap?.standings || 16, { sidelined: true });
+      }
       return;
     }
 

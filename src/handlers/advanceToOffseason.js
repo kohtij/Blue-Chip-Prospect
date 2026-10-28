@@ -302,7 +302,15 @@ export function advanceToOffseason(ctx) {
     const isDraftEligibleAge = player.age >= 18 && player.age < amateurAgeOut && !isNcaaAgedOut;
 
     if (isDraftEligibleAge && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
-      setScreen('combine');
+      // 18-year-olds go to the Combine. Over-agers skip directly to the draft with a penalty.
+      if (player.age === 18) {
+          setScreen('combine');
+      } else {
+          // Penalize draft stock for over-agers (approx 30 spots per year older)
+          const agePenalty = (player.age - 18) * -30;
+          setPlayer(p => ({ ...p, draftBonus: (p.draftBonus || 0) + agePenalty }));
+          setScreen('draft');
+      }
       return;
     }
 

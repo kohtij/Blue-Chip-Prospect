@@ -1,7 +1,11 @@
 import { useState, useRef } from 'react';
 import { getActiveStat } from '../utils/gameHelpers';
+import { useAppContext } from '../AppContext';
 
 export default function DeflectionGame({ player, onComplete }) {
+  const { minigameContext } = useAppContext();
+  const isFinals = minigameContext === 'finals';
+
   const [phase, setPhase] = useState('ready'); // ready, active, result
   const [progress, setProgress] = useState(0);
   const [resultMsg, setResultMsg] = useState('');
@@ -9,11 +13,12 @@ export default function DeflectionGame({ player, onComplete }) {
   const physicality = getActiveStat(player, 'physicality');
   const iq = getActiveStat(player, 'hockeyIQ');
   
-  // Physicality determines how wide the "perfect screen" window is
-  const sweetSpotMin = Math.max(40, 78 - Math.floor((physicality - 50) / 5));
-  const sweetSpotMax = Math.min(95, 85 + Math.floor((physicality - 50) / 5));
-  // Hockey IQ determines how slowly the play develops (giving you better timing control)
-  const speed = Math.max(1.2, 2.5 - ((iq - 50) * 0.015)); // Significantly faster bar
+  // FINALS MODIFIER: Shrink the green zone and speed up the bar
+  const finalsShrink = isFinals ? 5 : 0;
+  const sweetSpotMin = Math.max(40, 78 - Math.floor((physicality - 50) / 5)) + finalsShrink;
+  const sweetSpotMax = Math.min(95, 85 + Math.floor((physicality - 50) / 5)) - finalsShrink;
+  
+  const speed = Math.max(1.2, 2.5 - ((iq - 50) * 0.015)) * (isFinals ? 1.3 : 1.0);
   
   const intervalRef = useRef(null);
   const isProcessingRef = useRef(false);
@@ -58,7 +63,6 @@ export default function DeflectionGame({ player, onComplete }) {
 
   return (
     <div className="game-panel p-6 sm:p-8 text-center animate-fade-in max-w-lg mx-auto border-t-2 border-[#3b82f6]">
-      <h2 className="text-3xl font-black sports-font uppercase mb-2">THE DEFLECTION</h2>
       <p className="text-slate-300 font-sans mb-6 text-sm sm:text-base">
         Hold <strong className="text-[#3b82f6]">SCREEN GOALIE</strong> to establish position. 
         Release exactly when the puck arrives in the green zone to tip it!
