@@ -639,7 +639,15 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
        const isOlympicYear = nextYear % 4 === 2;
        const isTopDiv = activeNatDiv === 'Top Division';
        
-       const playSenior = (isTopDiv && isOlympicYear) || (!isOlympicYear && Math.random() > 0.3) || (!isTopDiv && Math.random() > 0.4);
+       // The World Championship is played while the playoffs are still running, so a
+       // club only releases a player whose season is already finished. Without that
+       // condition every 78+ OVR player went to a tournament in roughly three of
+       // every four seasons, which crowded Rivalry Night and the whole event deck
+       // out of the rest of their career. The Olympics are rare enough on their own
+       // (one year in four) that they stay close to automatic.
+       const playSenior = isOlympicYear
+           ? (isTopDiv || Math.random() > 0.4)
+           : (!madePlayoffs && Math.random() > 0.45);
 
        if (playSenior) {
           const sim = simulateGroupStage(false, isOlympicYear);
@@ -845,7 +853,11 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
       return;
     }
 
-    if (Math.random() < 0.65) {
+    // Chance that a season with no storyline of its own still gets a beat of some
+    // kind. At the old 0.65 a journeyman spent a quarter of their career going from
+    // the trade deadline straight to the recap with nothing in between. One season
+    // in seven is still quiet, which is the intended breathing room.
+    if (Math.random() < 0.85) {
       const eventRoll = Math.random();
     
     // A5: Fixed Frequency. 35% chance dedicated to Press Conferences.
@@ -892,8 +904,26 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             deck = deck.filter(e => !(e.choices || []).some(c => c.action === 'ACCEPT_TRADE_DEADLINE' || c.action === 'TRADE_HOLDOUT'));
         }
 
+        // Some events only make sense for an older or professional player: a 17-year-old
+        // in junior hockey has no agent to fire and no startup to bankroll.
+        const isJuniorLeague = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg);
+        deck = deck.filter(e => (!e.minAge || pAge >= e.minAge) && !(e.proOnly && isJuniorLeague));
+
         if (deck.length > 0) {
-           const randomEvt = deck[Math.floor(Math.random() * deck.length)];
+           // Draw from what this career has not seen yet. The draw used to be a flat
+           // random index with no memory, so a career that reached a dozen of these
+           // repeated one almost every time. Once the deck is exhausted the record
+           // resets and events can come round again.
+           const seen = player.seenDeckEvents || [];
+           const unseen = deck.filter(e => !seen.includes(e.title));
+           const pool = unseen.length > 0 ? unseen : deck;
+           const randomEvt = pool[Math.floor(Math.random() * pool.length)];
+
+           setPlayer(p => ({
+              ...p,
+              seenDeckEvents: unseen.length > 0 ? [...(p.seenDeckEvents || []), randomEvt.title] : [randomEvt.title]
+           }));
+
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });
            setScreen('event');
         } else {

@@ -11,7 +11,7 @@ import {
 } from './utils/gameHelpers';
 import {
   makeInitialPlayer, getRole, getWinsNeeded,
-  MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName
+  MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName, getTrainingQuality
 } from './utils/appHelpers';
 
 import PressScreen from './screens/PressScreen';
@@ -231,34 +231,69 @@ function App() {
     setTimeout(() => setPressAnswerKeys(keys.sort(() => 0.5 - Math.random())), 0);
   }, [activePress.currentQ, activePress.questions]);
   
-  const generateTraining = useCallback((pos) => {
+  const generateTraining = useCallback((pos, contextPlayer = null) => {
     const activePool = pos === 'G' ? goalieTrainingPool || [] : skaterTrainingPool || [];
     const commons = activePool.filter(t => t.rarity === 'Common');
     const rares = activePool.filter(t => t.rarity === 'Rare');
     const epics = activePool.filter(t => t.rarity === 'Epic');
 
-    const hand = [];
-    let tries = 0;
-    while (hand.length < 3 && tries < 50) {
-      tries++;
-      const roll = Math.random();
-      let selectedPool = commons;
-      if (roll > 0.95 && epics.length) selectedPool = epics;
-      else if (roll > 0.80 && rares.length) selectedPool = rares;
+    const quality = getTrainingQuality(contextPlayer);
+    // The original flat odds (5% Epic, 15% Rare per draw) are the floor, not the
+    // average, so a junior is never worse off than before. The slope on top is
+    // deliberately shallow: the point is that an NHL star notices the difference,
+    // not that he lives on Epics.
+    const epicCut = 0.965 - (0.02 * quality);
+    const rareCut = 0.818 - (0.05 * quality);
 
-      if (selectedPool.length) {
-        const randomCard = selectedPool[Math.floor(Math.random() * selectedPool.length)];
-        const statKeys = Object.keys(randomCard.effect || {}).filter(k => k !== 'stamina' && k !== 'idolatry');
+    const drawByRarity = () => {
+      const roll = Math.random();
+      let pool = commons;
+      if (roll > epicCut && epics.length) pool = epics;
+      else if (roll > rareCut && rares.length) pool = rares;
+      if (!pool.length) pool = activePool;
+      return pool[Math.floor(Math.random() * pool.length)];
+    };
+
+    // Built inside the setter so the hand that was on screen last season is known
+    // without extra state. A third of every hand used to carry over year to year.
+    setActiveTrainings(previousHand => {
+      const previousIds = (previousHand || []).map(c => c.id);
+      const hand = [];
+      let tries = 0;
+
+      const tryPush = (card, avoidPrevious) => {
+        if (!card) return false;
+        if (hand.find(c => c.id === card.id)) return false;
+        if (avoidPrevious && previousIds.includes(card.id)) return false;
+        const statKeys = Object.keys(card.effect || {}).filter(k => k !== 'stamina' && k !== 'idolatry');
         const mainStat = statKeys.length > 0 ? statKeys[0] : null;
         const alreadyHasStat = mainStat ? hand.some(c => Object.keys(c.effect || {}).includes(mainStat)) : false;
-        if (!hand.find(c => c.id === randomCard.id) && !alreadyHasStat) hand.push(randomCard); 
-      } else break; 
-    }
-    while (hand.length < 3) {
-       const fallbackCard = commons[Math.floor(Math.random() * commons.length)];
-       if (!hand.find(c => c.id === fallbackCard.id)) hand.push(fallbackCard);
-    }
-    setActiveTrainings(hand);
+        if (alreadyHasStat) return false;
+        hand.push(card);
+        return true;
+      };
+
+      while (hand.length < 3 && tries < 60) {
+        tries++;
+        if (!commons.length && !rares.length && !epics.length) break;
+        tryPush(drawByRarity(), true);
+      }
+
+      // Allow last season's cards back in rather than ever handing out fewer
+      // than three options. This still rolls rarity: drawing flat from the pool
+      // here was handing out a Rare a third of the time, which is what pushed
+      // the real Epic and Rare rates well above the intended odds.
+      let relaxed = 0;
+      while (hand.length < 3 && relaxed < 60) {
+        relaxed++;
+        tryPush(drawByRarity(), false);
+      }
+      while (hand.length < 3) {
+        const fallbackCard = commons[Math.floor(Math.random() * commons.length)];
+        if (!hand.find(c => c.id === fallbackCard.id)) hand.push(fallbackCard);
+      }
+      return hand;
+    });
   }, []);
 
   const handleStart = useCallback(() => {
@@ -307,7 +342,7 @@ function App() {
       return { ...updated, ovr: recomputeOvr(updated) };
     });
     
-    generateTraining(player.pos);
+    generateTraining(player.pos, player);
     setSeasonEvents([]);
 
     if (isGen) {
@@ -319,7 +354,7 @@ function App() {
        });
        setScreen('event');
     } else setScreen('preseason');
-  }, [generateTraining, player.nat, player.pos, player.startLeague]);
+  }, [generateTraining, player]);
 
   const handleDraftDay = (combineBoost = 0) => {
     const totalJuniorPoints = (player.stats?.chl?.goals || 0) + (player.stats?.chl?.assists || 0) + (player.stats?.memCupBoost || 0);
@@ -385,9 +420,9 @@ function App() {
        setEventFeedback(`You decided to return to ${player.league} for another year of development.`);
      }
      
-     generateTraining(player.pos);
+     generateTraining(player.pos, player);
      setScreen('preseason');
-  }, [generateTraining, player.league, player.pos, seasonRecap?.draftedBy]);
+  }, [generateTraining, player, seasonRecap?.draftedBy]);
 
   const handlePressAnswer = (vibeId) => {
     const newAnswers = [...activePress.answers, vibeId];
@@ -1107,7 +1142,7 @@ function App() {
         }
     }
 
-    generateTraining(player.pos);
+    generateTraining(player.pos, player);
     setSeasonRecap(null);
     setSeasonEvents([]);
     setPlayoffs({ bracket: [], activeRoundIndex: 0, overallStatus: 'playing' });
@@ -1227,7 +1262,7 @@ function App() {
     if (currentEvent?.isOffseasonEvent) {
        const goesToFreeAgency = ['AMATEUR GRADUATION', 'RIGHTS EXPIRED'].includes(currentEvent.title) && currentPlayer.league !== 'NHL';
        if (goesToFreeAgency) generateOffers(false, currentPlayer.team);
-       else { generateTraining(currentPlayer.pos); setScreen('preseason'); }
+       else { generateTraining(currentPlayer.pos, currentPlayer); setScreen('preseason'); }
        return;
     }
     
