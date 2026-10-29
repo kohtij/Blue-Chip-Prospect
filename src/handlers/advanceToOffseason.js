@@ -1,5 +1,5 @@
 import { getOpponentPool, ncaaTeams, ohlTeams } from '../data/teams';
-import { getFullTeamName } from '../utils/appHelpers';
+import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { recomputeOvr } from '../utils/gameHelpers';
 
@@ -7,11 +7,41 @@ export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
   const { player, seasonRecap, setActiveEvent, setPlayer, setScreen, safeEuroLeagues, safeJuniorLeagues, setSeasonEvents } = ctx;
 
-  // Clear out the previous year's events!
-  setSeasonEvents([]);
+  // A real offseason is a sequence, not a single event. Free agency OPENS it on
+  // July 1 and training camp CLOSES it in September. This used to be one chain in
+  // which every branch returned straight to preseason, and worse, the camp section
+  // sat INSIDE the "already has a contract" branch, so a player whose deal expired
+  // went to free agency, signed, and began the season having never been to camp.
+  // SUMMER is everything from the final whistle to September: the parade, the
+  // draft, free agency, endorsements. CAMP always follows it, and camp is what
+  // hands the player to the season.
+  // Four beats, in calendar order. A title is celebrated on its own beat so it
+  // can never pre-empt the business of the summer: a Cup winner whose contract
+  // has expired gets the parade AND his free agency, not one instead of the other.
+  const FRESH = 0, CELEBRATED = 1, SUMMER_DONE = 2, CAMP_DONE = 3;
+
+  // Carried on the player so it survives the round trip through the event screen.
+  // The recap is snapshotted because the caller clears it as the new year begins,
+  // so stages after the first can no longer read it off ctx.
+  const off = player.offseason || {
+    stage: FRESH,
+    rating: seasonRecap?.rating || 5,
+    wonTitle: seasonRecap?.titleWon === 1,
+    wonMemCup: seasonRecap?.memCupStatus === 'won'
+  };
+  const done = off.stage;
+  const enterStage = (n) => setPlayer(p => ({ ...p, offseason: { ...off, stage: n } }));
+
+  // Camp needs these as well as the summer does, so they live out here.
+  let currentTeam = player.team;
+  let currentLeague = player.league;
+  let updatedContract = player.contract ? { ...player.contract } : null;
+  let isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
+
+  if (done === FRESH) setSeasonEvents([]);
 
   // B1: Longevity Tick - Building chemistry by staying with the same org
-  if (player.seasonHistory && player.seasonHistory.length > 0) {
+  if (done === FRESH && player.seasonHistory && player.seasonHistory.length > 0) {
       const lastSeason = player.seasonHistory[player.seasonHistory.length - 1];
       // If we finished last season on the exact same team we are starting this offseason with
       if (lastSeason.team === player.team) {
@@ -26,10 +56,90 @@ export function advanceToOffseason(ctx) {
       }
   }
 
+  // The final is over. A title is celebrated before anything else happens.
+  // 0. CHAMPIONSHIP CELEBRATION
+  // This used to read only memCupStatus, so a 19-year-old's Memorial Cup got a
+  // parade while winning the Stanley Cup passed in complete silence. Nothing in
+  // the whole chain read titleWon. A title is the biggest thing that happens to
+  // a player, so it now fires at every level, and the celebration matches the
+  // level: the NHL has a tradition nothing else does, where every man on the
+  // winning roster gets the Cup to himself for 24 hours over the summer.
+  const wonMemCup = seasonRecap?.memCupStatus === 'won';
+  const wonTitle = seasonRecap?.titleWon === 1;
+
+  if (done < CELEBRATED && (wonTitle || wonMemCup)) {
+      const trophyName = wonMemCup ? 'Memorial Cup' : (getPlayoffTitles(player.league)?.cupName || 'Championship');
+      const isStanleyCup = !wonMemCup && currentLeague === 'NHL';
+
+      // The quiet option is always available. It is what most players actually do.
+      const soakItIn = {
+          label: 'Soak it in',
+          subLabel: 'Ride the parade route, then get off your feet and let the body heal.',
+          isRisky: false,
+          feedback: `A day you will tell your grandchildren about. Now the body gets its summer.`,
+          effect: { fanStatus: 60, ovr: 1, rel: { teammates: 20 } }
+      };
+
+      const partyHard = {
+          label: 'Party with the boys',
+          subLabel: 'Three days with the trophy and no sleep, for better or worse.',
+          isRisky: true,
+          successChance: 0.70,
+          successFeedback: 'A celebration that became team folklore. You will be close with these men for life.',
+          successEffect: { fanStatus: 30, ovr: 0, money: -25000, rel: { teammates: 45 } },
+          failFeedback: 'You went too far and ended up on the local news looking like a fool.',
+          failEffect: { fanStatus: -25, ovr: -1, money: -25000, rel: { media: -25 } }
+      };
+
+      if (isStanleyCup) {
+          ctx.setActiveEvent({
+              title: '🏆 YOUR DAY WITH THE CUP',
+              desc: `A million people lined the parade route. Then the handler hands you the schedule: the Cup is yours for twenty-four hours this summer, and it goes wherever you take it.`,
+              choices: [
+                  {
+                    label: 'Take it to your hometown rink',
+                    subLabel: 'Open the doors and let the kids who grew up watching you put their hands on it.',
+                    isRisky: false,
+                    feedback: 'The lineup went around the block. Every kid in town touched the Stanley Cup because of you.',
+                    effect: { fanStatus: 140, ovr: 0, rel: { teammates: 10, media: 20 } }
+                  },
+                  {
+                    label: 'Spend the day at the children\'s hospital',
+                    subLabel: 'Give the twenty-four hours away instead of celebrating with it.',
+                    isRisky: false,
+                    feedback: 'You wheeled the Cup from room to room until visiting hours ended. Nobody who was there will forget it.',
+                    effect: { fanStatus: 90, ovr: 0, rel: { media: 40, teammates: 15 } }
+                  },
+                  partyHard
+              ],
+              isOffseasonEvent: true
+          });
+          enterStage(CELEBRATED);
+          ctx.setScreen('event');
+          return;
+      }
+
+      ctx.setActiveEvent({
+          title: wonMemCup ? '🏆 MEMORIAL CUP CHAMPIONS' : '🏆 CHAMPIONSHIP PARADE',
+          desc: wonMemCup
+            ? `You beat the best junior teams in the country and the ${trophyName} is coming home with you. The city shut down the main street for the parade, and you are on the lead fire truck holding it over your head.`
+            : `The city shut down the main street for your ${trophyName} parade. You are on the lead fire truck with the trophy over your head and thousands of people chanting your name.`,
+          choices: [soakItIn, partyHard],
+          isOffseasonEvent: true
+      });
+      enterStage(CELEBRATED);
+      ctx.setScreen('event');
+      return;
+  }
+
+  // The rest of the summer runs once. The aging curve, the ELC slide and the
+  // contract application all sit inside this block, so coming back for camp can
+  // never age the player twice or slide his contract twice.
+  if (done < SUMMER_DONE) {
   // VETERAN CAREER CROSSROADS
     if (player.age >= 37 || (player.age >= 34 && player.ovr < 76)) {
        const choices = [
-         { label: 'Hang up the skates (Retire)', subLabel: 'End your career on your own terms.', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { fanStatus: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
+         { label: 'Hang up the skates', subLabel: 'End your career on your own terms.', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { fanStatus: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
        ];
 
        const hasContract = (player.contract?.years || 0) > 0;
@@ -59,11 +169,17 @@ export function advanceToOffseason(ctx) {
          choices: choices,
          isOffseasonEvent: true
        });
+       enterStage(SUMMER_DONE);
        setScreen('event');
        return;
     }
 
-    if (!player.storylines?.importDraft && !player.chlRights && (player.age === 16 || player.age === 17) && safeEuroLeagues.includes(player.league) && Math.random() > 0.4) {
+    // The CHL Import Draft is, by rule, for players developed outside North
+    // America. A Canadian or American teenager playing a season in Sweden is not
+    // an import: he comes back through the ordinary CHL route, not this one.
+    const isImportEligible = !['CAN', 'USA'].includes(player.nat);
+
+    if (isImportEligible && !player.storylines?.importDraft && !player.chlRights && (player.age === 16 || player.age === 17) && safeEuroLeagues.includes(player.league) && Math.random() > 0.4) {
         setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), importDraft: 1 } }));
         const chlLeagues = ['OHL', 'WHL', 'QMJHL'];
         const randomLg = chlLeagues[Math.floor(Math.random() * chlLeagues.length)];
@@ -97,15 +213,13 @@ export function advanceToOffseason(ctx) {
             ],
             isOffseasonEvent: true
         });
+        enterStage(SUMMER_DONE);
         setScreen('event');
         return;
     }
 
     const newBuffs = (player.buffs || []).map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0);
 
-    let currentTeam = player.team;
-    let currentLeague = player.league;
-    let updatedContract = player.contract ? { ...player.contract } : null;
 
     // Always report to NHL Training Camp if you are on an NHL contract
     if (['AHL', 'ECHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLeague) && (player.contract?.salary || 0) >= 500000 && player.rights) {
@@ -196,6 +310,7 @@ export function advanceToOffseason(ctx) {
              ],
              isOffseasonEvent: true
            });
+           enterStage(SUMMER_DONE);
            setScreen('event');
            return;
          }
@@ -285,13 +400,14 @@ export function advanceToOffseason(ctx) {
              choices: choices,
              isOffseasonEvent: true
            });
+           enterStage(SUMMER_DONE);
            setScreen('event');
            return;
          }
     }
 
     // Euro Leagues are PRO leagues, not amateurs!
-    const isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
+    isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
 
     // Calculate age-out limits before the draft check so we can use them to define the eligible window
     const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
@@ -353,6 +469,7 @@ export function advanceToOffseason(ctx) {
                isOffseasonEvent: true
            });
        }
+       enterStage(SUMMER_DONE);
        setScreen('event');
        return;
     }
@@ -364,7 +481,7 @@ export function advanceToOffseason(ctx) {
              title: 'PRO CONTRACT OFFER',
              desc: `The ${teamName} believe you are ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${currentLeague} for another year of development.`,
              choices: [
-               { label: 'Sign ELC (Turn Pro)', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your ELC and are heading to NHL training camp!', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
+               { label: 'Sign your entry-level contract', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your ELC and are heading to NHL training camp!', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
                { label: `Return to ${currentLeague}`, subLabel: 'Spend one more year developing before turning pro.', isRisky: false, feedback: 'You chose to develop for another year.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
@@ -379,16 +496,31 @@ export function advanceToOffseason(ctx) {
              isOffseasonEvent: true
            });
        }
+       enterStage(SUMMER_DONE);
        setScreen('event');
        return;
     }
 
     if (!isCurrentlyAmateur && (player.contract?.years || 0) <= 0) {
+      // July 1. This OPENS the offseason, it does not end it: the pass stops here
+      // so the transfer screen is not overwritten, and camp follows the signing.
       generateOffers(ctx, false, currentTeam, currentLeague);
+      enterStage(SUMMER_DONE);
+      return;
     } else {
       const fanStatus = player.fanStatus || 0;
 
-      if (fanStatus >= 300 && !player.storylines?.endLocal && currentLeague === 'NHL') {
+      // Thresholds measured against what a career actually produces. Over sixteen
+      // NHL seasons the fan number peaks near 210 for a journeyman, 290 for a
+      // regular, 395 for a star and 515 for a superstar, so the old 600 and 1000
+      // gates sat above the ceiling and those two events could never fire at all.
+      // These land where the real equivalents do: a local commercial is something
+      // any established pro gets, a national campaign belongs to genuine stars,
+      // and a signature line goes to the handful of players who carry the sport.
+      // A local spot does not need the NHL, a brand launch does.
+      const isProLeague = !isCurrentlyAmateur;
+
+      if (fanStatus >= 200 && !player.storylines?.endLocal && isProLeague) {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, endLocal: true } }));
           setActiveEvent({
               title: '🤝 LOCAL SPONSORSHIP',
@@ -399,11 +531,12 @@ export function advanceToOffseason(ctx) {
               ],
               isOffseasonEvent: true
           });
+          enterStage(SUMMER_DONE);
           setScreen('event');
           return;
       }
 
-      if (fanStatus >= 600 && !player.storylines?.endNational && currentLeague === 'NHL') {
+      if (fanStatus >= 420 && !player.storylines?.endNational && currentLeague === 'NHL') {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, endNational: true } }));
           setActiveEvent({
               title: '📺 NATIONAL BRAND CAMPAIGN',
@@ -414,11 +547,12 @@ export function advanceToOffseason(ctx) {
               ],
               isOffseasonEvent: true
           });
+          enterStage(SUMMER_DONE);
           setScreen('event');
           return;
       }
 
-      if (fanStatus >= 1000 && !player.storylines?.endGlobal && currentLeague === 'NHL') {
+      if (fanStatus >= 700 && !player.storylines?.endGlobal && currentLeague === 'NHL') {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, endGlobal: true } }));
           setActiveEvent({
               title: '🌍 SIGNATURE ATHLETE',
@@ -428,6 +562,7 @@ export function advanceToOffseason(ctx) {
               ],
               isOffseasonEvent: true
           });
+          enterStage(SUMMER_DONE);
           setScreen('event');
           return;
       }
@@ -448,6 +583,7 @@ export function advanceToOffseason(ctx) {
               ],
               isOffseasonEvent: true
           });
+          enterStage(SUMMER_DONE);
           setScreen('event');
           return;
       }
@@ -464,41 +600,138 @@ export function advanceToOffseason(ctx) {
               ],
               isOffseasonEvent: true
           });
+          enterStage(SUMMER_DONE);
           setScreen('event');
           return;
       }
-    // 0. MEMORIAL CUP CHAMPION INTERCEPTOR
-    if (seasonRecap?.memCupStatus === 'won') {
+
+  } // closes the branch for players who already have a contract
+  } // closes: if (done < SUMMER_DONE)
+
+  // ==========================================================================
+  // CAMP (September): the last thing before the season, for everybody, including
+  // the player who signed somewhere new in July. This used to sit inside the
+  // "already has a contract" branch, which is why a free-agency year skipped it.
+  // ==========================================================================
+  if (done < CAMP_DONE) {
+    // Camp in reality turns on your situation far more than your rating: whether
+    // you are walking into a room where you know nobody, playing out the last year
+    // of a deal, or wearing the C and setting the tone. The chain only knew
+    // "85+ OVR or captain", so between them two camps covered 47% of every
+    // offseason a career will ever see. These three sit above that split.
+    // The contract-year camp is held to established players on purpose, so a young
+    // fringe player still gets the roster battle that actually describes his camp.
+    // "New room" means you did not start last season with this club. That covers
+    // both ways of arriving, and it self-limits to one year because next season's
+    // history starts here. The two arrivals are not the same experience, though:
+    // a player traded at the deadline has already played games in this building,
+    // while a July signing has never pulled the sweater on, so the copy differs.
+    const lastCampSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
+    const isNewRoom = !!lastCampSeason && lastCampSeason.team !== currentTeam && !isCurrentlyAmateur;
+    const arrivedMidSeason = !!lastCampSeason && lastCampSeason.tradedTo === currentTeam;
+    const isContractYear = (updatedContract?.years || 0) === 1 && player.ovr >= 76 && !isCurrentlyAmateur;
+
+    // A captain's first camp wearing the C is a milestone and always fires. After
+    // that it is occasional: an eight-year captain should not get the identical
+    // camp eight times, he should mostly get the veteran camp instead.
+    const firstCaptainCamp = !player.storylines?.hadCaptainCamp;
+    const isCaptainCamp = player.isCaptain && (firstCaptainCamp || Math.random() < 0.3);
+
+    if (isNewRoom) {
         ctx.setActiveEvent({
-            title: '🏆 CHAMPIONSHIP PARADE',
-            desc: `The city is shutting down for your Memorial Cup parade! You are riding on the lead fire truck, holding the trophy high as thousands of fans chant your name. What a way to end the season.`,
+            title: '⛺ A NEW ROOM',
+            desc: arrivedMidSeason
+              ? `You came over at the deadline and finished the year here, but a handful of games is not the same as a camp. This is the first time you get the system from day one, with the room watching how you handle it.`
+              : `You signed here in July and you have never pulled this sweater on. You walk into a room where you know nobody, and the system on the whiteboard is not the one you spent years learning. How you carry yourself this week decides where you start the season.`,
             choices: [
                 {
-                  label: 'Soak it in (Enjoy the moment)',
-                  subLabel: 'Enjoy the moment and rest up for next season.',
+                  label: 'Keep your head down and learn the system',
+                  subLabel: 'Ask questions, take notes, and let the hockey speak later.',
                   isRisky: false,
-                  feedback: 'A beautiful day. Now it\'s time to rest and prepare for next year.',
-                  effect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }
+                  feedback: 'A quiet, professional first camp. The staff noticed you were the first one asking about details.',
+                  effect: { fanStatus: 5, ovr: 0, rel: { coach: 12, teammates: 15 } }
                 },
                 {
-                  label: 'Party Hard with the Boys',
-                  subLabel: 'Let loose with the team, for better or worse.',
+                  label: 'Announce yourself',
+                  subLabel: 'Be the best player on the ice from day one, whatever the room thinks.',
                   isRisky: true,
-                  successChance: 0.70,
-                  successFeedback: 'An absolute legendary celebration that brought the team closer together than ever!',
-                  successEffect: { fanStatus: 20, ovr: 0, rel: { teammates: 40 } },
-                  failFeedback: 'You partied a little too hard and made a fool of yourself on local news.',
-                  failEffect: { fanStatus: -20, ovr: -1, rel: { media: -20 } }
+                  successChance: 0.55,
+                  successFeedback: 'You were the best player on the ice from the first whistle. The room knows exactly who you are now.',
+                  successEffect: { fanStatus: 35, ovr: 1, rel: { coach: 20, teammates: 10 } },
+                  failFeedback: 'You ran a veteran in a no-contact drill trying to make a point. The room went cold on you.',
+                  failEffect: { fanStatus: -10, ovr: 0, rel: { teammates: -25, coach: -5 } }
                 }
             ],
             isOffseasonEvent: true
         });
+        enterStage(CAMP_DONE);
         ctx.setScreen('event');
         return;
     }
 
-    // 1. Check if the player is already an established elite veteran or captain
-    const isEstablished = player.ovr >= 85 || player.isCaptain;
+    if (isCaptainCamp) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, hadCaptainCamp: true } }));
+        ctx.setActiveEvent({
+            title: '⛺ THE CAPTAIN\'S CAMP',
+            desc: `You wear the C. The room takes its temperature from you, and the staff want to know what kind of year this is going to be before the first puck drops.`,
+            choices: [
+                {
+                  label: 'Address the room',
+                  subLabel: 'Say your piece on day one and set the standard out loud.',
+                  isRisky: false,
+                  feedback: 'Short, direct, and nobody looked at their skates. The room stood a little taller afterwards.',
+                  effect: { fanStatus: 20, ovr: 0, rel: { teammates: 25, coach: 12 } }
+                },
+                {
+                  label: 'Lead on the ice instead',
+                  subLabel: 'First one on, last one off, every single day. No speeches.',
+                  isRisky: true,
+                  successChance: 0.70,
+                  successFeedback: 'First on and last off for two straight weeks. Nobody needed a speech after that.',
+                  successEffect: { fanStatus: 45, ovr: 1, rel: { teammates: 20, coach: 15 } },
+                  failFeedback: 'You ran yourself into the ground before the season even started and arrived at opening night already tired.',
+                  failEffect: { fanStatus: -5, ovr: -1, rel: { coach: -5 } }
+                }
+            ],
+            isOffseasonEvent: true
+        });
+        enterStage(CAMP_DONE);
+        ctx.setScreen('event');
+        return;
+    }
+
+    if (isContractYear) {
+        ctx.setActiveEvent({
+            title: '⛺ PLAYING FOR A CONTRACT',
+            desc: `This is the last year of your deal. Every shift of camp is watched by your own management and by scouts from clubs who would happily sign you away from them.`,
+            choices: [
+                {
+                  label: 'Lean on what got you here',
+                  subLabel: 'Play your game, show them the player they already know they are paying for.',
+                  isRisky: false,
+                  feedback: 'No surprises, no mistakes. You looked exactly like the player your next contract is based on.',
+                  effect: { fanStatus: 10, ovr: 0, rel: { coach: 10 } }
+                },
+                {
+                  label: 'Show them a new dimension',
+                  subLabel: 'Unveil the part of your game you worked on all summer, and risk looking lost doing it.',
+                  isRisky: true,
+                  successChance: 0.55,
+                  successFeedback: 'You showed them something nobody knew you had. Your agent\'s phone started ringing before camp even broke.',
+                  successEffect: { fanStatus: 40, ovr: 1, rel: { coach: 20, media: 15 } },
+                  failFeedback: 'You looked uncomfortable all week doing something that is not your game, and the staff noticed.',
+                  failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -15 } }
+                }
+            ],
+            isOffseasonEvent: true
+        });
+        enterStage(CAMP_DONE);
+        ctx.setScreen('event');
+        return;
+    }
+
+    // Established core players who are none of the above.
+    const isEstablished = player.ovr >= 85;
 
     if (isEstablished) {
         ctx.setActiveEvent({
@@ -587,8 +820,17 @@ export function advanceToOffseason(ctx) {
         });
     } // Closes the if (isEstablished) / else block
 
-    // FIX: Actually route the user to the event screen!
+    // Route to the event screen, and mark the offseason finished: the next visit
+    // falls through to the preseason hand-off at the bottom.
+    enterStage(CAMP_DONE);
     ctx.setScreen('event');
+    return;
 
-  } // Closes the massive `else` block for players who already have contracts
+  } // closes the CAMP stage
+
+  // Camp is done, so the offseason is done. Clear the marker and hand the player
+  // to the preseason screen with a fresh hand of training cards.
+  setPlayer(p => ({ ...p, offseason: null }));
+  if (ctx.generateTraining) ctx.generateTraining(player.pos, player);
+  setScreen('preseason');
 } // Closes the entire advanceToOffseason function

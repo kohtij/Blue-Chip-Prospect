@@ -304,7 +304,14 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
   return { currentLg, currentTeam, waiverEvent, isDemoted };
 }
 
-export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
+// A season does not have to be one block. options lets it run in segments:
+//   forceGames     - play exactly this many games instead of a full season
+//   gamesFraction  - play this share of what is left (the deadline cuts at ~0.7)
+//   lockPlacement  - stay at the player's own club, skip the demotion/waiver move
+//   segmentOnly    - return just the stat line, with no end-of-season bookkeeping
+//   priorStints    - stat lines from earlier segments, merged into this one's recap
+// A nine-game NHL trial is a segment; the rest of the year is the final call.
+export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, options = {}) {
   const p = player;
   const isJuniorLg = juniorLeagues.includes(p.league);
   const isEuroLg = euroLeagues.includes(p.league);
@@ -313,10 +320,10 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const coachTrust = p.relationships?.coach || 50;
 
   const placement = _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA);
-  let currentLg   = placement.currentLg;
-  let currentTeam = placement.currentTeam;
-  let waiverEvent = placement.waiverEvent;
-  const isDemoted = placement.isDemoted;
+  let currentLg   = options.lockPlacement ? p.league : placement.currentLg;
+  let currentTeam = options.lockPlacement ? p.team : placement.currentTeam;
+  let waiverEvent = options.lockPlacement ? null : placement.waiverEvent;
+  const isDemoted = options.lockPlacement ? false : placement.isDemoted;
 
   let simSht = getActiveStat(p, 'shooting') + (trainingEffect.shooting || 0);
   let simSkt = getActiveStat(p, 'skating') + (trainingEffect.skating || 0);
@@ -331,7 +338,15 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const cRole = p.contract?.role || '';
 
   if (cRole) {
-    if (cRole.includes('Core') || cRole.includes('Sniper') || cRole.includes('Playmaker') || cRole.includes('Offensive') || cRole.includes('Starter')) {
+    // A two-way deal is a PAY STRUCTURE, not a playing style, and a string match
+    // was confusing the two. "Two-Way Deal" landed in the same tier as "Top 4"
+    // and "Middle Six", so a fringe player on an AHL-start contract produced like
+    // a middle-six NHLer: 37 points for a 72 OVR, against 22 for the identical
+    // player labelled bottom six. A two-way man is in and out of the lineup and
+    // plays fourth-line minutes when he is up, so he belongs below the depth tier.
+    if (cRole.includes('Two-Way Deal') || cRole.includes('Two-Way Contract') || cRole.includes('AHL Start')) {
+      roleMulti = 0.50;
+    } else if (cRole.includes('Core') || cRole.includes('Sniper') || cRole.includes('Playmaker') || cRole.includes('Offensive') || cRole.includes('Starter')) {
       roleMulti = 1.25;
       if (cRole.includes('Sniper')) simSht += 10;
       if (cRole.includes('Playmaker')) simIq += 10;
@@ -428,6 +443,15 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   // NEW: Deduct the missed games from their total!
   games = Math.max(0, games - gamesMissed);
 
+  // A fixed-length stint plays exactly its games. The caller passes the games
+  // already used by earlier segments as gamesMissed, so the year still adds up.
+  if (options.forceGames !== undefined) games = Math.max(0, options.forceGames);
+
+  // gamesFraction takes a share of what is left, which is how the season is cut
+  // at the trade deadline: roughly seventy per cent of the schedule is played
+  // before it, and whatever the deadline decides governs the rest.
+  if (options.gamesFraction !== undefined) games = Math.max(1, Math.round(games * options.gamesFraction));
+
   const lgMulti = currentLg === 'NHL' ? 1.0 : (isJuniorLg ? 1.3 : 1.1);
   let g = 0, a = 0, pm = 0, saves = 0, shots = 0, sho = 0;
 
@@ -494,6 +518,39 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const offPercent = p.pos === 'G' ? 0 : Math.min(100, Math.round(((g + a) / ((g * 2) + 40)) * 100));
   const newAge = p.age + 1;
   
+  // A segment is only "how did he play in these games". Nothing below belongs to
+  // it: no ageing, no contract tick, no progression, no career totals. Those
+  // happen once, when the last segment of the year runs.
+  if (options.segmentOnly) {
+    return {
+      segment: {
+        team: currentTeam, league: currentLg, games,
+        g, a, pm, saves, shots, sho, avgToi, rating, standings
+      }
+    };
+  }
+
+  // Every stint of this season, earlier ones first, this one last.
+  const thisStint = { team: currentTeam, league: playedLg, games, g, a, pm, saves, shots, sho, avgToi, rating };
+  // Consecutive stints at the same club are one spell, not two: a prospect kept
+  // past his nine games played 71 games for that team, not "9 and then 62".
+  const stints = [...(options.priorStints || []), thisStint].reduce((acc, s) => {
+    const last = acc[acc.length - 1];
+    if (last && last.team === s.team && last.league === s.league) {
+      last.games += (s.games || 0); last.g += (s.g || 0); last.a += (s.a || 0);
+      last.pm += (s.pm || 0); last.saves += (s.saves || 0);
+      last.shots += (s.shots || 0); last.sho += (s.sho || 0);
+      return acc;
+    }
+    return [...acc, { ...s }];
+  }, []);
+
+  const seasonTotal = stints.reduce((acc, s) => ({
+    games: acc.games + (s.games || 0), g: acc.g + (s.g || 0), a: acc.a + (s.a || 0),
+    pm: acc.pm + (s.pm || 0), saves: acc.saves + (s.saves || 0),
+    shots: acc.shots + (s.shots || 0), sho: acc.sho + (s.sho || 0)
+  }), { games: 0, g: 0, a: 0, pm: 0, saves: 0, shots: 0, sho: 0 });
+
   const coachItem = shopItems.find(i => i.id === 'coach');
   const coachModifier = p.inventory.includes('coach') ? (coachItem?.effect?.declineModifier ?? 0.5) : 1;
   const st = _computeProgressionDelta({ player: tempPlayer, trainingEffect, rating, newAge, coachModifier });
@@ -518,13 +575,19 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const newIq = p.hockeyIQ + st.hockeyIQ;
   const newPhy = p.physicality + st.physicality;
 
-  const fanStatusGain = isJuniorLg
-    ? Math.floor((g + a) / 20)
-    : (playedLg === 'AHL' ? Math.floor((g + a + (sho * 5)) / 15) : Math.floor((g + a + (sho * 5)) / 3));
+  // Each stint earns fans at its own league's rate: nine NHL games move your
+  // profile far more than nine junior games, and a split year should say so.
+  const fanStatusGain = stints.reduce((sum, s) => {
+    const jr = juniorLeagues.includes(s.league) || s.league === 'NCAA';
+    const pts = (s.g || 0) + (s.a || 0);
+    if (jr) return sum + Math.floor(pts / 20);
+    if (s.league === 'AHL') return sum + Math.floor((pts + ((s.sho || 0) * 5)) / 15);
+    return sum + Math.floor((pts + ((s.sho || 0) * 5)) / 3);
+  }, 0);
 
-  let valIncrease = p.pos === 'G' 
-    ? ((sho * 350000) + (saves * 600) + (games * 10000))
-    : ((g * 110000) + (a * 45000) + (pm * 15000) + (games * 8000));
+  let valIncrease = p.pos === 'G'
+      ? ((seasonTotal.sho * 350000) + (seasonTotal.saves * 600) + (seasonTotal.games * 10000))
+      : ((seasonTotal.g * 110000) + (seasonTotal.a * 45000) + (seasonTotal.pm * 15000) + (seasonTotal.games * 8000));
   
   const maxVal = currentLg === 'NHL' ? 20000000 : currentLg === 'AHL' ? 3000000 : 500000;
   const decayedValue = Math.floor((p.stats.value || 50000) * 0.65);
@@ -534,7 +597,25 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
   const nextOvr = recomputeOvr({ pos: p.pos, shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
   const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 
-  const statBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(playedLg) ? 'chl' : (playedLg === 'AHL' ? 'ahl' : 'nhl');
+  // Each stint is credited to its own career bucket, so a nine-game NHL trial
+  // stays nine NHL games instead of being filed under junior with the other 50.
+  const bucketOf = (lg) => ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(lg) ? 'chl' : (lg === 'AHL' ? 'ahl' : 'nhl');
+  const mergedBuckets = {};
+  for (const s of stints) {
+    const b = bucketOf(s.league);
+    const base = mergedBuckets[b] || {
+      games: (p.stats[b]?.games || 0), goals: (p.stats[b]?.goals || 0),
+      assists: (p.stats[b]?.assists || 0), plusMinus: (p.stats[b]?.plusMinus || 0),
+      shots: (p.stats[b]?.shots || 0), saves: (p.stats[b]?.saves || 0),
+      shutouts: (p.stats[b]?.shutouts || 0)
+    };
+    mergedBuckets[b] = {
+      games: base.games + (s.games || 0), goals: base.goals + (s.g || 0),
+      assists: base.assists + (s.a || 0), plusMinus: base.plusMinus + (s.pm || 0),
+      shots: base.shots + (s.shots || 0), saves: base.saves + (s.saves || 0),
+      shutouts: base.shutouts + (s.sho || 0)
+    };
+  }
 
   const updatedPlayer = {
     ...p,
@@ -560,21 +641,17 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
       earnings: (p.stats.earnings || 0) + (p.contract?.salary || 0), 
       careerEarnings: (p.stats.careerEarnings || p.stats.earnings || 0) + (p.contract?.salary || 0), 
       peakOvr: newPeakOvr,
-      careerHighGoals: Math.max(p.stats.careerHighGoals || 0, g),
+      careerHighGoals: Math.max(p.stats.careerHighGoals || 0, seasonTotal.g),
       seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,
-      [statBucket]: {
-        games: (p.stats[statBucket]?.games || 0) + games,
-        goals: (p.stats[statBucket]?.goals || 0) + g,
-        assists: (p.stats[statBucket]?.assists || 0) + a,
-        plusMinus: (p.stats[statBucket]?.plusMinus || 0) + pm,
-        shots: (p.stats[statBucket]?.shots || 0) + shots,
-        saves: (p.stats[statBucket]?.saves || 0) + saves,
-        shutouts: (p.stats[statBucket]?.shutouts || 0) + sho
-      }
+      ...mergedBuckets
     }
   };
 
-  const recap = { g, a, pm, saves, shots, sho, games, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi };
+  // The recap is the whole season: the totals add every stint, and stints keeps
+  // the breakdown so the screen can say nine games here and fifty there.
+  const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
+    saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
+    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi };
 
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
 }
@@ -626,4 +703,72 @@ export const leagueWithArticle = (league) => {
 export const withTeamArticle = (fullName, league, capitalize = false) => {
   if (NO_ARTICLE_LEAGUES.includes(league)) return fullName;
   return `${capitalize ? 'The' : 'the'} ${fullName}`;
+};
+// --- THE NINE-GAME RULE -----------------------------------------------------
+// A drafted 18 or 19 year old on an entry-level contract can play nine NHL games
+// before game ten burns the first year of that deal. Clubs use those nine games
+// as a look: produce and you stay, and the year is gone; struggle and you are
+// returned to junior with the contract intact. It only applies to a player who
+// has a junior club to go back to, which is why a European or college prospect
+// goes to the AHL instead and never sees this.
+export const isNineGameCandidate = (p) => {
+  if (!p || p.league !== 'NHL') return false;
+  if ((p.age ?? 99) > 19) return false;
+  if ((p.contract?.salary || 0) !== 925000) return false;
+  const hasJuniorRights = !!p.chlRights
+    || (p.seasonHistory || []).some(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
+  if (!hasJuniorRights) return false;
+  // Once ten NHL games are on the record the year is already burned.
+  return !(p.seasonHistory || []).some(s => s.league === 'NHL' && (s.games || 0) >= 10);
+};
+
+// The club's read on those nine games. This is a judgement call, not a formula
+// with a cut-off: two identical nine-game lines can genuinely go different ways,
+// so it returns the probability the club keeps him and rolls it once. Production
+// carries it, the rating says whether he is NHL calibre yet, and a high pick buys
+// rope a late one does not. Ice time is deliberately left out: a nine-game look
+// is roughly fourth-line minutes for everybody, so it separates nobody.
+export const nineGameVerdict = (p, seg, isTop10Pick = false) => {
+  const pts = (seg?.g || 0) + (seg?.a || 0);
+  const isG = p?.pos === 'G';
+  const svp = (seg?.shots || 0) > 0 ? seg.saves / seg.shots : 0.880;
+
+  // Most nineteen-year-olds go back, which is what happens in the real thing.
+  let chance = isG ? 0.24 + ((svp - 0.900) * 10) : 0.10 + (pts * 0.14);
+  chance += ((p?.ovr || 60) - 70) * 0.028;
+  if (isTop10Pick) chance += 0.25;
+  chance = Math.min(0.95, Math.max(0.02, chance));
+
+  return {
+    stays: Math.random() < chance,
+    chance: Math.round(chance * 100),
+    pts,
+    svp: isG ? svp : null
+  };
+};
+
+// --- THE ALL-STAR GAME ------------------------------------------------------
+// Two different things share this name and the game had been treating them as
+// one. The First and Second All-Star Teams are post-season awards, voted once
+// the year is scored, and those stay where they are. The All-Star GAME is an
+// exhibition in late January, picked on how the first half has actually gone and
+// on how many people want to watch you, which is why fan status counts here.
+// There is no All-Star Game in an Olympic year, so the caller gates on that.
+export const madeAllStarGame = (p, seg) => {
+  if (!seg || !['NHL', 'AHL'].includes(seg.league)) return false;
+  const gp = seg.games || 0;
+  if (gp < 15) return false; // too little of a half season to be judged on
+
+  let chance;
+  if (p?.pos === 'G') {
+    const svp = (seg.shots || 0) > 0 ? seg.saves / seg.shots : 0.880;
+    chance = (svp - 0.908) * 16;
+  } else {
+    const ppg = ((seg.g || 0) + (seg.a || 0)) / Math.max(1, gp);
+    chance = (ppg - 0.78) * 1.9;
+  }
+
+  chance += ((p?.ovr || 60) - 84) * 0.05;
+  chance += Math.min(0.12, (p?.fanStatus || 0) / 5000); // the fan vote
+  return Math.random() < Math.min(0.90, Math.max(0, chance));
 };

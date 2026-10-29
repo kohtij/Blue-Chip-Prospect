@@ -31,11 +31,42 @@ export default function CreationScreen() {
     if (isQuickStarting && player.startLeague && player.nat) handleStart();
   }, [isQuickStarting, player.startLeague, player.nat, handleStart]);
 
+  // Quick Start used to roll a nationality and a league independently out of flat
+  // lists, so a Korean sixteen-year-old in the QMJHL was exactly as likely as a
+  // Canadian one, and you were as likely to be born Japanese as Canadian at all.
+  // Nationality is now drawn roughly in line with where hockey players actually
+  // come from, and the league from where a player of that nationality would be
+  // playing at sixteen. Manual setup is untouched: pick any combination you like
+  // there, since imports are a real thing.
+  const NATION_WEIGHTS = [
+    ['CAN', 42], ['USA', 28], ['SWE', 10], ['RUS', 6], ['FIN', 5],
+    ['CZE', 4], ['SVK', 2], ['SUI', 2], ['GER', 2], ['DEN', 1], ['LAT', 1]
+  ];
+
+  // Where a sixteen-year-old of each nationality is actually playing. The CHL
+  // entries for Europeans are the import route, hence the small shares.
+  const START_LEAGUES = {
+    CAN: [['OHL', 34], ['WHL', 30], ['QMJHL', 26], ['USHL', 10]],
+    USA: [['USHL', 62], ['OHL', 16], ['WHL', 14], ['QMJHL', 8]],
+    SWE: [['SHL', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
+    FIN: [['LIIGA', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
+    DEFAULT: [['SHL', 34], ['LIIGA', 30], ['OHL', 14], ['WHL', 12], ['QMJHL', 10]]
+  };
+
+  const weightedPick = (pairs) => {
+    const total = pairs.reduce((n, [, w]) => n + w, 0);
+    let roll = Math.random() * total;
+    for (const [value, w] of pairs) { roll -= w; if (roll <= 0) return value; }
+    return pairs[pairs.length - 1][0];
+  };
+
   const handleQuickStart = () => {
-    const leagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'];
-    const randomLg = leagues[Math.floor(Math.random() * leagues.length)];
-    const randomNat = safeNationalities[Math.floor(Math.random() * safeNationalities.length)].id;
-    
+    // Only offer nationalities the game actually knows about.
+    const known = new Set((safeNationalities || []).map(n => n.id));
+    const pool = NATION_WEIGHTS.filter(([id]) => known.size === 0 || known.has(id));
+    const randomNat = weightedPick(pool.length ? pool : NATION_WEIGHTS);
+    const randomLg = weightedPick(START_LEAGUES[randomNat] || START_LEAGUES.DEFAULT);
+
     setPlayer(p => ({ ...p, startLeague: randomLg, nat: randomNat, team: null }));
     setIsQuickStarting(true);
   };

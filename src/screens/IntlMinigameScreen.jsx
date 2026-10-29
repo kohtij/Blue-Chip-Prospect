@@ -146,7 +146,6 @@ export default function IntlMinigameScreen() {
   const countryName = nat?.sentenceName || nat?.name || 'your country';
 
   const [initialStake, setInitialStake] = useState(player.intlStakes || 'GOLD');
-  const [isOlympic] = useState(player.isOlympicYear || false);
   const [initialDiv] = useState(player.natDiv || nat?.division || 'Top Division');
   
   // Extract tournament progression
@@ -286,7 +285,7 @@ export default function IntlMinigameScreen() {
           </span>
           <h2 className="flex justify-center items-center gap-2 text-3xl sm:text-5xl font-black text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center drop-shadow-md">
             <span className="shrink-0">🌍</span>
-            <span>{minigameContext === 'wjc' ? 'WORLD JUNIORS' : (isOlympic ? 'WINTER OLYMPICS' : 'WORLD CHAMPIONSHIP')}</span>
+            <span>{minigameContext === 'wjc' ? 'WORLD JUNIORS' : minigameContext === 'olympics' ? 'WINTER OLYMPICS' : 'WORLD CHAMPIONSHIP'}</span>
             <span className="shrink-0">🌍</span>
           </h2>
       </div>

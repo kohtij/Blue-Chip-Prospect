@@ -4,6 +4,7 @@ import { getOpponentPool, getPrimaryRival } from '../data/teams';
 import { eventDeck } from '../data/economy';
 import { PRESS_QUESTIONS, getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
 import { checkPlayoffs } from './checkPlayoffs';
+import { simulateTournament } from '../utils/international';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) {
   const { player, playoffs, setActiveEvent, setActivePress, setIntlResult, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
@@ -521,139 +522,32 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const activeNatDiv = player.natDiv || playerNatData.division;
 
     // THE GROUP STAGE SIMULATOR
-    const simulateGroupStage = (isWJC, isOlympicYear) => {
-        const tourneyType = isWJC ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
-        const isTopDiv = activeNatDiv === 'Top Division';
+      // The World Championship. The other two tournaments now run inside the
+      // season, where they belong on the calendar.
+      const simulateGroupStage = (isWJC, isOlympicYear) => simulateTournament({
+        player, natDiv: activeNatDiv, pOvr, safeNationalities: ctx.safeNationalities, isWJC, isOlympicYear
+      });
 
-        let groupA 
-        let groupB = [];
-
-        // 1. Draw the actual opponents based on real tiers
-        if (isTopDiv) {
-            const topTeams = ctx.safeNationalities.filter(n => n.division === 'Top Division' && n.id !== player.nat);
-            const shuffled = [...topTeams].sort(() => 0.5 - Math.random());
-            groupA = [ { ...playerNatData, isPlayer: true }, ...shuffled.slice(0, 4) ];
-            groupB = shuffled.slice(4, 9);
-        } else {
-            const lowerTeams = ctx.safeNationalities.filter(n => n.division === activeNatDiv && n.id !== player.nat);
-            const shuffled = [...lowerTeams].sort(() => 0.5 - Math.random());
-            groupA = [ { ...playerNatData, isPlayer: true }, ...shuffled.slice(0, 5) ];
-        }
-
-        // 2. Simulate Round Robin Backend
-        const simGroup = (group) => {
-            let standings = group.map(t => ({ ...t, w: 0, l: 0, otl: 0, pts: 0, g: 0, a: 0 }));
-            for (let i = 0; i < standings.length; i++) {
-                for (let j = i + 1; j < standings.length; j++) {
-                    const t1 = standings[i];
-                    const t2 = standings[j];
-                    
-                    let t1WinChance = 0.5 + ((t2.tier - t1.tier) * 0.15);
-                    if (t1.isPlayer) t1WinChance += (pOvr >= 85 ? 0.2 : pOvr >= 75 ? 0.1 : 0);
-                    if (t2.isPlayer) t1WinChance -= (pOvr >= 85 ? 0.2 : pOvr >= 75 ? 0.1 : 0);
-                    t1WinChance = Math.max(0.1, Math.min(0.9, t1WinChance));
-
-                    const roll = Math.random();
-                    if (roll < t1WinChance - 0.1) { t1.w++; t1.pts += 3; t2.l++; }
-                    else if (roll < t1WinChance) { t1.w++; t1.pts += 2; t2.otl++; t2.pts += 1; }
-                    else if (roll < t1WinChance + 0.1) { t2.w++; t2.pts += 2; t1.otl++; t1.pts += 1; }
-                    else { t2.w++; t2.pts += 3; t1.l++; }
-
-                    if (t1.isPlayer && player.pos !== 'G') {
-                        if (Math.random() < pOvr/100 * 1.5) t1.g++;
-                        if (Math.random() < pOvr/100 * 1.5) t1.a++;
-                    } else if (t2.isPlayer && player.pos !== 'G') {
-                        if (Math.random() < pOvr/100 * 1.5) t2.g++;
-                        if (Math.random() < pOvr/100 * 1.5) t2.a++;
-                    }
-                }
-            }
-            return standings.sort((a, b) => b.pts - a.pts);
-        };
-
-        const groupAStandings = simGroup(groupA);
-        const groupBStandings = isTopDiv ? simGroup(groupB) : [];
-
-        const playerRecord = groupAStandings.find(t => t.isPlayer);
-        const placement = groupAStandings.findIndex(t => t.isPlayer) + 1;
-
-        let finalStakes;
-        let bracket = null;
-
-        // 3. Map the Knockout Bracket if Top Division
-        if (isTopDiv) {
-            // RULE: The Olympics do not have relegation/survival games.
-            finalStakes = placement <= 4 ? 'QUARTERFINAL' : (isOlympicYear ? 'CONSOLATION' : 'SURVIVAL');
-            
-            bracket = {
-                qf: [
-                    { id: 'QF1', t1: groupAStandings[0], t2: groupBStandings[3], winner: null },
-                    { id: 'QF2', t1: groupBStandings[1], t2: groupAStandings[2], winner: null },
-                    { id: 'QF3', t1: groupBStandings[0], t2: groupAStandings[3], winner: null },
-                    { id: 'QF4', t1: groupAStandings[1], t2: groupBStandings[2], winner: null }
-                ],
-                sf: [
-                    { id: 'SF1', t1: null, t2: null, winner: null, loser: null },
-                    { id: 'SF2', t1: null, t2: null, winner: null, loser: null }
-                ],
-                medal: {
-                    gold: { t1: null, t2: null, winner: null },
-                    bronze: { t1: null, t2: null, winner: null }
-                }
-            };
-        } else {
-            // RULE: The Olympics do not have promotion/relegation for lower divisions.
-            finalStakes = isOlympicYear 
-                ? 'CONSOLATION' 
-                : (placement === 1 ? 'PROMOTION' : (placement === groupA.length ? 'SURVIVAL' : 'CONSOLATION'));
-        }
-
-        return {
-            intlData: {
-                tourneyType,
-                division: isOlympicYear ? 'Olympic Tournament' : activeNatDiv,
-                gamesPlayed: groupA.length - 1,
-                record: { w: playerRecord.w, l: playerRecord.l, otl: playerRecord.otl, pts: playerRecord.pts },
-                stats: { g: playerRecord.g, a: playerRecord.a },
-                placement,
-                groupSize: groupA.length,
-                groupA: groupAStandings,
-                groupB: groupBStandings,
-                bracket
-            },
-            intlStakes: finalStakes
-        };
-    };
-
-    // NHL teams do not release full-time roster players for the World Juniors
-    if (pAge <= 19 && currentLg !== 'NHL' && Math.random() > 0.4) {
-      const sim = simulateGroupStage(true, false);
-      setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes }));
-      setIntlResult(null);
-      setMinigameContext('wjc');
-      setScreen('intl-minigame');
-      return;
-    }
-    
-    if (pAge > 19 && pOvr >= 78) {
-       const isOlympicYear = nextYear % 4 === 2;
+    // THE WORLD CHAMPIONSHIP (May)
+    // The only tournament that genuinely belongs after the season. The World
+    // Juniors are played in late December and the Olympics in February, and both
+    // now run inside the season where they happen; they used to be played here in
+    // the summer alongside this one, months out of place.
+    //
+    // You go to the Worlds because your club season is already over. A player
+    // still in the playoffs is unavailable, which is exactly why the tournament
+    // is full of players whose teams missed or went out early.
+    if (pAge > 19 && pOvr >= 78 && !madePlayoffs) {
        const isTopDiv = activeNatDiv === 'Top Division';
-       
-       // The World Championship is played while the playoffs are still running, so a
-       // club only releases a player whose season is already finished. Without that
-       // condition every 78+ OVR player went to a tournament in roughly three of
-       // every four seasons, which crowded Rivalry Night and the whole event deck
-       // out of the rest of their career. The Olympics are rare enough on their own
-       // (one year in four) that they stay close to automatic.
-       const playSenior = isOlympicYear
-           ? (isTopDiv || Math.random() > 0.4)
-           : (!madePlayoffs && Math.random() > 0.45);
+       // A top-division federation can pick from a deep pool, so a borderline
+       // player is less certain of a call than one from a smaller nation.
+       const playWorlds = isTopDiv ? Math.random() > 0.45 : Math.random() > 0.2;
 
-       if (playSenior) {
-          const sim = simulateGroupStage(false, isOlympicYear);
-          setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes, isOlympicYear }));
+       if (playWorlds) {
+          const sim = simulateGroupStage(false, false);
+          setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes, isOlympicYear: false }));
           setIntlResult(null);
-          setMinigameContext('olympics');
+          setMinigameContext('worlds');
           setScreen('intl-minigame');
           return;
        }
@@ -853,11 +747,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
       return;
     }
 
-    // Chance that a season with no storyline of its own still gets a beat of some
-    // kind. At the old 0.65 a journeyman spent a quarter of their career going from
-    // the trade deadline straight to the recap with nothing in between. One season
-    // in seven is still quiet, which is the intended breathing room.
-    if (Math.random() < 0.85) {
+    if (Math.random() < 0.65) {
       const eventRoll = Math.random();
     
     // A5: Fixed Frequency. 35% chance dedicated to Press Conferences.
@@ -904,26 +794,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             deck = deck.filter(e => !(e.choices || []).some(c => c.action === 'ACCEPT_TRADE_DEADLINE' || c.action === 'TRADE_HOLDOUT'));
         }
 
-        // Some events only make sense for an older or professional player: a 17-year-old
-        // in junior hockey has no agent to fire and no startup to bankroll.
-        const isJuniorLeague = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg);
-        deck = deck.filter(e => (!e.minAge || pAge >= e.minAge) && !(e.proOnly && isJuniorLeague));
-
         if (deck.length > 0) {
-           // Draw from what this career has not seen yet. The draw used to be a flat
-           // random index with no memory, so a career that reached a dozen of these
-           // repeated one almost every time. Once the deck is exhausted the record
-           // resets and events can come round again.
-           const seen = player.seenDeckEvents || [];
-           const unseen = deck.filter(e => !seen.includes(e.title));
-           const pool = unseen.length > 0 ? unseen : deck;
-           const randomEvt = pool[Math.floor(Math.random() * pool.length)];
-
-           setPlayer(p => ({
-              ...p,
-              seenDeckEvents: unseen.length > 0 ? [...(p.seenDeckEvents || []), randomEvt.title] : [randomEvt.title]
-           }));
-
+           const randomEvt = deck[Math.floor(Math.random() * deck.length)];
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });
            setScreen('event');
         } else {

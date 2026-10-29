@@ -85,6 +85,16 @@ export function handleEventChoice(ctx, choice) {
            currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
            currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
         }
+  } else if (actionStr === 'RESOLVE_NINE_GAME') {
+    // The club has made its call. If he is going back, move him to the junior club
+    // that holds his rights. The contract year is then protected by the ELC slide
+    // in the offseason, which keys off finishing the season in junior.
+    const t9 = player.trial;
+    if (t9 && !t9.verdict?.stays) {
+      updated.team = t9.juniorTeam;
+      updated.league = t9.juniorLeague;
+      updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), t9.juniorTeam]));
+    }
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
   } else if (actionStr === 'CHANGE_LEAGUE') {
@@ -241,6 +251,13 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'ROUTE_ALL_STAR') {
       setActiveEvent(null);
       setScreen('all-star');
+  } else if (actionStr === 'ROUTE_SEASON_END') {
+      // A milestone shown as the year finishes: the debut, the 500th or the
+      // 1000th game. The All-Star break and the deadline are months behind by
+      // now, so acknowledging it ends the season instead of routing back.
+      setActiveEvent(null);
+      if (ctx.finishSeason) ctx.finishSeason(finalPlayer);
+      else setScreen('recap');
   } else if (actionStr === 'ROUTE_TRADE_DEADLINE') {
       setActiveEvent(null);
       setScreen('trade-deadline');

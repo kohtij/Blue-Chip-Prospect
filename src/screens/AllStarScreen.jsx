@@ -22,7 +22,12 @@ const getHostCities = (league) => {
 };
 
 export default function AllStarScreen() {
-  const { player, setPlayer, setScreen } = useAppContext();
+  const { handleTrain, player, setPlayer } = useAppContext();
+
+  // The All-Star Game is an exhibition in late January, about sixty per cent of
+  // the way through the schedule. The weekend ending does not end the season: it
+  // sends the player back out to play on towards the deadline in March.
+  const finishSeason = () => handleTrain(null);
   
   // Use the league the player earned the nod in, not just their current active league
   const asgLeague = player.currentAsg || player.league;
@@ -118,7 +123,7 @@ const handleQuickSim = () => {
       };
     });
 
-    setScreen('trade-deadline');
+    finishSeason();
   };
 
   const eventName = asgLeague === 'NCAA' ? 'NCAA All-American Game' : `${asgLeague} All-Star Game`;
@@ -185,7 +190,7 @@ const handleQuickSim = () => {
             <p className="text-lg text-slate-300 mb-6 font-sans">
               You chose to rest your body instead of attending the All-Star weekend. Per league rules, you have been handed an automatic <strong>1-game suspension</strong>. The media is questioning your dedication, but you secured some much-needed rest (+1 Stamina).
             </p>
-            <button onClick={() => setScreen('trade-deadline')} className="btn-primary w-full py-4 rounded-xl font-black sports-font tracking-widest text-lg uppercase transition-transform hover:scale-105 cursor-pointer">
+            <button onClick={finishSeason} className="btn-primary w-full py-4 rounded-xl font-black sports-font tracking-widest text-lg uppercase transition-transform hover:scale-105 cursor-pointer">
               SERVE SUSPENSION & RETURN
             </button>
          </div>

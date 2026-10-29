@@ -6,7 +6,7 @@ import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTra
 
 export default function TradeDeadlineScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { advanceToOffseason, hasDemandedTrade, pendingSeasonResult, player, runPostSeasonFlow, setActiveEvent, setHasDemandedTrade, setScreen, setSeasonRecap, unlockAchievement } = useAppContext();
+  const { advanceToOffseason, handleTrain, hasDemandedTrade, pendingSeasonResult, player, runPostSeasonFlow, setActiveEvent, setHasDemandedTrade, setScreen, setSeasonRecap, unlockAchievement } = useAppContext();
   return (() => {
           const res = pendingSeasonResult;
           if (!res || !res.recap) {
@@ -19,10 +19,50 @@ export default function TradeDeadlineScreen() {
              );
           }
           
-          const isPro = ['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(res.currentLg);
+          // Every professional league can trade. The old list left out the KHL, the
+          // Swiss NL, the DEL, the ICEHL and both Extraligas, so a player there had
+          // no way to ask for a move at all. The NCAA stays out: college players
+          // cannot be traded.
+          const isPro = res.currentLg !== 'NCAA' && !['', undefined, null].includes(res.currentLg);
           const playoffSpots = LEAGUE_CONFIG[res.currentLg]?.playoffSpots || 16;
           const standings = res.recap?.standings || 16;
           const isContender = standings <= playoffSpots;
+
+          // The gate below used to call a club "rebuilding" only once it sat beneath
+          // 60% of the league, so a team ranked 17th to 19th of 32 was shown to the
+          // player as SELLING / REBUILDING while the trade logic still treated it as
+          // a buyer. One test now drives both the label and the odds.
+          const isSelling = !isContender;
+          const isExpiring = player.contract?.years === 1 || ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(res.currentLg);
+          let eliteThreshold = 82;
+          if (['AHL', 'SHL', 'LIIGA'].includes(res.currentLg)) eliteThreshold = 72;
+          if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(res.currentLg)) eliteThreshold = 62;
+          const isElite = player.ovr >= eliteThreshold;
+
+          // Who actually gets moved in March. An expiring contract on a club that is
+          // out of the race is the classic rental, and the better the player the more
+          // certain it is. A signed player on a seller still gets shopped. A player on
+          // a buyer is rarely the one leaving. The old gate gave a flat 5% to
+          // everyone who was not the perfect rental, so a thirty-year-old on an
+          // expiring deal on the worst team in the league had the same odds as a
+          // signed depth forward on the best one.
+          const tradeChance = (res.currentTeam === 'NTDP') ? 0
+            : (isExpiring && isSelling && isElite) ? 0.40
+            : (isExpiring && isSelling) ? 0.18
+            : (isSelling && isElite) ? 0.10
+            : 0.03;
+
+          // A player at the deadline knows three things: his contract status, whether
+          // the club is buying or selling, and whether his name is in the rumour mill.
+          // The screen worked all of this out and then showed him none of it, so the
+          // choice in front of him was a blind one.
+          const rumour = tradeChance >= 0.40
+            ? { label: 'YOUR NAME IS EVERYWHERE', note: 'Every insider has you near the top of the rental board.', hot: true }
+            : tradeChance >= 0.18
+              ? { label: 'LINKED IN THE RUMOURS', note: 'An expiring deal on a selling club. The calls are being made.', hot: true }
+              : tradeChance >= 0.10
+                ? { label: 'MENTIONED IN PASSING', note: 'You are under contract, but a selling club will listen to offers.', hot: false }
+                : { label: 'NOBODY IS TALKING', note: 'Nothing in the rumour mill points anywhere near you.', hot: false };
 
           const handleSkip = () => {
              if (isProcessing) return;
@@ -30,18 +70,8 @@ export default function TradeDeadlineScreen() {
 
              try {
                const currentLg = res.currentLg;
-               const isExpiring = player.contract?.years === 1 || ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg);
-               const totalTeamsInLeague = getOpponentPool(currentLg)?.length || 20;
-               const isRebuilding = standings > (totalTeamsInLeague * 0.6);
 
-               let eliteThreshold = 82;
-               if (['AHL', 'SHL', 'LIIGA'].includes(currentLg)) eliteThreshold = 72;
-               if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(currentLg)) eliteThreshold = 62;
-               const isElite = player.ovr >= eliteThreshold;
-
-               const tradeChance = (res.currentTeam === 'NTDP') ? 0 : ((isExpiring && isRebuilding && isElite) ? 0.40 : 0.05);
-
-               if (['NHL', 'AHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < tradeChance) {
+               if (isPro && Math.random() < tradeChance) {
                     const isAHL = currentLg === 'AHL';
                     let tradeLg = isAHL ? 'NHL' : currentLg;
 
@@ -58,7 +88,12 @@ export default function TradeDeadlineScreen() {
 
                     let targetTeamObj = destTeam;
                     let targetLg = tradeLg;
-                    let eventDesc = `Just as the deadline was expiring, your GM called you into the office. You've been traded! The team decided to cash in on your value and shipped you to the **${getFullTeamName(destTeam.id, tradeLg)}**.`;
+                    // A seller cashing in and a buyer paying a price are not the same
+                    // phone call, and the old copy assumed you were always the asset
+                    // being sold even when your club was first in the league.
+                    let eventDesc = isSelling
+                      ? `Just as the deadline was expiring, your GM called you into the office. You've been traded. With the season gone they cashed in on your value and shipped you to the **${getFullTeamName(destTeam.id, tradeLg)}**.`
+                      : `Just as the deadline was expiring, your GM called you into the office. You've been traded. The club went out and got the piece it wanted for a run, and you were what the other side asked for. You are off to the **${getFullTeamName(destTeam.id, tradeLg)}**.`;
                     let feedback = `You packed your bags and joined your new squad.`;
 
                     if (isAHL && destTeam.ahlId) {
@@ -101,6 +136,10 @@ export default function TradeDeadlineScreen() {
                         });
                     }
                     setScreen('event');
+               } else if (res.partial) {
+                   // Nobody called. The deadline passes and the season carries on
+                   // from here, which is the point: this is March, not June.
+                   handleTrain(null);
                } else {
                    setSeasonRecap(res.recap);
                    try {
@@ -118,7 +157,9 @@ export default function TradeDeadlineScreen() {
                 // permanently lock the buttons on this screen.
                 setTimeout(() => {
                    setIsProcessing(false);
-                   setScreen(currentScreen => currentScreen === 'trade-deadline' ? 'recap' : currentScreen);
+                   setScreen(currentScreen => currentScreen === 'trade-deadline'
+                  ? (res.partial ? 'preseason' : 'recap')
+                  : currentScreen);
                 }, 100);
              }
           };
@@ -141,23 +182,67 @@ export default function TradeDeadlineScreen() {
       The trade deadline is 24 hours away. The media is swarming.
     </p>
 
-    <div className="bg-[#101410] border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 rounded-xl mb-6 max-w-lg mx-auto text-left flex items-center justify-between shadow-lg">
-      <div>
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-          TEAM OUTLOOK
-        </p>
-        <p className="text-xl sm:text-2xl font-black text-white sports-font uppercase leading-tight mb-1">
-          {isContender ? 'BUYING / CONTENDING' : 'SELLING / REBUILDING'}
-        </p>
-        <p className={`text-xs sm:text-sm font-bold uppercase flex items-center gap-2 ${isContender ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-          Currently #{standings} in the {res.currentLg}
-          <span className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider font-sans border ${isContender ? 'bg-[#22E748]/10 border-[#22E748]/30 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
-            {isContender ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS'}
-          </span>
-        </p>
+    <div className="bg-[#101410] border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 rounded-xl mb-6 max-w-lg mx-auto text-left shadow-lg">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+            TEAM OUTLOOK
+          </p>
+          <p className="text-xl sm:text-2xl font-black text-white sports-font uppercase leading-tight mb-1">
+            {isContender ? 'BUYING / CONTENDING' : 'SELLING / REBUILDING'}
+          </p>
+          <p className={`text-xs sm:text-sm font-bold uppercase flex items-center gap-2 ${isContender ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+            Currently #{standings} in the {res.currentLg}
+            <span className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider font-sans border ${isContender ? 'bg-[#22E748]/10 border-[#22E748]/30 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
+              {isContender ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS'}
+            </span>
+          </p>
+        </div>
+        <div className="hidden sm:block text-4xl sm:text-5xl shrink-0">
+          {isContender ? '📈' : '📉'}
+        </div>
       </div>
-      <div className="hidden sm:block text-4xl sm:text-5xl shrink-0">
-        {isContender ? '📈' : '📉'}
+
+      {res.partial && (
+        <div className="mt-5 pt-5 border-t border-[rgba(255,255,255,0.065)]">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+            YOUR SEASON SO FAR
+          </p>
+          <p className="text-base sm:text-lg font-black text-white sports-font uppercase leading-tight">
+            {player.pos === 'G'
+              ? `${(res.recap.saves / Math.max(1, res.recap.shots)).toFixed(3).replace('0.', '.')} SV%, ${res.recap.sho || 0} SO IN ${res.recap.games} GP`
+              : `${res.recap.g || 0}G ${res.recap.a || 0}A, ${(res.recap.g || 0) + (res.recap.a || 0)} PTS IN ${res.recap.games} GP`}
+          </p>
+          <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-snug mt-0.5">
+            There are still games left this season. Whatever happens today decides who you play them for.
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-[rgba(255,255,255,0.065)]">
+        <div>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+            YOUR CONTRACT
+          </p>
+          <p className={`text-base sm:text-lg font-black sports-font uppercase leading-tight ${isExpiring ? 'text-[#F59E0B]' : 'text-white'}`}>
+            {isExpiring ? 'EXPIRING' : `${player.contract?.years || 0} ${(player.contract?.years || 0) === 1 ? 'YEAR' : 'YEARS'} LEFT`}
+          </p>
+          <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-snug mt-0.5">
+            {isExpiring ? 'A club with nothing to play for would rather have the pick.' : 'You are signed beyond this season.'}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+            THE RUMOUR MILL
+          </p>
+          <p className={`text-base sm:text-lg font-black sports-font uppercase leading-tight ${rumour.hot ? 'text-[#ef4444]' : 'text-slate-300'}`}>
+            {rumour.label}
+          </p>
+          <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-snug mt-0.5">
+            {rumour.note}
+          </p>
+        </div>
       </div>
     </div>
 

@@ -147,6 +147,21 @@ export default function RecapScreen() {
                 <li className="border-l-4 border-[#3b82f6] pl-4 py-2">
                   {(() => {
                      const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
+
+                     // A season split across two leagues, which is what the nine-game
+                     // rule produces: nine games up top, the rest back in junior. A
+                     // trade moves clubs inside one league and is handled below.
+                     const stints = currentHistory?.stints || [];
+                     if (stints.length > 1 && stints[0].league !== stints[1].league) {
+                        const first = stints[0];
+                        const rest = stints.slice(1);
+                        return (
+                          <>🏅 Played <strong className="text-white">{first.games}</strong> game{first.games === 1 ? '' : 's'} in {leagueWithArticle(first.league)} with <strong className="text-white">{getFullTeamName(first.team, first.league)}</strong>, then spent the rest of the year {rest.map((s, i) => (
+                            <span key={`${s.team}-${i}`}>in {leagueWithArticle(s.league)} with <strong className="text-white">{getFullTeamName(s.team, s.league)}</strong> ({s.games} GP)</span>
+                          ))}.</>
+                        );
+                     }
+
                      if (currentHistory?.tradedTo) {
                         return (
                           <>🏅 Started the year with <strong className="text-white">{getFullTeamName(currentHistory.team, player.league)}</strong> ({currentHistory.gamesWithOriginal} GP) before a blockbuster trade to <strong className="text-white">{getFullTeamName(currentHistory.tradedTo, player.league)}</strong> ({currentHistory.gamesWithNew} GP).</>

@@ -350,7 +350,10 @@ function App() {
          title: '🌟 THE CHOSEN ONE',
          desc: `The hockey world has never seen a prospect quite like you. At just 16 years old, scouts are already calling you the greatest generational talent since Crosby, McDavid, or Bedard. The pressure is on.`,
          choices: [{ label: 'Embrace the Expectations', isRisky: false, feedback: 'You are ready to change a franchise forever. Let the hype begin.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
-         isOffseasonEvent: true 
+         // Not an offseason beat. This fires at creation, before a single game has
+         // been played, and tagging it as one dropped a sixteen-year-old into a
+         // training camp roster battle before he had picked his first training card.
+         isIntroEvent: true
        });
        setScreen('event');
     } else setScreen('preseason');
@@ -544,15 +547,15 @@ function App() {
       return; 
     }
 
-    if (minigameContext === 'wjc' || minigameContext === 'olympics') {
+    if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) {
       const defaultNat = safeNationalities.find(n => n.id === player.nat);
       const currentTier = player.natTier || defaultNat?.tier || 1;
       const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
       let updatedPlayer = { ...player };
       let resultMsg = '', resultEffect = {};
 
-      const isOlympicYear = player.isOlympicYear || false;
-      const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
+      const tournamentName = minigameContext === 'wjc' ? 'World Juniors'
+          : minigameContext === 'olympics' ? 'Winter Olympics' : 'World Championship';
       const stake = player.intlStakes || 'GOLD';
       let awardName = '';
 
@@ -767,14 +770,14 @@ function App() {
         return; 
     }
 
-    if (minigameContext === 'wjc' || minigameContext === 'olympics') {
+    if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) {
       const defaultNat = safeNationalities.find(n => n.id === player.nat);
       const currentTier = player.natTier || defaultNat?.tier || 1;
       const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
       let resultMsg = '', resultEffect = {};
 
-      const isOlympicYear = player.isOlympicYear || false;
-      const tournamentName = minigameContext === 'wjc' ? 'World Juniors' : (isOlympicYear ? 'Winter Olympics' : 'World Championship');
+      const tournamentName = minigameContext === 'wjc' ? 'World Juniors'
+          : minigameContext === 'olympics' ? 'Winter Olympics' : 'World Championship';
       const stake = player.intlStakes || 'GOLD';
       let awardName = '';
 
@@ -891,10 +894,24 @@ function App() {
     unlockAchievement, triggerMinigame, generateTraining,
   };
 
-  const advanceToOffseason = () => {
-    const isAgedOutJunior = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(player.league) && player.age >= 21;
-    const isAgedOutNCAA = player.league === 'NCAA' && player.age >= 24;
-    
+  // Takes an optional player because a caller that has just signed a contract or
+  // resolved an event has only SCHEDULED its setPlayer: the player on this render is
+  // still the old one. Passing the freshly built object is how the rest of this file
+  // already handles the same problem, and camp needs it to see which club the player
+  // actually belongs to now.
+  const advanceToOffseason = (overridePlayer = null) => {
+    const p0 = overridePlayer || player;
+    const offCtx = overridePlayer ? { ...ctx, player: overridePlayer } : ctx;
+
+    // The offseason is re-entered after each of its beats resolves, so the graduation
+    // check and the new-year reset below must only run when the summer is starting.
+    // Re-running the reset would wipe the events the offseason has already produced,
+    // and re-running the graduation check would loop on it forever.
+    if (p0.offseason) { _advanceToOffseason(offCtx); return; }
+
+    const isAgedOutJunior = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(p0.league) && p0.age >= 21;
+    const isAgedOutNCAA = p0.league === 'NCAA' && p0.age >= 24;
+
     if (isAgedOutJunior || isAgedOutNCAA) {
         setActiveEvent({
             title: 'AMATEUR GRADUATION',
@@ -915,9 +932,22 @@ function App() {
     setSeasonRecap(null);
     setSeasonEvents([]);
 
-    _advanceToOffseason(ctx);
+    _advanceToOffseason(offCtx);
   };
   const handleTrain        = (t) => _handleTrain(ctx, t);
+
+  // Ends the year from wherever the last event left off. The All-Star break and
+  // the deadline both happen inside the season now, so anything shown at the end
+  // of it hands off here rather than routing back to one of them.
+  const finishSeason = (overridePlayer = null) => {
+    const who = overridePlayer || player;
+    const res = pendingSeasonResult;
+    if (!res?.recap) { setScreen('recap'); return; }
+    setSeasonRecap(res.recap);
+    runPostSeasonFlow(who.age, who.ovr, res.currentLg, res.currentTeam, res.madePlayoffs,
+      2026 + (who.stats?.seasonsPlayed || 0), res.recap.standings || 16);
+  };
+  ctx.finishSeason = finishSeason;
   const checkEarlyDemotion = () => {
     const isUnder20 = player.age < 20;
     const isTop10Pick = seasonRecap?.draftPick <= 10;
@@ -958,15 +988,46 @@ function App() {
       if (player.age >= 32 && (player.contract?.salary || 0) >= 2000000 && player.ovr >= demoteThresh - 4) return null;
 
       if (isTop10Pick && isUnder20) return null; 
-      if (juniorsEligible && hasCHLHistory && Math.random() > 0.5) return null;
-      else if (juniorsEligible && hasCHLHistory) return { team: chlSeason ? chlSeason.team : (player.draftTeam || 'UNK'), lg: chlSeason ? chlSeason.league : 'OHL', reason: '9_GAME_RULE' };
+      // A prospect who still has a junior club to go back to is NOT sent down at
+      // camp any more. He makes the roster, plays his nine games, and the club
+      // decides on what it actually saw. That is the nine-game rule, and it now
+      // runs inside the season rather than as a coin flip before it.
+      if (juniorsEligible && hasCHLHistory) return null;
       else {
          const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
          const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
-         const isRFA = player.age < 27 && proSeasons < 7;
-         const isELC = player.contract?.salary === 925000 || (isRFA && proSeasons < 3);
 
-         if (!isELC && !isRFA && Math.random() < 0.3) {
+         // WAIVER EXEMPTION
+         // A young player can be sent to the AHL freely. He only has to clear
+         // waivers once he has enough professional mileage behind him, which in
+         // the real rule is a sliding scale of years and games from the age he
+         // signed. Three pro seasons or 160 NHL games is a fair stand-in. The old
+         // code sent even first-year players through "WAIVERS", which cannot
+         // happen, and gave everyone who did go through a flat 30% claim rate.
+         const nhlGamesPlayed = player.stats?.nhl?.games || 0;
+         const isWaiverExempt = proSeasons < 3 && nhlGamesPlayed < 160;
+
+         if (isWaiverExempt) {
+             return { team: ahlTeamId, lg: 'AHL', reason: 'DEVELOPMENT' };
+         }
+
+         // A ONE-WAY CONTRACT RESISTS THE DEMOTION
+         // It pays full NHL money in the AHL, so the club eats the whole cap hit
+         // to bury him and usually finds another way. A two-way deal costs them
+         // very little, which is the entire point of signing one.
+         const cRole = player.contract?.role || '';
+         const isTwoWay = cRole.includes('Two-Way') || cRole.includes('AHL Start') || cRole.includes('Pro Roster');
+         const capHitM = (player.contract?.salary || 0) / 1000000;
+         if (!isTwoWay && capHitM >= 1.5 && Math.random() < 0.6) return null;
+
+         // CLAIMED OFF WAIVERS
+         // A useful player on a cheap deal is gone before the window closes; an
+         // expensive one who has fallen off clears easily. Value, not a coin flip.
+         const worthM = Math.max(0.8, (player.ovr - 68) * 0.45);
+         const bargain = worthM - capHitM;
+         const claimChance = Math.min(0.85, Math.max(0.03, 0.12 + (bargain * 0.18)));
+
+         if (Math.random() < claimChance) {
              const pool = (nhlTeams || []).filter(t => t.id !== player.team);
              return { team: pool[Math.floor(Math.random() * pool.length)].id, lg: 'NHL', reason: 'CLAIMED' };
          }
@@ -1142,11 +1203,11 @@ function App() {
         }
     }
 
-    generateTraining(player.pos, player);
-    setSeasonRecap(null);
-    setSeasonEvents([]);
+    // Signing OPENS the player's year, it does not start the season: he still has
+    // training camp to get through. Re-entering the offseason runs camp, and camp
+    // is what routes to preseason.
     setPlayoffs({ bracket: [], activeRoundIndex: 0, overallStatus: 'playing' });
-    setScreen('preseason');
+    advanceToOffseason(fullyUpdatedPlayer);
   }; 
 
   const handleArbitration = (offer) => {
@@ -1254,21 +1315,46 @@ function App() {
            });
        }
        
+       // The deadline sits about seventy per cent of the way through the year, so
+       // whatever was just decided here governs the games that are left. Go back
+       // into the season and play them, with the new club if there is one.
+       if (currentPlayer.season) { handleTrain(null); return; }
+
        runPostSeasonFlow(currentPlayer.age, currentPlayer.ovr, currentPlayer.league, currentPlayer.team, newTeamMadePlayoffs, 2026 + (currentPlayer.stats?.seasonsPlayed || 0), newTeamStandings);
        return;
     }
     
-    if (currentEvent?.isPortalEvent) { advanceToOffseason(); return; }
+    // The nine-game verdict is the middle of the season, not the end of it. Go
+    // back in and play out the games that are left, wherever the club has just
+    // decided the player belongs.
+    if (currentEvent?.isNineGameEvent) { handleTrain(null); return; }
+
+    if (currentEvent?.isPortalEvent) { advanceToOffseason(currentPlayer); return; }
+    // The career-opening event. Straight to the first preseason.
+    if (currentEvent?.isIntroEvent) {
+       generateTraining(currentPlayer.pos, currentPlayer);
+       setScreen('preseason');
+       return;
+    }
+
     if (currentEvent?.isOffseasonEvent) {
        const goesToFreeAgency = ['AMATEUR GRADUATION', 'RIGHTS EXPIRED'].includes(currentEvent.title) && currentPlayer.league !== 'NHL';
        if (goesToFreeAgency) generateOffers(false, currentPlayer.team);
-       else { generateTraining(currentPlayer.pos, currentPlayer); setScreen('preseason'); }
+       // An offseason beat resolving does not start the season. Go back in for the
+       // next beat; training camp, at the end of the chain, is what finally hands
+       // the player to the preseason screen.
+       else advanceToOffseason(currentPlayer);
        return;
     }
     
     if (currentMgContext === 'memcup') { setScreen('memorial-cup'); return; }
 
-    if (currentMgContext === 'wjc' || currentMgContext === 'olympics') {
+    if (['wjc', 'olympics', 'worlds'].includes(currentMgContext)) {
+      // The World Juniors and the Olympics are played in the middle of the season,
+      // so coming home from one means going back to your club for the rest of the
+      // year. Only the World Championship, in May, finishes a season.
+      if (currentPlayer.season) { handleTrain(null); return; }
+
       if (pendingPlayoffs) {
         const pp = pendingPlayoffs;
         setPendingPlayoffs(null);
