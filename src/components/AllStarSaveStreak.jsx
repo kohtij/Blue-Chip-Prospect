@@ -65,20 +65,20 @@ export default function AllStarSaveStreak({ onComplete, strategy }) {
     setGameOver(true);
     setActiveZone(null);
 
-    let ovrBoost = 0, idolBoost = 0, msg = "";
+    let ovrBoost = 0, fanBoost = 0, msg = "";
 
     if (finalSaves === 10) {
-      ovrBoost = 2; idolBoost = 50; msg = "🏆 BRICK WALL! A perfect 10/10 performance!";
+      ovrBoost = 2; fanBoost = 50; msg = "🏆 BRICK WALL! A perfect 10/10 performance!";
     } else if (finalSaves >= 7) {
-      ovrBoost = 1; idolBoost = 20; msg = "🔥 Solid net-minding. You robbed some of the league's best shooters.";
+      ovrBoost = 1; fanBoost = 20; msg = "🔥 Solid net-minding. You robbed some of the league's best shooters.";
     } else {
-      idolBoost = 5; msg = "✅ A tough outing, but the fans still loved seeing you out there.";
+      fanBoost = 5; msg = "✅ A tough outing, but the fans still loved seeing you out there.";
     }
 
-    if (strategy === 'grit') idolBoost += 15;
+    if (strategy === 'grit') fanBoost += 15;
 
     setTimeout(() => {
-        onComplete({ time: finalSaves, speed: finalSaves, msg, idolBoost, ovrBoost, eventName: 'Save Streak' });
+        onComplete({ time: finalSaves, speed: finalSaves, msg, fanBoost, ovrBoost, eventName: 'Save Streak' });
     }, 1500);
   };
 

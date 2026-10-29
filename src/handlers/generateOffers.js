@@ -164,7 +164,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
            salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary,
            years: maxYears,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
-           idolHit: 10,
+           fanHit: 10,
            state: ccState,
            standing: currentClubStanding
          });
@@ -178,7 +178,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                salary: qoSalary,
                years: 1, // QOs are strictly 1-year deals
                role: 'Two-Way Deal', // QOs offer no roster guarantees
-               idolHit: 0,
+               fanHit: 0,
                state: ccState,
                standing: currentClubStanding
              });
@@ -186,7 +186,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
 
          // NEW: HOMETOWN DISCOUNT (For Beloved Players)
          // Note: RFAs can now take hometown discounts too, signing long-term for less AAV to help the cap.
-         if (actingLeague === 'NHL' && (player.idolatry || 0) >= 600) {
+         if (actingLeague === 'NHL' && (player.fanStatus || 0) >= 600) {
              // We base the cut on the TRUE baseSalary, regardless of if the QO inflated the perceived baseline.
              const discountSalary = Math.max(leagueMinimum, Math.round((baseSalary * 0.65) / 25000) * 25000);
              offers.push({
@@ -196,10 +196,10 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                  salary: discountSalary,
                  years: Math.min(8, Math.max(5, maxYears + 2)), // Guaranteed long-term security
                  role: getRole(baseSalary, player),
-                 idolHit: 100, // Massive loyalty boost
+                 fanHit: 100, // Massive loyalty boost
                  state: 'Staying Put',
                  nmc: true, // Rewarded with a No-Movement Clause
-                 perks: [{ text: '🔒 Absolute Loyalty (+100 Fans)', idol: 100, ovr: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }]
+                 perks: [{ text: '🔒 Absolute Loyalty (+100 Fans)', fanStatus: 100, ovr: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }]
              });
          }
       }
@@ -214,7 +214,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
           offers.push({
             team: offerSheetTeam, league: 'NHL', type: 'OFFER SHEET',
             salary: osSalary, years: 5, role: getRole(osSalary, player),
-            idolHit: getTransferImpact(actingTeam, offerSheetTeam), state: 'Offer Sheet'
+            fanHit: getTransferImpact(actingTeam, offerSheetTeam), state: 'Offer Sheet'
           });
         }
       }
@@ -324,7 +324,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
               salary: offerSalary,
               years: offerYears,
               role: targetLg === 'NHL' ? getRole(offerSalary, player) : 'Pro Roster',
-              idolHit: getTransferImpact(actingTeam, t),
+              fanHit: getTransferImpact(actingTeam, t),
               state: teamState,
               standing: projectedStanding,
               nmc: getsNMC
@@ -346,7 +346,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
         salary: 2200000,
         years: 2,
         role: '1st Line Core',
-        idolHit: 30,
+        fanHit: 30,
         state: 'KHL Megadeal'
       });
     }
@@ -362,7 +362,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
         salary: 85000,
         years: 1,
         role: 'Pro Roster',
-        idolHit: 0,
+        fanHit: 0,
         state: 'Depth Opportunity'
       }];
     }

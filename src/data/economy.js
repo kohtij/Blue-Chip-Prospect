@@ -87,72 +87,72 @@ export const eventDeck = [
     title: 'The Derby',
     desc: 'You play the local rivals tonight. The media asks for a quote.',
     choices: [
-      { label: 'Trash talk them', subLabel: "Give the press a headline and hope you back it up.", isRisky: true, successChance: 0.5, successFeedback: 'The fans loved it and you backed it up with a huge win!', successEffect: { idol: 25, ovr: 0, money: 0 }, failFeedback: 'You talked big but took a bad penalty. The fans are turning on you.', failEffect: { idol: -20, ovr: 0, money: 0 } },
-      { label: 'Give a boring PR answer', subLabel: "Say nothing quotable and keep the focus on the ice.", isRisky: false, feedback: 'Boring, but you stayed focused on the game.', effect: { idol: -5, ovr: 1, money: 0 } }
+      { label: 'Trash talk them', subLabel: "Give the press a headline and hope you back it up.", isRisky: true, successChance: 0.5, successFeedback: 'The fans loved it and you backed it up with a huge win!', successEffect: { fanStatus: 25, ovr: 0, money: 0 }, failFeedback: 'You talked big but took a bad penalty. The fans are turning on you.', failEffect: { fanStatus: -20, ovr: 0, money: 0 } },
+      { label: 'Give a boring PR answer', subLabel: "Say nothing quotable and keep the focus on the ice.", isRisky: false, feedback: 'Boring, but you stayed focused on the game.', effect: { fanStatus: -5, ovr: 1, money: 0 } }
     ]
   },
   {
     title: 'Sponsorship Deal', proOnly: true,
     desc: 'An energy drink wants to sponsor you, but requires an intense ad shoot on your only rest day.',
     choices: [
-      { label: 'Take the money', subLabel: "Shoot the ad on your only rest day.", isRisky: true, successChance: 0.7, successFeedback: 'You made bank and somehow still had legs for the game.', successEffect: { idol: 10, ovr: 0, money: 120000 }, failFeedback: 'You got paid, but you looked exhausted and sluggish on the ice.', failEffect: { idol: 0, ovr: -2, money: 120000 } },
-      { label: 'Rest your body instead', subLabel: "Turn down the cheque and arrive fresh.", isRisky: false, feedback: 'You feel fresh and ready for the next match.', effect: { idol: 0, ovr: 2, money: 0 } }
+      { label: 'Take the money', subLabel: "Shoot the ad on your only rest day.", isRisky: true, successChance: 0.7, successFeedback: 'You made bank and somehow still had legs for the game.', successEffect: { fanStatus: 10, ovr: 0, money: 120000 }, failFeedback: 'You got paid, but you looked exhausted and sluggish on the ice.', failEffect: { fanStatus: 0, ovr: -2, money: 120000 } },
+      { label: 'Rest your body instead', subLabel: "Turn down the cheque and arrive fresh.", isRisky: false, feedback: 'You feel fresh and ready for the next match.', effect: { fanStatus: 0, ovr: 2, money: 0 } }
     ]
   },
   {
     title: 'Trade Rumors',
     desc: 'Your name is popping up on the trade block. The GM wants to know where your head is at.',
     choices: [
-      { label: 'Demand to stay', subLabel: "Tell the GM to his face that you are not going anywhere.", isRisky: true, successChance: 0.6, successFeedback: 'The GM respected your loyalty. The fans adore you.', successEffect: { idol: 30, ovr: 0, money: 0 }, failFeedback: "The GM told you it's a business. You feel alienated.", failEffect: { idol: -15, ovr: -1, money: 0 } },
-      { label: 'Let your agent handle it', subLabel: "Stay out of it and let the business run its course.", isRisky: false, feedback: 'You tuned out the noise and focused on hockey.', effect: { idol: 0, ovr: 1, money: 0 } }
+      { label: 'Demand to stay', subLabel: "Tell the GM to his face that you are not going anywhere.", isRisky: true, successChance: 0.6, successFeedback: 'The GM respected your loyalty. The fans adore you.', successEffect: { fanStatus: 30, ovr: 0, money: 0 }, failFeedback: "The GM told you it's a business. You feel alienated.", failEffect: { fanStatus: -15, ovr: -1, money: 0 } },
+      { label: 'Let your agent handle it', subLabel: "Stay out of it and let the business run its course.", isRisky: false, feedback: 'You tuned out the noise and focused on hockey.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
     ]
   },
   {
     title: 'Locker Room Dispute',
     desc: 'Two veterans are screaming at each other after a bad loss. The room is tense.',
     choices: [
-      { label: 'Step in and mediate', subLabel: "Put yourself between two angry veterans.", isRisky: true, successChance: 0.5, successFeedback: 'You calmed them down and showed real leadership.', successEffect: { idol: 10, ovr: 2, money: 0 }, failFeedback: 'They told you to mind your own business. Chemistry plummets.', failEffect: { idol: 0, ovr: -2, money: 0 } },
-      { label: 'Keep your head down', subLabel: "Let them sort it out and stay clear of the fallout.", isRisky: false, feedback: 'You stayed out of it, but the team vibe is definitely weird.', effect: { idol: 0, ovr: -1, money: 0 } }
+      { label: 'Step in and mediate', subLabel: "Put yourself between two angry veterans.", isRisky: true, successChance: 0.5, successFeedback: 'You calmed them down and showed real leadership.', successEffect: { fanStatus: 10, ovr: 2, money: 0 }, failFeedback: 'They told you to mind your own business. Chemistry plummets.', failEffect: { fanStatus: 0, ovr: -2, money: 0 } },
+      { label: 'Keep your head down', subLabel: "Let them sort it out and stay clear of the fallout.", isRisky: false, feedback: 'You stayed out of it, but the team vibe is definitely weird.', effect: { fanStatus: 0, ovr: -1, money: 0 } }
     ]
   },
   {
     title: 'Charity Hospital Visit',
     desc: "The team is visiting a children's hospital, but it overlaps with your extra training session.",
     choices: [
-      { label: 'Go to the hospital', subLabel: "Skip your extra session to spend the day with the kids.", isRisky: false, feedback: 'The kids loved seeing you. The city embraces you.', effect: { idol: 40, ovr: 0, money: 0 } },
-      { label: 'Hit the ice and train', subLabel: "Bank the extra work and hope nobody notices you were missing.", isRisky: true, successChance: 0.2, successFeedback: "The media didn't notice your absence, and the training paid off.", successEffect: { idol: 0, ovr: 2, money: 0 }, failFeedback: 'The local paper roasted you for skipping the charity event.', failEffect: { idol: -35, ovr: 1, money: 0 } }
+      { label: 'Go to the hospital', subLabel: "Skip your extra session to spend the day with the kids.", isRisky: false, feedback: 'The kids loved seeing you. The city embraces you.', effect: { fanStatus: 40, ovr: 0, money: 0 } },
+      { label: 'Hit the ice and train', subLabel: "Bank the extra work and hope nobody notices you were missing.", isRisky: true, successChance: 0.2, successFeedback: "The media didn't notice your absence, and the training paid off.", successEffect: { fanStatus: 0, ovr: 2, money: 0 }, failFeedback: 'The local paper roasted you for skipping the charity event.', failEffect: { fanStatus: -35, ovr: 1, money: 0 } }
     ]
   },
   {
     title: 'The Viral Moment',
     desc: 'A clip of you pulling off a ridiculous highlight-reel move in warmups is blowing up online. A brand wants you to lean into it.',
     choices: [
-      { label: 'Post the whole routine', subLabel: "Lean all the way into the attention.", isRisky: true, successChance: 0.6, successFeedback: 'You broke the internet. Your following (and your Q rating) explodes.', successEffect: { idol: 35, ovr: 0, money: 45000 }, failFeedback: 'A rival captain called you a clown in the press and it stuck.', failEffect: { idol: -15, ovr: 0, money: 45000 } },
-      { label: 'Stay humble, say nothing', subLabel: "Let the clip speak for itself.", isRisky: false, feedback: 'You let your game do the talking. Old-school respect from the room.', effect: { idol: 5, ovr: 1, money: 0 } }
+      { label: 'Post the whole routine', subLabel: "Lean all the way into the attention.", isRisky: true, successChance: 0.6, successFeedback: 'You broke the internet. Your following (and your Q rating) explodes.', successEffect: { fanStatus: 35, ovr: 0, money: 45000 }, failFeedback: 'A rival captain called you a clown in the press and it stuck.', failEffect: { fanStatus: -15, ovr: 0, money: 45000 } },
+      { label: 'Stay humble, say nothing', subLabel: "Let the clip speak for itself.", isRisky: false, feedback: 'You let your game do the talking. Old-school respect from the room.', effect: { fanStatus: 5, ovr: 1, money: 0 } }
     ]
   },
   {
     title: 'Play Through Pain',
     desc: 'You tweaked something in the last game. The doctors say sit; the coach says the team needs you for a huge divisional clash.',
     choices: [
-      { label: 'Gut it out and play', subLabel: "Override the doctors for a game the team needs.", isRisky: true, successChance: 0.45, successFeedback: 'You battled through it and were the difference maker. A warrior.', successEffect: { idol: 30, ovr: 0, money: 0 }, failFeedback: 'You aggravated it badly and looked a step slow for weeks.', failEffect: { idol: 0, ovr: -3, money: 0 } },
-      { label: 'Trust the medical staff', subLabel: "Sit out now to avoid a longer absence later.", isRisky: false, feedback: 'You rested up and came back fresh and healthy.', effect: { idol: -5, ovr: 2, money: 0 } }
+      { label: 'Gut it out and play', subLabel: "Override the doctors for a game the team needs.", isRisky: true, successChance: 0.45, successFeedback: 'You battled through it and were the difference maker. A warrior.', successEffect: { fanStatus: 30, ovr: 0, money: 0 }, failFeedback: 'You aggravated it badly and looked a step slow for weeks.', failEffect: { fanStatus: 0, ovr: -3, money: 0 } },
+      { label: 'Trust the medical staff', subLabel: "Sit out now to avoid a longer absence later.", isRisky: false, feedback: 'You rested up and came back fresh and healthy.', effect: { fanStatus: -5, ovr: 2, money: 0 } }
     ]
   },
   {
     title: "The Coach's Doghouse",
     desc: 'The new head coach benched you in the third period and the media wants to know how you feel about it.',
     choices: [
-      { label: 'Call him out publicly', subLabel: 'Take the benching to the media and force his hand.', isRisky: true, successChance: 0.35, successFeedback: 'The fans rallied behind you and the coach backed down. Power move.', successEffect: { idol: 25, ovr: 0, money: 0 }, failFeedback: 'You lost the room and the coach permanently stapled you to the bench.', failEffect: { idol: -20, ovr: -2, money: 0 } },
-      { label: 'Ask for a closed-door meeting', subLabel: 'Settle it privately and keep it out of the press.', isRisky: false, feedback: 'You handled it like a pro. The coach respects you for it.', effect: { idol: 0, ovr: 2, money: 0 } }
+      { label: 'Call him out publicly', subLabel: 'Take the benching to the media and force his hand.', isRisky: true, successChance: 0.35, successFeedback: 'The fans rallied behind you and the coach backed down. Power move.', successEffect: { fanStatus: 25, ovr: 0, money: 0 }, failFeedback: 'You lost the room and the coach permanently stapled you to the bench.', failEffect: { fanStatus: -20, ovr: -2, money: 0 } },
+      { label: 'Ask for a closed-door meeting', subLabel: 'Settle it privately and keep it out of the press.', isRisky: false, feedback: 'You handled it like a pro. The coach respects you for it.', effect: { fanStatus: 0, ovr: 2, money: 0 } }
     ]
   },
   {
     title: 'Vegas in the Off-Week', minAge: 21,
     desc: 'The boys are planning a wild trip on the bye week. Tempting, but camp intensity is ramping up.',
     choices: [
-      { label: 'Go all in with the boys', subLabel: "Team bonding on the bye week, at the cost of your conditioning.", isRisky: true, successChance: 0.5, successFeedback: 'Elite team bonding. The chemistry carried right onto the ice.', successEffect: { idol: 15, ovr: 1, money: -40000, rel: { teammates: 25 } }, failFeedback: 'You showed up to camp gassed and out of shape. Bad look.', failEffect: { idol: 0, ovr: -3, money: -40000, rel: { coach: -20 } } },
-      { label: 'Skip it, hit the gym', subLabel: "Miss the trip and report to camp ahead of everyone.", isRisky: false, feedback: 'While they nursed hangovers, you got a head start on the season.', effect: { idol: 0, ovr: 2, money: 0, rel: { coach: 10 } } }
+      { label: 'Go all in with the boys', subLabel: "Team bonding on the bye week, at the cost of your conditioning.", isRisky: true, successChance: 0.5, successFeedback: 'Elite team bonding. The chemistry carried right onto the ice.', successEffect: { fanStatus: 15, ovr: 1, money: -40000, rel: { teammates: 25 } }, failFeedback: 'You showed up to camp gassed and out of shape. Bad look.', failEffect: { fanStatus: 0, ovr: -3, money: -40000, rel: { coach: -20 } } },
+      { label: 'Skip it, hit the gym', subLabel: "Miss the trip and report to camp ahead of everyone.", isRisky: false, feedback: 'While they nursed hangovers, you got a head start on the season.', effect: { fanStatus: 0, ovr: 2, money: 0, rel: { coach: 10 } } }
     ],
     isSeasonEvent: true // <--- FIX FOR BUG #2: Allows the event to route back to the season!
   },
@@ -160,24 +160,24 @@ export const eventDeck = [
     title: 'The Captaincy Vote',
     desc: 'The team is choosing a new captain. A veteran quietly asks if you would step aside so he can wear the "C" one last year.',
     choices: [
-      { label: 'Campaign for yourself', subLabel: "Make your case for the C and risk looking selfish.", isRisky: true, successChance: 0.55, successFeedback: 'You won the vote and the fan base loves the young leader.', successEffect: { idol: 30, ovr: 1, money: 0 }, failFeedback: 'It came off as selfish and split the locker room.', failEffect: { idol: -20, ovr: -1, money: 0 } },
-      { label: 'Defer to the veteran', subLabel: "Let him have his last year with the letter.", isRisky: false, feedback: 'A classy move. The whole room notices, including management.', effect: { idol: 10, ovr: 1, money: 0 } }
+      { label: 'Campaign for yourself', subLabel: "Make your case for the C and risk looking selfish.", isRisky: true, successChance: 0.55, successFeedback: 'You won the vote and the fan base loves the young leader.', successEffect: { fanStatus: 30, ovr: 1, money: 0 }, failFeedback: 'It came off as selfish and split the locker room.', failEffect: { fanStatus: -20, ovr: -1, money: 0 } },
+      { label: 'Defer to the veteran', subLabel: "Let him have his last year with the letter.", isRisky: false, feedback: 'A classy move. The whole room notices, including management.', effect: { fanStatus: 10, ovr: 1, money: 0 } }
     ]
   },
   {
     title: 'The Endorsement Fork', proOnly: true,
     desc: 'Two offers on the table: a safe local dealership deal, or a bold national campaign that could flop spectacularly.',
     choices: [
-      { label: 'Chase the national spotlight', subLabel: "Bigger cheque, bigger audience, bigger way to flop.", isRisky: true, successChance: 0.5, successFeedback: 'The campaign was a smash. You are a household name now.', successEffect: { idol: 40, ovr: 0, money: 80000 }, failFeedback: 'The ad was mocked relentlessly. Cringe follows you around.', failEffect: { idol: -25, ovr: 0, money: 80000 } },
-      { label: 'Take the safe local deal', subLabel: "Smaller money, no downside.", isRisky: false, feedback: 'Steady money, no drama. The hometown appreciates the loyalty.', effect: { idol: 10, ovr: 0, money: 40000 } }
+      { label: 'Chase the national spotlight', subLabel: "Bigger cheque, bigger audience, bigger way to flop.", isRisky: true, successChance: 0.5, successFeedback: 'The campaign was a smash. You are a household name now.', successEffect: { fanStatus: 40, ovr: 0, money: 80000 }, failFeedback: 'The ad was mocked relentlessly. Cringe follows you around.', failEffect: { fanStatus: -25, ovr: 0, money: 80000 } },
+      { label: 'Take the safe local deal', subLabel: "Smaller money, no downside.", isRisky: false, feedback: 'Steady money, no drama. The hometown appreciates the loyalty.', effect: { fanStatus: 10, ovr: 0, money: 40000 } }
     ]
   },
   {
     title: 'Mentor or Rival',
     desc: 'A hyped rookie is gunning for your spot in the lineup and clearly sees you as competition, not a teammate.',
     choices: [
-      { label: 'Take him under your wing', subLabel: "Help the kid who wants your spot.", isRisky: false, feedback: 'You showed real leadership. The kid, and the coaches, will remember it.', effect: { idol: 15, ovr: 1, money: 0 } },
-      { label: 'Show him who runs this room', subLabel: "Freeze him out and prove the spot is yours.", isRisky: true, successChance: 0.5, successFeedback: 'You outworked him at every turn and cemented your status.', successEffect: { idol: 20, ovr: 2, money: 0 }, failFeedback: 'The rivalry got petty and the coach sided with the kid.', failEffect: { idol: -15, ovr: -1, money: 0 } }
+      { label: 'Take him under your wing', subLabel: "Help the kid who wants your spot.", isRisky: false, feedback: 'You showed real leadership. The kid, and the coaches, will remember it.', effect: { fanStatus: 15, ovr: 1, money: 0 } },
+      { label: 'Show him who runs this room', subLabel: "Freeze him out and prove the spot is yours.", isRisky: true, successChance: 0.5, successFeedback: 'You outworked him at every turn and cemented your status.', successEffect: { fanStatus: 20, ovr: 2, money: 0 }, failFeedback: 'The rivalry got petty and the coach sided with the kid.', failEffect: { fanStatus: -15, ovr: -1, money: 0 } }
     ]
   },
   // NEW: OFF-ICE / PERSONAL LIFE EVENTS
@@ -185,40 +185,40 @@ export const eventDeck = [
     title: 'The High-Profile Romance', minAge: 20,
     desc: 'You have started dating a very famous pop star. The paparazzi are swarming your house and following you to the arena. It is becoming a massive distraction.',
     choices: [
-      { label: 'Embrace the Limelight', subLabel: "Go public and let the attention follow you to the rink.", isRisky: true, successChance: 0.5, successFeedback: 'You leaned into the fame! You are now half of a global power couple, and your jersey sales are through the roof.', successEffect: { idol: 150, ovr: 0, money: 45000, rel: { media: 20 } }, failFeedback: 'The distraction proved too much. You looked completely lost on the ice, and the coach benched you to protect the team.', failEffect: { idol: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
-      { label: 'Keep it Private', subLabel: "Set hard boundaries with the press.", isRisky: false, feedback: 'You set strict boundaries with the press and focused on hockey. Your coach appreciates the maturity.', effect: { idol: 10, ovr: 1, money: 0, rel: { coach: 15 } } }
+      { label: 'Embrace the Limelight', subLabel: "Go public and let the attention follow you to the rink.", isRisky: true, successChance: 0.5, successFeedback: 'You leaned into the fame! You are now half of a global power couple, and your jersey sales are through the roof.', successEffect: { fanStatus: 150, ovr: 0, money: 45000, rel: { media: 20 } }, failFeedback: 'The distraction proved too much. You looked completely lost on the ice, and the coach benched you to protect the team.', failEffect: { fanStatus: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
+      { label: 'Keep it Private', subLabel: "Set hard boundaries with the press.", isRisky: false, feedback: 'You set strict boundaries with the press and focused on hockey. Your coach appreciates the maturity.', effect: { fanStatus: 10, ovr: 1, money: 0, rel: { coach: 15 } } }
     ]
   },
   {
     title: 'Family Investment Opportunity', proOnly: true, minAge: 22,
     desc: 'Your brother wants you to invest heavily in his new "revolutionary" tech startup. Your financial advisor strongly advises against it.',
     choices: [
-      { label: 'Fund the Startup ($125k)', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'Against all odds, the company took off! You doubled your investment and your family is thrilled.', successEffect: { idol: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be incredibly awkward.', failEffect: { idol: 0, ovr: -1, money: -125000 } },
-      { label: 'Trust the Advisor (Pass)', subLabel: "Say no and accept the awkward family dinners.", isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { idol: 0, ovr: 0, money: 0 } }
+      { label: 'Fund the Startup ($125k)', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'Against all odds, the company took off! You doubled your investment and your family is thrilled.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be incredibly awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
+      { label: 'Trust the Advisor (Pass)', subLabel: "Say no and accept the awkward family dinners.", isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
     ]
   },
   {
     title: 'The Fired Agent', proOnly: true, minAge: 20,
     desc: 'Your agent just got caught in a massive illegal gambling scandal. The media is swarming, assuming you are involved.',
     choices: [
-      { label: 'Defend Him to the Press', subLabel: "Stake your own name on his innocence.", isRisky: true, successChance: 0.40, successFeedback: 'You cleared your name and loyalty paid off—he beat the charges and negotiated a massive endorsement for you as a thank you.', successEffect: { idol: 20, ovr: 0, money: 80000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming. By defending him, your own reputation took a massive hit.', failEffect: { idol: -50, ovr: 0, money: 0, rel: { media: -30 } } },
-      { label: 'Fire Him Immediately', subLabel: "Cut him loose before the story reaches you.", isRisky: false, feedback: 'You ruthlessly cut ties. It was cold, but it protected your brand.', effect: { idol: 15, ovr: 0, money: 0, rel: { media: 15 } } }
+      { label: 'Defend Him to the Press', subLabel: "Stake your own name on his innocence.", isRisky: true, successChance: 0.40, successFeedback: 'You cleared your name and loyalty paid off—he beat the charges and negotiated a massive endorsement for you as a thank you.', successEffect: { fanStatus: 20, ovr: 0, money: 80000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming. By defending him, your own reputation took a massive hit.', failEffect: { fanStatus: -50, ovr: 0, money: 0, rel: { media: -30 } } },
+      { label: 'Fire Him Immediately', subLabel: "Cut him loose before the story reaches you.", isRisky: false, feedback: 'You ruthlessly cut ties. It was cold, but it protected your brand.', effect: { fanStatus: 15, ovr: 0, money: 0, rel: { media: 15 } } }
     ]
   },
   {
     title: 'The Hometown Charity Gala',
     desc: 'Your hometown is hosting a massive charity gala in your honor. Unfortunately, it is scheduled the night before the hardest day of training camp.',
     choices: [
-      { label: 'Fly Home for the Kids', subLabel: "Make the trip the night before the hardest day of camp.", isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, delighted the fans, and somehow still dominated the bag skate the next morning!', successEffect: { idol: 75, ovr: 1, money: -50000, rel: { coach: 10 } }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { idol: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 } } },
-      { label: 'Skip it for Hockey', subLabel: "Send a cheque and a video message instead.", isRisky: false, feedback: 'You sent a video message and a check. The hometown fans are a bit disappointed, but you dominated camp.', effect: { idol: -15, ovr: 2, money: -50000, rel: { coach: 15 } } }
+      { label: 'Fly Home for the Kids', subLabel: "Make the trip the night before the hardest day of camp.", isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, delighted the fans, and somehow still dominated the bag skate the next morning!', successEffect: { fanStatus: 75, ovr: 1, money: -50000, rel: { coach: 10 } }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { fanStatus: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 } } },
+      { label: 'Skip it for Hockey', subLabel: "Send a cheque and a video message instead.", isRisky: false, feedback: 'You sent a video message and a check. The hometown fans are a bit disappointed, but you dominated camp.', effect: { fanStatus: -15, ovr: 2, money: -50000, rel: { coach: 15 } } }
     ]
   },
   {
     title: 'Off-Ice Controversy',
     desc: 'A teammate was caught on video making wildly inappropriate comments at a bar. The media is demanding a statement from you as a leader in the room.',
     choices: [
-      { label: 'Condemn the Comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You took a hard stance. The media praised your leadership, but it definitely caused a fracture in the locker room.', effect: { idol: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
-      { label: 'Protect the Room ("No Comment")', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You stonewalled the media. The story died down quickly, and your teammates deeply respect your loyalty.', successEffect: { idol: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic culture. Your silence became a massive PR disaster.', failEffect: { idol: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
+      { label: 'Condemn the Comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You took a hard stance. The media praised your leadership, but it definitely caused a fracture in the locker room.', effect: { fanStatus: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
+      { label: 'Protect the Room ("No Comment")', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You stonewalled the media. The story died down quickly, and your teammates deeply respect your loyalty.', successEffect: { fanStatus: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic culture. Your silence became a massive PR disaster.', failEffect: { fanStatus: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
     ]
   },
   {
@@ -230,16 +230,16 @@ export const eventDeck = [
         isRisky: true, 
         successChance: 0.5, 
         successFeedback: 'He embraced the grind! He went 1st overall and your hockey family legacy is secured.', 
-        successEffect: { idol: 100, ovr: 0, money: 0, rel: { media: 20 } }, 
+        successEffect: { fanStatus: 100, ovr: 0, money: 0, rel: { media: 20 } }, 
         failFeedback: 'The pressure broke him. He quit hockey entirely, and the media blamed your overbearing parenting.', 
-        failEffect: { idol: -50, ovr: -1, money: 0, rel: { media: -30 } } 
+        failEffect: { fanStatus: -50, ovr: -1, money: 0, rel: { media: -30 } } 
       },
       { 
         label: 'Protect Him from the Spotlight',
         subLabel: 'Shield him from the comparisons and let him grow at his own pace.', 
         isRisky: false, 
         feedback: 'You shielded him from the media and let him enjoy being a kid. A great dad move, even if the hockey world is disappointed.', 
-        effect: { idol: 20, ovr: 1, money: 0, rel: { media: -10 } } 
+        effect: { fanStatus: 20, ovr: 1, money: 0, rel: { media: -10 } } 
       }
     ]
   }

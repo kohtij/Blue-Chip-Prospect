@@ -198,7 +198,7 @@ export default function IntlMinigameScreen() {
 
    const updatedPlayer = {
       ...player,
-      fanStatus: capFanStatus((player.fanStatus || player.idolatry || 0) + (effect.fanStatus || effect.idol || 0))
+      fanStatus: capFanStatus((player.fanStatus || 0) + (effect.fanStatus || 0))
    };
 
    setPlayer(updatedPlayer);
@@ -469,9 +469,9 @@ export default function IntlMinigameScreen() {
             <p className="text-base sm:text-xl italic text-slate-300 mb-6 font-sans leading-relaxed">"{intlResult.msg}"</p>
 
             <div className="flex justify-center items-center gap-2 flex-wrap">
-              {intlResult.effect?.idol !== undefined && intlResult.effect?.idol !== 0 ? (
-                <span className={`text-xs sm:text-sm font-black sports-font tracking-widest px-3 py-1.5 rounded-lg border ${intlResult.effect.idol >= 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                  {intlResult.effect.idol >= 0 ? '📈' : '📉'} {intlResult.effect.idol > 0 ? '+' : ''}{intlResult.effect.idol} FANS
+              {intlResult.effect?.fanStatus !== undefined && intlResult.effect?.fanStatus !== 0 ? (
+                <span className={`text-xs sm:text-sm font-black sports-font tracking-widest px-3 py-1.5 rounded-lg border ${intlResult.effect.fanStatus >= 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
+                  {intlResult.effect.fanStatus >= 0 ? '📈' : '📉'} {intlResult.effect.fanStatus > 0 ? '+' : ''}{intlResult.effect.fanStatus} FANS
                 </span>
               ) : null}
               {intlResult.effect?.ovr !== undefined && intlResult.effect?.ovr !== 0 ? (

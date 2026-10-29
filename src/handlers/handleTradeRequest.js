@@ -60,7 +60,7 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
         label: displayLabel,
         isRisky: false,
         feedback,
-        effect: { idol: -20, ovr: 0, money: 0 },
+        effect: { fanStatus: -20, ovr: 0, money: 0 },
         action: 'ACCEPT_TRADE_DEADLINE',
         // showTeamCard switches EventScreen to the full team card: logo watermark,
         // playoff/rank badges and the itemized perks and flaws. Without it these
@@ -87,7 +87,7 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
           label: 'Accept your fate and stay focused',
           isRisky: false,
           feedback: 'You put your head down, but the environment in the locker room is toxic.',
-          effect: { idol: -30, ovr: -1, money: 0 }
+          effect: { fanStatus: -30, ovr: -1, money: 0 }
         },
         {
           label: 'Hold Out (Refuse to Play)',
@@ -95,9 +95,9 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
           isRisky: true,
           successChance: 0.35,
           successFeedback: 'The GM panicked and immediately shipped you out for pennies on the dollar to rid the locker room of the distraction!',
-          successEffect: { idol: -50, ovr: 0 },
+          successEffect: { fanStatus: -50, ovr: 0 },
           failFeedback: 'The GM called your bluff. You missed camp, lost your conditioning, and permanently damaged your reputation.',
-          failEffect: { idol: -125, ovr: -3 },
+          failEffect: { fanStatus: -125, ovr: -3 },
           action: 'TRADE_HOLDOUT'
         }
       ],

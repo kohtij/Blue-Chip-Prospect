@@ -88,7 +88,7 @@ export default function TransferScreen() {
                   const isRival = rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team);
                   const isDraftTeam = (player.draftTeam || player.rights) === o.team;
                   const hasPlayedFor = (player.teamsPlayedFor || []).includes(o.team);
-                  const isLovedStatus = player.idolatry >= 400;
+                  const isLovedStatus = player.fanStatus >= 400;
                   const isReturnHome = isDraftTeam && player.team !== o.team && hasPlayedFor && isLovedStatus;
                   const isExtension = o.team === owningTeam || ['EXTENSION', 'QUALIFYING OFFER', 'RFA EXTENSION', 'HOMETOWN DISCOUNT'].includes(o.type);
 
@@ -155,11 +155,11 @@ export default function TransferScreen() {
                                 )}
                              </span>
                            </p>
-                           {o.idolHit !== 0 && (
+                           {o.fanHit !== 0 && (
                              <p className="flex items-start gap-2">
-                               <span className="leading-none mt-0.5">{o.idolHit > 0 ? '📈' : '📉'}</span>
-                               <span className={o.idolHit > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
-                                 Fan Impact: <strong className="font-black tracking-wider">{o.idolHit > 0 ? '+' : ''}{o.idolHit} FANS</strong>
+                               <span className="leading-none mt-0.5">{o.fanHit > 0 ? '📈' : '📉'}</span>
+                               <span className={o.fanHit > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
+                                 Fan Impact: <strong className="font-black tracking-wider">{o.fanHit > 0 ? '+' : ''}{o.fanHit} FANS</strong>
                                </span>
                              </p>
                            )}

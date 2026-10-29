@@ -136,7 +136,7 @@ export default function EventScreen() {
 
                   if (isRival) {
                       displayChoice.flaws.push({ text: 'ARCH-RIVAL: FANS WILL REVOLT' });
-                      displayChoice.effect.idol = (displayChoice.effect.idol || 0) - 75;
+                      displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 75;
                   }
 
                   if (displayChoice.actionData.madePlayoffs) {
@@ -149,16 +149,16 @@ export default function EventScreen() {
                       displayChoice.perks.push({ text: '⏱️ GUARANTEED TOP 6 MINUTES', color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' });
                       if (charCode % 2 !== 0) {
                           displayChoice.flaws.push({ text: '⚠️ REBUILDING PHASE (-10 FANS)' });
-                          displayChoice.effect.idol = (displayChoice.effect.idol || 0) - 10;
+                          displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 10;
                       }
                   }
 
                   if (charCode % 3 === 0) {
                        displayChoice.perks.push({ text: '🏟️ MAJOR MARKET (+15 FANS)', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' });
-                       displayChoice.effect.idol = (displayChoice.effect.idol || 0) + 15;
+                       displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) + 15;
                   } else if (charCode % 3 === 1) {
                        displayChoice.flaws.push({ text: '⚠️ SMALL MARKET (-5 FANS)' });
-                       displayChoice.effect.idol = (displayChoice.effect.idol || 0) - 5;
+                       displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 5;
                   }
               }
 
@@ -166,7 +166,7 @@ export default function EventScreen() {
               if (!isTradeChoice && c.action === 'ACCEPT_TRADE_DEADLINE' && c.actionData?.teamObj) {
                   const rival = getPrimaryRival(player.team, player.league);
                   if (rival && rival.id === c.actionData.teamObj.id) {
-                      displayChoice.effect.idol = (displayChoice.effect.idol || 0) - 75;
+                      displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 75;
                   }
               }
 
@@ -184,7 +184,7 @@ export default function EventScreen() {
               const data = displayChoice.actionData;
               const madePlayoffs = isTradeChoice && !!data?.madePlayoffs;
               const money = displayChoice.effect?.money || 0;
-              const idol = displayChoice.effect?.idol || 0;
+              const fanStatus = displayChoice.effect?.fanStatus || 0;
 
               let cardBorder = 'border-slate-700';
               let ribbonClass = 'bg-slate-700 text-slate-200';
@@ -280,11 +280,11 @@ export default function EventScreen() {
                             </span>
                          </span>
                        )}
-                       {idol !== 0 && (
+                       {fanStatus !== 0 && (
                          <p className="flex items-start gap-2">
-                           <span className="leading-none mt-0.5">{idol > 0 ? '📈' : '📉'}</span>
-                           <span className={idol > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
-                             Fan Impact: <strong className="font-black tracking-wider">{idol > 0 ? '+' : ''}{idol} FANS</strong>
+                           <span className="leading-none mt-0.5">{fanStatus > 0 ? '📈' : '📉'}</span>
+                           <span className={fanStatus > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
+                             Fan Impact: <strong className="font-black tracking-wider">{fanStatus > 0 ? '+' : ''}{fanStatus} FANS</strong>
                            </span>
                          </p>
                        )}

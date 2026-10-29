@@ -159,9 +159,9 @@ function App() {
   }, [screen, seasonRecap, unlockAchievement]);
 
   useEffect(() => {
-    if (player.idolatry >= 1000) unlockAchievement('franchise_legend');
-    if (player.idolatry >= 400)  unlockAchievement('local_hero');
-  }, [player.idolatry, unlockAchievement]);
+    if (player.fanStatus >= 1000) unlockAchievement('franchise_legend');
+    if (player.fanStatus >= 400)  unlockAchievement('local_hero');
+  }, [player.fanStatus, unlockAchievement]);
 
   useEffect(() => {
     const e = player.stats?.earnings || 0;
@@ -265,7 +265,7 @@ function App() {
         if (!card) return false;
         if (hand.find(c => c.id === card.id)) return false;
         if (avoidPrevious && previousIds.includes(card.id)) return false;
-        const statKeys = Object.keys(card.effect || {}).filter(k => k !== 'stamina' && k !== 'idolatry');
+        const statKeys = Object.keys(card.effect || {}).filter(k => k !== 'stamina' && k !== 'fanStatus');
         const mainStat = statKeys.length > 0 ? statKeys[0] : null;
         const alreadyHasStat = mainStat ? hand.some(c => Object.keys(c.effect || {}).includes(mainStat)) : false;
         if (alreadyHasStat) return false;
@@ -349,7 +349,7 @@ function App() {
        setActiveEvent({
          title: '🌟 THE CHOSEN ONE',
          desc: `The hockey world has never seen a prospect quite like you. At just 16 years old, scouts are already calling you the greatest generational talent since Crosby, McDavid, or Bedard. The pressure is on.`,
-         choices: [{ label: 'Embrace the Expectations', isRisky: false, feedback: 'You are ready to change a franchise forever. Let the hype begin.', effect: { idol: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
+         choices: [{ label: 'Embrace the Expectations', isRisky: false, feedback: 'You are ready to change a franchise forever. Let the hype begin.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
          isOffseasonEvent: true 
        });
        setScreen('event');
@@ -358,17 +358,17 @@ function App() {
 
   const handleDraftDay = (combineBoost = 0) => {
     const totalJuniorPoints = (player.stats?.chl?.goals || 0) + (player.stats?.chl?.assists || 0) + (player.stats?.memCupBoost || 0);
-    let overallPick = 1, round = 1, idolBoost = 0;
+    let overallPick = 1, round = 1, fanBoost = 0;
     const effectiveOvr = player.ovr + combineBoost;
 
     const isFirstOverall = (player.pos !== 'G' && effectiveOvr >= 70) || (player.pos === 'G' && effectiveOvr >= 74) || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 200);
     const isElite = effectiveOvr >= 67 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 160);
     const isGreat = effectiveOvr >= 64 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 120);
 
-    if (isFirstOverall) { overallPick = 1; round = 1; idolBoost = 25; } 
-    else if (isElite) { overallPick = player.pos === 'G' ? Math.floor(Math.random() * 10) + 5 : Math.floor(Math.random() * 9) + 2; round = 1; idolBoost = 20; } 
-    else if (isGreat) { overallPick = Math.floor(Math.random() * 22) + 11; round = 1; idolBoost = 15; } 
-    else { round = Math.floor(Math.random() * 6) + 2; overallPick = ((round - 1) * 32) + Math.floor(Math.random() * 32) + 1; idolBoost = 5; }
+    if (isFirstOverall) { overallPick = 1; round = 1; fanBoost = 25; } 
+    else if (isElite) { overallPick = player.pos === 'G' ? Math.floor(Math.random() * 10) + 5 : Math.floor(Math.random() * 9) + 2; round = 1; fanBoost = 20; } 
+    else if (isGreat) { overallPick = Math.floor(Math.random() * 22) + 11; round = 1; fanBoost = 15; } 
+    else { round = Math.floor(Math.random() * 6) + 2; overallPick = ((round - 1) * 32) + Math.floor(Math.random() * 32) + 1; fanBoost = 5; }
 
     const pool = nhlTeams || [];
     const draftedBy = pool[Math.floor(Math.random() * pool.length)];
@@ -380,7 +380,7 @@ function App() {
       draftLeague: p.league, 
       draftPick: overallPick, 
       draftRound: round, 
-      idolatry: capFanStatus(p.fanStatus + idolBoost) 
+      fanStatus: capFanStatus((p.fanStatus || 0) + fanBoost) 
     }));
 
     if (overallPick === 1) unlockAchievement('first_overall');
@@ -403,14 +403,14 @@ function App() {
        let ncaaPool = ncaaTeams ? [...ncaaTeams].sort(() => 0.5 - Math.random()) : [];
        const numNcaa = Math.floor(Math.random() * 2) + 2; 
        for (let i = 0; i < numNcaa; i++) {
-           if(ncaaPool[i]) offers.push({ team: ncaaPool[i].id, league: 'NCAA', type: 'SCHOLARSHIP', salary: Math.floor(Math.random() * 50000) + 25000, years: 4, role: 'Top Prospect', idolHit: 15, state: 'College Program', nmc: false });
+           if(ncaaPool[i]) offers.push({ team: ncaaPool[i].id, league: 'NCAA', type: 'SCHOLARSHIP', salary: Math.floor(Math.random() * 50000) + 25000, years: 4, role: 'Top Prospect', fanHit: 15, state: 'College Program', nmc: false });
        }
        let euroPool = [...(shlTeams||[]), ...(liigaTeams||[])].sort(() => 0.5 - Math.random());
        const numEuro = Math.floor(Math.random() * 2) + 1;
        for (let i = 0; i < numEuro; i++) {
            if(euroPool[i]) {
                const lg = (shlTeams||[]).find(t => t.id === euroPool[i].id) ? 'SHL' : 'LIIGA';
-               offers.push({ team: euroPool[i].id, league: lg, type: 'PRO CONTRACT', salary: Math.floor(Math.random() * 40000) + 40000, years: 1, role: 'Pro Roster', idolHit: 5, state: 'European Pro', nmc: false });
+               offers.push({ team: euroPool[i].id, league: lg, type: 'PRO CONTRACT', salary: Math.floor(Math.random() * 40000) + 40000, years: 1, role: 'Pro Roster', fanHit: 5, state: 'European Pro', nmc: false });
            }
        }
        setFreeAgencyOffers(offers.sort((a,b) => b.salary - a.salary));
@@ -441,18 +441,18 @@ function App() {
     if (hits === 3) unlockAchievement('press_master');
     if (hits === 0) unlockAchievement('press_disaster');
     
-    let idolDelta, mediaDelta, resultText, ratingDelta, ovrDelta = 0, coachDelta = 0;
-    if (hits === 3) { idolDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; resultText = 'Flawless press conference.'; ratingDelta = 0.3; }
-    else if (hits === 2) { idolDelta = 5; mediaDelta = 5; resultText = 'Solid, measured press conference.'; ratingDelta = 0.1; }
-    else if (hits === 1) { idolDelta = -5; mediaDelta = -5; resultText = 'Mixed reception at the press conference.'; ratingDelta = -0.1; }
-    else { idolDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10; resultText = 'Complete PR disaster at the press conference.'; ratingDelta = -0.4; }
+    let fanDelta, mediaDelta, resultText, ratingDelta, ovrDelta = 0, coachDelta = 0;
+    if (hits === 3) { fanDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; resultText = 'Flawless press conference.'; ratingDelta = 0.3; }
+    else if (hits === 2) { fanDelta = 5; mediaDelta = 5; resultText = 'Solid, measured press conference.'; ratingDelta = 0.1; }
+    else if (hits === 1) { fanDelta = -5; mediaDelta = -5; resultText = 'Mixed reception at the press conference.'; ratingDelta = -0.1; }
+    else { fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10; resultText = 'Complete PR disaster at the press conference.'; ratingDelta = -0.4; }
     
-    setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultText, effect: { idol: idolDelta, ovr: ovrDelta, money: 0 } }]);
+    setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultText, effect: { fanStatus: fanDelta, ovr: ovrDelta, money: 0 } }]);
     setSeasonRecap(r => r ? { ...r, rating: Math.max(0, Math.min(10, (r.rating || 5) + (ratingDelta || 0))) } : r);
 
     const withOvr = applyOvrDelta(player, ovrDelta);
     const updatedPlayer = { 
-      ...withOvr, idolatry: capFanStatus(withOvr.idolatry + idolDelta), ovr: recomputeOvr(withOvr),
+      ...withOvr, fanStatus: capFanStatus(withOvr.fanStatus + fanDelta), ovr: recomputeOvr(withOvr),
       relationships: {
         ...withOvr.relationships,
         media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + mediaDelta)),
@@ -557,18 +557,18 @@ function App() {
       let awardName = '';
 
       if (stake === 'QUARTERFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Semifinals!`; resultEffect = { idol: 15, ovr: 0 }; }
-          else { resultMsg = `${msg} A heartbreaking Quarterfinal exit for ${countryName}.`; resultEffect = { idol: -10, ovr: 0 }; }
+          if (isWin) { resultMsg = `${msg} You advance to the Semifinals!`; resultEffect = { fanStatus: 15, ovr: 0 }; }
+          else { resultMsg = `${msg} A heartbreaking Quarterfinal exit for ${countryName}.`; resultEffect = { fanStatus: -10, ovr: 0 }; }
           const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
           updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
       } else if (stake === 'SEMIFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Gold Medal Game!`; resultEffect = { idol: 25, ovr: 0 }; }
-          else { resultMsg = `${msg} You fell in the Semifinals and will play for Bronze.`; resultEffect = { idol: -5, ovr: 0 }; }
+          if (isWin) { resultMsg = `${msg} You advance to the Gold Medal Game!`; resultEffect = { fanStatus: 25, ovr: 0 }; }
+          else { resultMsg = `${msg} You fell in the Semifinals and will play for Bronze.`; resultEffect = { fanStatus: -5, ovr: 0 }; }
           const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
           updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
       } else {
           if (isWin) {
-            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry + (stake === 'GOLD' ? 50 : 25));
+            updatedPlayer.fanStatus = capFanStatus(updatedPlayer.fanStatus + (stake === 'GOLD' ? 50 : 25));
             const withOvr = applyOvrDelta(updatedPlayer, 1); 
             updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
 
@@ -594,10 +594,10 @@ function App() {
             } else {
                 resultMsg = `${msg} A solid win to end the tournament on a high note.`;
             }
-            resultEffect = { idol: 50, ovr: 1, rel: { media: 20 } }; 
+            resultEffect = { fanStatus: 50, ovr: 1, rel: { media: 20 } }; 
           } else {
-            updatedPlayer.idolatry = capFanStatus(updatedPlayer.idolatry - 5);
-            resultEffect = { idol: -5, rel: { media: -15 } }; 
+            updatedPlayer.fanStatus = capFanStatus(updatedPlayer.fanStatus - 5);
+            resultEffect = { fanStatus: -5, rel: { media: -15 } }; 
 
             if (stake === 'GOLD') {
                 awardName = 'Silver';
@@ -649,13 +649,13 @@ function App() {
       return;
     }
 
-    const payout = reward || { win: { idol: 5 }, loss: { idol: -2 } };
+    const payout = reward || { win: { fanStatus: 5 }, loss: { fanStatus: -2 } };
     const outcome = isWin ? (payout.win || {}) : (payout.loss || {});
 
     const withOvr = applyOvrDelta(player, outcome.ovr || 0);
     const updatedPlayer = {
       ...withOvr,
-      idolatry: capFanStatus(withOvr.idolatry + (outcome.idol || 0)),
+      fanStatus: capFanStatus(withOvr.fanStatus + (outcome.fanStatus || 0)),
       ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
@@ -672,7 +672,7 @@ function App() {
     setPlayer(updatedPlayer);
     setSeasonEvents(prev => {
       if (prev.length > 0 && prev[prev.length - 1].feedback === msg) return prev;
-      return [...prev, { feedback: msg, effect: { idol: outcome.idol || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 } }];
+      return [...prev, { feedback: msg, effect: { fanStatus: outcome.fanStatus || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 } }];
     });
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
@@ -687,7 +687,7 @@ function App() {
     const withOvr = applyOvrDelta(player, payout.ovr || 0);
     let updatedPlayer = {
       ...withOvr, 
-      fanStatus: capFanStatus((withOvr.fanStatus || withOvr.idolatry || 0) + (payout.fanStatus || payout.idol || 0)), 
+      fanStatus: capFanStatus((withOvr.fanStatus || 0) + (payout.fanStatus || 0)), 
       ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
@@ -736,7 +736,7 @@ function App() {
         return { ...prev, bracket: newBracket, overallStatus: isWin ? 'won_cup' : 'eliminated' };
       });
 
-      updatedPlayer.fanStatus = Math.min(1000, (updatedPlayer.fanStatus || 0) + (isWin ? 100 : -25));
+      updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) + (isWin ? 100 : -25));
 
       setPlayer(updatedPlayer);
       const finalMsg = isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.";
@@ -750,7 +750,7 @@ function App() {
 
     if (minigameContext === 'memcup') {
         if (isWin && memCup.round === 1) {
-            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || updatedPlayer.idolatry || 0) + 50);
+            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) + 50);
             updatedPlayer.stats = { ...updatedPlayer.stats, memCupBoost: 50, titles: (updatedPlayer.stats.titles || 0) + 1 };
             if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
                 const lastIdx = updatedPlayer.seasonHistory.length - 1;
@@ -762,7 +762,7 @@ function App() {
         setMemCup(prev => ({ ...prev, status: isWin ? (prev.round === 0 ? 'semi_won' : 'won') : 'lost', lastFeedback: msg }));
         
         setPlayer(updatedPlayer);
-        setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { fanStatus: payout.fanStatus || payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
+        setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { fanStatus: payout.fanStatus || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
         proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
         return; 
     }
@@ -790,7 +790,7 @@ function App() {
           updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
       } else {
           if (isWin) {
-            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || updatedPlayer.idolatry || 0) + (stake === 'GOLD' ? 50 : 25));
+            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) + (stake === 'GOLD' ? 50 : 25));
             const withOvrIntl = applyOvrDelta(updatedPlayer, 1); 
             updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
 
@@ -818,7 +818,7 @@ function App() {
             }
             resultEffect = { fanStatus: 50, ovr: 1, rel: { media: 20 } }; 
           } else {
-            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || updatedPlayer.idolatry || 0) - 5);
+            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) - 5);
             resultEffect = { fanStatus: -5, rel: { media: -15 } }; 
 
             if (stake === 'GOLD') {
@@ -874,7 +874,7 @@ function App() {
     setPlayer(updatedPlayer);
     setSeasonEvents(prev => {
       if (prev.length > 0 && prev[prev.length - 1].feedback === msg) return prev;
-      return [...prev, { feedback: msg, effect: { fanStatus: payout.fanStatus || payout.idol || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }];
+      return [...prev, { feedback: msg, effect: { fanStatus: payout.fanStatus || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }];
     });
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
@@ -901,7 +901,7 @@ function App() {
             desc: isAgedOutNCAA 
                 ? `You have exhausted your NCAA collegiate eligibility. Your amateur career has concluded and it is time to turn pro.`
                 : `You have officially aged out of major junior hockey. Your amateur career has concluded and it is time to turn pro.`,
-            choices: [{ label: 'Enter Free Agency', effect: { idol: 0, ovr: 0 } }],
+            choices: [{ label: 'Enter Free Agency', effect: { fanStatus: 0, ovr: 0 } }],
             isOffseasonEvent: true
         });
         setScreen('event');
@@ -952,7 +952,7 @@ function App() {
       if (player.contract?.nmc) return null;
       
       // 2. Franchise Legend Protection: High fan status keeps you on the NHL roster. You will ride the bench in the NHL out of respect.
-      if (player.idolatry >= 600) return null;
+      if (player.fanStatus >= 600) return null;
       
       // 3. Veteran Contract Grace: Teams rarely waive high-earning vets just for dropping a few OVR points below the threshold.
       if (player.age >= 32 && (player.contract?.salary || 0) >= 2000000 && player.ovr >= demoteThresh - 4) return null;
@@ -1091,7 +1091,7 @@ function App() {
     if (rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team)) unlockAchievement('betrayal');
     if (player.draftTeam === o.team && player.team !== o.team) {
        unlockAchievement('return_home');
-       setSeasonEvents(prev => [...prev, { feedback: `You made a triumphant return to ${getFullTeamName(o.team, o.league)}, the team that originally drafted you!`, effect: { idol: 50, ovr: 0, money: 0 } }]);
+       setSeasonEvents(prev => [...prev, { feedback: `You made a triumphant return to ${getFullTeamName(o.team, o.league)}, the team that originally drafted you!`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
     }
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
@@ -1103,15 +1103,15 @@ function App() {
       let newRelationships;
       if (isNewTeam) {
          let baseTrust = 50; let mediaTrust = 50;
-         if (p.fanStatus >= 800) { baseTrust = 75; mediaTrust = 80; } 
-         else if (p.fanStatus >= 400) { baseTrust = 60; mediaTrust = 65; }
+         if ((p.fanStatus || 0) >= 800) { baseTrust = 75; mediaTrust = 80; } 
+         else if ((p.fanStatus || 0) >= 400) { baseTrust = 60; mediaTrust = 65; }
          newRelationships = { coach: baseTrust, teammates: baseTrust, media: mediaTrust };
       } else {
          newRelationships = { coach: Math.min(100, (p.relationships?.coach || 50) + 10), teammates: Math.min(100, (p.relationships?.teammates || 50) + 10), media: Math.min(100, (p.relationships?.media || 50) + 5) };
       }
       const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
       const updatedPlayer = {
-        ...p, team: o.team, league: o.league || 'NHL', idolatry: capFanStatus(p.fanStatus + (o.idolHit || 0)), 
+        ...p, team: o.team, league: o.league || 'NHL', fanStatus: capFanStatus((p.fanStatus || 0) + (o.fanHit || 0)), 
         teamsPlayedFor: newTeams, contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc },
         relationships: newRelationships,
         // FIX: Strip captaincy if moving to a new team
@@ -1195,7 +1195,7 @@ function App() {
       // Apply the intended stats
       if (item.effect?.stamina) next.stamina = cap((next.stamina || 50) + item.effect.stamina);
       if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ || 50) + item.effect.hockeyIQ);
-      if (item.effect?.idolatry) next.idolatry = capFanStatus(next.idolatry + item.effect.idolatry);
+      if (item.effect?.fanStatus) next.fanStatus = capFanStatus(next.fanStatus + item.effect.fanStatus);
       if (item.effect?.physicality) next.physicality = cap((next.physicality || 50) + item.effect.physicality);
       if (item.effect?.shooting) next.shooting = cap((next.shooting || 50) + item.effect.shooting);
       if (item.effect?.skating) next.skating = cap((next.skating || 50) + item.effect.skating);
@@ -1298,7 +1298,7 @@ function App() {
   ctx.proceedToNextScreen = proceedToNextScreen;
   ctx.checkPlayoffs = checkPlayoffs;
 
-  const tier = getFanTier(player.idolatry);
+  const tier = getFanTier(player.fanStatus);
 
   const contextValue = {
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame,

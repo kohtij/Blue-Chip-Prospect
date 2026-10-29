@@ -17,7 +17,7 @@ export const makeInitialPlayer = () => ({
   },
   seasonHistory: [],
   relationships: { coach: 50, teammates: 50, media: 50 },
-  idolatry: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: [], rights: null, startLeague: 'OHL',
+  fanStatus: 0, inventory: [], buffs: [], agentRerolls: 1, teamsPlayedFor: [], rights: null, startLeague: 'OHL',
   // Storyline & generational trackers
   isGenerational: false,
   archetype: '',
@@ -91,6 +91,29 @@ export const getFullTeamName = (teamId, league) => {
   return t.name || t.id || 'UNKNOWN';
 };
 
+// Quality of the training programmes a club can put in front of a player. An NHL
+// room with the staff behind you offers better camps than a junior club on a short
+// budget. Returns 0..1; used to weight the rarity of the three cards on offer and
+// to label the tier on the preseason screen.
+export const getTrainingQuality = (p) => {
+  const lg = p?.league;
+  const leagueTier = lg === 'NHL' ? 1
+     : ['AHL', 'KHL', 'SHL', 'LIIGA', 'SWISS'].includes(lg) ? 0.6
+     : ['ECHL', 'NCAA'].includes(lg) ? 0.4
+     : 0.2;
+  const clamp01 = v => Math.min(1, Math.max(0, v));
+  const trust = clamp01(((p?.relationships?.coach ?? 50) - 40) / 50);
+  const skill = clamp01(((p?.ovr ?? 60) - 60) / 30);
+  return clamp01((0.45 * leagueTier) + (0.30 * skill) + (0.25 * trust));
+};
+
+export const getTrainingTierLabel = (q) => {
+  if (q >= 0.72) return { tier: 'ELITE PROGRAMME', note: 'The club has opened up its full development budget for you.' };
+  if (q >= 0.48) return { tier: 'FULL PROGRAMME', note: 'The staff have built a proper off-season plan around you.' };
+  if (q >= 0.26) return { tier: 'STANDARD PROGRAMME', note: 'You get the regular club programme. Pick your focus.' };
+  return { tier: 'LIMITED PROGRAMME', note: 'Short budget, shared ice time. You work with what the club has.' };
+};
+
 // Dynamic Playoff Title Generator
 export const getPlayoffTitles = (league) => {
   switch (league) {
@@ -152,7 +175,7 @@ export const MASTER_ACHIEVEMENTS = [
   { id: 'iron_man', name: 'Iron Man', desc: 'Play 15 or more consecutive seasons in your career', icon: '🦾' },
 
   // LOYALTY & FAN STATUS
-  { id: 'franchise_legend', name: 'Statue Outside', desc: 'Reach Max Fan Status (1000 Fan Idolatry)', icon: '🗽' },
+  { id: 'franchise_legend', name: 'Statue Outside', desc: 'Reach the maximum Fan Status of 1000', icon: '🗽' },
   { id: 'one_club_man', name: 'One Club Legend', desc: 'Play 10+ seasons for a single franchise', icon: '🏛️' },
   { id: 'return_home', name: 'Prodigal Son', desc: 'Return and sign with the team that originally drafted you', icon: '🏠' },
   { id: 'local_hero', name: 'Hometown Favorite', desc: 'Reach "Loved" status with your team\'s fanbase', icon: '❤️' },
@@ -185,7 +208,7 @@ export const MASTER_ACHIEVEMENTS = [
   // CAREER ENDINGS & META
   { id: 'hall_of_fame', name: 'First Ballot', desc: 'Retire with at least 3 Titles and 5 Individual Trophies', icon: '🏛️' },
   { id: 'veteran_retirement', name: 'Hanging Up the Skates', desc: 'Retire after age 38 as an active NHL player', icon: '🏒' },
-  { id: 'the_idol', name: 'The Ultimate Idol', desc: 'Unlock 40 or more total achievements across all career playthroughs', icon: '🏆' }
+  { id: 'the_idol', name: 'The Ultimate Icon', desc: 'Unlock 40 or more total achievements across all career playthroughs', icon: '🏆' }
 ];
 
 export const PRESS_VIBES = {

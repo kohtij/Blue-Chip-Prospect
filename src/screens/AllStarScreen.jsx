@@ -32,7 +32,7 @@ export default function AllStarScreen() {
      return pool[Math.floor(Math.random() * pool.length)];
   });
   
-  const isCaptain = player.ovr >= 90 || player.idolatry >= 600;
+  const isCaptain = player.ovr >= 90 || player.fanStatus >= 600;
 
   const [phase, setPhase] = useState('intro'); 
   const [captainStrategy, setCaptainStrategy] = useState(null);
@@ -49,7 +49,7 @@ export default function AllStarScreen() {
      setPlayer(p => ({ 
          ...p, 
          stamina: Math.min(100, p.stamina + 1),
-         idolatry: Math.max(0, p.idolatry - 5),
+         fanStatus: Math.max(0, p.fanStatus - 5),
          relationships: {
              ...p.relationships,
              media: Math.max(0, (p.relationships?.media || 50) - 15)
@@ -59,8 +59,8 @@ export default function AllStarScreen() {
   };
 
 const handleQuickSim = () => {
-     setCarpetFeedback({ msg: "You kept a low profile and saved your energy for the regular season.", idolHit: 5, mediaHit: 0, coachHit: 0 });
-     setSkillsFeedback({ msg: "You made a brief, respectful appearance at the skills competition.", ovrBoost: 0, idolBoost: 5, eventName: 'Weekend Sim', time: 10 });
+     setCarpetFeedback({ msg: "You kept a low profile and saved your energy for the regular season.", fanHit: 5, mediaHit: 0, coachHit: 0 });
+     setSkillsFeedback({ msg: "You made a brief, respectful appearance at the skills competition.", ovrBoost: 0, fanBoost: 5, eventName: 'Weekend Sim', time: 10 });
      setPhase('result');
   };
 
@@ -70,28 +70,28 @@ const handleQuickSim = () => {
   };
 
   const handleCarpetChoice = (type) => {
-    let msg, idolHit = 0, mediaHit = 0, coachHit = 0;
+    let msg, fanHit = 0, mediaHit = 0, coachHit = 0;
 
     if (type === 'safe') {
       msg = "You spent an hour signing autographs for kids. A classic, classy move.";
-      idolHit = 15;
+      fanHit = 15;
     } else if (type === 'risky') {
       if (Math.random() > 0.4) {
         msg = "Your bold, flashy suit went viral! The fans absolutely loved the swagger.";
-        idolHit = 40;
+        fanHit = 40;
       } else {
         msg = "You tried a wild fashion statement and got completely roasted on social media.";
-        idolHit = -15;
+        fanHit = -15;
       }
     } else if (type === 'classy') {
       msg = "You attended the local hospital charity gala. The media and your coach praised your maturity.";
-      idolHit = 10; mediaHit = 10; coachHit = 5;
+      fanHit = 10; mediaHit = 10; coachHit = 5;
     } else if (type === 'spicy') {
       msg = "You gave a spicy interview calling out your division rivals. Fans loved it, but the media thought it was uncalled for.";
-      idolHit = 25; mediaHit = -10;
+      fanHit = 25; mediaHit = -10;
     }
 
-    setCarpetFeedback({ msg, idolHit, mediaHit, coachHit });
+    setCarpetFeedback({ msg, fanHit, mediaHit, coachHit });
     setTimeout(() => setPhase('skills-comp'), 3000);
   };
 
@@ -101,14 +101,14 @@ const handleQuickSim = () => {
   };
 
   const finishAllStar = () => {
-    const totalIdol = Math.min(50, (carpetFeedback?.idolHit || 0) + (skillsFeedback?.idolBoost || 0));
+    const totalFans = Math.min(50, (carpetFeedback?.fanHit || 0) + (skillsFeedback?.fanBoost || 0));
     const totalOvr = Math.min(2, skillsFeedback?.ovrBoost || 0);
 
     setPlayer(p => {
       const withOvr = applyOvrDelta(p, totalOvr);
       return {
           ...withOvr,
-          idolatry: capFanStatus(withOvr.idolatry + totalIdol),
+          fanStatus: capFanStatus(withOvr.fanStatus + totalFans),
           ovr: recomputeOvr(withOvr),
           relationships: {
              ...withOvr.relationships,
@@ -225,9 +225,9 @@ const handleQuickSim = () => {
             <div className="bg-[#101410] border border-[rgba(255,255,255,0.1)] p-8 rounded-xl shadow-2xl flex flex-col items-center">
                <p className="text-xl font-bold text-white mb-6 text-center">{carpetFeedback.msg}</p>
                <div className="flex flex-wrap gap-3 justify-center">
-                 {carpetFeedback.idolHit !== 0 && (
-                    <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.idolHit > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                      {carpetFeedback.idolHit > 0 ? '+' : ''}{carpetFeedback.idolHit} FANS
+                 {carpetFeedback.fanHit !== 0 && (
+                    <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.fanHit > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
+                      {carpetFeedback.fanHit > 0 ? '+' : ''}{carpetFeedback.fanHit} FANS
                     </span>
                  )}
                  {carpetFeedback.mediaHit !== 0 && (
@@ -281,9 +281,9 @@ const handleQuickSim = () => {
            
            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">WEEKEND REWARDS EARNED</p>
            <div className="flex flex-wrap justify-center gap-3 w-full">
-             {(carpetFeedback.idolHit + skillsFeedback.idolBoost) > 0 && (
+             {(carpetFeedback.fanHit + skillsFeedback.fanBoost) > 0 && (
                <span className="font-black sports-font tracking-widest text-sm px-4 py-2 rounded border text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30">
-                 +{Math.min(50, carpetFeedback.idolHit + skillsFeedback.idolBoost)} FANS
+                 +{Math.min(50, carpetFeedback.fanHit + skillsFeedback.fanBoost)} FANS
                </span>
              )}
              {skillsFeedback.ovrBoost > 0 && (

@@ -6,7 +6,7 @@ export const interactiveMinigames = [
     accent: 'blue',
     gameType: 'shootout',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
-    reward: { win: { idol: 25, ovr: 1, money: 5000 }, loss: { idol: -15, ovr: 0 } },
+    reward: { win: { fanStatus: 25, ovr: 1, money: 5000 }, loss: { fanStatus: -15, ovr: 0 } },
     successMsg: "Snipe city! You went top shelf where momma hides the peanut butter!",
     failMsg: "You waited too long and the goalie poke-checked the puck away."
   },
@@ -17,7 +17,7 @@ export const interactiveMinigames = [
     accent: 'amber',
     gameType: 'faceoff',
     pos: ['C'], // Centers only
-    reward: { win: { idol: 15, ovr: 1, rel: { coach: 10 } }, loss: { idol: -10, ovr: 0, rel: { coach: -10 } } },
+    reward: { win: { fanStatus: 15, ovr: 1, rel: { coach: 10 } }, loss: { fanStatus: -10, ovr: 0, rel: { coach: -10 } } },
     successMsg: "Clean win! You snapped it straight back to your defenseman.",
     failMsg: "You lost the draw, putting your team immediately on the defensive."
   },
@@ -28,7 +28,7 @@ export const interactiveMinigames = [
     accent: 'red',
     gameType: 'crease',
     pos: ['G'], // Goalies only
-    reward: { win: { idol: 30, ovr: 1, rel: { teammates: 15 } }, loss: { idol: -20, ovr: -1 } },
+    reward: { win: { fanStatus: 30, ovr: 1, rel: { teammates: 15 } }, loss: { fanStatus: -20, ovr: -1 } },
     successMsg: "Brick wall! You robbed them blind and kept the puck out of the net.",
     failMsg: "The barrage was too much. You gave up a soft rebound goal."
   },
@@ -39,7 +39,7 @@ export const interactiveMinigames = [
     accent: 'emerald',
     gameType: 'film',
     pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], // Everyone
-    reward: { win: { idol: 5, ovr: 1, rel: { coach: 20 } }, loss: { idol: 0, ovr: 0, rel: { coach: -20 } } },
+    reward: { win: { fanStatus: 5, ovr: 1, rel: { coach: 20 } }, loss: { fanStatus: 0, ovr: 0, rel: { coach: -20 } } },
     successMsg: "High IQ! You knew exactly where everyone was supposed to be.",
     failMsg: "You blew your assignment and the coach ripped into you."
   },
@@ -50,7 +50,7 @@ export const interactiveMinigames = [
     accent: 'emerald',
     gameType: 'deflect',
     pos: ['C', 'LW', 'RW'], // Forwards only
-    reward: { win: { idol: 20, ovr: 1 }, loss: { idol: -5, ovr: 0 } },
+    reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -5, ovr: 0 } },
     successMsg: "Perfect hand-eye coordination! You tipped it right under the bar.",
     failMsg: "You missed the puck entirely and the goalie swallowed it up."
   },
@@ -61,7 +61,7 @@ export const interactiveMinigames = [
     accent: 'amber',
     gameType: 'block',
     pos: ['LD', 'RD'], // Defensemen only
-    reward: { win: { idol: 25, ovr: 1, rel: { teammates: 20, coach: 15 } }, loss: { idol: 0, ovr: -1, rel: { coach: -5 } } },
+    reward: { win: { fanStatus: 25, ovr: 1, rel: { teammates: 20, coach: 15 } }, loss: { fanStatus: 0, ovr: -1, rel: { coach: -5 } } },
     successMsg: "You ate those pucks like a champion. The bench is going wild for you!",
     failMsg: "You screened your own goalie and the puck went right past you into the net."
   },
@@ -72,7 +72,7 @@ export const interactiveMinigames = [
     accent: 'blue',
     gameType: 'breakaway',
     pos: ['G'], // Goalies only
-    reward: { win: { idol: 35, ovr: 1, rel: { teammates: 10 } }, loss: { idol: -15, ovr: -1 } },
+    reward: { win: { fanStatus: 35, ovr: 1, rel: { teammates: 10 } }, loss: { fanStatus: -15, ovr: -1 } },
     successMsg: "Highway robbery! You read the deke perfectly and flashed the leather.",
     failMsg: "You bit on the fake and he tucked it in the empty side of the net."
   },
@@ -83,7 +83,7 @@ export const interactiveMinigames = [
     accent: 'amber',
     gameType: 'onetimer',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
-    reward: { win: { idol: 20, ovr: 1 }, loss: { idol: -10, ovr: 0 } },
+    reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -10, ovr: 0 } },
     successMsg: "What a rocket! You blasted the one-timer top shelf.",
     failMsg: "You fanned on the shot and the puck trickled into the corner."
   },
@@ -94,7 +94,7 @@ export const interactiveMinigames = [
     accent: 'emerald',
     gameType: 'faceoff', 
     pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], 
-    reward: { win: { idol: 10, ovr: 1, rel: { coach: 25 } }, loss: { idol: -5, ovr: -1, rel: { coach: -25 } } },
+    reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
     successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
     failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
   },
@@ -105,7 +105,7 @@ export const interactiveMinigames = [
     accent: 'blue',
     gameType: 'breakout',
     pos: ['LD', 'RD'],
-    reward: { win: { idol: 15, ovr: 1, rel: { coach: 15 } }, loss: { idol: -10, ovr: 0, rel: { coach: -10 } } },
+    reward: { win: { fanStatus: 15, ovr: 1, rel: { coach: 15 } }, loss: { fanStatus: -10, ovr: 0, rel: { coach: -10 } } },
     successMsg: "Tape to tape! You bypassed the forecheck beautifully.",
     failMsg: "Turnover! You passed it right to the forechecker."
   },
@@ -116,7 +116,7 @@ export const interactiveMinigames = [
     accent: 'emerald',
     gameType: 'screened',
     pos: ['G'],
-    reward: { win: { idol: 25, ovr: 1, rel: { teammates: 10 } }, loss: { idol: -10, ovr: 0 } },
+    reward: { win: { fanStatus: 25, ovr: 1, rel: { teammates: 10 } }, loss: { fanStatus: -10, ovr: 0 } },
     successMsg: "What a reflex save! You fought through the screen.",
     failMsg: "Beaten clean. You couldn't track it through the traffic."
   },
@@ -127,7 +127,7 @@ export const interactiveMinigames = [
     accent: 'amber',
     gameType: 'zone_battle',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'],
-    reward: { win: { idol: 20, ovr: 1 }, loss: { idol: -5, ovr: 0 } },
+    reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -5, ovr: 0 } },
     successMsg: "You boxed out the defender and got the tip!",
     failMsg: "You lost leverage and got pushed out of the crease."
   }

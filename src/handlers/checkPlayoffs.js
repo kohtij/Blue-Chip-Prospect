@@ -239,7 +239,7 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
 
       if (run.overallStatus === 'won_cup') {
         // Still on the roster, so the name goes on the trophy and the fans notice.
-        if (ctx.setPlayer) ctx.setPlayer(p => ({ ...p, idolatry: capFanStatus((p.idolatry || 0) + 15) }));
+        if (ctx.setPlayer) ctx.setPlayer(p => ({ ...p, fanStatus: capFanStatus((p.fanStatus || 0) + 15) }));
         if (ctx.unlockAchievement) {
           if (currentLg === 'NHL') ctx.unlockAchievement('stanley_cup');
           if (currentLg === 'AHL') ctx.unlockAchievement('ahl_champ');

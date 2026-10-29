@@ -1,8 +1,11 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
-import { LEAGUE_CONFIG, getOpponentPool, getPrimaryRival, ncaaTeams } from '../data/teams';
+import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '../data/teams';
 import { capFanStatus, formatMoney } from '../utils/gameHelpers';
-import { formatLeagueName, leagueWithArticle } from '../utils/gameHelpers';
+import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
+
+// Leagues that don't count toward a player's pro season number.
+const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
 
 export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
@@ -19,9 +22,25 @@ export default function RecapScreen() {
           const madePlayoffsForNarrative = seasonRecap?.madePlayoffs || false;
           const pw = seasonRecap?.playoffWins || 0;
           const hasHardware = seasonRecap?.awards && seasonRecap.awards.length > 0;
-          const playoffSpots = LEAGUE_CONFIG[player.league]?.playoffSpots || 16;
-          const maxWins = Math.log2(playoffSpots) * 4;
+          // Was `Math.log2(playoffSpots) * 4`, which only matches a league whose
+          // bracket happens to be four best-of-7 rounds. It disagreed with the
+          // real bracket in seven leagues: it fell fractional in the Swiss NL,
+          // Czech and Slovak Extraliga, so `pw === maxWins - 1` could never be
+          // true and GAME 7 HEARTBREAK was unreachable there, and it read 16 for
+          // the NCAA where the title actually takes 8 wins. The bracket the
+          // playoffs are simulated from is the only authority on this.
+          const maxWins = (getPlayoffRounds(player.league) || [])
+            .reduce((sum, r) => sum + Math.ceil((r.gamesPerMatchup || 7) / 2), 0) || 16;
           const standings = seasonRecap?.standings || 16;
+
+          // Was `seasonsPlayed - 2`, which assumed every player spends exactly two
+          // years as an amateur. Four NCAA years opened the pro career at "PRO
+          // SEASON 2", and a two-year junior path opened it at "PRO SEASON 0".
+          // Counting the history instead works for any route to the pros.
+          const proSeasonNumber = Math.max(
+            1,
+            (player.seasonHistory || []).filter(s => s.league && !AMATEUR_LEAGUES.includes(s.league)).length
+          );
 
           const rivalObj = getPrimaryRival ? getPrimaryRival(player.team, player.league) : null;
           const rivalName = rivalObj ? (rivalObj.name || rivalObj.id) : null;
@@ -70,7 +89,7 @@ export default function RecapScreen() {
               }
               
               if (rivalWonTitle) {
-                  narrative += ` Adding insult to injury, your arch-rivals—${['SHL', 'LIIGA'].includes(player.league) ? '' : 'the '}${rivalName}—lifted the trophy.`;
+                  narrative += ` Adding insult to injury, your arch-rivals, ${withTeamArticle(rivalName, player.league)}, lifted the trophy.`;
               } else if (hasHardware && pw > 0 && pw < maxWins - 1) {
                   narrative += " Your individual brilliance wasn't enough to carry the team.";
               }
@@ -78,7 +97,7 @@ export default function RecapScreen() {
               narrativeTitle = 'MISSED THE DANCE';
               narrative = 'A disappointing campaign. Rebuild for next year.';
               if (rivalWonTitle) {
-                  narrative = `A nightmare season. Not only did you miss the playoffs, but your arch-rivals, ${['SHL', 'LIIGA'].includes(player.league) ? '' : 'the '}${rivalName}, won it all.`;
+                  narrative = `A nightmare season. Not only did you miss the playoffs, but your arch-rivals, ${withTeamArticle(rivalName, player.league)}, won it all.`;
               } else if (hasHardware) {
                   narrative = 'You had an incredible individual year, but the team completely let you down.';
               }
@@ -101,7 +120,10 @@ export default function RecapScreen() {
               <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
                 <h2 className="text-[#3b82f6] font-bold tracking-widest uppercase text-sm sm:text-lg sports-font">THE RINK REPORT</h2>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs sm:text-sm">
-                  {(isJunior || player.league === 'NCAA' || ['SHL', 'LIIGA', 'EURO'].includes(player.league)) ? 'AMATEUR CAMPAIGN' : `PRO SEASON ${player.stats.seasonsPlayed - 2}`}
+                  {/* The SHL and Liiga used to land here as "AMATEUR CAMPAIGN". They are
+                      professional leagues, so they now count as pro seasons, and the label
+                      shares one list with the season counter instead of keeping its own. */}
+                  {AMATEUR_LEAGUES.includes(player.league) ? 'AMATEUR CAMPAIGN' : `PRO SEASON ${proSeasonNumber}`}
                 </p>
               </div>
 
@@ -131,7 +153,7 @@ export default function RecapScreen() {
                         );
                      }
                      return (
-                       <>🏅 {['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'].includes(player.league) ? '' : 'The '}{getFullTeamName(player.team, player.league)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in {leagueWithArticle(player.league)}. {
+                       <>🏅 {withTeamArticle(getFullTeamName(player.team, player.league), player.league, true)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in {leagueWithArticle(player.league)}. {
                          (seasonRecap?.standings === 1) ? 'An absolutely dominant regular season.' :
                          (seasonRecap?.madePlayoffs) ? 'A solid campaign to secure a playoff berth.' :
                          (seasonRecap?.standings >= (getOpponentPool(player.league)?.length || 20) - 3) ? 'A miserable rebuilding year for the franchise.' :
@@ -217,32 +239,43 @@ export default function RecapScreen() {
                     <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-2 block">
                       <span className="text-slate-300 leading-relaxed">📰 {ev.feedback}</span>
                        <span className="inline-flex flex-wrap items-center gap-1.5 ml-2 align-middle relative -top-[1px]">
-                         {ev.effect?.ovr !== undefined && ev.effect.ovr !== 0 && (
-                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.ovr > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                             {ev.effect.ovr > 0 ? '+' : ''}{ev.effect.ovr} OVR
-                           </span>
-                         )}
-                         {ev.effect?.idol !== undefined && ev.effect.idol !== 0 && (
-                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.idol > 0 ? 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                             {ev.effect.idol > 0 ? '+' : ''}{ev.effect.idol} FANS
-                           </span>
-                         )}
-                         {ev.effect?.money !== undefined && ev.effect.money !== 0 && (
-                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.money > 0 ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                             {ev.effect.money > 0 ? '+' : '-'}{formatMoney(Math.abs(ev.effect.money))}
-                           </span>
-                         )}
-                         {/* FIX: RENDER SKATING AND PHYSICALITY PILLS */}
-                         {ev.effect?.skating !== undefined && ev.effect.skating !== 0 && (
-                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.skating > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                             {ev.effect.skating > 0 ? '+' : ''}{ev.effect.skating} SKT
-                           </span>
-                         )}
-                         {ev.effect?.physicality !== undefined && ev.effect.physicality !== 0 && (
-                           <span className={`text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none ${ev.effect.physicality > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                             {ev.effect.physicality > 0 ? '+' : ''}{ev.effect.physicality} PHY
-                           </span>
-                         )}
+                         {/* One row per stat the game can actually hand out. The pills used
+                             to be written by hand and had fallen behind the effects: shooting,
+                             hockeyIQ and stamina had no pill at all, and neither did the
+                             fanStatus spelling of a fan change, so an international medal or
+                             a +5 IQ event showed its text with no visible reward. */}
+                         {(() => {
+                           const isG = player.pos === 'G';
+                           const base = 'text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none';
+                           const tone = {
+                             stat:  'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30',
+                             fans:  'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30',
+                             money: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30',
+                             bad:   'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'
+                           };
+                           const rows = [
+                             ['ovr',         'OVR',              'stat'],
+                             ['fanStatus',   'FANS',             'fans'],
+                             ['money',       null,               'money'],
+                             ['shooting',    isG ? 'REF' : 'SHT', 'stat'],
+                             ['skating',     isG ? 'POS' : 'SKT', 'stat'],
+                             ['physicality', isG ? 'AGI' : 'PHY', 'stat'],
+                             ['hockeyIQ',    'IQ',               'stat'],
+                             ['stamina',     'STM',              'stat']
+                           ];
+                           return rows.map(([key, label, kind]) => {
+                             const raw = ev.effect?.[key];
+                             const v = Number(raw);
+                             if (raw === undefined || raw === null || !Number.isFinite(v) || v === 0) return null;
+                             return (
+                               <span key={key} className={`${base} ${v > 0 ? tone[kind] : tone.bad}`}>
+                                 {key === 'money'
+                                   ? `${v > 0 ? '+' : '-'}${formatMoney(Math.abs(v))}`
+                                   : `${v > 0 ? '+' : ''}${v} ${label}`}
+                               </span>
+                             );
+                           });
+                         })()}
                          {ev.perks?.map((p, idx) => (
                           <span key={`perk-${idx}`} className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-widest border ${p.color || 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'}`}>
                               {p.text}
@@ -267,7 +300,7 @@ export default function RecapScreen() {
                 {player.league === 'NCAA' && (
                    <button onClick={() => {
                        unlockAchievement('transfer_portal'); 
-                       setPlayer(p => ({ ...p, idolatry: capFanStatus(p.fanStatus - 15) }));
+                       setPlayer(p => ({ ...p, fanStatus: capFanStatus((p.fanStatus || 0) - 15) }));
 
                        let pool = ncaaTeams?.filter(t => t.id !== player.team) || [];
                        pool = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -275,16 +308,16 @@ export default function RecapScreen() {
 
                        const offeredTeams = pool.map(t => {
                            const possiblePerks = [
-                               { text: '📈 Elite Coaching (+2 OVR)', ovr: 2, idol: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
-                               { text: '🏟️ National Spotlight (+25 Fans)', ovr: 0, idol: 25, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' },
-                               { text: '💰 Massive NIL Deal ($100k)', ovr: 0, idol: 0, money: 100000, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' },
-                               { text: '⚡ Run & Gun System (+1 OVR, +10 Fans)', ovr: 1, idol: 10, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }
+                               { text: '📈 Elite Coaching (+2 OVR)', ovr: 2, fanStatus: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
+                               { text: '🏟️ National Spotlight (+25 Fans)', ovr: 0, fanStatus: 25, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' },
+                               { text: '💰 Massive NIL Deal ($100k)', ovr: 0, fanStatus: 0, money: 100000, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' },
+                               { text: '⚡ Run & Gun System (+1 OVR, +10 Fans)', ovr: 1, fanStatus: 10, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }
                            ];
 
                            const possibleFlaws = [
-                               { text: '⚠️ Crowded Depth Chart (-1 OVR)', ovr: -1, idol: 0, money: 0 },
-                               { text: '⚠️ Rebuilding Phase (-10 Fans)', ovr: 0, idol: -10, money: 0 },
-                               { text: '⚠️ Strict System (-5 Fans)', ovr: 0, idol: -5, money: 0 }
+                               { text: '⚠️ Crowded Depth Chart (-1 OVR)', ovr: -1, fanStatus: 0, money: 0 },
+                               { text: '⚠️ Rebuilding Phase (-10 Fans)', ovr: 0, fanStatus: -10, money: 0 },
+                               { text: '⚠️ Strict System (-5 Fans)', ovr: 0, fanStatus: -5, money: 0 }
                            ];
 
                            const perkCount = Math.floor(Math.random() * 2) + 1; 
@@ -293,14 +326,14 @@ export default function RecapScreen() {
                            const selectedPerks = [...possiblePerks].sort(() => 0.5 - Math.random()).slice(0, perkCount);
                            const selectedFlaws = [...possibleFlaws].sort(() => 0.5 - Math.random()).slice(0, flawCount);
 
-                           let totalOvr = 0, totalIdol = 0, totalMoney = 0;
-                           selectedPerks.forEach(p => { totalOvr += p.ovr; totalIdol += p.idol; totalMoney += p.money; });
-                           selectedFlaws.forEach(f => { totalOvr += f.ovr; totalIdol += f.idol; totalMoney += f.money; });
+                           let totalOvr = 0, totalFans = 0, totalMoney = 0;
+                           selectedPerks.forEach(p => { totalOvr += p.ovr; totalFans += p.fanStatus; totalMoney += p.money; });
+                           selectedFlaws.forEach(f => { totalOvr += f.ovr; totalFans += f.fanStatus; totalMoney += f.money; });
 
                            return {
                                ...t,
                                finalOvr: Math.max(0, totalOvr),
-                               finalIdol: totalIdol,
+                               finalFans: totalFans,
                                finalMoney: totalMoney,
                                perks: selectedPerks,
                                flaws: selectedFlaws
@@ -313,7 +346,7 @@ export default function RecapScreen() {
                            flaws: t.flaws,
                            isRisky: false, 
                            feedback: `You signed your transfer paperwork and are officially a member of ${t.name}!`, 
-                           effect: { idol: t.finalIdol, ovr: t.finalOvr, money: t.finalMoney }, 
+                           effect: { fanStatus: t.finalFans, ovr: t.finalOvr, money: t.finalMoney }, 
                            action: 'JOIN_NCAA', 
                            actionData: t.id
                        }));

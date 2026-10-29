@@ -197,7 +197,7 @@ export function handleEventChoice(ctx, choice) {
   const withOvr = applyOvrDelta(updated, outcomeEffect?.ovr || 0);
   const finalPlayer = {
     ...withOvr,
-    idolatry: capFanStatus(withOvr.idolatry + (outcomeEffect?.idol || 0)),
+    fanStatus: capFanStatus(withOvr.fanStatus + (outcomeEffect?.fanStatus || 0)),
     ovr: recomputeOvr(withOvr),
     stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) },
     relationships: {
@@ -219,11 +219,11 @@ export function handleEventChoice(ctx, choice) {
          baseTrust = 35; 
          mediaTrust = 70; 
      } 
-     else if (finalPlayer.idolatry >= 800) {
+     else if (finalPlayer.fanStatus >= 800) {
          baseTrust = 75; 
          mediaTrust = 80;
      } 
-     else if (finalPlayer.idolatry >= 400) {
+     else if (finalPlayer.fanStatus >= 400) {
          baseTrust = 60; 
          mediaTrust = 65;
      }
@@ -237,7 +237,7 @@ export function handleEventChoice(ctx, choice) {
   } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
       setActiveEvent(null);
       setScreen('preseason');
-      if (generateTraining) generateTraining(finalPlayer.pos);
+      if (generateTraining) generateTraining(finalPlayer.pos, finalPlayer);
   } else if (actionStr === 'ROUTE_ALL_STAR') {
       setActiveEvent(null);
       setScreen('all-star');
@@ -270,7 +270,7 @@ export function handleEventChoice(ctx, choice) {
                      label: 'Accept the Trade and pack your bags', 
                      action: 'ACCEPT_TRADE_DEADLINE', 
                      actionData: { teamObj: destTeamObj, lg: finalPlayer.league, madePlayoffs: willMakePlayoffs, teamStandings: generatedStandings, showTeamCard: true },
-                     effect: { idol: 10, ovr: 0, rel: { media: 10 } } 
+                     effect: { fanStatus: 10, ovr: 0, rel: { media: 10 } } 
                   }
               ]
           });
@@ -281,7 +281,7 @@ export function handleEventChoice(ctx, choice) {
               desc: `Management called your bluff. No one met their asking price, and the GM has demanded a face-to-face meeting. You are staying put.`,
               isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent, // <-- Keeps the routing intact!
               choices: [
-                  { label: 'Apologize and return to the team', effect: { idol: -25, ovr: 0, money: 0, rel: { coach: -20, teammates: -15 } } },
+                  { label: 'Apologize and return to the team', effect: { fanStatus: -25, ovr: 0, money: 0, rel: { coach: -20, teammates: -15 } } },
                   { 
                      label: 'Double down and refuse to play', 
                      action: 'RESOLVE_DOUBLE_DOWN', 
@@ -289,11 +289,11 @@ export function handleEventChoice(ctx, choice) {
                      successFeedback: isPro 
                          ? 'The owner stepped in and fired the GM! You won the power struggle and now essentially run the locker room.' 
                          : 'Ownership sided with you! The GM backed off and you are now the undisputed star of the franchise.', 
-                     successEffect: { idol: 15, ovr: 0, rel: { coach: 20 } }, 
+                     successEffect: { fanStatus: 15, ovr: 0, rel: { coach: 20 } }, 
                      failFeedback: finalPlayer.league === 'NHL' 
                          ? 'You were suspended, waived, and banished to the AHL for conduct detrimental to the team.' 
                          : 'You were suspended indefinitely, then spite-traded to a new team for pennies on the dollar.', 
-                     failEffect: { idol: -40, ovr: -1, money: fineAmount, rel: { media: -30 } } 
+                     failEffect: { fanStatus: -40, ovr: -1, money: fineAmount, rel: { media: -30 } } 
                   }
               ]
           });

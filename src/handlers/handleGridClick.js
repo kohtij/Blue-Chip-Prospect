@@ -158,7 +158,7 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
           // because this path adds no award entry to compare against.
           playerUpdates = p => ({
             ...p,
-            idolatry: capFanStatus(p.idolatry + 30)
+            fanStatus: capFanStatus(p.fanStatus + 30)
           });
           if (player.league === 'NHL') unlockAchievement('stanley_cup');
           if (player.league === 'AHL') unlockAchievement('ahl_champ');

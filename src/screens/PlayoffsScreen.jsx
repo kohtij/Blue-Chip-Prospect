@@ -151,7 +151,7 @@ export default function PlayoffsScreen() {
           const withOvr = applyOvrDelta(p, ovrDelta);
           return {
               ...withOvr,
-              fanStatus: Math.min(1000, Math.max(0, (withOvr.fanStatus || withOvr.idolatry || 0) + fanStatusDelta)),
+              fanStatus: Math.min(1000, Math.max(0, (withOvr.fanStatus || 0) + fanStatusDelta)),
               ovr: recomputeOvr(withOvr),
               relationships: {
                   ...withOvr.relationships,

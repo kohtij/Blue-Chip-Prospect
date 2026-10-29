@@ -551,7 +551,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0) {
     physicality: cap(newPhy),
     hockeyIQ: cap(newIq),
     stamina: cap(newSta),
-    fanStatus: capFanStatus((p.fanStatus || p.idolatry || 0) + fanStatusGain),
+    fanStatus: capFanStatus((p.fanStatus || 0) + fanStatusGain),
     contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
@@ -612,8 +612,18 @@ export const formatLeagueName = (league) => {
   return league;
 };
 
+const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+
 export const leagueWithArticle = (league) => {
-  const noArticle = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
   const formatted = formatLeagueName(league);
-  return noArticle.includes(league) ? formatted : `the ${formatted}`;
+  return NO_ARTICLE_LEAGUES.includes(league) ? formatted : `the ${formatted}`;
+};
+
+// The same no-article rule applied to club names. Takes an already-resolved
+// name so this file never has to import the team data. The recap hand-rolled
+// this rule three times against two different league lists, so a KHL rival
+// read "the Dynamo" while the standings line two rows down read "Dynamo".
+export const withTeamArticle = (fullName, league, capitalize = false) => {
+  if (NO_ARTICLE_LEAGUES.includes(league)) return fullName;
+  return `${capitalize ? 'The' : 'the'} ${fullName}`;
 };

@@ -14,14 +14,14 @@ export default function DraftScreen() {
       setPlayer(p => ({
         ...p,
         draftBonus: (p.draftBonus || 0) + 15,
-        idolatry: Math.min(100, (p.idolatry || 0) + 20),
+        fanStatus: Math.min(100, (p.fanStatus || 0) + 20),
         storylines: { ...p.storylines, russianFactorHandled: true, russianFactorChoice: 'NHL' }
       }));
     } else {
       setPlayer(p => ({
         ...p,
         draftBonus: (p.draftBonus || 0) - 25,
-        idolatry: Math.min(100, (p.idolatry || 0) + 35),
+        fanStatus: Math.min(100, (p.fanStatus || 0) + 35),
         storylines: { ...p.storylines, russianFactorHandled: true, russianFactorChoice: 'KHL' }
       }));
     }

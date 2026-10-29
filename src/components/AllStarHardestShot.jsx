@@ -63,21 +63,21 @@ export default function AllStarHardestShot({ onComplete, strategy }) {
         setIsStopping(false);
         setCurrentSpeed(null);
       } else {
-        let ovrBoost = 0, idolBoost = 0, msg = "";
+        let ovrBoost = 0, fanBoost = 0, msg = "";
 
         // FIX: Evaluates against newBest instead of the stale bestSpeed state
         if (newBest >= 105) { 
-           ovrBoost = 2; idolBoost = 50; msg = "🏆 105+ MPH! You absolutely shattered the radar gun and won the event!"; 
+           ovrBoost = 2; fanBoost = 50; msg = "🏆 105+ MPH! You absolutely shattered the radar gun and won the event!"; 
         } else if (newBest >= 100) { 
-           ovrBoost = 1; idolBoost = 20; msg = "🔥 Broke the 100 MPH mark! The crowd loved the raw power."; 
+           ovrBoost = 1; fanBoost = 20; msg = "🔥 Broke the 100 MPH mark! The crowd loved the raw power."; 
         } else { 
-           idolBoost = 5; msg = "✅ Solid shots, but you couldn't hit triple digits today."; 
+           fanBoost = 5; msg = "✅ Solid shots, but you couldn't hit triple digits today."; 
         }
 
-        if (strategy === 'grit') idolBoost += 15;
+        if (strategy === 'grit') fanBoost += 15;
 
         setTimeout(() => {
-            onComplete({ speed: newBest, msg, idolBoost, ovrBoost, eventName: 'Hardest Shot' });
+            onComplete({ speed: newBest, msg, fanBoost, ovrBoost, eventName: 'Hardest Shot' });
         }, 1500);
       }
     }, 1500);

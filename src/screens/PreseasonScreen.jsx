@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
-import { getFullTeamName } from '../utils/appHelpers';
+import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../utils/appHelpers';
 
 const ARCHETYPE_POOLS = {
   G: {
@@ -92,6 +92,9 @@ export default function PreseasonScreen() {
   };
 
   const trainingOptions = currentYear === 2026 ? randomizedArchetypes : activeTrainings;
+  // What the club can actually offer this year, so the quality of the cards on
+  // the table is legible instead of looking like a silent dice roll.
+  const trainingTier = getTrainingTierLabel(getTrainingQuality(player));
 
   return (
           <div className="game-panel mt-2 relative z-20">
@@ -117,13 +120,13 @@ export default function PreseasonScreen() {
               <div className="p-6 sm:p-10 border-t-2 border-t-[#22E748]">
                  <div className="flex flex-col items-start border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
                     <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest font-sans border border-[#3b82f6]/30 px-2.5 py-1 rounded bg-[#3b82f6]/10 mb-2">
-                      {currentYear === 2026 ? "PLAYER ARCHETYPE" : "OFF-SEASON DEVELOPMENT"}
+                      {currentYear === 2026 ? "PLAYER ARCHETYPE" : trainingTier.tier}
                     </span>
                     <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase sports-font tracking-tighter">
                       {currentYear === 2026 ? "WHAT KIND OF PLAYER ARE YOU?" : `PRE-SEASON ${currentYear}`}
                     </h2>
                     <p className="text-slate-400 text-sm sm:text-base font-sans mt-1">
-                      {currentYear === 2026 ? "Before you step on the ice, you need to define your identity. This choice will shape the foundation of your career." : "The coaching staff has prepared three training programs. Pick your focus."}
+                      {currentYear === 2026 ? "Before you step on the ice, you need to define your identity. This choice will shape the foundation of your career." : trainingTier.note}
                     </p>
                   </div>
 

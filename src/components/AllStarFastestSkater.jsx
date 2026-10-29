@@ -43,20 +43,20 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
         setTimeMs(finalElapsedMs);
         const endTime = finalElapsedMs / 1000;
         
-        let ovrBoost = 0, idolBoost = 0, msg = "";
+        let ovrBoost = 0, fanBoost = 0, msg = "";
 
         if (endTime <= 4.0) {
-          ovrBoost = 2; idolBoost = 50; msg = "🏆 FLYING! You just broke the Fastest Skater record!";
+          ovrBoost = 2; fanBoost = 50; msg = "🏆 FLYING! You just broke the Fastest Skater record!";
         } else if (endTime <= 6.0) {
-          ovrBoost = 1; idolBoost = 20; msg = "🔥 Incredible speed! You burned around the rink.";
+          ovrBoost = 1; fanBoost = 20; msg = "🔥 Incredible speed! You burned around the rink.";
         } else {
-          idolBoost = 5; msg = "✅ You made it around, but caught an edge on the final turn.";
+          fanBoost = 5; msg = "✅ You made it around, but caught an edge on the final turn.";
         }
 
-        if (strategy === 'grit') idolBoost += 15;
+        if (strategy === 'grit') fanBoost += 15;
 
         setTimeout(() => {
-           onComplete({ time: endTime, msg, idolBoost, ovrBoost, eventName: 'Fastest Skater' });
+           onComplete({ time: endTime, msg, fanBoost, ovrBoost, eventName: 'Fastest Skater' });
         }, 1500);
       }
     } else {

@@ -33,10 +33,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   };
   const intlStatus = getIntlStatus();
 
- const getBarColor = (idol) => {
-    if (idol < 300) return 'linear-gradient(90deg, color-mix(in srgb, #64748b 55%, #1e293b), #94a3b8)'; // Slate
-    if (idol < 600) return 'linear-gradient(90deg, color-mix(in srgb, #3b82f6 55%, #1e3a8a), #60a5fa)'; // Blue
-    if (idol < 1000) return 'linear-gradient(90deg, color-mix(in srgb, #F59E0B 55%, #78350f), #fbbf24)'; // Amber
+ const getBarColor = (fanStatus) => {
+    if (fanStatus < 300) return 'linear-gradient(90deg, color-mix(in srgb, #64748b 55%, #1e293b), #94a3b8)'; // Slate
+    if (fanStatus < 600) return 'linear-gradient(90deg, color-mix(in srgb, #3b82f6 55%, #1e3a8a), #60a5fa)'; // Blue
+    if (fanStatus < 1000) return 'linear-gradient(90deg, color-mix(in srgb, #F59E0B 55%, #78350f), #fbbf24)'; // Amber
     return 'linear-gradient(90deg, color-mix(in srgb, #22E748 55%, #14532d), #4ade80)'; // Green
   };
 
@@ -162,16 +162,16 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
             <div className="mt-4 md:mt-5 w-full space-y-1.5">
               <div className="flex items-center justify-between text-[10px] md:text-xs font-bold uppercase tracking-wide">
                 <span className="text-slate-400">Fan Status</span>
-                <span className="text-slate-400"> {tier.label} · {player.idolatry} FANS</span>
+                <span className="text-slate-400"> {tier.label} · {player.fanStatus} FANS</span>
               </div>
               <div className="relative w-full overflow-hidden rounded-full bg-[#0a0d0a] border border-[rgba(255,255,255,0.05)] h-2.5 md:h-3">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.idolatry / 1000) * 100)}%`, background: getBarColor(player.idolatry) }}></div>
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (player.fanStatus / 1000) * 100)}%`, background: getBarColor(player.fanStatus) }}></div>
               </div>
               <div className="relative h-3.5 md:h-4">
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
-                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.idolatry) || 0) >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanStatus) || 0) >= 100 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '10%' }} title="Known">👀</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanStatus) || 0) >= 300 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '30%' }} title="Loved">💙</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanStatus) || 0) >= 600 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '60%' }} title="Icon">⭐</span>
+                <span className={`absolute top-0 -translate-x-1/2 text-[10px] md:text-xs leading-none transition-opacity ${(Number(player.fanStatus) || 0) >= 1000 ? 'opacity-100' : 'opacity-30 grayscale'}`} style={{ left: '100%' }} title="Legend">🗽</span>
               </div>
               <p className="text-[9px] md:text-[10px] font-bold leading-none text-slate-400 mt-1 md:mt-1.5">
                 {tier.req > 0 ? `You're ${tier.req} pts short of ${tier.nextLabel}` : <span className="text-[#F59E0B]">Max Icon Status 🏆</span>}
@@ -286,7 +286,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       title: '📢 CALL TEAM MEETING',
                       desc: 'As the Captain, you have the authority to lock the locker room doors and address the team. A great speech will rally the boys, but if you do this too often, they will tune you out.',
                       choices: [
-                        { label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65, successFeedback: 'The room was silent. You fired them up, and team morale skyrocketed!', successEffect: { idol: 15, ovr: 1, rel: { teammates: 25 } }, failFeedback: 'You stumbled over your words. The veterans rolled their eyes.', failEffect: { idol: -10, ovr: -1, rel: { teammates: -20 } }, action: 'TEAM_MEETING' }
+                        { label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65, successFeedback: 'The room was silent. You fired them up, and team morale skyrocketed!', successEffect: { fanStatus: 15, ovr: 1, rel: { teammates: 25 } }, failFeedback: 'You stumbled over your words. The veterans rolled their eyes.', failEffect: { fanStatus: -10, ovr: -1, rel: { teammates: -20 } }, action: 'TEAM_MEETING' }
                       ],
                       madePlayoffs: false
                     });

@@ -21,7 +21,7 @@ export default function RetirementScreen() {
   const teamNatName = TEAM_NAME_OVERRIDES[player.nat] || fullCountryName;
 
   return (() => {
-    const isLegend = player.idolatry >= 800;
+    const isLegend = player.fanStatus >= 800;
     const isGoalie = player.pos === 'G';
     const peakOvr = player.stats?.peakOvr || player.ovr;
 

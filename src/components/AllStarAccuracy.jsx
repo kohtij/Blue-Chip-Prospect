@@ -41,20 +41,20 @@ export default function AllStarAccuracy({ onComplete, strategy }) {
       clearInterval(timerRef.current);
       const endTime = timeMs / 1000;
       
-      let ovrBoost = 0, idolBoost = 0, msg = "";
+      let ovrBoost = 0, fanBoost = 0, msg = "";
 
       if (endTime <= 2.0) {
-        ovrBoost = 2; idolBoost = 50; msg = "🏆 INCREDIBLE! You shattered the Accuracy Shooting record!";
+        ovrBoost = 2; fanBoost = 50; msg = "🏆 INCREDIBLE! You shattered the Accuracy Shooting record!";
       } else if (endTime <= 3.5) {
-        ovrBoost = 1; idolBoost = 20; msg = "🔥 Great shooting! You put on a show for the fans.";
+        ovrBoost = 1; fanBoost = 20; msg = "🔥 Great shooting! You put on a show for the fans.";
       } else {
-        idolBoost = 5; msg = "✅ You finished the event, but it wasn't your fastest time.";
+        fanBoost = 5; msg = "✅ You finished the event, but it wasn't your fastest time.";
       }
 
-      if (strategy === 'grit') idolBoost += 15;
+      if (strategy === 'grit') fanBoost += 15;
 
       setTimeout(() => {
-         onComplete({ time: endTime, msg, idolBoost, ovrBoost, eventName: 'Accuracy Shooting' });
+         onComplete({ time: endTime, msg, fanBoost, ovrBoost, eventName: 'Accuracy Shooting' });
       }, 1500);
     }
   };
