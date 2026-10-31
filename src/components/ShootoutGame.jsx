@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { useAppContext } from '../AppContext';
+import { lerpDifficulty } from '../utils/stakes';
 
-const ShootoutGame = ({ player, onComplete }) => {
-  const { minigameContext } = useAppContext();
-  const isFinals = minigameContext === 'finals';
+const ShootoutGame = ({ player, onComplete, difficulty = 0 }) => {
+  // Hard mode used to be a single on/off switch that only the Stanley Cup Final
+  // flipped, so a gold medal game played like a Tuesday. The shot clock now
+  // slides with the stakes and never drops below a usable three seconds.
+  const shotClock = Math.round(lerpDifficulty(5200, 3000, difficulty));
 
   const [activeZone, setActiveZone] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(isFinals ? 3500 : 5000);
+  const [timeLeft, setTimeLeft] = useState(shotClock);
   const [jitter, setJitter] = useState({ x: 0, y: 0 });
   const [status, setStatus] = useState('playing');
   const poolRef = useRef([]);
@@ -41,7 +43,7 @@ const ShootoutGame = ({ player, onComplete }) => {
 
       const baseSpeed = Math.max(400, 1000 - ((player?.shooting || 50) * 4));
       const randomOffset = Math.floor(Math.random() * 201) - 100;
-      const speed = Math.max(isFinals ? 200 : 300, (baseSpeed + randomOffset) * (isFinals ? 0.75 : 1.0));
+      const speed = Math.max(240, (baseSpeed + randomOffset) * lerpDifficulty(1.0, 0.72, difficulty));
 
       timeoutId = setTimeout(triggerNextZone, speed);
     };
@@ -64,7 +66,7 @@ const ShootoutGame = ({ player, onComplete }) => {
       clearTimeout(timeoutId);
       clearInterval(timer);
     };
-  }, [player, status, finish, isFinals]);
+  }, [player, status, finish, difficulty]);
 
   const zones = [
     { id: 0, label: 'TOP LEFT', cls: 'top-4 left-4 w-16 h-16 sm:w-20 sm:h-20' },

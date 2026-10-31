@@ -21,7 +21,14 @@ export default function RetirementScreen() {
   const teamNatName = TEAM_NAME_OVERRIDES[player.nat] || fullCountryName;
 
   return (() => {
-    const isLegend = player.fanStatus >= 800;
+    // The badge on this screen and the record saved into the Hall of Records used
+    // two different tests for the same thing. The badge read fan status alone,
+    // which is popularity rather than achievement, and 800 is a number a career
+    // does not actually reach: across 1200 long, strong careers the highest seen
+    // was 494, so "HALL OF FAME CAREER" never once appeared, not even for a player
+    // the game then filed as a legend. Both now read the career score, which is
+    // what the Hall of Fame is actually about.
+    const isLegend = scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer';
     const isGoalie = player.pos === 'G';
     const peakOvr = player.stats?.peakOvr || player.ovr;
 
@@ -660,7 +667,7 @@ export default function RetirementScreen() {
                   cups: (player.seasonHistory || []).filter(s => s.league === 'NHL' && s.titleWon).length,
                   awards: totalIndividualAwards, earnings: player.stats?.careerEarnings || player.stats?.earnings || 0,
                   team: primaryTeamName, logo: primaryTeam, league: primaryLeague,
-                  isLegend: scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer',
+                  isLegend,
                   careerScore: scoreData.total, 
                 };
                 

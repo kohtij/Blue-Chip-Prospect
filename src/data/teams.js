@@ -30,7 +30,7 @@ export const LEAGUE_CONFIG = {
   WHL:   { name: 'Western Hockey League',            games: 68, playoffSpots: 16, logo: leagueLogos.WHL,   conferences: ['East','West'], divisions: ['East','Central','BC','US'],                  playoffFormat: 'best-of-7-16' },
   QMJHL: { name: 'Quebec Maritimes Junior Hockey League', games: 64, playoffSpots: 16, logo: leagueLogos.QMJHL, conferences: [],          divisions: ['East','Central','West'],                     playoffFormat: 'best-of-7-16' },
   USHL:  { name: 'United States Hockey League',      games: 62, playoffSpots: 8,  logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'ushl-8' },
-  NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
+  NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3', pathView: true },
   SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 8,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
   LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 8,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
@@ -82,11 +82,15 @@ export const PLAYOFF_ROUNDS = {
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
+  // The NCAA tournament is single elimination and has been for decades: sixteen
+  // teams, four one-off games, lose once and your season is over. It was set up
+  // here as four best-of-three rounds, which is not how the Frozen Four works and
+  // also made the title close to unwinnable under the old deck.
   'ncaa-3': [
-    { name: 'Regional Semifinal',    teams: 16, gamesPerMatchup: 3 },
-    { name: 'Regional Final',        teams: 8,  gamesPerMatchup: 3 },
-    { name: 'Frozen Four',           teams: 4,  gamesPerMatchup: 3 },
-    { name: 'National Championship', teams: 2,  gamesPerMatchup: 3 }
+    { name: 'Regional Semifinal',    teams: 16, gamesPerMatchup: 1, short: 'REGIONAL' },
+    { name: 'Regional Final',        teams: 8,  gamesPerMatchup: 1, short: 'REG. FINAL' },
+    { name: 'Frozen Four',           teams: 4,  gamesPerMatchup: 1, short: 'FROZEN 4' },
+    { name: 'National Championship', teams: 2,  gamesPerMatchup: 1, short: 'TITLE' }
   ]
 };
 
@@ -700,9 +704,50 @@ export const getPlayoffFormat = (league) => {
   return LEAGUE_CONFIG[league]?.playoffFormat || 'best-of-7-16';
 };
 
+// Which leagues show their postseason as a run of one-off results rather than
+// as a deck of cards to turn over. A best-of-seven is a series you grind out
+// card by card; a single-elimination tournament is four results in a row, and
+// the nine-card grid was the wrong picture of it. Flagged per league so it can
+// be turned on elsewhere, international tournaments being the obvious next one.
+export const usesPathView = (league) => Boolean(LEAGUE_CONFIG[league]?.pathView);
+
+// What each league actually calls its rounds.
+//
+// Seven leagues share the 'best-of-7-16' format, so all seven showed the same
+// placeholder ladder: First Round, Quarterfinal, Semifinal, Championship. The
+// OHL does not have a quarterfinal, it has a Conference Final; the KHL plays
+// for the Gagarin Cup; the Swiss play Playoff-Viertelfinal. The bracket should
+// read like the league it belongs to. Anything not listed keeps the generic
+// names from its format.
+const LEAGUE_ROUND_NAMES = {
+  NHL:    ['First Round', 'Second Round', 'Conference Final', 'Stanley Cup Final'],
+  ECHL:   ['Conference Quarterfinal', 'Conference Semifinal', 'Conference Final', 'Kelly Cup Final'],
+  OHL:    ['First Round', 'Second Round', 'Conference Final', 'Robertson Cup Final'],
+  WHL:    ['First Round', 'Second Round', 'Conference Final', 'Ed Chynoweth Cup Final'],
+  QMJHL:  ['First Round', 'Second Round', 'Semifinal', 'Gilles-Courteau Final'],
+  BCHL:   ['First Round', 'Second Round', 'Conference Final', 'Fred Page Cup Final'],
+  KHL:    ['Conference Quarterfinal', 'Conference Semifinal', 'Conference Final', 'Gagarin Cup Final'],
+  SHL:    ['Quarterfinal', 'Semifinal', 'Le Mat Trophy Final'],
+  LIIGA:  ['Quarterfinal', 'Semifinal', 'Kanada-malja Final'],
+  DEL:    ['Viertelfinale', 'Halbfinale', 'DEL Final'],
+  ICEHL:  ['Quarterfinal', 'Semifinal', 'ICEHL Final'],
+  SWISS:  ['Play-In', 'Viertelfinal', 'Halbfinal', 'National League Final'],
+  CZECH:  ['Pre-Playoff', 'Quarterfinal', 'Semifinal', 'Extraliga Final'],
+  SLOVAK: ['Play-In', 'Quarterfinal', 'Semifinal', 'Extraliga Final'],
+  SPHL:   ['Quarterfinal', 'Semifinal', "President's Cup Final"],
+  AHL:    ['Division Semifinal', 'Division Final', 'Conference Final', 'Calder Cup Final'],
+  USHL:   ['Conference Semifinal', 'Conference Final', 'Clark Cup Final'],
+  NCAA:   ['Regional Semifinal', 'Regional Final', 'Frozen Four', 'National Championship']
+};
+
 export const getPlayoffRounds = (league) => {
   const fmt = getPlayoffFormat(league);
-  return PLAYOFF_ROUNDS[fmt] || PLAYOFF_ROUNDS['best-of-7-16'];
+  const rounds = PLAYOFF_ROUNDS[fmt] || PLAYOFF_ROUNDS['best-of-7-16'];
+  const names = LEAGUE_ROUND_NAMES[league];
+  // Only the label changes; the field size and series length stay with the
+  // format. A mismatched list is ignored rather than shifting the ladder.
+  if (!names || names.length !== rounds.length) return rounds;
+  return rounds.map((r, i) => ({ ...r, name: names[i] }));
 };
 
 // Group a pool of teams into { East: [...], West: [...] } or divisions.
@@ -723,4 +768,46 @@ export const groupByDivision = (league) => {
   const out = {};
   divs.forEach(d => { out[d] = pool.filter(t => t.div === d); });
   return out;
+};
+
+// The club colour that can actually be seen on a near-black card.
+//
+// Offer cards and the deadline screen both paint themselves in the home club's
+// colours, and both need the same answer, so the rule lives here rather than
+// being written twice. Prefer the primary; fall back to the secondary only when
+// the primary is too dark to register against the panel. Picking the brighter
+// of the two instead put a white stripe on Wisconsin, whose red is the whole
+// point of Wisconsin, and plenty of clubs are black-and-something.
+const luminance = (hex) => {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return 0;
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  return (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+};
+
+export const teamAccent = (team) => {
+  const ok = (c) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) && luminance(c) > 0.12;
+  if (ok(team?.bg)) return team.bg;
+  if (ok(team?.color)) return team.color;
+  return '#64748b';
+};
+
+// The same colour, lifted until it is readable as small text on the dark panel.
+//
+// teamAccent is tuned for a 3px strip and a soft glow, where a deep navy or a
+// dark red reads perfectly well. Set the same value as 9px uppercase tracking-
+// widest type and it disappears: "NHL · ATLANTIC" in Tri-City Storm purple or
+// Devils red is unreadable. This walks the colour toward white until it clears
+// a contrast floor against the card, so the club keeps its identity and the
+// text stays legible.
+export const readableAccent = (hex, floor = 0.42) => {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return '#94a3b8';
+  let [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  for (let i = 0; i < 24 && luminance(`#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`) < floor; i++) {
+    r = Math.min(255, Math.round(r + (255 - r) * 0.12) + 2);
+    g = Math.min(255, Math.round(g + (255 - g) * 0.12) + 2);
+    b = Math.min(255, Math.round(b + (255 - b) * 0.12) + 2);
+  }
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
 };

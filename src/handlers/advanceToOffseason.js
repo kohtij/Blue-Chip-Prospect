@@ -1,7 +1,8 @@
 import { getOpponentPool, ncaaTeams, ohlTeams } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
-import { recomputeOvr } from '../utils/gameHelpers';
+import { rollOfferPerks } from '../data/offerPerks';
+import { recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle } from '../utils/gameHelpers';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -18,7 +19,7 @@ export function advanceToOffseason(ctx) {
   // Four beats, in calendar order. A title is celebrated on its own beat so it
   // can never pre-empt the business of the summer: a Cup winner whose contract
   // has expired gets the parade AND his free agency, not one instead of the other.
-  const FRESH = 0, CELEBRATED = 1, SUMMER_DONE = 2, CAMP_DONE = 3;
+  const FRESH = 0, CELEBRATED = 1, SUMMER_DONE = 2, TRAINED = 3, CAMP_DONE = 4;
 
   // Carried on the player so it survives the round trip through the event screen.
   // The recap is snapshotted because the caller clears it as the new year begins,
@@ -334,25 +335,10 @@ export function advanceToOffseason(ctx) {
          }
 
          const offeredTeams = pool.slice(0, numOffers).map(t => {
-             const possiblePerks = [
-                 { text: '📈 Elite Coaching (+2 OVR)', ovr: 2, fanStatus: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
-                 { text: '🏟️ Arena Facilities (+15 Fans)', ovr: 0, fanStatus: 15, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' },
-                 { text: '💰 Big NIL Deal ($75k)', ovr: 0, fanStatus: 0, money: 75000, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' },
-                 { text: '⚡ High Tempo System (+1 OVR, +5 Fans)', ovr: 1, fanStatus: 5, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }
-             ];
-
-             const possibleFlaws = [
-                 { text: '⚠️ Crowded Roster (-1 OVR)', ovr: -1, fanStatus: 0, money: 0 },
-                 { text: '⚠️ Strict System (-10 Fans)', ovr: 0, fanStatus: -10, money: 0 },
-                 { text: '⚠️ Small Market (-5 Fans)', ovr: 0, fanStatus: -5, money: 0 },
-                 { text: '⚠️ Rebuilding Phase (-1 OVR, -5 Fans)', ovr: -1, fanStatus: -5, money: 0 }
-             ];
-
-             const perkCount = Math.floor(Math.random() * 4);
-             const flawCount = Math.floor(Math.random() * 4);
-
-             const selectedPerks = [...possiblePerks].sort(() => 0.5 - Math.random()).slice(0, perkCount);
-             const selectedFlaws = [...possibleFlaws].sort(() => 0.5 - Math.random()).slice(0, flawCount);
+             // The shared pools, so a scholarship card reads the same as every
+             // other offer card in the game. This used to be a second copy.
+             const { perks: selectedPerks, flaws: selectedFlaws } =
+                 rollOfferPerks('NCAA', { maxPerks: 3, maxFlaws: 3 });
 
              let totalOvr = 0;
              let totalFans = 0;
@@ -385,17 +371,20 @@ export function advanceToOffseason(ctx) {
            }));
 
            choices.push({
-               label: `Decline (Stay in ${currentLeague})`,
-               subLabel: `Forfeit all NCAA offers to remain in the ${currentLeague}.`,
+               label: `Decline offers and stay in ${leagueWithArticle(currentLeague)}`,
+               // The label already says what the button does. This says what it
+               // costs: the gate on this event is age === 17, so nobody asks a
+               // second time, and the year is spent developing instead.
+               subLabel: 'The college route closes, and you spend the year focused on your development instead.',
                isRisky: false,
-               feedback: `You decided to stay the course in ${currentLeague}.`,
+               feedback: `You decided to stay the course in ${leagueWithArticle(currentLeague)}.`,
                effect: { fanStatus: 0, ovr: 1, money: 0 }
            });
 
            setActiveEvent({
              title: 'NCAA RECRUITMENT',
              desc: numOffers > 1
-                ? `Your stellar play in the ${currentLeague} has attracted major attention. Offers are rolling in—some programs offer great perks with no drawbacks, while others have serious baggage. Choose wisely.`
+                ? `Your stellar play in ${leagueWithArticle(currentLeague)} has attracted major attention. Offers are rolling in—some programs offer great perks with no drawbacks, while others have serious baggage. Choose wisely.`
                 : `The head coach of ${offeredTeams[0].name} has offered you a scholarship. Review their program's perks and flaws before committing.`,
              choices: choices,
              isOffseasonEvent: true
@@ -408,6 +397,19 @@ export function advanceToOffseason(ctx) {
 
     // Euro Leagues are PRO leagues, not amateurs!
     isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
+
+    // A career starts with contract: { salary: 0, years: 0 }, meaning "has never
+    // signed anything". Every check below read years <= 0 as "his deal ran out",
+    // so an unsigned teenager counted as a free agent. A drafted 18-year-old
+    // playing in Sweden was being handed NHL free-agent offers after one season,
+    // because the European leagues are not on the junior list either, so he did
+    // not even register as an amateur. Nobody is a UFA before he has ever signed.
+    // A scholarship is not a signed deal. Reading it as one closed the entry
+    // level branch below to every college player, so a drafted skater could
+    // spend four years in the NCAA and never be offered the contract his NHL
+    // club holds his rights for. hasProContract draws that line in one place.
+    const hasSignedDeal = hasProContract(player);
+    const isUnsignedProspect = !hasSignedDeal && player.age < 21;
 
     // Calculate age-out limits before the draft check so we can use them to define the eligible window
     const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
@@ -422,10 +424,17 @@ export function advanceToOffseason(ctx) {
       if (player.age === 18) {
           setScreen('combine');
       } else {
-          // Penalize draft stock for over-agers (approx 30 spots per year older)
+          // Penalize draft stock for over-agers (approx 30 spots per year older).
+          // This used to set the penalty and jump straight to the draft screen
+          // without ever running the draft, so an over-ager arrived at a screen
+          // showing whatever pick was left over from before. He is drafted here,
+          // on the penalised player, since setPlayer has not landed yet. He skips
+          // the combine, so he tests at neutral.
           const agePenalty = (player.age - 18) * -30;
+          const penalised = { ...player, draftBonus: (player.draftBonus || 0) + agePenalty };
           setPlayer(p => ({ ...p, draftBonus: (p.draftBonus || 0) + agePenalty }));
-          setScreen('draft');
+          if (ctx.handleDraftDay) ctx.handleDraftDay(0, penalised);
+          else setScreen('draft');
       }
       return;
     }
@@ -474,24 +483,28 @@ export function advanceToOffseason(ctx) {
        return;
     }
 
-    if (isCurrentlyAmateur && player.rights && !player.contract && player.age > 18 && player.age < rightsExpireAge) {
+    // Was `!player.contract`, which is never true: the object always exists, it
+    // just holds zeros until something is signed. So the entry-level offer never
+    // fired at all. It also excluded prospects developing in Europe, who are
+    // exactly the players an NHL club signs out of their draft rights.
+    if ((isCurrentlyAmateur || isUnsignedProspect) && player.rights && !hasSignedDeal && player.age > 18 && player.age < rightsExpireAge) {
        const teamName = getFullTeamName(player.rights, 'NHL');
        if (player.ovr >= 65) {
            setActiveEvent({
              title: 'PRO CONTRACT OFFER',
-             desc: `The ${teamName} believe you are ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${currentLeague} for another year of development.`,
+             desc: `The ${teamName} believe you are ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${leagueWithArticle(currentLeague)} for another year of development.`,
              choices: [
-               { label: 'Sign your entry-level contract', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your ELC and are heading to NHL training camp!', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
-               { label: `Return to ${currentLeague}`, subLabel: 'Spend one more year developing before turning pro.', isRisky: false, feedback: 'You chose to develop for another year.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+               { label: 'Sign your entry-level contract', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your ELC headed to your first NHL training camp!', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
+               { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: 'Spend one more year developing before turning pro.', isRisky: false, feedback: 'You chose to develop for another year.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
            });
        } else {
            setActiveEvent({
              title: 'NOT READY FOR PRO',
-             desc: `The ${teamName} still hold your rights, but their front office does not believe you are ready for pro hockey yet. You must return to ${currentLeague} for another season.`,
+             desc: `The ${teamName} still hold your rights, but their front office does not believe you are ready for pro hockey yet. You must return to ${leagueWithArticle(currentLeague)} for another season.`,
              choices: [
-               { label: `Return to ${currentLeague}`, subLabel: "Keep developing until the organization believes you're ready.", isRisky: false, feedback: 'You are determined to prove them wrong next season.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+               { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: "Keep developing until the organization believes you're ready.", isRisky: false, feedback: 'You are determined to prove them wrong next season.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
            });
@@ -501,10 +514,16 @@ export function advanceToOffseason(ctx) {
        return;
     }
 
-    if (!isCurrentlyAmateur && (player.contract?.years || 0) <= 0) {
-      // July 1. This OPENS the offseason, it does not end it: the pass stops here
-      // so the transfer screen is not overwritten, and camp follows the signing.
-      generateOffers(ctx, false, currentTeam, currentLeague);
+    // July 1. This OPENS the offseason, it does not end it: the pass stops here
+    // so the transfer screen is not overwritten, and camp follows the signing.
+    // The eligibility check is the same invariant generateOffers enforces, so if
+    // anything slips through here the market simply does not open and the summer
+    // carries on into camp rather than stalling.
+    const contractExpired = (player.contract?.years || 0) <= 0;
+    const canHitTheMarket = !isCurrentlyAmateur && !isUnsignedProspect && contractExpired
+        && isNhlFreeAgentEligible(player, safeJuniorLeagues);
+
+    if (canHitTheMarket && generateOffers(ctx, false, currentTeam, currentLeague) !== false) {
       enterStage(SUMMER_DONE);
       return;
     } else {
@@ -526,8 +545,16 @@ export function advanceToOffseason(ctx) {
               title: '🤝 LOCAL SPONSORSHIP',
               desc: `A popular local car dealership wants you for a TV commercial. It's great easy money, but your teammates might relentlessly chirp you for it.`,
               choices: [
-                  { label: 'Do the Commercial ($50k)', subLabel: 'Easy money, but expect some locker-room ribbing.', isRisky: false, feedback: 'You got paid, but the boys laughed at your acting skills.', effect: { fanStatus: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
-                  { label: 'Pass on it', subLabel: 'Skip the payday and keep your reputation intact.', isRisky: false, feedback: 'You kept your dignity.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
+                  // The money used to live inside the label text. Every other
+                  // event in the game shows what a choice is worth as a chip,
+                  // and a number buried in a button is easy to miss and
+                  // impossible to compare.
+                  { label: 'Do the commercial', subLabel: 'Easy money, but expect some ribbing in the room.', isRisky: false,
+                    perks: [{ name: '\ud83d\udcb0 Appearance Fee', effect: '$50K', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
+                    flaws: [{ name: '\u26a0\ufe0f Locker Room', effect: '-10 TEAM' }],
+                    feedback: 'You shot the dealership commercial and cashed the cheque. The boys have not stopped quoting your acting since.', effect: { fanStatus: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
+                  { label: 'Pass on it', subLabel: 'Skip the payday and stay out of the group chat.', isRisky: false,
+                    feedback: 'You turned the dealership commercial down. No cheque, but no clip of you in a bad suit either.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
               ],
               isOffseasonEvent: true
           });
@@ -542,8 +569,13 @@ export function advanceToOffseason(ctx) {
               title: '📺 NATIONAL BRAND CAMPAIGN',
               desc: `A major sports equipment brand wants you as the face of their new stick launch. It involves a massive photo shoot and media obligations.`,
               choices: [
-                  { label: 'Sign the Deal ($250k)', subLabel: 'Become a household name, at the cost of some practice time.', isRisky: false, feedback: 'You are on billboards nationwide! But the media obligations cut into your training.', effect: { fanStatus: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
-                  { label: 'Focus on Hockey', subLabel: 'Turn down the spotlight to stay fully locked in.', isRisky: false, feedback: 'You turned down the money to focus purely on your game.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+                  { label: 'Sign the deal', subLabel: 'Become a household name, at the cost of some ice time this summer.', isRisky: false,
+                    perks: [{ name: '\ud83d\udcb0 Endorsement', effect: '$250K', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
+                    flaws: [{ name: '\u26a0\ufe0f Lost Training', effect: '-1 OVR' }],
+                    feedback: 'You signed the stick deal and spent the summer on billboards. The shoots ate the training time you would normally have had.', effect: { fanStatus: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
+                  { label: 'Focus on hockey', subLabel: 'Turn the campaign down and keep the summer for your game.', isRisky: false,
+                    perks: [{ name: '\ud83d\udcc8 Full Summer', effect: '+1 OVR', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }],
+                    feedback: 'You turned the stick campaign down and spent the summer training instead. No billboards, a better player.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
               ],
               isOffseasonEvent: true
           });
@@ -558,7 +590,9 @@ export function advanceToOffseason(ctx) {
               title: '🌍 SIGNATURE ATHLETE',
               desc: `You have reached the pinnacle of hockey fame. An international conglomerate wants to give you your own signature skate and apparel line.`,
               choices: [
-                  { label: 'Become an Icon ($2.5M)', isRisky: false, feedback: 'You have ascended beyond just being a hockey player. You are a global brand.', effect: { fanStatus: 150, ovr: 0, money: 2500000 } }
+                  { label: 'Become an icon', subLabel: 'Put your name on a signature skate and apparel line.', isRisky: false,
+                    perks: [{ name: '\ud83d\udcb0 Signature Line', effect: '$2.5M', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
+                    feedback: 'You signed the signature skate and apparel line. You are not just a hockey player any more, you are a brand.', effect: { fanStatus: 150, ovr: 0, money: 2500000 } }
               ],
               isOffseasonEvent: true
           });
@@ -613,6 +647,61 @@ export function advanceToOffseason(ctx) {
   // the player who signed somewhere new in July. This used to sit inside the
   // "already has a contract" branch, which is why a free-agency year skipped it.
   // ==========================================================================
+  // PRE-SEASON (late August): you pick your training before camp opens.
+  //
+  // Camp used to come first and the training card after it, which is backwards:
+  // you were fighting for a roster spot before you had done any of the summer's
+  // work, and the upgrade you chose landed after the battle it should have helped
+  // you win. The cards are dealt here, and the camp battle waits until you have
+  // picked one.
+  // ==========================================
+  // THE LEADERSHIP GROUP (Alternate Captain)
+  // ==========================================
+  // A letter is handed out in September, not in June. This used to fire from
+  // runPostSeasonFlow at the end of a year while telling the player the coach
+  // wanted to stitch an A on his sweater "this season", which had just ended.
+  //
+  // It also ignored the one thing that decides it: whether the room is yours.
+  // A player who was traded, claimed or signed somewhere new in the summer does
+  // not walk into a strange dressing room wearing a letter, however good he is,
+  // so the club has to be one he actually played a season for.
+  if (done < TRAINED && !player.isCaptain && !player.isAlternate && !player.storylines?.alternateGiven) {
+    const hist = player.seasonHistory || [];
+    const lastSeason = hist[hist.length - 1];
+    const sameRoom = lastSeason?.team === player.team && (lastSeason?.games || 0) >= 30;
+    const trust = player.relationships?.coach || 50;
+    const proSeasons = player.stats?.seasonsPlayed || 0;
+
+    // A good year in front of the people voting on it helps; a bad one does not
+    // rule it out, because a letter is about the room, not the scoresheet.
+    const earnedIt = (lastSeason?.rating || 0) >= 7.0 || lastSeason?.titleWon || (player.fanStatus || 0) >= 500;
+    const odds = trust >= 80 ? 0.45 : trust >= 70 ? 0.30 : 0.18;
+
+    if (player.league === 'NHL' && proSeasons >= 3 && trust >= 65 && player.ovr >= 82
+        && sameRoom && earnedIt && Math.random() < odds) {
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, alternateGiven: true } }));
+      setActiveEvent({
+        title: '🅰️ THE LEADERSHIP GROUP',
+        desc: `Camp opened this morning and the coach pulled you into his office before the first skate. He likes your work in the room and the way the young guys follow you around. He wants an "A" on your sweater for the season ahead.`,
+        choices: [
+          { label: 'Accept the responsibility', subLabel: 'Wear the letter and set the tone from the first day of camp.', isRisky: false, feedback: 'You are an alternate captain. The letter goes on the sweater before the opener.', effect: { fanStatus: 25, ovr: 1, rel: { coach: 15, teammates: 15 } }, action: 'MAKE_ALTERNATE' },
+          { label: 'Tell him to give it to someone else', subLabel: 'Pass it to a teammate who has waited longer for it.', isRisky: false, feedback: 'You turned the letter down and told him to give it to someone who had waited longer. The room noticed that too.', effect: { fanStatus: 10, ovr: 0, rel: { teammates: 20 } } }
+        ],
+        isOffseasonEvent: true
+      });
+      enterStage(TRAINED);
+      setScreen('event');
+      return;
+    }
+  }
+
+  if (done < TRAINED) {
+    enterStage(TRAINED);
+    if (ctx.generateTraining) ctx.generateTraining(player.pos, player);
+    setScreen('preseason');
+    return;
+  }
+
   if (done < CAMP_DONE) {
     // Camp in reality turns on your situation far more than your rating: whether
     // you are walking into a room where you know nobody, playing out the last year
@@ -648,7 +737,7 @@ export function advanceToOffseason(ctx) {
                   label: 'Keep your head down and learn the system',
                   subLabel: 'Ask questions, take notes, and let the hockey speak later.',
                   isRisky: false,
-                  feedback: 'A quiet, professional first camp. The staff noticed you were the first one asking about details.',
+                  feedback: 'A quiet first professional camp. The staff noticed you were the player that asked the most questions.',
                   effect: { fanStatus: 5, ovr: 0, rel: { coach: 12, teammates: 15 } }
                 },
                 {
@@ -742,7 +831,7 @@ export function advanceToOffseason(ctx) {
                   label: 'Pace Yourself',
                   subLabel: 'Play it safe to stay fresh for opening night, and avoid a reckless injury.',
                   isRisky: false,
-                  feedback: 'You coasted through camp cleanly. You are 100% ready for opening night.',
+                  feedback: 'You coasted through camp cleanly. You were 100% ready for opening night.',
                   effect: { fanStatus: 10, ovr: 0 }
                 },
                 {
@@ -828,9 +917,11 @@ export function advanceToOffseason(ctx) {
 
   } // closes the CAMP stage
 
-  // Camp is done, so the offseason is done. Clear the marker and hand the player
-  // to the preseason screen with a fresh hand of training cards.
+  // Camp is done, and the training was chosen before it, so the offseason is
+  // over and the season can start. The chosen card has already been applied to
+  // the player, so no training effect is passed here.
+  const ready = { ...player, offseason: null };
   setPlayer(p => ({ ...p, offseason: null }));
-  if (ctx.generateTraining) ctx.generateTraining(player.pos, player);
-  setScreen('preseason');
+  if (ctx.handleTrain) ctx.handleTrain(null, ready);
+  else setScreen('preseason');
 } // Closes the entire advanceToOffseason function

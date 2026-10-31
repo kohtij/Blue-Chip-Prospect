@@ -1,5 +1,5 @@
 import { getTeamData, nationalities } from '../data/teams';
-import { formatMoney, getActiveStat } from '../utils/gameHelpers';
+import { formatMoney, getActiveStat, summariseStints } from '../utils/gameHelpers';
 import { getDisplayDeployment, getFullTeamName } from '../utils/appHelpers';
 import TeamLogo from './TeamLogo';
 
@@ -119,7 +119,11 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                           
                           if (player.contract?.years !== undefined) {
                              if (!['NHL', 'AHL'].includes(player.league)) {
-                                return <span className="shrink-0">· {player.contract.years} YRS LEFT</span>;
+                                // What sits in player.contract for a college player is
+                                // eligibility, not a contract, so "YRS LEFT" read as
+                                // term on a deal that does not exist.
+                                const isScholarship = player.league === 'NCAA' || player.contract.isScholarship;
+                                return <span className="shrink-0">· {player.contract.years} YRS {isScholarship ? 'ELIG.' : 'LEFT'}</span>;
                              }
                              const proSeasons = player.stats?.seasonsPlayed || 0;
                              const isRFA = player.age < 27 && proSeasons < 7;
@@ -209,9 +213,17 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           {/* 2. BOTTOM STAT GRIDS */}
           <div className="flex flex-col gap-2 w-full shrink-0">
             {(() => {
-              const ls = player.seasonHistory && player.seasonHistory.length > 0 
-                 ? player.seasonHistory[player.seasonHistory.length - 1] 
-                 : {};
+              // The season being played, if one is under way, otherwise the last
+              // one finished. This panel only ever read seasonHistory, which is
+              // not written until a season ENDS, so all the way through a year it
+              // was showing last season's finished line. At the trade deadline it
+              // claimed a full 64 games while the deadline screen correctly
+              // reported the 45 actually played.
+              const live = summariseStints(player.season?.stints);
+              const ls = live
+                 || (player.seasonHistory && player.seasonHistory.length > 0
+                      ? player.seasonHistory[player.seasonHistory.length - 1]
+                      : {});
               
               return (
                 <div className="grid grid-cols-5 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">

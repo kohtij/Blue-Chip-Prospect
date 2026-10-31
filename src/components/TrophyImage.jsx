@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { getPlayoffTrophyImage } from '../data/awards';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.

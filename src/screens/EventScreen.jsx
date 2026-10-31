@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import TeamLogo from '../components/TeamLogo';
 import { getFullTeamName } from '../utils/appHelpers';
-import { getPrimaryRival } from '../data/teams';
+import { getPrimaryRival, getTeamData, readableAccent, teamAccent } from '../data/teams';
 
 export default function EventScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -195,32 +196,32 @@ export default function EventScreen() {
                   ribbonClass = 'bg-[#ef4444] text-white';
                   ribbonText = '⚔️ ARCH-RIVAL OFFER';
               } else if (isNCAAChoice) {
-                  cardBorder = 'border-[#3b82f6] shadow-[0_0_15px_rgba(59,130,246,0.15)]';
-                  ribbonClass = 'bg-[#3b82f6] text-white';
-                  ribbonText = '🎓 SCHOLARSHIP OFFER';
+                  // No ribbon and no coloured outline. Every card on the
+                  // recruitment screen is a scholarship offer, so saying so on
+                  // each one told you nothing, and a blue ring around a card
+                  // already wearing Boston College maroon just fought with it.
+                  cardBorder = 'border-[rgba(255,255,255,0.08)]';
+                  ribbonText = null;
               } else if (madePlayoffs) {
                   cardBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]';
                   ribbonClass = 'bg-[#22E748] text-black';
                   ribbonText = '🏆 PLAYOFF BOUND';
               }
 
-              // Headline figure: a trade sells the club's projected finish, a
-              // scholarship sells its NIL money. The conference is NOT used here —
-              // it already appears as the badge below and would just read twice.
-              // Every card's figure is a short token of the same shape (#7, $75K)
-              // so they line up across the row.
+              // The same card the Free Agency screen draws: the club's own
+              // colour as a top strip and a soft glow, the crest beside the
+              // name, league and conference under it, the figure in white, then
+              // labelled rows and the chips. The two screens were showing the
+              // same kind of decision in two different languages.
+              const teamData = getTeamData(premiumTeamId, premiumLeague);
+              const accent = teamAccent(teamData);
+              const accentText = readableAccent(accent);
+              const conference = teamData?.ncaaConf || teamData?.div || null;
+
               const heroValue = isTradeChoice
                   ? `#${data?.teamStandings ?? '?'}`
                   : formatMoney(money);
               const heroCaption = isTradeChoice ? 'PROJECTED FINISH' : 'NIL PACKAGE';
-
-              // Green means good everywhere else in the game, so it is only used
-              // when the figure is actually good news: a playoff club, or real NIL
-              // money. A bottom-table finish or an empty NIL package stays neutral.
-              const heroGood = isTradeChoice ? madePlayoffs : money > 0;
-              const heroColor = isRival
-                  ? 'text-[#ef4444]'
-                  : heroGood ? 'text-[#22E748]' : 'text-slate-300';
 
               const ctaText = isNCAAChoice ? 'COMMIT' : isRival ? 'BETRAY & SIGN' : 'ACCEPT TRADE';
               const ctaClass = isRival
@@ -234,74 +235,73 @@ export default function EventScreen() {
                   onClick={() => fireChoice(displayChoice)}
                   className={`bg-[#0a0d0a] border ${cardBorder} rounded-xl relative overflow-hidden flex flex-col text-left shadow-lg group transition-all ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-[1.02]'}`}
                 >
-                  <div className={`relative z-10 ${ribbonClass} text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full`}>
-                    {ribbonText}
-                  </div>
+                  {ribbonText && (
+                    <div className={`relative z-10 ${ribbonClass} text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full`}>
+                      {ribbonText}
+                    </div>
+                  )}
 
                   <div className="p-4 sm:p-5 flex flex-col flex-1">
-                    {/* Crest watermark, cropped by the card. Kept at 2.5 because the
-                        source logos are only 150px square and blur past roughly 1.6x. */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] group-hover:opacity-[0.10] grayscale pointer-events-none z-0 transition-all duration-300">
-                        <div className="w-full h-full flex items-center justify-center transform -rotate-6 scale-[2.25] sm:scale-[2.5]">
-                            <TeamLogo teamId={premiumTeamId} league={premiumLeague} isAHL={premiumLeague === 'AHL'} size="large" />
-                        </div>
-                    </div>
+                    {/* No ribbon means no strip has been drawn yet, so the club
+                        colour takes the top edge, exactly as on an offer card. */}
+                    {!ribbonText && <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />}
+                    <div
+                      className="absolute inset-x-0 top-0 h-24 z-0 pointer-events-none opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-300"
+                      style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }}
+                    />
 
-                    <div className="flex items-center gap-3 mb-4 z-10 relative">
-                       <TeamLogo teamId={premiumTeamId} league={premiumLeague} isAHL={premiumLeague === 'AHL'} size="small" />
+                    <div className="flex items-center gap-3 mb-5 z-10 relative min-h-[48px]">
+                       <div className="shrink-0">
+                         <TeamLogo teamId={premiumTeamId} league={premiumLeague} isAHL={premiumLeague === 'AHL'} size="small" />
+                       </div>
                        <div className="min-w-0 flex-1">
-                         <h3 className="text-sm sm:text-base font-black text-white sports-font leading-tight uppercase tracking-wide break-words">
+                         <h3 className="text-[13px] sm:text-base font-black text-white sports-font leading-tight uppercase tracking-wide break-words"
+                             title={getFullTeamName(premiumTeamId, premiumLeague)}>
                            {getFullTeamName(premiumTeamId, premiumLeague)}
                          </h3>
-                         {/* NCAA skips this: its conference badge below already
-                             places the programme, so "NCAA" here is just noise. */}
-                         {isTradeChoice && premiumLeague && premiumLeague !== 'NHL' && (
-                           <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mt-1">{premiumLeague}</span>
-                         )}
+                         {/* The conference is the thing that places a college
+                             programme, and it was the one detail the recruitment
+                             card never showed. */}
+                         <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block mt-1" style={{ color: accentText }}>
+                           {[premiumLeague, conference].filter(Boolean).join(' · ')}
+                         </span>
                        </div>
                     </div>
 
                     <div className="flex flex-col z-10 relative mb-4">
-                       <span className={`text-3xl sm:text-4xl font-black ${heroColor} sports-font tracking-tighter drop-shadow-md leading-none`}>
-                         {heroValue}
-                       </span>
+                       <div className="flex items-baseline gap-1.5">
+                         <span className="text-3xl sm:text-4xl font-black text-white sports-font tracking-tighter leading-none">
+                           {heroValue}
+                         </span>
+                       </div>
                        <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1.5">
-                         {heroCaption}
+                         {isNCAAChoice ? '4-YEAR ELIGIBILITY' : heroCaption}
                        </span>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 z-10 relative mb-4 text-[11px] sm:text-xs font-sans text-slate-300">
-                       {/* Trades show no status badge here: the ribbon already states
-                           playoff or rebuilding, and the rank is the headline figure. */}
-                       {isNCAAChoice && (
-                         <span className="flex items-center gap-1.5 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]/30">
-                               {displayChoice.subLabel || 'NCAA D1'}
-                            </span>
-                         </span>
-                       )}
+                    <div className="z-10 relative mb-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
+                       {/* No Outlook row for a trade and no NIL row for a
+                           scholarship: the ribbon already says playoff bound or
+                           rebuilding, and the NIL package is the headline figure
+                           two lines up. Both were the same fact twice. */}
                        {fanStatus !== 0 && (
-                         <p className="flex items-start gap-2">
-                           <span className="leading-none mt-0.5">{fanStatus > 0 ? '📈' : '📉'}</span>
-                           <span className={fanStatus > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
-                             Fan Impact: <strong className="font-black tracking-wider">{fanStatus > 0 ? '+' : ''}{fanStatus} FANS</strong>
+                         <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                           <span className="text-slate-500">Fan impact</span>
+                           <span className={`ml-auto shrink-0 whitespace-nowrap ${fanStatus > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                             {fanStatus > 0 ? '+' : ''}{fanStatus} FANS
                            </span>
                          </p>
                        )}
                     </div>
 
                     {(displayChoice.perks?.length > 0 || displayChoice.flaws?.length > 0) && (
-                      <div className="flex flex-col gap-1.5 mb-6 z-10 relative">
+                      <div className="flex flex-col gap-1.5 mb-5 z-10 relative">
                          {displayChoice.perks?.map((p, pIdx) => (
-                            <span key={`perk-${pIdx}`} className={`text-[9px] sm:text-[10px] px-2 py-1 rounded font-black tracking-widest uppercase border leading-none self-start ${p.color || 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'}`}>
-                               {p.text}
-                            </span>
-                         ))}
+                                <PerkChip key={`perk-${pIdx}`} perk={p} />
+                             ))}
                          {displayChoice.flaws?.map((f, fIdx) => (
-                            <span key={`flaw-${fIdx}`} className="text-[9px] sm:text-[10px] px-2 py-1 rounded font-black tracking-widest uppercase border leading-none self-start text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30">
-                               {f.text}
-                            </span>
-                         ))}
+                                <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />
+                             ))}
                       </div>
                     )}
 
@@ -337,6 +337,25 @@ export default function EventScreen() {
                    {displayChoice.isRisky && <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>}
                  </div>
               </div>
+
+              {/* What the choice is actually worth. Only the premium trade and
+                  scholarship cards used to draw these, so an ordinary event had
+                  to smuggle the number into its own label text, as the local
+                  sponsorship did with "Do the Commercial ($50k)". A figure
+                  buried in a button is easy to miss and impossible to compare
+                  against the choice next to it. */}
+              {(displayChoice.perks?.length > 0 || displayChoice.flaws?.length > 0) && (
+                <div className="flex flex-wrap gap-1.5 mt-3 w-full relative z-10">
+                  {/* Laid out in a row rather than a narrow stacked column, which
+                      left the right half of the choice empty. */}
+                  {displayChoice.perks?.map((pk, pIdx) => (
+                    <PerkChip key={`crow-perk-${pIdx}`} perk={pk} inline />
+                  ))}
+                  {displayChoice.flaws?.map((fl, fIdx) => (
+                    <PerkChip key={`crow-flaw-${fIdx}`} perk={fl} isFlaw inline />
+                  ))}
+                </div>
+              )}
             </button>
           );
 

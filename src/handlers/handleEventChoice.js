@@ -29,7 +29,17 @@ export function handleEventChoice(ctx, choice) {
     return; 
   }
 
-  setSeasonEvents(prev => [...prev, { feedback: outcomeFeedback, effect: outcomeEffect || {}, perks: choice.perks || [], flaws: choice.flaws || [] }]);
+  // The recap used to list the outcome text alone, so a line reading "You kept
+  // your dignity." arrived with nothing to say which of the season's dozen
+  // events it belonged to. The event's own title is the context, and it is
+  // right here, so it travels with the line.
+  setSeasonEvents(prev => [...prev, {
+    title: activeEvent?.title || null,
+    feedback: outcomeFeedback,
+    effect: outcomeEffect || {},
+    perks: choice.perks || [],
+    flaws: choice.flaws || []
+  }]);
   
   let updated = { ...player };
   const actionStr = choice.action || ''; 
@@ -95,6 +105,9 @@ export function handleEventChoice(ctx, choice) {
       updated.league = t9.juniorLeague;
       updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), t9.juniorTeam]));
     }
+  } else if (actionStr === 'RESOLVE_DEBUT') {
+    // Nothing to change on the player beyond the choice's own effect. The game
+    // itself is already banked on player.debut and handleTrain resumes from it.
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
   } else if (actionStr === 'CHANGE_LEAGUE') {

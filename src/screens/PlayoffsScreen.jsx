@@ -1,8 +1,9 @@
 import  { useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
-import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
+import { getPlayoffRounds, getTeamData, getPrimaryRival, usesPathView } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
+import TournamentPath from '../components/TournamentPath';
 import TrophyImage from '../components/TrophyImage';
 import { applyOvrDelta, recomputeOvr } from '../utils/gameHelpers';
 
@@ -12,7 +13,20 @@ export default function PlayoffsScreen() {
   const activeRound = playoffs.bracket[playoffs.activeRoundIndex];
   const playerMatchIndex = activeRound?.findIndex(m => m.isPlayerSeries);
   const activeMatch = playerMatchIndex >= 0 ? activeRound[playerMatchIndex] : null;
+
+  // The NCAA tournament is single elimination from the regional semifinal to
+  // the national championship, so its rounds hand over a one-card deck rather
+  // than the nine-card grid a series uses. Dropping that single card into a
+  // three-column grid left it stranded in the top-left corner, and winning it
+  // announced a SERIES VICTORY for a series that was never played.
+  const isSingleGame = (activeMatch?.deck || []).length === 1;
+
+  // Leagues flagged for the path view show the whole run as a row of results
+  // instead of a deck to turn over. NCAA only for now; the flag lives on the
+  // league config so international tournaments can join later.
+  const usePath = usesPathView(playoffs?.currentLg);
   const titles = getPlayoffTitles(player.league);
+
 
   const isTbdTeam = (team) => {
     if (!team) return true;
@@ -106,7 +120,22 @@ export default function PlayoffsScreen() {
       const isSwept = playerWins === 0 && activeMatch.status === 'lost';
       const isMaxGames = totalGames === (wN * 2) - 1; 
 
-      if (playoffs.activeRoundIndex === playoffs.bracket.length - 1) {
+      const isFinalRound = playoffs.activeRoundIndex === playoffs.bracket.length - 1;
+
+      // One game cannot be a sweep, and it cannot go the distance either. Every
+      // line below is written for a series, so winning a regional semifinal was
+      // reported as "a flawless sweep" of a series that lasted sixty minutes.
+      if (isSingleGame) {
+          if (isFinalRound) {
+              seriesFlavor = activeMatch.status === 'won'
+                ? "One game for everything, and you took it. National champions."
+                : "Sixty minutes from a national title, and it got away. There is no next game.";
+          } else {
+              seriesFlavor = activeMatch.status === 'won'
+                ? "Win or go home, and you are still here. On to the next one."
+                : "One game, one loss, and the season is over. That is single elimination.";
+          }
+      } else if (isFinalRound) {
           if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A dominant sweep to capture the ultimate prize! You are a champion!" : isMaxGames ? "A legendary final-game victory to win the championship! History is made." : "You conquered the finals and claimed the championship. The glory is yours!";
           else seriesFlavor = isSwept ? "An embarrassing sweep on the biggest stage. A devastating end to the season." : isMaxGames ? "Heartbreak in the deciding game of the finals. The ultimate prize slips through your fingers." : "A crushing defeat in the finals. You fell just short of hockey immortality.";
       } else {
@@ -189,12 +218,14 @@ export default function PlayoffsScreen() {
                 )}
                 {activeMatch.status === 'won' && (
                   <p className="text-[11px] sm:text-xs font-black text-[#22E748] uppercase tracking-widest font-sans leading-none">
-                      ⚡ SERIES VICTORY! ({activeMatch.wins1}-{activeMatch.wins2})
+                      {isSingleGame
+                        ? (playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? '🏆 CHAMPIONS!' : '⚡ YOU ADVANCE!')
+                        : `⚡ SERIES VICTORY! (${activeMatch.wins1}-${activeMatch.wins2})`}
                   </p>
                 )}
                 {activeMatch.status === 'lost' && (
                   <p className="text-[11px] sm:text-xs font-black text-[#ef4444] uppercase tracking-widest font-sans leading-none">
-                      💔 ELIMINATED ({activeMatch.wins1}-{activeMatch.wins2})
+                      {isSingleGame ? '💔 ELIMINATED' : `💔 ELIMINATED (${activeMatch.wins1}-${activeMatch.wins2})`}
                   </p>
                 )}
               </div>
@@ -287,11 +318,22 @@ export default function PlayoffsScreen() {
                </div>
             ) : playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? (
               <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
+                 {/* The final has its own moment, but the run that got you here
+                     should not vanish on the one screen where it matters most.
+                     Read-only: the championship is played through the minigame
+                     below, not by turning a card over. */}
+                 {usePath && (
+                   <div className="w-full mb-5">
+                     <TournamentPath playoffs={playoffs} canPlay={false} onPlay={() => {}} />
+                   </div>
+                 )}
                  {activeMatch.status === 'playing' ? (
                    <>
                      <h3 className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font uppercase mb-3">THE FINAL SHIFT</h3>
                      <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 max-w-md mx-auto">
-                        Game 7. Third Period. Tie Game. The entire season comes down to this single moment. Your legacy is on the line.
+                        {usePath
+                          ? 'Third period, tie game, winner takes the national title. One shift between you and everything.'
+                          : 'Game 7. Third Period. Tie Game. The entire season comes down to this single moment. Your legacy is on the line.'}
                      </p>
                      <button 
                        onClick={() => triggerMinigame('finals')} 
@@ -317,8 +359,23 @@ export default function PlayoffsScreen() {
               </div>
             ) : (
               <>
-                {/* 3x3 CARD GRID */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {/* 3x3 CARD GRID. Nine squares holding exactly the wins the
+                    format needs: four in a best-of-seven, three in a best-of-five,
+                    two in a best-of-three. Single elimination gets one card
+                    instead, because there is only one game to play. */}
+                {usePath ? (
+                  <>
+                    <p className="text-[10px] sm:text-[11px] font-black text-[#F59E0B] uppercase tracking-widest text-center mb-3 font-sans">
+                      ⚡ Single elimination · Winner advances
+                    </p>
+                    <TournamentPath
+                      playoffs={playoffs}
+                      canPlay={activeMatch.status === 'playing'}
+                      onPlay={(rIdx) => handleGridClick(rIdx, playerMatchIndex, 0)}
+                    />
+                  </>
+                ) : (
+                <div className={isSingleGame ? 'grid grid-cols-1' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
                   {(activeMatch.deck || []).map((item, cIndex) => {
                     const isRevealed = (activeMatch.revealed || []).includes(cIndex);
                     const isOver = ['won', 'lost'].includes(activeMatch.status);
@@ -326,7 +383,10 @@ export default function PlayoffsScreen() {
                     const isWinCard = item && (item.isWin || item.win);
                     const isRigged = item && item.rigged && !isRevealed; 
                     
-                    let btnClass = 'h-16 sm:h-20 text-2xl sm:text-3xl font-black rounded-xl border transition-all duration-200 flex items-center justify-center sports-font ';
+                    let btnClass = (isSingleGame
+                      ? 'h-28 sm:h-32 text-4xl sm:text-5xl '
+                      : 'h-16 sm:h-20 text-2xl sm:text-3xl ')
+                      + 'font-black rounded-xl border transition-all duration-200 flex items-center justify-center sports-font ';
                     
                     if (isRevealed || showForcefully) {
                       btnClass += isWinCard 
@@ -350,7 +410,8 @@ export default function PlayoffsScreen() {
                     );
                   })}
                 </div>
-                
+                )}
+
                 {/* BOTTOM ACTION AREA */}
                 <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[110px] sm:min-h-[120px]">
                   {activeMatch.status === 'playing' ? (
@@ -359,7 +420,7 @@ export default function PlayoffsScreen() {
                         const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
                         const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
                         return (
-                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">Select a card to play the next game ({formatText})</p>
+                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">{usePath ? 'Play the next round. Win and you move on, lose and the season is over.' : `Select a card to play the next game (${formatText})`}</p>
                         );
                       })()}
 

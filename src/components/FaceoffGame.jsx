@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 
-const FaceoffGame = ({ player, onComplete }) => {
+const FaceoffGame = ({ player, onComplete, difficulty = 0 }) => {
    const [status, setStatus] = useState('waiting');
    const [msg, setMsg] = useState('WAIT FOR GREEN...');
    const [warnings, setWarnings] = useState(0);
@@ -31,7 +32,9 @@ const FaceoffGame = ({ player, onComplete }) => {
          setMsg('CLICK NOW!');
          startTimeRef.current = Date.now();
 
-         const aiTime = Math.max(250, 600 - ((player?.hockeyIQ || 50) * 2));
+         // The opposing centre is quicker in a big game, but never quicker than
+         // a person can answer.
+         const aiTime = Math.max(MIN_REACTION_MS, (600 - ((player?.hockeyIQ || 50) * 2)) * lerpDifficulty(1.15, 0.80, difficulty));
          
          innerToRef.current = setTimeout(() => {
            if (doneRef.current) return;
@@ -48,7 +51,7 @@ const FaceoffGame = ({ player, onComplete }) => {
         if (toRef.current) clearTimeout(toRef.current); 
         if (innerToRef.current) clearTimeout(innerToRef.current); 
       };
-   }, [player, finish]);
+   }, [player, finish, difficulty]);
 
    const handleClick = () => {
      if (doneRef.current) return;

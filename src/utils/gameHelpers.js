@@ -4,7 +4,20 @@ import {
 } from '../data/teams';
 import { shopItems } from '../data/economy';
 
-export const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5);
+// Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
+// shuffle: comparison sorts assume a consistent comparator, so elements drift
+// only a little from where they started. On the playoff grid, built as four wins
+// followed by five losses, that left square two holding a win 54% of the time and
+// square nine only 32%, a twenty-two point spread. Anyone who always clicked the
+// top row won far more often than anyone who did not.
+export const shuffleArray = (array) => {
+  const out = [...array];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
 
 export const cap = (val) => Math.min(100, Math.max(0, val));
 
@@ -170,17 +183,19 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings }
     default: break;
   }
 
+  // Selection for the All-Star Game is not an end-of-season honour, it is a
+  // thing that happens in January and is played on its own screen. Awarding it
+  // from the final rating meant a player could finish the year holding an
+  // "NHL All-Star" trophy for a game that never appeared in his season. The
+  // flag is set when the game is actually played, and cleared at season end.
+  //
+  // The First Team is genuinely a post-season vote and stays below on merit.
+  if (player.storylines?.allStarSelected && ['NHL', 'AHL'].includes(player.league)) {
+    awards.push(player.league === 'NHL' ? 'NHL All-Star' : 'AHL All-Star');
+  }
+
   if (rating >= 8.5) {
     if (player.league === 'NHL') {
-      // THE ALL-STAR FIX:
-      // You must be a true star (83+ OVR) OR have an unbelievably elite season (9.0+ Rating) to get the nod.
-      const isTrueStar = player.ovr >= 83;
-      const isHavingEliteSeason = rating >= 9.0;
-      
-      if (isTrueStar || isHavingEliteSeason) {
-          awards.push('NHL All-Star');
-      }
-      
       // 1st Team All-Star is for the absolute best of the best
       if (rating >= 9.2 && player.ovr >= 85) {
           awards.push('1st Team All-Star');
@@ -189,7 +204,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings }
       awards.push(`${player.league} 1st All-Star Team`);
     } else if (player.league === 'NCAA') {
       awards.push('1st Team All-American');
-    } else if (player.league) {
+    } else if (player.league && player.league !== 'AHL') {
       awards.push(`${player.league} All-Star`);
     }
   }
@@ -372,7 +387,19 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const playoffSpots = config ? config.playoffSpots : 16;
   const maxGames = config?.games || 82;
 
-  const randomTeamFactor = Math.random(); 
+  // How good the club is this year. This used to be a fresh Math.random() on
+  // every call, and a season is simulated in four calls (World Juniors, the
+  // break, the deadline, the run-in), so the club was re-rolled from scratch at
+  // every checkpoint. That is how a team sitting 21st at the trade deadline
+  // finished 3rd in the league: the two numbers had nothing to do with each
+  // other. The roll now happens once and is carried through the season.
+  // Carried forward, but not frozen: a club still drifts a little over the last
+  // twenty games. The jitter is small enough that a seller at the deadline is
+  // still a seller in April, and large enough that the table is not decided in
+  // December.
+  const randomTeamFactor = typeof options.teamFactor === 'number'
+    ? Math.min(0.98, Math.max(0.02, options.teamFactor + (Math.random() - 0.5) * 0.20))
+    : Math.random();
   let playerImpact = p.pos === 'G' ? (p.ovr - 70) / 60 : (p.ovr - 70) / 80;
 
   const salary = p.contract?.salary || 0;
@@ -525,7 +552,11 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     return {
       segment: {
         team: currentTeam, league: currentLg, games,
-        g, a, pm, saves, shots, sho, avgToi, rating, standings
+        g, a, pm, saves, shots, sho, avgToi, rating, standings,
+        // Carried so the next segment inherits the same club, rather than
+        // re-rolling how good the team is at every checkpoint of the year.
+        // The base, not this segment's jittered value, so drift does not compound.
+        teamFactor: typeof options.teamFactor === 'number' ? options.teamFactor : randomTeamFactor
       }
     };
   }
@@ -651,33 +682,83 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // the breakdown so the screen can say nine games here and fifty there.
   const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
     saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
-    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi };
+    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi, teamFactor: typeof options.teamFactor === 'number' ? options.teamFactor : randomTeamFactor };
 
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
+}
+
+// Exact odds of taking a series from a nine card grid holding `wins` win cards,
+// when you need `needed` of them before `needed` losses. Picks are blind, so this
+// is just the race between the nth win and the nth loss in a shuffled deck.
+function seriesOdds(wins, needed) {
+  const memo = new Map();
+  const walk = (w, l, nw, nl) => {
+    if (nw <= 0) return 1;
+    if (nl <= 0) return 0;
+    const total = w + l;
+    if (total <= 0) return 0;
+    const key = `${w},${l},${nw},${nl}`;
+    if (memo.has(key)) return memo.get(key);
+    const v = (w / total) * walk(w - 1, l, nw - 1, nl)
+            + (l / total) * walk(w, l - 1, nw, nl - 1);
+    memo.set(key, v);
+    return v;
+  };
+  return walk(wins, 9 - wins, needed, needed);
 }
 
 export function generatePlayoffDeck(standings, playoffSpots, round, gamesPerMatchup = 7) {
   const seedStrength = Math.max(0, Math.min(1, 1 - (standings - 1) / Math.max(1, playoffSpots - 1)));
 
+  // Single elimination is one game, so it is still a straight roll.
   if (gamesPerMatchup === 1) {
-    const roundTightening = Math.max(0, (round - 1)) * 0.03;
-    const winChance = Math.max(0.30, Math.min(0.80, 0.40 + seedStrength * 0.35 - roundTightening));
-    return [{ isWin: Math.random() < winChance }];
+    const tighten = Math.max(0, round - 1) * 0.03;
+    const chance = Math.max(0.30, Math.min(0.80, 0.40 + (seedStrength * 0.35) - tighten));
+    return [{ isWin: Math.random() < chance }];
   }
 
-  const winsNeeded = Math.ceil(gamesPerMatchup / 2); 
-  const deckSize = 9; 
-  
-  let winCards = winsNeeded; 
-  
-  if (seedStrength > 0.5 && round < 4) {
-     winCards = winsNeeded + 1; 
+  // A series is always a three by three grid of nine cards, and it always holds
+  // at least the wins the format asks for: four in a best-of-seven, three in a
+  // best-of-five, two in a best-of-three. That floor is what makes the series
+  // winnable at all.
+  //
+  // How much better than that floor you are given is what your seeding buys. A
+  // nine card grid is coarse, though. A best-of-seven has only two possible
+  // shapes, four wins or five, worth 28% and 73%, with nothing in between, so
+  // handing the extra card to every top-half seed (which is what used to happen)
+  // made the top eight identical and the bottom eight identical, with a cliff
+  // down the middle. Instead the seed sets a target win rate and the extra card
+  // is given with whatever probability hits that target on average, which gives a
+  // smooth ladder from first to last out of a grid that cannot express one.
+  const winsNeeded = Math.ceil(gamesPerMatchup / 2);
+  const tighten = Math.max(0, round - 1) * 0.015;
+  const target = Math.max(0.28, Math.min(0.70, 0.30 + (seedStrength * 0.38) - tighten));
+
+  // The compositions available, weakest first, with the odds each one gives.
+  const options = [];
+  for (let w = winsNeeded; w <= 9 - winsNeeded; w++) options.push({ w, p: seriesOdds(w, winsNeeded) });
+
+  let winCards = options[0].w;
+  const top = options[options.length - 1];
+  if (target >= top.p) {
+    winCards = top.w;
+  } else {
+    for (let i = 0; i < options.length - 1; i++) {
+      const lo = options[i], hi = options[i + 1];
+      if (target <= lo.p) { winCards = lo.w; break; }
+      if (target < hi.p) {
+        // Split between the two shapes that bracket the target so the average
+        // lands on it exactly.
+        const share = (target - lo.p) / (hi.p - lo.p);
+        winCards = Math.random() < share ? hi.w : lo.w;
+        break;
+      }
+    }
   }
 
-  let cards = [];
+  const cards = [];
   for (let i = 0; i < winCards; i++) cards.push({ isWin: true });
-  for (let i = 0; i < (deckSize - winCards); i++) cards.push({ isWin: false });
-  
+  for (let i = 0; i < 9 - winCards; i++) cards.push({ isWin: false });
   return shuffleArray(cards);
 }
 
@@ -709,6 +790,53 @@ export const withTeamArticle = (fullName, league, capitalize = false) => {
 // before game ten burns the first year of that deal. Clubs use those nine games
 // as a look: produce and you stay, and the year is gone; struggle and you are
 // returned to junior with the contract intact. It only applies to a player who
+// A plausible hockey scoreline for a one-off game whose winner is already known.
+//
+// The playoff engine decides matches as win or lose and never produces a score,
+// which is fine for a best-of-seven shown as 4-2 in games. Single elimination
+// has no games column to show, so a round reads as "1-0" in series wins, which
+// means nothing to anybody. This invents the result on the scoreboard instead.
+//
+// Weighted towards the margins hockey actually produces: most elimination games
+// are one-goal affairs, blowouts are rare, and a one-goal game is sometimes
+// settled in overtime.
+export function singleGameScore(isWin) {
+  const r = Math.random();
+  const margin = r < 0.46 ? 1 : r < 0.76 ? 2 : r < 0.92 ? 3 : 4;
+  // The loser's total. A 1-0 shutout happens; a 6-5 does not happen often.
+  const conceded = Math.min(5, Math.floor(Math.random() * (margin === 1 ? 5 : 4)));
+  const winner = conceded + margin;
+  // Only a one-goal game can have been decided in overtime.
+  const ot = margin === 1 && Math.random() < 0.30;
+  return isWin
+    ? { score1: winner, score2: conceded, ot }
+    : { score1: conceded, score2: winner, ot };
+}
+
+// Whether a player has actually signed a professional contract.
+//
+// signContract writes every accepted offer into player.contract the same way,
+// so a college scholarship lands there with the NIL figure as the salary and
+// the four years of eligibility as the term. Anything asking "salary > 0 and
+// years > 0" therefore counted a freshman on a scholarship as a signed pro, and
+// the entry-level offer in the offseason, which fires only for a prospect who
+// has NOT signed anything, stopped firing for college players entirely: a
+// drafted skater could finish four years at a programme and never once be
+// offered the contract his NHL club holds his rights for.
+//
+// Contracts signed from here carry an explicit isScholarship flag. The league
+// check is the fallback for a career already in progress when this shipped,
+// and it is safe on its own: NCAA eligibility and a pro contract cannot coexist,
+// so a player in the NCAA has not signed one. It deliberately does not key off
+// junior leagues, because a prospect on an NHL entry-level deal can be loaned
+// back to his junior club and is still very much signed.
+export const hasProContract = (p) => {
+  const c = p?.contract;
+  if (!c) return false;
+  if (c.isScholarship || p.league === 'NCAA') return false;
+  return (c.salary || 0) > 0 && (c.years || 0) > 0;
+};
+
 // has a junior club to go back to, which is why a European or college prospect
 // goes to the AHL instead and never sees this.
 export const isNineGameCandidate = (p) => {
@@ -772,3 +900,71 @@ export const madeAllStarGame = (p, seg) => {
   chance += Math.min(0.12, (p?.fanStatus || 0) / 5000); // the fan vote
   return Math.random() < Math.min(0.90, Math.max(0, chance));
 };
+
+// Nobody becomes an NHL free agent before he has ever been a professional.
+//
+// This is an invariant, not a branch. generateOffers had no eligibility check of
+// any kind: whatever route reached it got NHL contract offers, which is how a
+// sixteen-year-old who had just finished his first year of junior could be handed
+// free agency straight off his season recap. A player is only a free agent if he
+// has actually been a pro whose deal has run out, or has exhausted his amateur
+// eligibility. An undrafted teenager still inside his junior window is neither.
+export function isNhlFreeAgentEligible(player, juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL']) {
+  if (!player) return false;
+
+  const hasSignedDeal = (player.contract?.salary || 0) > 0;
+  const wasDrafted = Boolean(player.rights || player.draftLeague);
+  const league = player.league;
+  const isAmateur = juniorLeagues.includes(league) || league === 'NCAA';
+
+  // Junior players age out at 21, college and everyone else at 22.
+  const ageOut = ['OHL', 'WHL', 'QMJHL'].includes(league) ? 21 : 22;
+  const agedOut = player.age >= ageOut;
+
+  // Has been a pro and the deal has lapsed.
+  if (hasSignedDeal && !isAmateur) return true;
+
+  // Never signed anything: only once the amateur window has actually closed,
+  // and then only through the graduation path, which hands him over explicitly.
+  if (agedOut) return true;
+
+  // Drafted players still inside their window belong to the club that drafted
+  // them. They are not on the open market.
+  if (wasDrafted) return false;
+
+  return false;
+}
+// One season line from the stints played so far.
+//
+// A season is played in segments now (a World Juniors break, the All-Star break,
+// the deadline, then the rest), and each segment is stored as a stint. Two places
+// wanted to show "your season so far" and each totted the stints up its own way,
+// so the trade deadline screen reported the games actually played while the
+// dashboard was still showing LAST season's finished line, which is why the two
+// disagreed by a whole year. Both read this now.
+//
+// Returns the same shape a seasonHistory entry uses, so it can stand in for one.
+export function summariseStints(stints) {
+  if (!Array.isArray(stints) || stints.length === 0) return null;
+
+  const tot = stints.reduce((acc, s) => ({
+    games: acc.games + (s.games || 0),
+    goals: acc.goals + (s.g || s.goals || 0),
+    assists: acc.assists + (s.a || s.assists || 0),
+    plusMinus: acc.plusMinus + (s.pm || s.plusMinus || 0),
+    saves: acc.saves + (s.saves || 0),
+    shots: acc.shots + (s.shots || 0),
+    shutouts: acc.shutouts + (s.sho || s.shutouts || 0),
+    // Ice time is an average, so it has to be weighted by the games in each stint.
+    toiGames: acc.toiGames + ((s.avgToi || 0) * (s.games || 0))
+  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, toiGames: 0 });
+
+  const last = stints[stints.length - 1];
+  return {
+    games: tot.games, goals: tot.goals, assists: tot.assists, plusMinus: tot.plusMinus,
+    saves: tot.saves, shots: tot.shots, shutouts: tot.shutouts,
+    avgToi: tot.games > 0 ? tot.toiGames / tot.games : 0,
+    team: last?.team, league: last?.league, standings: last?.standings,
+    inProgress: true
+  };
+}

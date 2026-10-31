@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppContext } from '../AppContext';
+import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const CreaseGame = ({ player, onComplete }) => {
-   const { minigameContext } = useAppContext();
-   const isFinals = minigameContext === 'finals';
+const CreaseGame = ({ player, onComplete, difficulty = 0 }) => {
 
    const [moles, setMoles] = useState([]);
    const [score, setScore] = useState(0);
@@ -22,10 +20,11 @@ const CreaseGame = ({ player, onComplete }) => {
      if (score >= 5) { finish(true); return; }
      if (misses >= 3) { finish(false); return; }
 
-     // Higher IQ = Pucks spawn slightly slower (Speed up by 25% in Finals)
-     const spawnRate = Math.max(isFinals ? 300 : 450, (1000 - (player.hockeyIQ * 4)) * (isFinals ? 0.75 : 1.0));
-     // Higher Agility/Reflexes = Pucks stay on screen longer (Decrease by 25% in Finals)
-     const lifetime = Math.max(isFinals ? 450 : 600, (1300 - (player.physicality * 3)) * (isFinals ? 0.75 : 1.0));
+     // Both slide with the stakes instead of flipping at a single threshold, and
+     // a puck is always on screen long enough to be reachable.
+     const pace = lerpDifficulty(1.0, 0.7, difficulty);
+     const spawnRate = Math.max(360, (1000 - (player.hockeyIQ * 4)) * pace);
+     const lifetime = Math.max(MIN_REACTION_MS + 130, (1300 - (player.physicality * 3)) * pace);
 
      const timeouts = timeoutsRef.current;
      const interval = setInterval(() => {
@@ -54,7 +53,7 @@ const CreaseGame = ({ player, onComplete }) => {
        timeouts.forEach(clearTimeout);
        timeouts.clear();
      };
-   }, [score, misses, player, finish, isFinals]);
+   }, [score, misses, player, finish, difficulty]);
 
    return (
      <div className="w-full max-w-sm mx-auto">

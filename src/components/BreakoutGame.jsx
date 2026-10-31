@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 
-export default function BreakoutGame({ player, onComplete }) {
+export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
   const [status, setStatus] = useState('waiting'); // waiting, active, result
   const [resultMsg, setResultMsg] = useState('');
   const [wingerActive, setWingerActive] = useState(false);
@@ -9,7 +10,8 @@ export default function BreakoutGame({ player, onComplete }) {
 
   // Hockey IQ controls how large your passing window is
   const iq = getActiveStat(player, 'hockeyIQ');
-  const windowTime = Math.max(400, 300 + (iq * 6)); 
+  // Floored so a high-stakes game narrows the lane without closing it.
+  const windowTime = Math.max(MIN_REACTION_MS + 80, (300 + (iq * 6)) * lerpDifficulty(1.0, 0.68, difficulty));
   const timeoutRef = useRef(null);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function BreakoutGame({ player, onComplete }) {
       clearTimeout(initTimer);
       clearTimeout(timeoutRef.current);
     };
-  }, [iq, onComplete, windowTime]);
+  }, [iq, onComplete, windowTime, difficulty]);
 
   const handleLaneClick = (lane) => {
     if (status === 'result') return;

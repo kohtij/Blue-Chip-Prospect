@@ -191,6 +191,8 @@ export const MASTER_ACHIEVEMENTS = [
   { id: 'betrayal', name: 'Judas', desc: 'Sign directly with your team\'s arch-rival in Free Agency', icon: '🗡️' },
   { id: 'trade_demanded', name: 'I Want Out', desc: 'Demand a trade at the trade deadline', icon: '🚪' },
   { id: 'trade_rejected', name: 'Locked Down', desc: 'Have your GM reject your mid-season trade demand', icon: '🔒' },
+  { id: 'portal_entered', name: 'In The Portal', desc: 'Enter the transfer portal during a college season', icon: '🌀' },
+  { id: 'portal_cold', name: 'Nobody Called', desc: 'Enter the transfer portal and have no programme come for you', icon: '📵' },
   { id: 'press_master', name: 'PR Masterclass', desc: 'Get a perfect 3/3 score in a Press Conference', icon: '🎤' },
   { id: 'press_disaster', name: 'PR Disaster', desc: 'Score 0/3 in a disastrous Press Conference', icon: '🤡' },
   { id: 'demoted', name: 'Sent Down', desc: 'Get demoted to the minors or junior hockey', icon: '📉' },
@@ -230,30 +232,41 @@ export const PRESS_JOURNALISTS = [
   { id: 'passionate', name: 'Steve Dangle', outlet: 'SDPN', desc: 'Wears his heart on his sleeve. Wants FIRE and PASSION for the city.', region: 'NHL' },
   { id: 'passionate', name: 'Garnet Thorne', outlet: 'Local Beat', desc: 'Fiercely protective of the home team. Wants to see EMOTION and DRIVE.', region: 'ALL' },
   { id: 'passionate', name: 'Lars Bergstrom', outlet: 'SHL Daily', desc: 'Fiercely protective of the local fans. Wants to see EMOTION and PASSION.', region: 'EU' },
-  { id: 'passionate', name: 'Tommy "T-Bone" Jenkins', outlet: 'Campus Radio', desc: 'A wild student broadcaster. Wants FIRE and PASSION.', region: 'JUNIOR' },
-  
+  { id: 'passionate', name: 'Tommy "T-Bone" Jenkins', outlet: 'Campus Radio', desc: 'A wild student broadcaster. Wants FIRE and PASSION.', region: ['JUNIOR', 'NCAA'] },
+
   // THE HUMBLE
   { id: 'humble', name: 'Sarah Lindqvist', outlet: 'EuroHockey Weekly', desc: 'Values team culture and locker room harmony. Looks for TEAM-FIRST, HUMBLE responses.', region: 'EU' },
   { id: 'humble', name: 'Dom Luszczyszyn', outlet: 'The Athletic', desc: 'Analytics heavy and realistic. Appreciates SELF-AWARENESS and HUMILITY.', region: 'NHL' },
   { id: 'humble', name: 'Coach Davis', outlet: 'Local Prep Times', desc: 'Old-school high school coach turned writer. Wants HUMILITY.', region: 'JUNIOR' },
-  
+  { id: 'humble', name: 'Walter Keene', outlet: 'Alumni Quarterly', desc: 'Writes about programme culture and the players before you. Wants HUMILITY.', region: 'NCAA' },
+
   // THE COCKY
   { id: 'cocky', name: 'Larry Brooks', outlet: 'NY Post', desc: 'Looking for a controversial headline. Thrives on CONFIDENCE and ARROGANCE.', region: 'NHL' },
   { id: 'cocky', name: 'Marcus Vance', outlet: 'Puck Digest', desc: 'Hot-take radio host. Wants BOLD PREDICTIONS and COCKY soundbites.', region: 'ALL' },
   { id: 'cocky', name: 'Tomasz Novotny', outlet: 'EuroIce Tabloid', desc: 'Always searching for drama. Thrives on CONFIDENCE and ARROGANCE.', region: 'EU' },
-  { id: 'cocky', name: 'Buzz Carter', outlet: 'Prospect Watcher', desc: 'Loves hyping up elite prospects. Wants BOLD PREDICTIONS.', region: 'JUNIOR' }
+  { id: 'cocky', name: 'Buzz Carter', outlet: 'Prospect Watcher', desc: 'Loves hyping up elite prospects. Wants BOLD PREDICTIONS.', region: ['JUNIOR', 'NCAA'] },
+
+  // THE COLLEGE BEAT
+  { id: 'professional', name: 'Marie Caron', outlet: 'The Campus Rink', desc: 'Covers this conference and nothing else. Wants MEASURED answers.', region: 'NCAA' }
 ];
 
+// The old version recognised two European leagues, so a player in the KHL, the
+// DEL, the Swiss NL or either Extraliga was interviewed by Pierre LeBrun of The
+// Athletic. It also filed college under JUNIOR, which handed a varsity player a
+// high school beat writer. Regions may now be a list, so a campus broadcaster
+// can cover both.
+const REGION_BY_LEAGUE = {
+  NCAA: 'NCAA',
+  OHL: 'JUNIOR', WHL: 'JUNIOR', QMJHL: 'JUNIOR', USHL: 'JUNIOR',
+  SHL: 'EU', LIIGA: 'EU', KHL: 'EU', SWISS: 'EU', DEL: 'EU', ICEHL: 'EU', CZECH: 'EU', SLOVAK: 'EU'
+};
+
 export const getJournalistsForLeague = (league) => {
-   const isEuro = ['SHL', 'LIIGA'].includes(league);
-   const isJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(league);
-   
+   const region = REGION_BY_LEAGUE[league] || 'NHL';
+   const covers = (j) => (Array.isArray(j.region) ? j.region : [j.region]);
    return PRESS_JOURNALISTS.filter(j => {
-      if (j.region === 'ALL') return true;
-      if (isEuro) return j.region === 'EU';
-      if (isJunior) return j.region === 'JUNIOR' || j.region === 'NA'; // Fallback to NA if needed
-      // If NHL or AHL
-      return j.region === 'NHL' || j.region === 'NA';
+      const r = covers(j);
+      return r.includes('ALL') || r.includes(region) || r.includes('NA');
    });
 };
 
@@ -287,217 +300,7 @@ export const getAwardPill = (name, count) => {
   );
 };
 
-// Questions the press asks after games. Each has 4 answer options keyed by
-// vibe (professional/passionate/humble/cocky); matching the journalist's
-// preferred vibe scores hits in handleEndPress. forPos filters skater/goalie/all,
-// tag balances so shuffled hands don't stack too positive or too negative.
-export const PRESS_QUESTIONS = [
-  {
-    q: "You came up big tonight. What was going through your mind on that play?",
-    forPos: 'all', tag: 'positive',
-    answers: {
-      professional: [
-        "I was just trying to make the right read and let the puck do the work.",
-        "Just sticking to our structure, taking what they give us.",
-        "Saw the lane open up and trusted the systems we practice."
-      ],
-      passionate: [
-        "The fans deserved that one. I could hear them getting louder every shift.",
-        "I just wanted to step up for the boys. We needed a spark.",
-        "Pure adrenaline. When the building gets that loud, you just feed off it."
-      ],
-      humble: [
-        "The guys in front of me did all the work. I was just in the right spot.",
-        "Honestly, it was a great play by my linemates. All I had to do was finish it.",
-        "Just a fortunate bounce, really. Team effort all the way."
-      ],
-      cocky: [
-        "Honestly, I saw it opening up before it happened. It's the standard I set.",
-        "That's why I'm out there in those situations. I expect to make those plays.",
-        "I knew I had the goalie beat before it even left my stick."
-      ]
-    }
-  },
-  {
-    q: "The team's been streaking. What's clicking in the room?",
-    forPos: 'all', tag: 'positive',
-    answers: {
-      professional: [
-        "Systems. We're executing the game plan for a full sixty minutes now.",
-        "We're playing a strong 200-foot game and managing the puck well.",
-        "Just taking it one shift at a time, getting pucks deep."
-      ],
-      passionate: [
-        "The belief. Everyone in that room is playing for the guy next to them.",
-        "We're going to war for each other out there. The culture is incredible.",
-        "It's the heart. We refuse to be outworked right now."
-      ],
-      humble: [
-        "Coach's message. He's the one setting the tone; we're just following it.",
-        "We're just getting some good bounces and sticking to the details.",
-        "Goaltending has been bailing us out when we make mistakes, honestly."
-      ],
-      cocky: [
-        "Talent. This roster's finally showing what it can do.",
-        "We're just a better hockey team than the guys we're playing.",
-        "Nobody can skate with us when we play our game. Simple as that."
-      ]
-    }
-  },
-  {
-    q: "Tough loss out there. Where did the game slip away?",
-    forPos: 'all', tag: 'negative',
-    answers: {
-      professional: [
-        "Special teams. We gave them too many looks on the power play.",
-        "Puck management in the neutral zone. We fed their transition game.",
-        "We got away from our forecheck and let them dictate the pace."
-      ],
-      passionate: [
-        "Compete. They wanted it more in the third and it showed.",
-        "We were flat, and it's completely unacceptable for this group.",
-        "We let our goalie out to dry. We have to be way tougher in front of our net."
-      ],
-      humble: [
-        "On me. I could have been better in a couple of spots that mattered.",
-        "I need to be sharper. I made some mistakes that cost us momentum.",
-        "I didn't execute when the team needed a play. Need to look in the mirror."
-      ],
-      cocky: [
-        "One bounce. That game was ours; the scoreboard just doesn't show it.",
-        "They got lucky. 9 times out of 10 we win that hockey game.",
-        "We beat ourselves. They didn't do anything special to beat us."
-      ]
-    }
-  },
-  {
-    q: "You've been snake-bit at the net lately. What are you seeing?",
-    forPos: 'skater', tag: 'negative',
-    answers: {
-      professional: [
-        "Pucks aren't going in, but the chances are there. I trust the process.",
-        "Just need to keep putting pucks on net and getting traffic in front.",
-        "Not changing my game. Keep playing a 200-foot game and it'll come."
-      ],
-      passionate: [
-        "It's driving me crazy. I want to be the guy who breaks a game open.",
-        "I'm fighting it right now, but I'm going to work twice as hard to snap out.",
-        "It's frustrating, but I just have to battle through it for the boys."
-      ],
-      humble: [
-        "I need to get to harder areas. That's on me.",
-        "I'm gripping the stick a bit too tight. Need to relax and make plays.",
-        "My linemates are finding me, I just need to bear down and finish for them."
-      ],
-      cocky: [
-        "They'll go in. Snipers get streaky; my ceiling is way higher than this.",
-        "I'm not worried. Once one goes in, the floodgates are going to open.",
-        "Goalies are just getting lucky right now. My release is perfectly fine."
-      ]
-    }
-  },
-  {
-    q: "You've had a rough stretch in net. What are you working on?",
-    forPos: 'goalie', tag: 'negative',
-    answers: {
-      professional: [
-        "Tracking pucks through traffic. It's technical, we're addressing it.",
-        "Just working with the goalie coach on depth and angle control.",
-        "Resetting my fundamentals. Keeping my feet set and staying square."
-      ],
-      passionate: [
-        "I want the ball in my hands. Every night. I don't hide from tough games.",
-        "I hate letting the team down. I'm grinding every day to lock it back down.",
-        "It burns. I demand better from myself to give these guys a chance to win."
-      ],
-      humble: [
-        "Everything. I need to be better. Full stop.",
-        "I'm not making the timely saves right now. I have to find a way to step up.",
-        "The guys are playing hard in front of me, I just need to bail them out more."
-      ],
-      cocky: [
-        "One bad week doesn't define me. I'm the guy in this crease for a reason.",
-        "I'll bounce back. My track record speaks for itself.",
-        "I'm an elite goaltender. Slumps happen. I'm not stressing it."
-      ]
-    }
-  },
-  {
-    q: "There's a big divisional matchup coming up. Any message for the other guys?",
-    forPos: 'all', tag: 'positive',
-    answers: {
-      professional: [
-        "Respect their group. It'll come down to details and discipline.",
-        "It's a four-point game. We just need to focus on our structure.",
-        "They're a good team. We need to be sharp and stay out of the box."
-      ],
-      passionate: [
-        "Bring it. Our building. Our fans. We'll be ready.",
-        "These are the games you wake up for. It's going to be an absolute war.",
-        "We're going to make it a long night for them. Heavy, physical hockey."
-      ],
-      humble: [
-        "We need to worry about ourselves before we talk about anybody else.",
-        "We respect their roster. We just need to play our game and see what happens.",
-        "It's going to be a tough test. We just have to show up ready to work."
-      ],
-      cocky: [
-        "They should be worried. We're playing our best hockey right now.",
-        "We know we're the team to beat in this division.",
-        "If we play our game, they can't skate with us. It's on them to try and stop us."
-      ]
-    }
-  },
-  {
-    q: "Trade deadline rumors have your name in them. Any comment?",
-    forPos: 'all', tag: 'negative',
-    answers: {
-      professional: [
-        "That's a business matter. My focus is entirely on the next game.",
-        "I don't control the front office. I just control my effort on the ice.",
-        "Whatever happens, happens. I'm just here to play hockey."
-      ],
-      passionate: [
-        "I love it here. I want to win here. That's all I'll say.",
-        "This is my city. I bleed for this team and I don't want to go anywhere.",
-        "I'll fight for this crest until they tell me I can't anymore."
-      ],
-      humble: [
-        "Above my pay grade. I just try to play well and let the rest sort itself out.",
-        "I'm just grateful to be playing in this league. The rest is noise.",
-        "I just want to be a good teammate while I'm here."
-      ],
-      cocky: [
-        "Any team would be lucky to have me. That's not for me to worry about.",
-        "My value is obvious. If they move me, I'll go dominate somewhere else.",
-        "I'm an elite player. Teams are going to call. That's just how it works."
-      ]
-    }
-  },
-  {
-    q: "You just hit a big personal milestone. Take us through what it means.",
-    forPos: 'all', tag: 'positive',
-    answers: {
-      professional: [
-        "It's a marker along the way. Nice to check off, then back to work.",
-        "It's a nice accomplishment, but we're focused on the bigger picture.",
-        "Consistency is key. Happy to reach it, but the job isn't done."
-      ],
-      passionate: [
-        "For my family. For everyone who believed in me when nobody else did.",
-        "It's emotional. A lot of blood, sweat, and tears went into this moment.",
-        "I love this game so much. To achieve this in front of these fans is incredible."
-      ],
-      humble: [
-        "Wouldn't have gotten there without every teammate I've had.",
-        "I've been lucky to play with some amazing players who made this possible.",
-        "It's a team milestone really. I'm just the beneficiary of great linemates."
-      ],
-      cocky: [
-        "Just the beginning. There's a lot more where that came from.",
-        "I expect greatness from myself. This is exactly where I planned to be.",
-        "Look at my game. It was only a matter of time before I hit this."
-      ]
-    }
-  }
-];
+// Press questions moved to src/data/pressQuestions.js, where they gained a
+// league scope and finer position buckets. They were filtered on goalie versus
+// skater alone, so a college player was asked about the trade deadline and a
+// defenceman about going cold at the net.

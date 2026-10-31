@@ -1,10 +1,20 @@
 import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams } from '../data/teams';
 import { shopItems } from '../data/economy';
-import { getTransferImpact } from '../utils/gameHelpers';
+import { getTransferImpact, isNhlFreeAgentEligible } from '../utils/gameHelpers';
+import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
 
 export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null, overrideLeague = null) {
   const { currentYear, player, setEventFeedback, setFreeAgencyOffers, setScreen } = ctx;
+
+    // The backstop. This function had no eligibility check of any kind, so every
+    // caller was trusted to have done the gating, and any that had not handed an
+    // amateur a page of NHL contract offers. A trade request is a different thing
+    // and is exempt. Returns false so the caller can carry on with the offseason
+    // instead of stalling on a screen that should never have opened.
+    if (!isTradeRequest && !isNhlFreeAgentEligible(player, ctx.safeJuniorLeagues)) {
+       return false;
+    }
 
     // Safely extract the team ID in case it was accidentally passed as an object
     let rawTeam = overrideTeam || player.team;
@@ -368,6 +378,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     }
 
     offers.sort((a, b) => b.salary - a.salary);
-    setFreeAgencyOffers(offers);
+    // Every offer carries perks and flaws now, so the screen always has something
+    // to weigh beyond the salary.
+    setFreeAgencyOffers((offers).map(o => withOfferPerks(o)));
     setScreen('transfer');
+    return true;
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 
-export default function ScreenedShotGame({ player, onComplete }) {
+export default function ScreenedShotGame({ player, onComplete, difficulty = 0 }) {
   const [status, setStatus] = useState('waiting'); // waiting, emerging, result
   const [shotLane, setShotLane] = useState(null);
   const [clickedLane, setClickedLane] = useState(null);
@@ -9,7 +10,8 @@ export default function ScreenedShotGame({ player, onComplete }) {
 
   // Reflexes (Shooting for goalies) dictate how long you have to react once the puck emerges
   const reflexes = getActiveStat(player, 'shooting');
-  const reactionTime = Math.max(300, 200 + (reflexes * 5)); 
+  // Floored at a genuine human reaction: a shorter window is a coin toss, not a test.
+  const reactionTime = Math.max(MIN_REACTION_MS, (200 + (reflexes * 5)) * lerpDifficulty(1.0, 0.72, difficulty));
 
   const timeoutRef = useRef(null);
 
@@ -37,7 +39,7 @@ export default function ScreenedShotGame({ player, onComplete }) {
       clearTimeout(initTimer);
       clearTimeout(timeoutRef.current);
     }
-  }, [onComplete, reactionTime]);
+  }, [onComplete, reactionTime, difficulty]);
 
   const handleBlock = (lane) => {
     if (status === 'waiting') {

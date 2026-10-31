@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { lerpDifficulty } from '../utils/stakes';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const OneTimerGame = ({ player, onComplete }) => {
+const OneTimerGame = ({ player, onComplete, difficulty = 0 }) => {
   const [position, setPosition] = useState(-20);
   const [status, setStatus] = useState('waiting');
   const doneRef = useRef(false);
@@ -22,8 +23,9 @@ const OneTimerGame = ({ player, onComplete }) => {
     if (status !== 'playing') return;
     
     // Higher shooting/hockey IQ makes the puck travel at a slightly more manageable speed
-    let speed = Math.max(1.8, 4.5 - (player.shooting * 0.025));
-    if (player.archetype === 'Sniper') speed -= 0.4;
+    // Capped so the puck never outruns the eye.
+    let speed = Math.min(5.0, Math.max(1.8, 4.5 - (player.shooting * 0.025)) * lerpDifficulty(1.0, 1.35, difficulty));
+    if ((player.archetype || '').includes('Sniper')) speed -= 0.4;
     
     const ticker = setInterval(() => {
       setPosition(prev => {
@@ -36,7 +38,7 @@ const OneTimerGame = ({ player, onComplete }) => {
       });
     }, 20);
     return () => clearInterval(ticker);
-  }, [status, player, finish]);
+  }, [status, player, finish, difficulty]);
 
   const handleShoot = () => {
     if (status !== 'playing') return;

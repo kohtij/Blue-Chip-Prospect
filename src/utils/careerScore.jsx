@@ -8,8 +8,21 @@ export function computeCareerScore(player) {
     breakdown.push({ label, points });
   };
 
-  const awards = player.stats?.awards || [];
   const history = player.seasonHistory || [];
+
+  // A career's trophies live in two places and this only ever read one of them.
+  // stats.awards holds the Stanley Cups and the international medals; every
+  // season award the game hands out, the Hart, the Conn Smythe, the Vezina, the
+  // Norris, the Art Ross, the Rocket, the Calder and every All-Star Team, is
+  // written onto that season's history entry and never copied up. So the whole
+  // awards section below was scoring an array that only ever contained Cups,
+  // which is why a long, decorated career still came out a Franchise Cornerstone
+  // and the top two tiers were unreachable. The two sources are disjoint, so
+  // reading both counts each trophy exactly once.
+  const awards = [
+    ...(player.stats?.awards || []),
+    ...history.flatMap(s => s.awards || [])
+  ];
   const teams = player.teamsPlayedFor || [];
 
   // 1. AWARDS & CHAMPIONSHIPS

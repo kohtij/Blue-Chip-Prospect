@@ -218,7 +218,7 @@ export const eventDeck = [
     desc: 'A teammate was caught on video making wildly inappropriate comments at a bar. The media is demanding a statement from you as a leader in the room.',
     choices: [
       { label: 'Condemn the Comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You took a hard stance. The media praised your leadership, but it definitely caused a fracture in the locker room.', effect: { fanStatus: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
-      { label: 'Protect the Room ("No Comment")', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You stonewalled the media. The story died down quickly, and your teammates deeply respect your loyalty.', successEffect: { fanStatus: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic culture. Your silence became a massive PR disaster.', failEffect: { fanStatus: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
+      { label: 'Protect the Room', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You stonewalled the media. The story died down quickly, and your teammates deeply respect your loyalty.', successEffect: { fanStatus: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic culture. Your silence became a massive PR disaster.', failEffect: { fanStatus: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
     ]
   },
   {

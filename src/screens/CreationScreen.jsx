@@ -224,7 +224,7 @@ export default function CreationScreen() {
                   {splashText}
                 </h2>
                 
-                <h1 className="text-5xl sm:text-7xl font-black mb-1 text-white italic sports-font uppercase tracking-tighter drop-shadow-lg relative z-10">
+                <h1 className="text-5xl sm:text-7xl font-black mb-6 sm:mb-8 text-white italic sports-font uppercase tracking-tighter drop-shadow-lg relative z-10">
                   <span className="creation-title-wrap">
                     BLUE CHIP PROSPECT
                     <span className="creation-title-shimmer" aria-hidden="true">BLUE CHIP PROSPECT</span>

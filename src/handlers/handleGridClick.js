@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { capFanStatus, generatePlayoffDeck } from '../utils/gameHelpers';
+import { capFanStatus, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
 import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
 export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
@@ -44,12 +44,20 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
       if (newLosses === 4 && newWins === 0 && rIndex === 0) unlockAchievement('swept_exit');
     }
 
+    // A single-elimination round is one game, so it gets a scoreboard rather
+    // than a series tally. Generated once here and stored on the match so it
+    // does not reshuffle every time the screen re-renders.
+    const scoreline = (isFrozenFour && matchStatus !== 'playing')
+      ? singleGameScore(matchStatus === 'won')
+      : null;
+
     const newMatch = {
       ...match,
       revealed: [...(match.revealed || []), cIndex],
       wins1: newWins,
       wins2: newLosses,
-      status: matchStatus
+      status: matchStatus,
+      ...(scoreline || {})
     };
 
     const newRound = [...currentRound];
@@ -127,7 +135,9 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
             if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
 
             const nextGpm = getGamesPerMatchup(playoffs.currentLg, nextRoundIdx);
-            const nextDeckSize = nextGpm === 1 ? 3 : nextGpm + 2; // Always provide at least 3 choices for single-elimination
+            // One game, one card. Dealing three for a single-elimination round
+            // left two of them dead, since the match ends on the first one.
+            const nextDeckSize = nextGpm === 1 ? 1 : nextGpm + 2;
             const nextDeck = isPlayerMatch
               ? (generatePlayoffDeck
                   ? generatePlayoffDeck(playoffs.standings || 1, playoffs.spots, nextRoundIdx + 1, nextGpm)

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { capFanStatus } from '../utils/gameHelpers';
+import { getStakes } from '../utils/stakes';
 import { getMinigamePool } from '../data/minigames';
 
 const GAME_TYPE_TO_KEY = {
@@ -83,6 +84,67 @@ const PREP_SCENARIOS = [
   }
 ];
 
+const MEDAL_STYLE = {
+  Gold:   { icon: '🥇', box: 'border-[#F59E0B]/60 bg-[#F59E0B]/10', text: 'text-[#F59E0B]' },
+  Silver: { icon: '🥈', box: 'border-slate-300/50 bg-slate-300/10',  text: 'text-slate-200' },
+  Bronze: { icon: '🥉', box: 'border-[#b45309]/60 bg-[#b45309]/10',  text: 'text-[#d97706]' },
+};
+
+// Round-specific prep scenarios, on top of the general pool.
+const ROUND_SCENARIOS = {
+  GOLD: {
+    title: "🥇 THE WEIGHT OF A NATION",
+    desc: "The Prime Minister just called the locker room to wish you luck. The entire country is shutting down to watch this game.",
+    choices: [
+      { label: 'Embrace the Pressure', isRisky: true, chance: 0.5, desc: 'Use the national spotlight as fuel.', winEffect: { fanStatus: 80 }, failEffect: { fanStatus: -30 }, win: "You thrive in the spotlight! Your confidence is sky high.", fail: "The pressure is suffocating. You feel like you're gripping the stick too tight." },
+      { label: 'Block Out the Noise', isRisky: false, desc: 'Treat it like just another hockey game.', winEffect: { fanStatus: 10 }, win: "You successfully blocked the noise and kept your heart rate steady." }
+    ]
+  },
+  BRONZE: {
+    title: "🥉 THE CONSOLATION ROOM",
+    desc: "The room is flat. Nobody came here to play for third, and the coach can see it on every face.",
+    choices: [
+      { label: 'Rally the Room', isRisky: true, chance: 0.55, desc: 'Remind them a medal is still a medal.', winEffect: { fanStatus: 35 }, failEffect: { fanStatus: -15 }, win: "The room picked itself up. You are playing for something again.", fail: "Nobody met your eye. The speech landed on deaf ears." },
+      { label: 'Say Nothing', isRisky: false, desc: 'Let the veterans handle it.', winEffect: { fanStatus: 5 }, win: "You kept quiet and focused on your own preparation." }
+    ]
+  },
+  SEMIFINAL: {
+    title: "🎯 ONE GAME FROM THE FINAL",
+    desc: "Win and you play for gold. The coaching staff offers you a bigger role on the penalty kill for the biggest game of the tournament.",
+    choices: [
+      { label: 'Take the Minutes', isRisky: true, chance: 0.5, desc: 'More ice, more exposure, more risk.', winEffect: { fanStatus: 45 }, failEffect: { fanStatus: -20 }, win: "You handled the toughest assignment on the roster.", fail: "You were caught out of position and it cost a goal." },
+      { label: 'Stick to Your Role', isRisky: false, desc: 'Do your job and nothing more.', winEffect: { fanStatus: 8 }, win: "You played a clean, simple game within your role." }
+    ]
+  },
+  SURVIVAL: {
+    title: "⚠️ RELEGATION PANIC",
+    desc: "If you lose tonight, your country gets relegated to a lower division. The local federation is threatening to pull funding.",
+    choices: [
+      { label: 'Play Desperate', isRisky: true, chance: 0.6, desc: 'Sell out physically to keep your country alive.', winEffect: { fanStatus: 40 }, failEffect: { fanStatus: -20 }, win: "Your desperation sparked the room. Everyone is ready for war.", fail: "You look panicked. The anxiety is spreading through the lineup." },
+      { label: 'Play a Simple Game', isRisky: false, desc: 'Focus on defensive structure and zero mistakes.', winEffect: { fanStatus: 5 }, win: "You settled the room down and committed to a boring, safe game." }
+    ]
+  },
+  PROMOTION: {
+    title: "📈 ONE WIN FROM THE BIG ROOM",
+    desc: "Win and your nation moves up a division for the first time in years. The federation president is in the stands.",
+    choices: [
+      { label: 'Carry the Team', isRisky: true, chance: 0.5, desc: 'Take every shift you can get.', winEffect: { fanStatus: 40 }, failEffect: { fanStatus: -18 }, win: "You dragged them up a division on your back.", fail: "You tried to do too much and the structure fell apart." },
+      { label: 'Trust the System', isRisky: false, desc: 'Play the game plan exactly.', winEffect: { fanStatus: 8 }, win: "Disciplined, structured, and exactly what was asked." }
+    ]
+  }
+};
+
+function pickScenario(round) {
+  const pool = [...PREP_SCENARIOS];
+  const extra = ROUND_SCENARIOS[round];
+  if (extra) {
+    // Weighted so the round's own scenario actually shows up on the big nights
+    // rather than being one of nine equally likely options.
+    pool.push(extra, extra, extra);
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // Helper component for drawing the bracket
   const BracketMatch = ({ match, title }) => (
       <div className="bg-[#1a2230] border border-[rgba(255,255,255,0.065)] rounded-lg p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold uppercase w-full shadow-inner relative overflow-hidden">
@@ -114,68 +176,51 @@ export default function IntlMinigameScreen() {
   const [view, setView] = useState(player.intlData ? 'standings' : 'prep');
   const [activeMgKey, setActiveMgKey] = useState(null);
   const [prepFeedback, setPrepFeedback] = useState(null);
-  const [scenario] = useState(() => {
-      let pool = [...PREP_SCENARIOS];
-      const stakes = player.intlStakes || 'GOLD';
-      
-      if (stakes === 'GOLD' || stakes === 'BRONZE') {
-          pool.push({
-              title: "🥇 THE WEIGHT OF A NATION",
-              desc: "The Prime Minister just called the locker room to wish you luck. The entire country is shutting down to watch this game.",
-              choices: [
-                  { label: 'Embrace the Pressure', isRisky: true, chance: 0.5, desc: 'Use the national spotlight as fuel.', winEffect: { fanStatus: 80 }, failEffect: { fanStatus: -30 }, win: "You thrive in the spotlight! Your confidence is sky high.", fail: "The pressure is suffocating. You feel like you're gripping the stick too tight." },
-                  { label: 'Block Out the Noise', isRisky: false, desc: 'Treat it like just another hockey game.', winEffect: { fanStatus: 10 }, win: "You successfully blocked the noise and kept your heart rate steady." }
-              ]
-          });
-      } else if (stakes === 'SURVIVAL') {
-          pool.push({
-              title: "⚠️ RELEGATION PANIC",
-              desc: "If you lose tonight, your country gets relegated to a lower division. The local federation is threatening to pull funding.",
-              choices: [
-                  { label: 'Play Desperate', isRisky: true, chance: 0.6, desc: 'Sell out physically to keep your country alive.', winEffect: { fanStatus: 40 }, failEffect: { fanStatus: -20 }, win: "Your desperation sparked the room. Everyone is ready for war.", fail: "You look panicked. The anxiety is spreading through the lineup." },
-                  { label: 'Play a Simple Game', isRisky: false, desc: 'Focus on defensive structure and zero mistakes.', winEffect: { fanStatus: 5 }, win: "You settled the room down and committed to a boring, safe game." }
-              ]
-          });
-      }
-      return pool[Math.floor(Math.random() * pool.length)];
-  });
+  // The prep scenario used to be picked once, with useState, and this screen stays
+  // mounted for the whole knockout run, so you got the identical dinner or media
+  // scrum before the quarter-final, the semi-final and the final. The round-specific
+  // scenario was also chosen from the stake at mount, which is always QUARTERFINAL,
+  // so THE WEIGHT OF A NATION could never appear before a medal game. Re-rolled per
+  // round, off the round actually being played.
+  const [scenario, setScenario] = useState(() => pickScenario(player.intlStakes));
 
   const mgLockRef = useRef(false);
 
   const nat = safeNationalities.find(n => n.id === player.nat);
   const countryName = nat?.sentenceName || nat?.name || 'your country';
 
-  const [initialStake, setInitialStake] = useState(player.intlStakes || 'GOLD');
-  const [initialDiv] = useState(player.natDiv || nat?.division || 'Top Division');
-  
-  // Extract tournament progression
+  // Everything about the current round is read off the player, not frozen at mount.
+  // The resolver writes the next round onto the player when a game is settled, so
+  // this screen follows the run from the quarter-final through to the medal game
+  // without a parallel copy of the bracket stage to keep in sync.
+  const stake = player.intlStakes || 'GOLD';
+  const division = player.natDiv || nat?.division || 'Top Division';
   const groupData = player.intlData || null;
-  const isTopDiv = initialDiv === 'Top Division';
-  
-  // Track what stage of the bracket we are in
-  const [tournamentStage, setTournamentStage] = useState(() => {
-     if (initialStake === 'QUARTERFINAL') return 'QF';
-     if (initialStake === 'SEMIFINAL') return 'SF';
-     return 'MEDAL';
-  });
+  const isTopDiv = division === 'Top Division';
+  const stakes = getStakes(minigameContext, stake, player.intlOppTier);
 
-  // Find your opponent for the current stage!
+  // The international screen runs its minigames directly rather than through
+  // MinigameScreen, so the stakes have to be handed over here too: without it the
+  // gold medal game played at exactly the same difficulty as a camp drill.
+
+  // Which medal, if any, this result just won.
+  const medal = intlResult && (
+    stake === 'GOLD' ? (intlResult.isWin ? 'Gold' : 'Silver')
+    : stake === 'BRONZE' && intlResult.isWin ? 'Bronze'
+    : null
+  );
+
+  // Your opponent in the round being played.
   let opponent = null;
-  let upcomingMatchText = 'CONSOLATION GAME';
-  
-  if (initialStake === 'QUARTERFINAL') upcomingMatchText = 'QUARTERFINAL';
-  else if (initialStake === 'SEMIFINAL') upcomingMatchText = 'SEMIFINAL';
-  else if (initialStake === 'GOLD') upcomingMatchText = 'GOLD MEDAL GAME';
-  else if (initialStake === 'BRONZE') upcomingMatchText = 'BRONZE MEDAL GAME';
-  else if (initialStake === 'SURVIVAL') upcomingMatchText = 'MUST-WIN RELEGATION SCARE';
-  else if (initialStake === 'PROMOTION') upcomingMatchText = 'MUST-WIN PROMOTION FINAL';
+  const upcomingMatchText = stakes.label;
 
   if (groupData?.bracket) {
-      let currentMatches = [];
-      if (tournamentStage === 'QF') currentMatches = groupData.bracket.qf;
-      else if (tournamentStage === 'SF') currentMatches = groupData.bracket.sf;
-      else if (tournamentStage === 'MEDAL') currentMatches = [groupData.bracket.medal[initialStake.toLowerCase()]];
-      
+      const b = groupData.bracket;
+      const currentMatches = stake === 'QUARTERFINAL' ? b.qf
+          : stake === 'SEMIFINAL' ? b.sf
+          : stake === 'GOLD' ? [b.medal.gold]
+          : stake === 'BRONZE' ? [b.medal.bronze]
+          : [];
       const myMatch = currentMatches.find(m => m?.t1?.isPlayer || m?.t2?.isPlayer);
       if (myMatch) opponent = myMatch.t1?.isPlayer ? myMatch.t2 : myMatch.t1;
   }
@@ -213,56 +258,26 @@ export default function IntlMinigameScreen() {
    setView('game');
 }, [player, setPlayer, resetMinigameLock]);
 
-  // --- Hub Advancement Logic ---
-  // When you click Continue on the Result Screen, we either update the bracket and stay, or leave.
+  // Clicking Continue on a result either moves you to the next round of the
+  // knockout run or leaves the tournament. This used to rebuild the bracket here
+  // and bail out on any loss, which is why losing a semi-final ended the
+  // tournament immediately after telling you that you would play for bronze.
+  // The resolver now settles the bracket and names the next round; this only has
+  // to decide whether to stay on the screen.
   const handleContinue = () => {
-        setIntlResult(null);
-        if (!groupData || !groupData.bracket || !['QF', 'SF'].includes(tournamentStage) || !intlResult?.isWin) {
-            // End of tournament (or no bracket exists)
-            proceedToNextScreen(activeEvent, minigameContext, player);
-            return;
-        }
+      const next = intlResult?.nextStake;
+      setIntlResult(null);
 
-        // We won a bracket game! Time to advance the tournament simulation
-        const b = { ...groupData.bracket };
-        let nextStake = null;
-        let nextStage = null;
+      if (!next) {
+          proceedToNextScreen(activeEvent, minigameContext, player);
+          return;
+      }
 
-        // Helper to auto-sim the AI vs AI matches
-        const simMatch = (m) => m.t1 && m.t2 ? (Math.random() > 0.5 ? m.t1 : m.t2) : null;
-
-        if (tournamentStage === 'QF') {
-            b.qf.forEach(m => {
-                if (m.t1?.isPlayer || m.t2?.isPlayer) m.winner = m.t1.isPlayer ? m.t1 : m.t2;
-                else m.winner = simMatch(m);
-            });
-            b.sf[0].t1 = b.qf[0].winner; b.sf[0].t2 = b.qf[1].winner;
-            b.sf[1].t1 = b.qf[2].winner; b.sf[1].t2 = b.qf[3].winner;
-            nextStake = 'SEMIFINAL';
-            nextStage = 'SF';
-        } else if (tournamentStage === 'SF') {
-            b.sf.forEach(m => {
-                if (m.t1?.isPlayer || m.t2?.isPlayer) {
-                    m.winner = m.t1.isPlayer ? m.t1 : m.t2;
-                    m.loser = m.t1.isPlayer ? m.t2 : m.t1;
-                } else {
-                    m.winner = simMatch(m);
-                    m.loser = m.winner === m.t1 ? m.t2 : m.t1;
-                }
-            });
-            b.medal.gold.t1 = b.sf[0].winner; b.medal.gold.t2 = b.sf[1].winner;
-            b.medal.bronze.t1 = b.sf[0].loser; b.medal.bronze.t2 = b.sf[1].loser;
-            nextStake = 'GOLD';
-            nextStage = 'MEDAL';
-        }
-
-        if (nextStake) {
-            setPlayer(p => ({ ...p, intlStakes: nextStake, intlData: { ...p.intlData, bracket: b } }));
-            setInitialStake(nextStake);
-            setTournamentStage(nextStage);
-            setPrepFeedback(null);
-            setView('bracket');
-        }
+      // A fresh prep scenario for the new round, chosen off the round itself.
+      setScenario(pickScenario(next));
+      setPrepFeedback(null);
+      setActiveMgKey(null);
+      setView('bracket');
   };
 
   const wrappedOnComplete = (isWin) => {
@@ -281,7 +296,7 @@ export default function IntlMinigameScreen() {
     <div className="game-panel p-6 sm:p-12 mt-2 border-t-2 border-t-[#F59E0B] text-center">
       <div className="flex flex-col items-center justify-center mb-6">
           <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-4 py-1.5 rounded-full mb-3 shadow-inner">
-              CURRENT TIER: {initialDiv}
+              CURRENT TIER: {division}
           </span>
           <h2 className="flex justify-center items-center gap-2 text-3xl sm:text-5xl font-black text-[#F59E0B] sports-font tracking-tighter uppercase leading-tight w-full text-center drop-shadow-md">
             <span className="shrink-0">🌍</span>
@@ -441,18 +456,18 @@ export default function IntlMinigameScreen() {
         )}
         
         <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-6 rounded-xl shadow-2xl">
-            {activeMgKey === 'breakaway' && <BreakawayGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'faceoff' && <FaceoffGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'deflection' && <DeflectionGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'shootout' && <ShootoutGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'onetimer' && <OneTimerGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'crease' && <CreaseGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'breakaway' && <BreakawayGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'faceoff' && <FaceoffGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'deflection' && <DeflectionGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'shootout' && <ShootoutGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'onetimer' && <OneTimerGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'crease' && <CreaseGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'shotblock' && <ShotBlockGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
             
             {/* The New Minigames */}
-            {activeMgKey === 'breakout' && <BreakoutGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'screened' && <ScreenedShotGame onComplete={wrappedOnComplete} player={player} />}
-            {activeMgKey === 'zone_battle' && <ZoneBattleGame onComplete={wrappedOnComplete} player={player} />}
+            {activeMgKey === 'breakout' && <BreakoutGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'screened' && <ScreenedShotGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
+            {activeMgKey === 'zone_battle' && <ZoneBattleGame onComplete={wrappedOnComplete} player={player} difficulty={stakes.difficulty} />}
         </div>
       </div>
       )}
@@ -464,6 +479,22 @@ export default function IntlMinigameScreen() {
             <h3 className={`text-2xl sm:text-4xl font-black sports-font uppercase tracking-tighter mb-4 ${intlResult.isWin ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
               {intlResult.isWin ? 'VICTORY!' : 'DEFEAT!'}
             </h3>
+
+            {/* A medal is the whole point of the tournament and used to be reported
+                as nothing but a fan status number. */}
+            {medal && (
+              <div className={`mb-5 px-6 py-3 rounded-xl border-2 flex items-center gap-3 ${MEDAL_STYLE[medal].box}`}>
+                <span className="text-3xl sm:text-4xl">{MEDAL_STYLE[medal].icon}</span>
+                <div className="text-left">
+                  <div className={`text-lg sm:text-2xl font-black sports-font uppercase tracking-tight ${MEDAL_STYLE[medal].text}`}>
+                    {medal} Medal
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest font-bold">
+                    {countryName} · {minigameContext === 'wjc' ? 'World Juniors' : minigameContext === 'olympics' ? 'Winter Olympics' : 'World Championship'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <p className="text-base sm:text-xl italic text-slate-300 mb-6 font-sans leading-relaxed">"{intlResult.msg}"</p>
 

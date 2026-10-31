@@ -2,13 +2,17 @@ import  { useState, useEffect, useCallback, useRef } from 'react';
 
 import {
   nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, ncaaTeams, echlTeams,
-  nationalities, juniorLeagues, euroLeagues, getPrimaryRival
+  nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds
 } from './data/teams';
 import { shopItems, skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool } from './data/minigames';
 import {
   cap, capFanStatus, formatMoney, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
+import { withOfferPerks } from './data/offerPerks';
+import { projectDraftPick } from './utils/draftScouting';
+import { getStakes, applyStakesToReward } from './utils/stakes';
+import { resolveIntlGame } from './handlers/resolveIntlGame';
 import {
   makeInitialPlayer, getRole, getWinsNeeded,
   MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName, getTrainingQuality
@@ -359,38 +363,34 @@ function App() {
     } else setScreen('preseason');
   }, [generateTraining, player]);
 
-  const handleDraftDay = (combineBoost = 0) => {
-    const totalJuniorPoints = (player.stats?.chl?.goals || 0) + (player.stats?.chl?.assists || 0) + (player.stats?.memCupBoost || 0);
-    let overallPick = 1, round = 1, fanBoost = 0;
-    const effectiveOvr = player.ovr + combineBoost;
+  // rawCombine is the combine's own -4..+8 score, not a bucketed OVR nudge.
+  // overridePlayer is for the over-ager path, which applies an age penalty and
+  // then drafts in the same tick, before setPlayer has landed.
+  const handleDraftDay = (rawCombine = 0, overridePlayer = null) => {
+    const who = overridePlayer || player;
+    const { pick: overallPick, round } = projectDraftPick(who, rawCombine);
 
-    const isFirstOverall = (player.pos !== 'G' && effectiveOvr >= 70) || (player.pos === 'G' && effectiveOvr >= 74) || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 200);
-    const isElite = effectiveOvr >= 67 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 160);
-    const isGreat = effectiveOvr >= 64 || (['LW', 'RW', 'C'].includes(player.pos) && totalJuniorPoints > 120);
-
-    if (isFirstOverall) { overallPick = 1; round = 1; fanBoost = 25; } 
-    else if (isElite) { overallPick = player.pos === 'G' ? Math.floor(Math.random() * 10) + 5 : Math.floor(Math.random() * 9) + 2; round = 1; fanBoost = 20; } 
-    else if (isGreat) { overallPick = Math.floor(Math.random() * 22) + 11; round = 1; fanBoost = 15; } 
-    else { round = Math.floor(Math.random() * 6) + 2; overallPick = ((round - 1) * 32) + Math.floor(Math.random() * 32) + 1; fanBoost = 5; }
+    // Going early is a bigger story than going late.
+    const fanBoost = overallPick === 1 ? 25 : overallPick <= 10 ? 20 : overallPick <= 32 ? 15 : overallPick <= 96 ? 8 : 5;
 
     const pool = nhlTeams || [];
     const draftedBy = pool[Math.floor(Math.random() * pool.length)];
 
-    setPlayer(p => ({ 
-      ...p, 
-      rights: draftedBy?.id, 
-      draftTeam: draftedBy?.id || null, 
-      draftLeague: p.league, 
-      draftPick: overallPick, 
-      draftRound: round, 
-      fanStatus: capFanStatus((p.fanStatus || 0) + fanBoost) 
+    setPlayer(p => ({
+      ...p,
+      rights: draftedBy?.id,
+      draftTeam: draftedBy?.id || null,
+      draftLeague: p.league,
+      draftPick: overallPick,
+      draftRound: round,
+      fanStatus: capFanStatus((p.fanStatus || 0) + fanBoost)
     }));
 
     if (overallPick === 1) unlockAchievement('first_overall');
     if (overallPick <= 32) unlockAchievement('first_round_pick');
-    if (player.league === 'NCAA') unlockAchievement('ncaa_champ');
+    if (who.league === 'NCAA') unlockAchievement('ncaa_champ');
 
-    setSeasonRecap(r => ({ ...r, draftPick: overallPick, draftRound: round, draftedBy: draftedBy, juniorTeam: player.team, juniorLeague: player.league }));
+    setSeasonRecap(r => ({ ...r, draftPick: overallPick, draftRound: round, draftedBy: draftedBy, juniorTeam: who.team, juniorLeague: who.league }));
     setScreen('draft');
   };
 
@@ -416,7 +416,15 @@ function App() {
                offers.push({ team: euroPool[i].id, league: lg, type: 'PRO CONTRACT', salary: Math.floor(Math.random() * 40000) + 40000, years: 1, role: 'Pro Roster', fanHit: 5, state: 'European Pro', nmc: false });
            }
        }
-       setFreeAgencyOffers(offers.sort((a,b) => b.salary - a.salary));
+       // This is a real fork in a career, so the programmes and clubs on offer
+       // need something to tell them apart besides the cheque. A college offer
+       // here is weighted toward perks, because being recruited means being
+       // wanted.
+       setFreeAgencyOffers(
+         offers
+           .map(o => withOfferPerks(o, o.league === 'NCAA' ? { minPerks: 1, maxPerks: 3, maxFlaws: 2 } : { maxPerks: 2, maxFlaws: 2 }))
+           .sort((a, b) => b.salary - a.salary)
+       );
        setScreen('transfer');
        return;
      } else {
@@ -548,107 +556,25 @@ function App() {
     }
 
     if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) {
-      const defaultNat = safeNationalities.find(n => n.id === player.nat);
-      const currentTier = player.natTier || defaultNat?.tier || 1;
-      const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
-      let updatedPlayer = { ...player };
-      let resultMsg = '', resultEffect = {};
+      // One resolver owns the whole knockout run. This used to be two near-identical
+      // 100-line copies, here and in handleMinigameChoice, which had already drifted.
+      const intl = resolveIntlGame({
+        player, minigameContext, isWin, msg,
+        currentYear, safeNationalities, unlockAchievement
+      });
 
-      const tournamentName = minigameContext === 'wjc' ? 'World Juniors'
-          : minigameContext === 'olympics' ? 'Winter Olympics' : 'World Championship';
-      const stake = player.intlStakes || 'GOLD';
-      let awardName = '';
-
-      if (stake === 'QUARTERFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Semifinals!`; resultEffect = { fanStatus: 15, ovr: 0 }; }
-          else { resultMsg = `${msg} A heartbreaking Quarterfinal exit for ${countryName}.`; resultEffect = { fanStatus: -10, ovr: 0 }; }
-          const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
-          updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
-      } else if (stake === 'SEMIFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Gold Medal Game!`; resultEffect = { fanStatus: 25, ovr: 0 }; }
-          else { resultMsg = `${msg} You fell in the Semifinals and will play for Bronze.`; resultEffect = { fanStatus: -5, ovr: 0 }; }
-          const withOvr = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
-          updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
-      } else {
-          if (isWin) {
-            updatedPlayer.fanStatus = capFanStatus(updatedPlayer.fanStatus + (stake === 'GOLD' ? 50 : 25));
-            const withOvr = applyOvrDelta(updatedPlayer, 1); 
-            updatedPlayer = { ...withOvr, ovr: recomputeOvr(withOvr) };
-
-            if (stake === 'GOLD') {
-                awardName = 'Gold';
-                resultMsg = `${msg} You won the Gold Medal for ${countryName}!`;
-                unlockAchievement('gold_medal');
-            } else if (stake === 'BRONZE') {
-                awardName = 'Bronze';
-                resultMsg = `${msg} You secured the Bronze Medal for ${countryName}!`;
-            } else if (stake === 'SURVIVAL') {
-                resultMsg = `${msg} You avoided relegation! ${countryName} survives in the Top Division.`;
-            } else if (stake === 'PROMOTION') {
-                if (currentTier === 3) {
-                    updatedPlayer.natTier = 2;
-                    updatedPlayer.natDiv = 'Top Division';
-                    resultMsg = `${msg} Your nation has been promoted from Division I-A to the Top Division!`;
-                } else {
-                    updatedPlayer.natTier = 3;
-                    updatedPlayer.natDiv = 'Division I-A';
-                    resultMsg = `${msg} Your nation has been promoted from Division I-B to Division I-A!`;
-                }
-            } else {
-                resultMsg = `${msg} A solid win to end the tournament on a high note.`;
-            }
-            resultEffect = { fanStatus: 50, ovr: 1, rel: { media: 20 } }; 
-          } else {
-            updatedPlayer.fanStatus = capFanStatus(updatedPlayer.fanStatus - 5);
-            resultEffect = { fanStatus: -5, rel: { media: -15 } }; 
-
-            if (stake === 'GOLD') {
-                awardName = 'Silver';
-                resultMsg = `${msg} A heartbreaking loss in the final, but you secured the Silver Medal for ${countryName}.`;
-            } else if (stake === 'BRONZE') {
-                resultMsg = `${msg} You fell short in the Bronze Medal game. Fourth place for ${countryName}.`;
-            } else if (stake === 'SURVIVAL') {
-                if (currentTier === 2 || currentTier === 3) {
-                     updatedPlayer.natTier = currentTier + 1;
-                     updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
-                     const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
-                     resultMsg = `${msg} A devastating loss. ${countryName} has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
-                }
-            } else if (stake === 'PROMOTION') {
-                resultMsg = `${msg} You fell short of promotion this year.`;
-            } else {
-                resultMsg = `${msg} A tough loss to end the tournament.`;
-            }
-          }
-
-          if (awardName) {
-              const medalString = `${awardName}, ${tournamentName} ${currentYear}`;
-              updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
-          }
+      if (intl.isTournamentOver) {
+        setSeasonEvents(prev => [...prev, { feedback: intl.resultMsg, effect: intl.resultEffect }]);
       }
 
-      if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
-          const lastIdx = updatedPlayer.seasonHistory.length - 1;
-          const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
-          if (awardName) currentAwards.push(`${awardName}, ${tournamentName} ${currentYear}`);
-          
-          updatedPlayer.seasonHistory[lastIdx] = { 
-              ...updatedPlayer.seasonHistory[lastIdx], 
-              awards: currentAwards,
-              intlData: {
-                  ...player.intlData,
-                  tournamentName: `${currentYear} ${tournamentName}`
-              }
-          };
-      }
-
-      const isTournamentOver = !isWin || ['GOLD', 'BRONZE', 'SURVIVAL', 'PROMOTION'].includes(stake);
-      if (isTournamentOver) {
-          setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
-      }
-      
-      setPlayer(updatedPlayer);
-      setIntlResult({ isWin, msg: resultMsg, feedback: resultMsg, effect: resultEffect });
+      setPlayer(intl.updatedPlayer);
+      setIntlResult({
+        isWin,
+        msg: intl.resultMsg,
+        feedback: intl.resultMsg,
+        effect: intl.resultEffect,
+        nextStake: intl.nextStake
+      });
       return;
     }
 
@@ -684,7 +610,13 @@ function App() {
    if (minigameLockedRef.current) return;
    minigameLockedRef.current = true;
 
-    const payout = isWin ? (reward?.win || {}) : (reward?.loss || {});
+    // What the moment was worth. A shootout in a gold medal game and a shootout
+    // in a meaningless February game used to pay out exactly the same.
+    const stakes = getStakes(minigameContext, player.intlStakes, player.intlOppTier);
+    const payout = applyStakesToReward(
+      isWin ? (reward?.win || {}) : (reward?.loss || {}),
+      stakes.rewardMulti
+    );
     const msg = isWin ? successMsg : failMsg;
 
     const withOvr = applyOvrDelta(player, payout.ovr || 0);
@@ -771,107 +703,26 @@ function App() {
     }
 
     if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) {
-      const defaultNat = safeNationalities.find(n => n.id === player.nat);
-      const currentTier = player.natTier || defaultNat?.tier || 1;
-      const countryName = defaultNat?.sentenceName || defaultNat?.name || 'your country';
-      let resultMsg = '', resultEffect = {};
+      // One resolver owns the whole knockout run. This used to be two near-identical
+      // 100-line copies, here and in handleMinigameChoice, which had already drifted.
+      const intl = resolveIntlGame({
+        player, minigameContext, isWin, msg,
+        currentYear, safeNationalities, unlockAchievement
+      });
 
-      const tournamentName = minigameContext === 'wjc' ? 'World Juniors'
-          : minigameContext === 'olympics' ? 'Winter Olympics' : 'World Championship';
-      const stake = player.intlStakes || 'GOLD';
-      let awardName = '';
-
-      if (stake === 'QUARTERFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Semifinals!`; resultEffect = { fanStatus: 15, ovr: 0 }; }
-          else { resultMsg = `${msg} A heartbreaking Quarterfinal exit for ${countryName}.`; resultEffect = { fanStatus: -10, ovr: 0 }; }
-          const withOvrIntl = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
-          updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
-      } else if (stake === 'SEMIFINAL') {
-          if (isWin) { resultMsg = `${msg} You advance to the Gold Medal Game!`; resultEffect = { fanStatus: 25, ovr: 0 }; }
-          else { resultMsg = `${msg} You fell in the Semifinals and will play for Bronze.`; resultEffect = { fanStatus: -5, ovr: 0 }; }
-          const withOvrIntl = applyOvrDelta(updatedPlayer, resultEffect.ovr); 
-          updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
-      } else {
-          if (isWin) {
-            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) + (stake === 'GOLD' ? 50 : 25));
-            const withOvrIntl = applyOvrDelta(updatedPlayer, 1); 
-            updatedPlayer = { ...withOvrIntl, ovr: recomputeOvr(withOvrIntl) };
-
-            if (stake === 'GOLD') {
-                awardName = 'Gold';
-                resultMsg = `${msg} You won the Gold Medal for ${countryName}!`;
-                unlockAchievement('gold_medal');
-            } else if (stake === 'BRONZE') {
-                awardName = 'Bronze';
-                resultMsg = `${msg} You secured the Bronze Medal for ${countryName}!`;
-            } else if (stake === 'SURVIVAL') {
-                resultMsg = `${msg} You avoided relegation! ${countryName} survives in the Top Division.`;
-            } else if (stake === 'PROMOTION') {
-                if (currentTier === 3) {
-                    updatedPlayer.natTier = 2;
-                    updatedPlayer.natDiv = 'Top Division';
-                    resultMsg = `${msg} Your nation has been promoted from Division I-A to the Top Division!`;
-                } else {
-                    updatedPlayer.natTier = 3;
-                    updatedPlayer.natDiv = 'Division I-A';
-                    resultMsg = `${msg} Your nation has been promoted from Division I-B to Division I-A!`;
-                }
-            } else {
-                resultMsg = `${msg} A solid win to end the tournament on a high note.`;
-            }
-            resultEffect = { fanStatus: 50, ovr: 1, rel: { media: 20 } }; 
-          } else {
-            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) - 5);
-            resultEffect = { fanStatus: -5, rel: { media: -15 } }; 
-
-            if (stake === 'GOLD') {
-                awardName = 'Silver';
-                resultMsg = `${msg} A heartbreaking loss in the final, but you secured the Silver Medal for ${countryName}.`;
-            } else if (stake === 'BRONZE') {
-                resultMsg = `${msg} You fell short in the Bronze Medal game. Fourth place for ${countryName}.`;
-            } else if (stake === 'SURVIVAL') {
-                if (currentTier === 2 || currentTier === 3) {
-                     updatedPlayer.natTier = currentTier + 1;
-                     updatedPlayer.natDiv = currentTier === 2 ? 'Division I-A' : 'Division I-B';
-                     const oldDiv = currentTier === 2 ? 'the Top Division' : 'Division I-A';
-                     resultMsg = `${msg} A devastating loss. ${countryName} has been relegated from ${oldDiv} to ${updatedPlayer.natDiv}.`;
-                }
-            } else if (stake === 'PROMOTION') {
-                resultMsg = `${msg} You fell short of promotion this year.`;
-            } else {
-                resultMsg = `${msg} A tough loss to end the tournament.`;
-            }
-          }
-
-          if (awardName) {
-              const medalString = `${awardName}, ${tournamentName} ${currentYear}`;
-              updatedPlayer.stats = { ...updatedPlayer.stats, awards: [...(updatedPlayer.stats?.awards || []), medalString] };
-          }
+      if (intl.isTournamentOver) {
+        setSeasonEvents(prev => [...prev, { feedback: intl.resultMsg, effect: intl.resultEffect }]);
       }
 
-      if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
-          const lastIdx = updatedPlayer.seasonHistory.length - 1;
-          const currentAwards = updatedPlayer.seasonHistory[lastIdx].awards || [];
-          if (awardName) currentAwards.push(`${awardName}, ${tournamentName} ${currentYear}`);
-          
-          updatedPlayer.seasonHistory[lastIdx] = { 
-              ...updatedPlayer.seasonHistory[lastIdx], 
-              awards: currentAwards,
-              intlData: {
-                  ...player.intlData,
-                  tournamentName: `${currentYear} ${tournamentName}`
-              }
-          };
-      }
-
-      const isTournamentOver = !isWin || ['GOLD', 'BRONZE', 'SURVIVAL', 'PROMOTION'].includes(stake);
-      if (isTournamentOver) {
-          setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultMsg, effect: resultEffect }]);
-      }
-      
-      setPlayer(updatedPlayer);
-      setIntlResult({ isWin, msg: resultMsg, feedback: resultMsg, effect: resultEffect });
-      return; 
+      setPlayer(intl.updatedPlayer);
+      setIntlResult({
+        isWin,
+        msg: intl.resultMsg,
+        feedback: intl.resultMsg,
+        effect: intl.resultEffect,
+        nextStake: intl.nextStake
+      });
+      return;
     }
 
     setPlayer(updatedPlayer);
@@ -881,6 +732,12 @@ function App() {
     });
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
+
+  // A player always carries these. A React synthetic event never does, so this
+  // tells the two apart without trusting the call site.
+  const isPlayerObject = (v) =>
+    Boolean(v) && typeof v === 'object' && !v.nativeEvent &&
+    typeof v.age === 'number' && typeof v.pos === 'string';
 
   const advancePlayoffRound = () => setPlayoffs(p => ({ ...p, activeRoundIndex: Math.min((p.bracket?.length || 1) - 1, p.activeRoundIndex + 1) }));
 
@@ -899,7 +756,14 @@ function App() {
   // still the old one. Passing the freshly built object is how the rest of this file
   // already handles the same problem, and camp needs it to see which club the player
   // actually belongs to now.
-  const advanceToOffseason = (overridePlayer = null) => {
+  const advanceToOffseason = (maybePlayer = null) => {
+    // Both of these take an OPTIONAL player, which makes them look like event
+    // handlers, so `onClick={advanceToOffseason}` type-checks fine and quietly
+    // hands React's click event in as the player. The offseason then read
+    // event.team and event.league as undefined and wrote both onto the real
+    // player, which is how a Kitchener Ranger arrived at training camp playing
+    // for UNKNOWN with his career totals reset to an empty NHL column.
+    const overridePlayer = isPlayerObject(maybePlayer) ? maybePlayer : null;
     const p0 = overridePlayer || player;
     const offCtx = overridePlayer ? { ...ctx, player: overridePlayer } : ctx;
 
@@ -934,13 +798,20 @@ function App() {
 
     _advanceToOffseason(offCtx);
   };
-  const handleTrain        = (t) => _handleTrain(ctx, t);
+  // Takes an optional player for the same reason advanceToOffseason does: a caller
+  // that has just applied an archetype has only SCHEDULED its setPlayer, so the
+  // player on this render is still the old one.
+  const handleTrain        = (t, overridePlayer = null) =>
+                             _handleTrain(overridePlayer ? { ...ctx, player: overridePlayer } : ctx, t);
 
   // Ends the year from wherever the last event left off. The All-Star break and
   // the deadline both happen inside the season now, so anything shown at the end
   // of it hands off here rather than routing back to one of them.
-  const finishSeason = (overridePlayer = null) => {
-    const who = overridePlayer || player;
+  const finishSeason = (maybePlayer = null) => {
+    // Same trap as advanceToOffseason: wired straight to onClick in AllStarScreen,
+    // so `who` was the click event and the whole season ended on undefined age,
+    // rating and league.
+    const who = isPlayerObject(maybePlayer) ? maybePlayer : player;
     const res = pendingSeasonResult;
     if (!res?.recap) { setScreen('recap'); return; }
     setSeasonRecap(res.recap);
@@ -948,6 +819,11 @@ function App() {
       2026 + (who.stats?.seasonsPlayed || 0), res.recap.standings || 16);
   };
   ctx.finishSeason = finishSeason;
+  // These are declared after ctx, so they are attached rather than listed in it.
+  // handleDraftDay was already being called from the offseason for over-agers and
+  // was never actually on ctx, so that call always fell through to its fallback.
+  ctx.handleTrain = handleTrain;
+  ctx.handleDraftDay = handleDraftDay;
   const checkEarlyDemotion = () => {
     const isUnder20 = player.age < 20;
     const isTop10Pick = seasonRecap?.draftPick <= 10;
@@ -1086,12 +962,36 @@ function App() {
 
     const isCupWon = playoffs.overallStatus === 'won_cup';
 
+    // Who you actually went through, and who put you out. The recap could only
+    // say "Eliminated after 3 playoff wins", which is true of a loss to anybody
+    // and says nothing about the one series a player would actually remember.
+    const myPoId = playoffs.currentTeamId;
+    const poRounds = getPlayoffRounds(playoffs.currentLg) || [];
+    const rivalPo = getPrimaryRival(player.team, player.league);
+    const rivalPoId = rivalPo?.id || null;
+
+    const myPoMatches = (playoffs.bracket || []).map((round, rIdx) => {
+      const m = (round || []).find(x => x.isPlayerSeries);
+      if (!m) return null;
+      const meIsT1 = (m.team1?.id || m.team1) === myPoId;
+      const oppId = meIsT1 ? (m.team2?.id || m.team2) : (m.team1?.id || m.team1);
+      return { rIdx, oppId, status: m.status, roundName: poRounds[rIdx]?.name || `Round ${rIdx + 1}` };
+    }).filter(Boolean);
+
+    const poLoss = myPoMatches.find(x => x.status === 'lost') || null;
+    const beatRival = myPoMatches.find(x => x.status === 'won' && rivalPoId && x.oppId === rivalPoId) || null;
+
     setSeasonRecap(r => ({
        ...(r || {}),
        playoffWins: totalWins, playoffGames, playoffG: pG, playoffA: pA, playoffSaves: pSaves,
        playoffShots: pShots, playoffSho: pSho, titleWon: isCupWon ? 1 : 0, confTitleWon: playoffs.confTitleWon || false,
        confName: playoffs.playerConf === 'East' ? 'Eastern Conference' : 'Western Conference',
-       leagueChampion: champion
+       leagueChampion: champion,
+       eliminatedByName: poLoss ? getFullTeamName(poLoss.oppId, playoffs.currentLg) : null,
+       eliminatedRound: poLoss ? poLoss.roundName : null,
+       lostToRival: !!(poLoss && rivalPoId && poLoss.oppId === rivalPoId),
+       beatRivalRound: beatRival ? beatRival.roundName : null,
+       beatRivalName: beatRival ? getFullTeamName(beatRival.oppId, playoffs.currentLg) : null
     }));
     
     setPlayer(p => {
@@ -1102,21 +1002,32 @@ function App() {
         const newHistory = [...(p.seasonHistory || [])];
         const currentYearString = `${2026 + (p.stats?.seasonsPlayed || 0)}`;
         const cupName = lg === 'NHL' ? 'Stanley Cup' : lg === 'AHL' ? 'Calder Cup' : 'Championship';
-        // Guard: a cup is recorded once per season even if this path runs twice.
-        const alreadyAwarded = isCupWon && (p.stats?.awards || []).includes(`${currentYearString} ${cupName}`);
-        
-        if (newHistory.length > 0) {
-            newHistory[newHistory.length - 1] = { 
-                ...newHistory[newHistory.length - 1], 
-                titleWon: isCupWon || newHistory[newHistory.length - 1].titleWon, 
+        // A cup is recorded once per season. The old guard compared against the
+        // exact string `${year} ${cupName}` in the career list, which misses
+        // whenever the year has already rolled over, and it never looked at the
+        // season's own award list at all. A season entry can only ever hold one
+        // championship, so that is the thing to test.
+        const lastIdx = newHistory.length - 1;
+        const histAwards = lastIdx >= 0 ? (newHistory[lastIdx].awards || []) : [];
+        const cupLabel = `${currentYearString} ${cupName}`;
+        const cupInSeason = histAwards.some(a => String(a).includes(cupName));
+        const cupInCareer = (p.stats?.awards || []).some(a => String(a).includes(cupName) && String(a).startsWith(currentYearString));
+        const alreadyAwarded = isCupWon && (cupInSeason || cupInCareer);
+
+        if (lastIdx >= 0) {
+            newHistory[lastIdx] = { 
+                ...newHistory[lastIdx], 
+                titleWon: isCupWon || newHistory[lastIdx].titleWon, 
                 playoffGames, 
                 playoffGoals: pG, 
                 playoffAssists: pA,
                 isCaptain: p.isCaptain,
                 isAlternate: p.isAlternate,
-                awards: isCupWon && !alreadyAwarded
-                   ? [...(newHistory[newHistory.length - 1].awards || []), `${currentYearString} ${cupName}`]
-                   : newHistory[newHistory.length - 1].awards
+                // Deduped on the way out, which also cleans up any season that
+                // already collected two cups before this was fixed.
+                awards: Array.from(new Set(
+                  isCupWon && !alreadyAwarded ? [...histAwards, cupLabel] : histAwards
+                ))
             };
         }
         
@@ -1128,7 +1039,9 @@ function App() {
            stats: {
               ...p.stats, 
               titles: isCupWon && !alreadyAwarded ? (p.stats.titles || 0) + 1 : (p.stats.titles || 0),
-              awards: isCupWon && !alreadyAwarded ? [...(p.stats.awards || []), `${currentYearString} ${cupName}`] : (p.stats.awards || []),
+              awards: Array.from(new Set(
+                 isCupWon && !alreadyAwarded ? [...(p.stats.awards || []), cupLabel] : (p.stats.awards || [])
+              )),
               careerHighGoals: Math.max(currentHigh, seasonGoals), 
               [poBucket]: {
                  games: (p.stats[poBucket]?.games || 0) + playoffGames, goals: (p.stats[poBucket]?.goals || 0) + pG,
@@ -1156,33 +1069,60 @@ function App() {
     }
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
-    // FIX: Extract this to a variable so we can pass the fully updated player into runPostSeasonFlow
-    let fullyUpdatedPlayer;
+    // The signed player is built here, not inside the setPlayer updater.
+    //
+    // It used to be assigned from within that updater and then read on the very
+    // next line. React does not promise to run an updater synchronously, so
+    // about as often as not the variable was still undefined when the offseason
+    // was handed it, isPlayerObject rejected it, and the summer carried on with
+    // the player as he was before he signed. That is how committing to a
+    // college programme left a player skating for his old junior club: the
+    // contract was applied to state a moment later, and the thing that actually
+    // decided where he played next had already run with the stale copy.
+    const p = player;
+    const isNewTeam = p.team !== o.team;
+    let newRelationships;
+    if (isNewTeam) {
+       let baseTrust = 50; let mediaTrust = 50;
+       if ((p.fanStatus || 0) >= 800) { baseTrust = 75; mediaTrust = 80; }
+       else if ((p.fanStatus || 0) >= 400) { baseTrust = 60; mediaTrust = 65; }
+       newRelationships = { coach: baseTrust, teammates: baseTrust, media: mediaTrust };
+    } else {
+       newRelationships = { coach: Math.min(100, (p.relationships?.coach || 50) + 10), teammates: Math.min(100, (p.relationships?.teammates || 50) + 10), media: Math.min(100, (p.relationships?.media || 50) + 5) };
+    }
+    const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
 
-    setPlayer(p => {
-      const isNewTeam = p.team !== o.team;
-      let newRelationships;
-      if (isNewTeam) {
-         let baseTrust = 50; let mediaTrust = 50;
-         if ((p.fanStatus || 0) >= 800) { baseTrust = 75; mediaTrust = 80; } 
-         else if ((p.fanStatus || 0) >= 400) { baseTrust = 60; mediaTrust = 65; }
-         newRelationships = { coach: baseTrust, teammates: baseTrust, media: mediaTrust };
-      } else {
-         newRelationships = { coach: Math.min(100, (p.relationships?.coach || 50) + 10), teammates: Math.min(100, (p.relationships?.teammates || 50) + 10), media: Math.min(100, (p.relationships?.media || 50) + 5) };
-      }
-      const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
-      const updatedPlayer = {
-        ...p, team: o.team, league: o.league || 'NHL', fanStatus: capFanStatus((p.fanStatus || 0) + (o.fanHit || 0)), 
-        teamsPlayedFor: newTeams, contract: { salary: o.salary, years: o.years, role: o.role, nmc: o.nmc },
-        relationships: newRelationships,
-        // FIX: Strip captaincy if moving to a new team
-        isCaptain: isNewTeam ? false : p.isCaptain,
-        isAlternate: isNewTeam ? false : p.isAlternate
-      };
-      
-      fullyUpdatedPlayer = { ...updatedPlayer, ovr: recomputeOvr(updatedPlayer) };
-      return fullyUpdatedPlayer;
-    });
+    // What the perks and flaws on the card were actually worth. Without this
+    // they are only decoration: the screen would promise elite coaching and
+    // warn about a crowded depth chart, and signing would ignore both.
+    const bonus = o.perkTotals || { ovr: 0, fanStatus: 0, money: 0 };
+    const withPerks = applyOvrDelta(p, bonus.ovr || 0);
+
+    const updatedPlayer = {
+      ...withPerks, team: o.team, league: o.league || 'NHL',
+      fanStatus: capFanStatus((p.fanStatus || 0) + (o.fanHit || 0) + (bonus.fanStatus || 0)),
+      // isScholarship marks this as eligibility rather than a signed pro deal.
+      // Without it a scholarship is indistinguishable from a contract once it
+      // is in the player object, and everything downstream that asks "is he
+      // signed?" gets the wrong answer. See hasProContract in gameHelpers.
+      teamsPlayedFor: newTeams,
+      contract: {
+        salary: o.salary, years: o.years, role: o.role, nmc: o.nmc,
+        isScholarship: o.type === 'SCHOLARSHIP' || (o.league || '') === 'NCAA'
+      },
+      relationships: newRelationships,
+      stats: {
+        ...p.stats,
+        earnings: (p.stats?.earnings || 0) + (bonus.money || 0),
+        careerEarnings: (p.stats?.careerEarnings || p.stats?.earnings || 0) + (bonus.money || 0)
+      },
+      // FIX: Strip captaincy if moving to a new team
+      isCaptain: isNewTeam ? false : p.isCaptain,
+      isAlternate: isNewTeam ? false : p.isAlternate
+    };
+
+    const fullyUpdatedPlayer = { ...updatedPlayer, ovr: recomputeOvr(updatedPlayer) };
+    setPlayer(fullyUpdatedPlayer);
 
     if (o.type === 'TRADE') {
         const resToUse = pendingSeasonResult || { recap: seasonRecap };
@@ -1328,6 +1268,9 @@ function App() {
     // back in and play out the games that are left, wherever the club has just
     // decided the player belongs.
     if (currentEvent?.isNineGameEvent) { handleTrain(null); return; }
+    // The debut is one game played at the top of the season; answering it drops
+    // back into handleTrain, which picks the segment up and plays the rest.
+    if (currentEvent?.isDebutEvent) { handleTrain(null); return; }
 
     if (currentEvent?.isPortalEvent) { advanceToOffseason(currentPlayer); return; }
     // The career-opening event. Straight to the first preseason.
@@ -1339,11 +1282,16 @@ function App() {
 
     if (currentEvent?.isOffseasonEvent) {
        const goesToFreeAgency = ['AMATEUR GRADUATION', 'RIGHTS EXPIRED'].includes(currentEvent.title) && currentPlayer.league !== 'NHL';
-       if (goesToFreeAgency) generateOffers(false, currentPlayer.team);
+       // If the market declines to open (an amateur who should never have been
+       // routed here), fall through to the rest of the summer rather than leaving
+       // the player stranded on a screen with nothing on it.
+       const marketOpened = goesToFreeAgency && generateOffers(false, currentPlayer.team) !== false;
        // An offseason beat resolving does not start the season. Go back in for the
        // next beat; training camp, at the end of the chain, is what finally hands
-       // the player to the preseason screen.
-       else advanceToOffseason(currentPlayer);
+       // the player to the preseason screen. If the market declined to open, for
+       // an amateur who should never have been routed here, the summer carries on
+       // rather than leaving him stranded on an empty screen.
+       if (!marketOpened) advanceToOffseason(currentPlayer);
        return;
     }
     
@@ -1403,7 +1351,7 @@ function App() {
     safeNationalities, seasonEvents, setSeasonEvents, seasonRecap, setActiveEvent,
     setArbState, setCombinePhase, setCombineScore,
     setEventFeedback, setNegotiation, setHasDemandedTrade, setIntlResult, setMemCup,
-    setMinigameStarted, setPlayer, setPlayoffs, setScreen,
+    setMinigameStarted, setPlayer, setPlayoffs, setScreen, setStatChanges,
     setSeasonRecap, setShowAchievementsMenu, showAchievementsMenu, signContract,
     startNegotiation, triggerMinigame, resetMinigameLock, unlockAchievement, unlockedAchievements,
   };

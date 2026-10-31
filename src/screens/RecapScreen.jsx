@@ -1,11 +1,94 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '../data/teams';
+import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
 
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
+
+// One line of the season recap.
+//
+// Every row used to style itself, so the list drifted: some had a heading and
+// some did not, the left borders were different widths, and the reward pills
+// were appended inline to the end of the sentence with a negative top offset.
+// That last one is why they so often sat halfway up a wrapped paragraph
+// instead of lining up. Text is text and pills are their own row underneath.
+function RecapRow({ accent, label, tint = false, children }) {
+  return (
+    <li
+      className={`border-l-4 pl-4 pr-3 py-2.5 rounded-r-lg ${tint ? 'bg-white/[0.03]' : ''}`}
+      style={{ borderLeftColor: accent }}
+    >
+      {label && (
+        <strong
+          className="block text-[10px] font-black tracking-widest uppercase mb-1.5 leading-none"
+          style={{ color: accent }}
+        >
+          {label}
+        </strong>
+      )}
+      {children}
+    </li>
+  );
+}
+
+// Everything a single event paid out, on one wrapping row of its own.
+function PillRow({ effect, perks, flaws, isGoalie }) {
+  const base = 'text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none whitespace-nowrap';
+  const tone = {
+    stat:  'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30',
+    fans:  'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30',
+    money: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30',
+    bad:   'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'
+  };
+  const rows = [
+    ['ovr',         'OVR',                'stat'],
+    ['fanStatus',   'FANS',               'fans'],
+    ['money',       null,                 'money'],
+    ['shooting',    isGoalie ? 'REF' : 'SHT', 'stat'],
+    ['skating',     isGoalie ? 'POS' : 'SKT', 'stat'],
+    ['physicality', isGoalie ? 'AGI' : 'PHY', 'stat'],
+    ['hockeyIQ',    'IQ',                 'stat'],
+    ['stamina',     'STM',                'stat']
+  ];
+
+  const statPills = rows.map(([key, label, kind]) => {
+    const raw = effect?.[key];
+    const v = Number(raw);
+    if (raw === undefined || raw === null || !Number.isFinite(v) || v === 0) return null;
+    return (
+      <span key={key} className={`${base} ${v > 0 ? tone[kind] : tone.bad}`}>
+        {key === 'money'
+          ? `${v > 0 ? '+' : '-'}${formatMoney(Math.abs(v))}`
+          : `${v > 0 ? '+' : ''}${v} ${label}`}
+      </span>
+    );
+  }).filter(Boolean);
+
+  // Perks arrive in two shapes across the codebase: the older { text } and the
+  // current { name, effect }. The recap only ever read `text`, so every modern
+  // perk rendered as an empty pill.
+  const chip = (pk, idx, isFlaw) => {
+    const { name, effect: eff } = splitPerk(pk);
+    if (!name) return null;
+    const colour = isFlaw ? tone.bad : (pk?.color || tone.stat);
+    return (
+      <span key={`${isFlaw ? 'f' : 'p'}-${idx}`} className={`${base} ${colour}`}>
+        {name}{eff ? ` ${eff}` : ''}
+      </span>
+    );
+  };
+
+  const perkPills = [
+    ...(perks || []).map((pk, i) => chip(pk, i, false)),
+    ...(flaws || []).map((fl, i) => chip(fl, i, true))
+  ].filter(Boolean);
+
+  if (statPills.length === 0 && perkPills.length === 0) return null;
+  return <div className="flex flex-wrap items-center gap-1.5 mt-2.5">{statPills}{perkPills}</div>;
+}
 
 export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
@@ -144,7 +227,7 @@ export default function RecapScreen() {
               </div>
 
               <ul className="recap-list space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-base font-sans text-left leading-relaxed">
-                <li className="border-l-4 border-[#3b82f6] pl-4 py-2">
+                <li className="border-l-4 border-[#3b82f6] pl-4 pr-3 py-2.5 rounded-r-lg">
                   {(() => {
                      const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
 
@@ -179,19 +262,19 @@ export default function RecapScreen() {
                 </li>
                 
                 {player.pos === 'G' ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-2">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Truly elite numbers between the pipes.' :
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.905 ? 'A reliable, steady presence in the crease.' :
                     'Struggled to find consistency this year.'
                   }</li>
                 ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-2">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong>. {
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong>. {
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 65 ? 'Historic offensive production from the blue line.' :
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 40 ? 'Excellent puck-moving all season.' :
                     'Focused heavily on the defensive side of the puck.'
                   }</li>
                 ) : (
-                  <li className="border-l-4 border-[#22E748] pl-4 py-2">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 100 ? 'A legendary century-mark campaign.' :
                     (seasonRecap?.g >= 50) ? 'An elite goal-scoring year.' :
                     ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :
@@ -202,113 +285,84 @@ export default function RecapScreen() {
 
                 {madePlayoffsForNarrative ? (
                   <>
-                    <li className={`border-l-4 ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold' : 'border-[#ef4444]'} pl-4 py-2`}>
+                    <li className={`border-l-4 pl-4 pr-3 py-2.5 rounded-r-lg ${seasonRecap?.titleWon === 1 ? 'border-[#F59E0B] text-[#F59E0B] font-bold bg-[#F59E0B]/[0.06]' : 'border-[#ef4444]'}`}>
                       {seasonRecap?.titleWon === 1 
                         ? `🏆 Won the ${titles?.cupName || 'Championship'}!` 
                         : seasonRecap?.confTitleWon
                           ? `🏆 Crowned ${seasonRecap?.confName || 'Conference'} Champions before falling in the ${titles?.final || 'Finals'}.`
-                          : seasonRecap?.playoffWins === 0
-                            ? '🧹 Swept in the first round.' 
-                            : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
+                          /* Losing to the arch-rival is the one playoff exit a player
+                             carries into the summer, and the recap used to file it
+                             under the same sentence as losing to anybody else. */
+                          : seasonRecap?.lostToRival
+                            ? `💀 Knocked out by your arch-rivals, the ${seasonRecap?.eliminatedByName}, in the ${seasonRecap?.eliminatedRound}. That one will sit with you all summer.`
+                            : seasonRecap?.playoffWins === 0
+                              ? (seasonRecap?.eliminatedByName
+                                  ? `🧹 Swept out of the first round by the ${seasonRecap.eliminatedByName}.`
+                                  : '🧹 Swept in the first round.')
+                              : seasonRecap?.eliminatedByName
+                                ? `Eliminated by the ${seasonRecap.eliminatedByName} in the ${seasonRecap.eliminatedRound} after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`
+                                : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
                     </li>
+                    {seasonRecap?.beatRivalRound && !seasonRecap?.lostToRival && (
+                       <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
+                         ⚔️ Put your arch-rivals, the {seasonRecap.beatRivalName}, out in the {seasonRecap.beatRivalRound}.
+                       </li>
+                    )}
                     {seasonRecap?.memCupStatus === 'won' && (
-                       <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
+                       <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
                          🏆 CONQUERED THE NATION AND WON THE MEMORIAL CUP!
                        </li>
                     )}
                   </>
                 ) : (
-                  <li className="border-l-4 border-slate-600 pl-4 py-2">⛳ Missed the playoffs.</li>
+                  <li className="border-l-4 border-slate-600 pl-4 pr-3 py-2.5 rounded-r-lg">⛳ Missed the playoffs.</li>
                 )}
 
                 {player.league === 'NHL' && seasonRecap?.g >= 92 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
                     👑 BROKE GRETZKY'S SINGLE-SEASON GOAL RECORD (92)!
                   </li>
                 )}
                 {player.league === 'NHL' && (seasonRecap?.g + seasonRecap?.a) >= 215 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
                     👑 BROKE GRETZKY'S SINGLE-SEASON POINTS RECORD (215)!
                   </li>
                 )}
                 {player.league === 'NHL' && player.pos === 'G' && seasonRecap?.sho >= 15 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 text-[#F59E0B] font-bold">
+                  <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
                     👑 BROKE TONY ESPOSITO'S SINGLE-SEASON SHUTOUT RECORD (15)!
                   </li>
                 )}
 
                 {seasonRecap?.wasWaived && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2">✈️ Claimed off waivers mid-season.</li>
+                  <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg">✈️ Claimed off waivers mid-season.</li>
                 )}
                 
                 {seasonRecap?.awards && seasonRecap.awards.length > 0 && (
-                  <li className="border-l-4 border-[#F59E0B] pl-4 py-2 bg-[#F59E0B]/10 rounded-r-lg">
-                    <strong className="text-[#F59E0B] block text-[10px] tracking-widest uppercase mb-1">🏆 HARDWARE SECURED</strong>
-                    {seasonRecap.awards.map(aw => <div key={aw} className="text-white text-sm font-bold">{aw}</div>)}
-                  </li>
+                  <RecapRow accent="#F59E0B" label="🏆 Hardware secured" tint>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(new Set(seasonRecap.awards)).map(aw => (
+                        <span key={aw} className="text-[10px] sm:text-xs font-black tracking-widest uppercase px-2 py-1 rounded border leading-none text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30">
+                          {aw}
+                        </span>
+                      ))}
+                    </div>
+                  </RecapRow>
                 )}
 
                 {seasonEvents.map((ev, i) => {
                   if (!ev || !ev.feedback) return null;
                   return (
-                    <li key={`event-${i}`} className="border-l-4 border-[#c084fc] pl-4 py-2 block">
-                      <span className="text-slate-300 leading-relaxed">📰 {ev.feedback}</span>
-                       <span className="inline-flex flex-wrap items-center gap-1.5 ml-2 align-middle relative -top-[1px]">
-                         {/* One row per stat the game can actually hand out. The pills used
-                             to be written by hand and had fallen behind the effects: shooting,
-                             hockeyIQ and stamina had no pill at all, and neither did the
-                             fanStatus spelling of a fan change, so an international medal or
-                             a +5 IQ event showed its text with no visible reward. */}
-                         {(() => {
-                           const isG = player.pos === 'G';
-                           const base = 'text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border leading-none';
-                           const tone = {
-                             stat:  'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30',
-                             fans:  'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30',
-                             money: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30',
-                             bad:   'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'
-                           };
-                           const rows = [
-                             ['ovr',         'OVR',              'stat'],
-                             ['fanStatus',   'FANS',             'fans'],
-                             ['money',       null,               'money'],
-                             ['shooting',    isG ? 'REF' : 'SHT', 'stat'],
-                             ['skating',     isG ? 'POS' : 'SKT', 'stat'],
-                             ['physicality', isG ? 'AGI' : 'PHY', 'stat'],
-                             ['hockeyIQ',    'IQ',               'stat'],
-                             ['stamina',     'STM',              'stat']
-                           ];
-                           return rows.map(([key, label, kind]) => {
-                             const raw = ev.effect?.[key];
-                             const v = Number(raw);
-                             if (raw === undefined || raw === null || !Number.isFinite(v) || v === 0) return null;
-                             return (
-                               <span key={key} className={`${base} ${v > 0 ? tone[kind] : tone.bad}`}>
-                                 {key === 'money'
-                                   ? `${v > 0 ? '+' : '-'}${formatMoney(Math.abs(v))}`
-                                   : `${v > 0 ? '+' : ''}${v} ${label}`}
-                               </span>
-                             );
-                           });
-                         })()}
-                         {ev.perks?.map((p, idx) => (
-                          <span key={`perk-${idx}`} className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-widest border ${p.color || 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'}`}>
-                              {p.text}
-                          </span>
-                        ))}
-                        {ev.flaws?.map((f, idx) => (
-                          <span key={`flaw-${idx}`} className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-widest text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/30">
-                              {f.text}
-                          </span>
-                        ))}
-                       </span>
-                     </li>
-                   );
+                    <RecapRow key={`event-${i}`} accent="#c084fc" label={ev.title || '📰 In the news'}>
+                      <p className="text-slate-300 leading-relaxed">{ev.feedback}</p>
+                      <PillRow effect={ev.effect} perks={ev.perks} flaws={ev.flaws} isGoalie={player.pos === 'G'} />
+                    </RecapRow>
+                  );
                 })}
               </ul>
 
               <div className="w-full pt-6 mt-8 border-t border-[rgba(255,255,255,0.05)] flex flex-col sm:flex-row gap-4">
-                <button onClick={advanceToOffseason} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-2xl">
+                <button onClick={() => advanceToOffseason()} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-2xl">
                   PROCEED TO OFFSEASON
                 </button>
                 

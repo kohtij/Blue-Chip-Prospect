@@ -1,7 +1,8 @@
 import  { useState, useEffect } from 'react';
+import { lerpDifficulty } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 
-export default function ZoneBattleGame({ player, onComplete }) {
+export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   const [status, setStatus] = useState('active'); // active, won, lost
   const [puckPos, setPuckPos] = useState(50);
   const [playerPos, setPlayerPos] = useState(50);
@@ -9,7 +10,7 @@ export default function ZoneBattleGame({ player, onComplete }) {
   const [timeLeft, setTimeLeft] = useState(10);
   
   const physicality = getActiveStat(player, 'physicality');
-  const speedMod = 1.0 + ((physicality - 50) * 0.015);
+  const speedMod = (1.0 + ((physicality - 50) * 0.015)) * lerpDifficulty(1.0, 0.78, difficulty);
   
   useEffect(() => {
     if (status !== 'active') return;
@@ -52,7 +53,7 @@ export default function ZoneBattleGame({ player, onComplete }) {
     }, 1000);
     
     return () => { clearInterval(interval); clearInterval(timer); };
-  }, [status, speedMod, onComplete]);
+  }, [status, speedMod, onComplete, difficulty]);
 
   const moveLeft = () => setPlayerPos(p => Math.max(5, p - 18));
   const moveRight = () => setPlayerPos(p => Math.min(95, p + 18));

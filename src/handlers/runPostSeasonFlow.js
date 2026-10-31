@@ -2,7 +2,8 @@
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { getOpponentPool, getPrimaryRival } from '../data/teams';
 import { eventDeck } from '../data/economy';
-import { PRESS_QUESTIONS, getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
+import { getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
+import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
 import { simulateTournament } from '../utils/international';
 
@@ -130,23 +131,9 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
     
        
-    // ==========================================
-    // STORYLINE 1.75: THE LEADERSHIP GROUP (Alternate Captain)
-    // ==========================================
-    // Trigger: Established NHL player (3+ seasons, 82+ OVR), high coach trust, not already a captain.
-    if (!player.isCaptain && !player.isAlternate && currentLg === 'NHL' && player.stats?.seasonsPlayed >= 3 && coachTrustLvl >= 65 && pOvr >= 82 && Math.random() < 0.15 && !player.storylines?.alternateGiven) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, alternateGiven: true } }));
-        setActiveEvent({
-            title: '🅰️ THE LEADERSHIP GROUP',
-            desc: `The coach called you into his office. He loves your work ethic and the way the younger guys look up to you. He wants to stitch an "A" on your sweater this season to officially make you part of the leadership group.`,
-            choices: [
-                { label: 'Accept the Responsibility', isRisky: false, feedback: 'You are officially an Alternate Captain! The boys in the room are thrilled for you.', effect: { fanStatus: 25, ovr: 1, rel: { coach: 15, teammates: 15 } }, action: 'MAKE_ALTERNATE' }
-            ],
-            madePlayoffs
-        });
-        setScreen('event');
-        return;
-    }
+    // The leadership group moved to the start of the season, in
+    // advanceToOffseason, where a letter is actually handed out. It used to fire
+    // here at the end of a year while saying "this season".
     
     // ==========================================
     // STORYLINE 2: LOCKER ROOM POLITICS
@@ -545,7 +532,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
 
        if (playWorlds) {
           const sim = simulateGroupStage(false, false);
-          setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes, isOlympicYear: false }));
+          setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes, intlOppTier: sim.intlOppTier, isOlympicYear: false }));
           setIntlResult(null);
           setMinigameContext('worlds');
           setScreen('intl-minigame');
@@ -752,32 +739,11 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     
     // A5: Fixed Frequency. 35% chance dedicated to Press Conferences.
     if (eventRoll < 0.35) {
-        const isGoalie = player.pos === 'G';
-        // B2: Media Trust Consumer (If media loves you, no negative questions. If they hate you, no positive questions)
-        const mediaTrust = player.relationships?.media || 50;
-        
-        const validQuestions = PRESS_QUESTIONS.filter(q => q.forPos === 'all' || (isGoalie ? q.forPos === 'goalie' : q.forPos === 'skater'))
-          .filter(q => {
-             if (mediaTrust >= 75 && q.tag === 'negative') return false; 
-             if (mediaTrust <= 30 && q.tag === 'positive') return false; 
-             return true;
-          });
-        
-        let shuffledQ = [];
-        let hasPositive = false;
-        let hasNegative = false;
-        
-        const randomized = [...validQuestions].sort(() => 0.5 - Math.random());
-        for (const q of randomized) {
-          if (q.tag === 'positive' && hasNegative) continue;
-          if (q.tag === 'negative' && hasPositive) continue;
-          
-          if (q.tag === 'positive') hasPositive = true;
-          if (q.tag === 'negative') hasNegative = true;
-          
-          shuffledQ.push(q);
-          if (shuffledQ.length === 3) break;
-        }
+        // Which questions can be asked here is decided in pressQuestions.js,
+        // where a question carries the leagues and the positions it makes sense
+        // for. Filtering on goalie-or-skater alone is what put a trade deadline
+        // question in front of a college player who cannot be traded.
+        const shuffledQ = selectPressQuestions(player, currentLg);
 
         const validReporters = getJournalistsForLeague(currentLg);
         const shuffledJ = [...validReporters].sort(() => 0.5 - Math.random()).slice(0, 3);

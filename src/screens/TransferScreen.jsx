@@ -1,8 +1,16 @@
 import 'react';
+import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { getPrimaryRival, nhlTeams } from '../data/teams';
+import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
+
+// Each club already carries its own two colours, and `teamAccent` picks the one
+// that reads against a near-black card. That gives every offer its own identity,
+// which is what the ghosted grey crest behind the text was reaching for and
+// never managed: a watermark big enough to recognise fought with the text, and
+// small enough to ignore was just a smudge. A thin strip of the club's colour
+// does the same job in a tenth of the space.
 
 // OFFER SHEET COMPENSATION MATH
 const getCompensation = (salary) => {
@@ -92,6 +100,31 @@ export default function TransferScreen() {
                   const isReturnHome = isDraftTeam && player.team !== o.team && hasPlayedFor && isLovedStatus;
                   const isExtension = o.team === owningTeam || ['EXTENSION', 'QUALIFYING OFFER', 'RFA EXTENSION', 'HOMETOWN DISCOUNT'].includes(o.type);
 
+                  const teamData = getTeamData(o.team, o.league);
+                  const accent = teamAccent(teamData);
+                  // Readable at 9px; the raw club colour is for the strip only.
+                  const accentText = readableAccent(accent);
+                  // A ribbon already occupies the top edge, so the colour strip
+                  // would be drawn straight over it.
+                  const hasRibbon = isExtension || isRival || isReturnHome || o.type === 'OFFER SHEET';
+
+                  // Signing adds the reaction to the move and the fan effects of
+                  // the perks and flaws together, so a fan impact that counted
+                  // only the move was never the number you would end up with: the
+                  // chips below could quietly halve it or double it. This is the
+                  // total, and hovering it says where the parts came from.
+                  const perkFans = o.perkTotals?.fanStatus || 0;
+                  const netFans = (o.fanHit || 0) + perkFans;
+                  const hasChips = o.perks?.length > 0 || o.flaws?.length > 0;
+
+                  // `state` carries two different kinds of thing: how good the
+                  // club is (Contender, Rebuilder) and what sort of deal it is
+                  // (European Pro, College Program). Only the first tells you
+                  // anything the card is not already showing.
+                  const DEAL_TYPE_STATES = ['European Pro', 'College Program', 'Offer Sheet'];
+                  const rawState = isExtension ? 'Staying Put' : o.state;
+                  const dealContext = rawState && !DEAL_TYPE_STATES.includes(rawState) ? rawState : null;
+
                   let topBorder = 'border-[rgba(255,255,255,0.065)]';
                   if (isExtension) { topBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]'; }
                   else if (isRival) { topBorder = 'border-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.2)]'; }
@@ -108,86 +141,106 @@ export default function TransferScreen() {
 
                       <div className="p-4 sm:p-5 flex flex-col flex-1">
                         
-                        {/* MASSIVE BACKGROUND WATERMARK */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] group-hover:opacity-[0.10] grayscale pointer-events-none z-0 transition-all duration-250 ease-in-out">
-                            <div className="w-full h-full flex items-center justify-center transform -rotate-6 scale-[3] sm:scale-[3.5]">
-                                <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="large" />
-                            </div>
-                        </div>
+                        {/* A strip of the club's own colour across the top, a
+                            crest that is actually legible, then the money. The
+                            order is deliberate: who, how much, for how long, what
+                            you would be there, and only then the trade-offs. */}
+                        {!hasRibbon && <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />}
+                        <div
+                          className="absolute inset-x-0 top-0 h-24 z-0 pointer-events-none opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-300"
+                          style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }}
+                        />
 
-                        <div className="flex items-center gap-3 mb-4 z-10 relative">
-                           <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="small" />
+                        <div className="flex items-center gap-3 mb-5 z-10 relative min-h-[48px]">
+                           <div className="shrink-0">
+                             <TeamLogo teamId={o.team} league={o.league || 'NHL'} isAHL={o.league === 'AHL'} size="small" />
+                           </div>
                            <div className="min-w-0 flex-1">
-                             <h3 className="text-sm sm:text-base font-black text-white sports-font leading-tight uppercase tracking-wide break-words">{getFullTeamName(o.team, o.league)}</h3>
-                             {o.league && o.league !== 'NHL' && <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mt-1">{o.league}</span>}
+                             {/* A two-word club name and a four-word one made
+                                 the header two different heights, so every row
+                                 of cards below it sat at a different offset.
+                                 Clamped to two lines with a fixed floor. */}
+                             <h3 className="text-sm sm:text-base font-black text-white sports-font leading-tight uppercase tracking-wide break-words line-clamp-2"
+                                 title={getFullTeamName(o.team, o.league)}>{getFullTeamName(o.team, o.league)}</h3>
+                             <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block mt-1" style={{ color: accentText }}>
+                               {[o.league, teamData?.ncaaConf || teamData?.div].filter(Boolean).join(' · ')}
+                             </span>
                            </div>
                         </div>
 
+                        {/* The money, in white. It used to be the same green as the
+                            perk chips and the sign button, so three different kinds
+                            of thing all shouted at once and none of them led. */}
                         <div className="flex flex-col z-10 relative mb-4">
-                           <div className="flex items-baseline gap-1">
-                             <span className="text-3xl sm:text-4xl font-black text-[#22E748] sports-font tracking-tighter drop-shadow-md">
+                           <div className="flex items-baseline gap-1.5">
+                             <span className="text-3xl sm:text-4xl font-black text-white sports-font tracking-tighter">
                               {o.salary >= 1000000 ? `$${(o.salary / 1000000).toFixed(1)}M` : `$${(o.salary / 1000).toFixed(0)}K`}
                             </span>
-                             <span className="text-[10px] sm:text-[11px] font-black text-[#22E748]/80 uppercase tracking-widest">/{o.type === 'SCHOLARSHIP' ? 'NIL' : 'YR'}</span>
+                             <span className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">/{o.type === 'SCHOLARSHIP' ? 'NIL' : 'YR'}</span>
                            </div>
-                           <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+                           <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
                              {o.type === 'SCHOLARSHIP' ? '4-YEAR ELIGIBILITY' : `${o.years}-YEAR CONTRACT`}
                            </span>
                         </div>
 
-                        <div className="flex flex-col gap-1.5 z-10 relative mb-4 text-[11px] sm:text-xs font-sans text-slate-300">
-                           <p className="flex flex-col gap-0.5">
-                             <span><strong className="text-white uppercase tracking-wider">{o.role}</strong></span>
-                             <span className="flex items-center gap-1.5 mt-1">
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
-                                   o.state === 'Contender' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
-                                   o.state === 'Competitor' ? 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]/30' :
-                                   o.state === 'Outsider' ? 'bg-slate-700/30 text-slate-300 border-slate-600/50' :
-                                   o.state === 'Rebuilder' ? 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30' :
-                                   'bg-[#22E748]/10 text-[#22E748] border-[#22E748]/30'
-                                }`}>
-                                   {isExtension ? 'Staying Put' : o.state}
-                                </span>
-                                {o.standing && (
-                                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                      Projected #{o.standing}
-                                   </span>
-                                )}
-                             </span>
+                        <div className="z-10 relative mb-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
+                           {/* The role and the club's outlook used to share one
+                               truncated line, so "Top 4 Defenseman · Staying Put"
+                               came out as "TOP 4 DEFENSEMAN · S..." on any card
+                               narrow enough to matter. They get a line each now
+                               and the role is allowed to wrap. */}
+                           {/* Both of these were bare values with nothing saying
+                               what they were, so a card read "TOP 4 DEFENSEMAN
+                               #8 / STAYING PUT" and left you to guess that #8
+                               was where the club is projected to finish. */}
+                           <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                             <span className="text-slate-500">Role</span>
+                             <span className="ml-auto shrink-0 text-white text-right">{o.role}</span>
                            </p>
-                           {o.fanHit !== 0 && (
-                             <p className="flex items-start gap-2">
-                               <span className="leading-none mt-0.5">{o.fanHit > 0 ? '📈' : '📉'}</span>
-                               <span className={o.fanHit > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
-                                 Fan Impact: <strong className="font-black tracking-wider">{o.fanHit > 0 ? '+' : ''}{o.fanHit} FANS</strong>
+                           {o.standing && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500">Projected finish</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-white">#{o.standing}</span>
+                             </p>
+                           )}
+                           {dealContext && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500">Situation</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-white">{dealContext}</span>
+                             </p>
+                           )}
+                           {netFans !== 0 && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider"
+                                title={perkFans !== 0
+                                  ? `${o.fanHit > 0 ? '+' : ''}${o.fanHit || 0} for the move, ${perkFans > 0 ? '+' : ''}${perkFans} from the perks and flaws below`
+                                  : 'The reaction to the move itself'}>
+                               <span className="text-slate-500">Fan impact</span>
+                               <span className={`ml-auto shrink-0 whitespace-nowrap ${netFans > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                                 {netFans > 0 ? '+' : ''}{netFans} FANS
                                </span>
                              </p>
                            )}
                            {o.nmc && (
-                             <p className="flex items-start gap-2">
-                               <span className="text-[#c084fc] leading-none mt-0.5">🔒</span>
-                               <span className="text-[#c084fc] font-bold uppercase tracking-wider">No-Movement Clause</span>
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500">Clause</span>
+                               <span className="ml-auto shrink-0 text-[#c084fc]">No-Movement</span>
                              </p>
                            )}
                            {o.type === 'OFFER SHEET' && (
-                             <p className="flex items-start gap-2">
-                               <span className="text-[#c084fc] leading-none mt-0.5">⚠️</span>
-                               <span className="text-[#c084fc] font-bold uppercase tracking-wider">Comp: {getCompensation(o.salary)}</span>
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500">Compensation</span>
+                               <span className="ml-auto shrink-0 text-[#c084fc] text-right">{getCompensation(o.salary)}</span>
                              </p>
                            )}
                         </div>
 
-                        {(o.perks?.length > 0 || o.flaws?.length > 0) && (
-                          <div className="flex flex-col gap-1.5 mb-6 z-10 relative border-t border-[rgba(255,255,255,0.065)] pt-3">
+                        {hasChips && (
+                          <div className="flex flex-col gap-1.5 mb-5 z-10 relative">
                              {o.perks?.map((p, pIdx) => (
-                                <span key={`perk-${pIdx}`} className={`text-[9px] sm:text-[10px] px-2 py-1 rounded font-black tracking-widest uppercase border leading-none self-start ${p.color || 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30'}`}>
-                                   {p.text}
-                                </span>
+                                <PerkChip key={`perk-${pIdx}`} perk={p} />
                              ))}
                              {o.flaws?.map((f, fIdx) => (
-                                <span key={`flaw-${fIdx}`} className="text-[9px] sm:text-[10px] px-2 py-1 rounded font-black tracking-widest uppercase border leading-none self-start text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30">
-                                   {f.text}
-                                </span>
+                                <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />
                              ))}
                           </div>
                         )}
@@ -231,19 +284,13 @@ export default function TransferScreen() {
                            </button>
                          )}
 
-                         <button 
-                           onClick={() => signContract(o)} 
-                           className={`w-full py-3 rounded-xl cursor-pointer sports-font tracking-widest font-black text-sm sm:text-base transition-all shadow-lg hover:shadow-xl active:scale-95 active:translate-y-1 border ${
-                             isReturnHome ? 'bg-[#F59E0B] border-[#d97706] text-black hover:bg-[#fbbf24]' : 
-                             isRival ? 'bg-[#ef4444] border-[#b91c1c] text-white hover:bg-[#f87171]' : 
-                             'bg-[#22E748] border-[#16a34a] text-black hover:bg-[#4ade80]'
-                           }`}
-                         >
-                           {isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}
-                         </button>
-
+                         {/* The alternatives come first and the commitment last.
+                             Signing is the one action on this card you cannot take
+                             back, so it sits at the bottom edge of every card, in
+                             the same place whether or not there is anything above
+                             it. */}
                          {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && o.type !== 'SCHOLARSHIP')) && (
-                           <div className="flex gap-2 mt-1">
+                           <div className="flex gap-2 mb-1">
                              {o.type === 'QUALIFYING OFFER' && !qoOffer && (
                                <button onClick={() => handleArbitration(o)} className="flex-1 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
                                  ARBITRATION
@@ -256,6 +303,17 @@ export default function TransferScreen() {
                              )}
                            </div>
                          )}
+
+                         <button
+                           onClick={() => signContract(o)}
+                           className={`w-full py-3 rounded-xl cursor-pointer sports-font tracking-widest font-black text-sm sm:text-base transition-all shadow-lg hover:shadow-xl active:scale-95 active:translate-y-1 border ${
+                             isReturnHome ? 'bg-[#F59E0B] border-[#d97706] text-black hover:bg-[#fbbf24]' :
+                             isRival ? 'bg-[#ef4444] border-[#b91c1c] text-white hover:bg-[#f87171]' :
+                             'bg-[#22E748] border-[#16a34a] text-black hover:bg-[#4ade80]'
+                           }`}
+                         >
+                           {isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}
+                         </button>
                         </div>
                       </div>
                     </div>

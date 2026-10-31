@@ -1,5 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
+import { projectDraftPick } from '../utils/draftScouting';
+
+// A button that refuses to be pressed for a moment after it appears.
+//
+// Three of the combine drills are mash tests: thirty taps in ten seconds on a
+// button in the middle of the panel. The results screen then replaced that
+// panel and put PROCEED TO INTERVIEWS under the same cursor, so the tap you had
+// already committed to skipped straight past your own score. The delay is
+// short enough not to be felt deliberately and long enough to swallow the
+// momentum of a mash.
+function CooldownButton({ onClick, delay = 900, className = '', children }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return (
+    <button
+      onClick={ready ? onClick : undefined}
+      disabled={!ready}
+      className={`${className} ${ready ? '' : 'opacity-40 cursor-not-allowed'}`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const SCOUTS = [
   { name: "Old-School GM", trait: "GRIT", color: "text-[#ef4444]", bg: "bg-[#ef4444]/10", border: "border-[#ef4444]/30", desc: "Values toughness, physical play, and hard-nosed traditional hockey." },
@@ -289,9 +315,12 @@ export default function CombineScreen() {
                         <p className={`text-lg font-bold uppercase tracking-widest ${activeResult.pts > 0 ? 'text-[#22E748]' : activeResult.pts < 0 ? 'text-[#ef4444]' : 'text-slate-300'}`}>{activeResult.msg}</p>
                      </div>
 
-                     <button onClick={() => setCombinePhase(2)} className="w-full btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg">
+                     <CooldownButton
+                       onClick={() => setCombinePhase(2)}
+                       className="w-full max-w-sm mx-auto block mt-6 btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg"
+                     >
                        PROCEED TO INTERVIEWS ➔
-                     </button>
+                     </CooldownButton>
                    </div>
                  );
              }
@@ -446,14 +475,22 @@ export default function CombineScreen() {
 
           // PHASE 3: VERDICT & IMPACT
           if (combinePhase === 3) {
-             let verdict;
-             let boost = 0;
-             let boostColor;
+             // The combine used to collapse into a +3 / +1 / 0 / -2 nudge to OVR,
+             // which on the old draft scale was almost nothing. It now feeds the
+             // scouting file at its full -4..+8 resolution, and the projection
+             // below is the real one: the same call the draft itself makes.
+             let verdict, boostColor;
+             if (combineScore >= 6) { verdict = "You destroyed the Combine. Teams are scrambling to trade up for you!"; boostColor = "text-[#22E748]"; }
+             else if (combineScore >= 3) { verdict = "An excellent week. Scouts are moving you up their boards."; boostColor = "text-[#22E748]"; }
+             else if (combineScore >= 1) { verdict = "A solid Combine showing. You helped your draft stock."; boostColor = "text-[#3b82f6]"; }
+             else if (combineScore === 0) { verdict = "Average showing. Your on-ice tape will have to do the talking."; boostColor = "text-slate-400"; }
+             else if (combineScore >= -2) { verdict = "A poor week in testing. Some clubs have cooled on you."; boostColor = "text-[#F59E0B]"; }
+             else { verdict = "A disastrous Combine. You fell down multiple draft boards."; boostColor = "text-[#ef4444]"; }
 
-             if (combineScore >= 3) { verdict = "You destroyed the Combine. Teams are scrambling to trade up for you!"; boost = 3; boostColor = "text-[#22E748]"; }
-             else if (combineScore >= 1) { verdict = "A solid Combine showing. You boosted your draft stock slightly."; boost = 1; boostColor = "text-[#3b82f6]"; }
-             else if (combineScore === 0) { verdict = "Average showing. Your on-ice tape will have to do the talking."; boost = 0; boostColor = "text-slate-400"; }
-             else { verdict = "A disastrous Combine. You fell down multiple draft boards."; boost = -2; boostColor = "text-[#ef4444]"; }
+             // Where this leaves you, against where an average week would have.
+             const projected = projectDraftPick(player, combineScore, false);
+             const neutral = projectDraftPick(player, 0, false);
+             const moved = neutral.pick - projected.pick;
 
              return (
                <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in max-w-2xl mx-auto">
@@ -468,13 +505,21 @@ export default function CombineScreen() {
                     </div>
                     <div className="flex justify-between items-center mt-2">
                        <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Draft Stock Impact:</span>
-                       <span className={`text-xl sm:text-2xl font-black sports-font ${boostColor}`}>{boost > 0 ? `+${boost}` : boost} OVR</span>
+                       <span className={`text-xl sm:text-2xl font-black sports-font ${boostColor}`}>
+                          {moved > 0 ? `+${moved}` : moved} SPOTS
+                       </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2 border-t border-[rgba(255,255,255,0.05)] pt-4">
+                       <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Projected Selection:</span>
+                       <span className="text-xl sm:text-2xl font-black text-white sports-font">
+                          ROUND {projected.round} · #{projected.pick}
+                       </span>
                     </div>
                  </div>
 
                  <button 
                    onClick={() => {
-                     handleDraftDay(boost);
+                     handleDraftDay(combineScore);
                      setCombinePhase(1);
                      if (setCombineClicks) setCombineClicks(0);
                      setCombineScore(0);

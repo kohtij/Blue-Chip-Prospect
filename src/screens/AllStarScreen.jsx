@@ -65,7 +65,10 @@ export default function AllStarScreen() {
 
 const handleQuickSim = () => {
      setCarpetFeedback({ msg: "You kept a low profile and saved your energy for the regular season.", fanHit: 5, mediaHit: 0, coachHit: 0 });
-     setSkillsFeedback({ msg: "You made a brief, respectful appearance at the skills competition.", ovrBoost: 0, fanBoost: 5, eventName: 'Weekend Sim', time: 10 });
+     // No event was entered and no score was posted, so the result panel must
+     // not report one. It used to print EVENT "Weekend Sim" and SCORE
+     // "10.00 SEC", which is a time nobody skated.
+     setSkillsFeedback({ msg: "You made a brief, respectful appearance at the skills competition and left the stage to the others.", ovrBoost: 0, fanBoost: 5, simmed: true });
      setPhase('result');
   };
 
@@ -190,7 +193,7 @@ const handleQuickSim = () => {
             <p className="text-lg text-slate-300 mb-6 font-sans">
               You chose to rest your body instead of attending the All-Star weekend. Per league rules, you have been handed an automatic <strong>1-game suspension</strong>. The media is questioning your dedication, but you secured some much-needed rest (+1 Stamina).
             </p>
-            <button onClick={finishSeason} className="btn-primary w-full py-4 rounded-xl font-black sports-font tracking-widest text-lg uppercase transition-transform hover:scale-105 cursor-pointer">
+            <button onClick={() => finishSeason()} className="btn-primary w-full py-4 rounded-xl font-black sports-font tracking-widest text-lg uppercase transition-transform hover:scale-105 cursor-pointer">
               SERVE SUSPENSION & RETURN
             </button>
          </div>
@@ -266,23 +269,26 @@ const handleQuickSim = () => {
       {phase === 'result' && skillsFeedback && carpetFeedback && (
         <div className="max-w-2xl w-full mt-2 animate-fade-in bg-[#101410] border border-[#22E748]/40 p-8 rounded-xl shadow-[0_0_30px_rgba(34,231,72,0.15)] flex flex-col items-center">
            
-           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">SKILLS COMPETITION RESULT</p>
+           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{skillsFeedback.simmed ? 'YOUR WEEKEND' : 'SKILLS COMPETITION RESULT'}</p>
            <p className="text-3xl font-black text-white mb-4 sports-font uppercase text-center leading-snug">{skillsFeedback.msg}</p>
            
-           <div className="bg-[#1a2230] border border-slate-700 w-full py-4 rounded-lg flex justify-center divide-x divide-slate-600 mb-6">
-              <div className="px-6 text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">EVENT</p>
-                  <p className="text-lg font-black text-white sports-font">{skillsFeedback.eventName}</p>
-              </div>
-              <div className="px-6 text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SCORE</p>
-                  <p className="text-lg font-black text-[#F59E0B] sports-font">
-                     {skillsFeedback.time 
-                        ? (minigameType === 'saveStreak' ? `${skillsFeedback.time} SAVES` : `${skillsFeedback.time.toFixed(2)} SEC`) 
-                        : `${skillsFeedback.speed.toFixed(1)} MPH`}
-                  </p>
-              </div>
-           </div>
+           {!skillsFeedback.simmed && (
+             <div className="bg-[#1a2230] border border-slate-700 w-full py-4 rounded-lg flex justify-center divide-x divide-slate-600 mb-6">
+                <div className="px-6 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">EVENT</p>
+                    <p className="text-lg font-black text-white sports-font">{skillsFeedback.eventName}</p>
+                </div>
+                <div className="px-6 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SCORE</p>
+                    <p className="text-lg font-black text-[#F59E0B] sports-font">
+                       {skillsFeedback.time 
+                          ? (minigameType === 'saveStreak' ? `${skillsFeedback.time} SAVES` : `${skillsFeedback.time.toFixed(2)} SEC`) 
+                          : `${skillsFeedback.speed.toFixed(1)} MPH`}
+                    </p>
+                </div>
+             </div>
+           )}
+           {skillsFeedback.simmed && <div className="mb-2" />}
            
            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">WEEKEND REWARDS EARNED</p>
            <div className="flex flex-wrap justify-center gap-3 w-full">

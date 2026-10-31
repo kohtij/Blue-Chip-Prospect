@@ -1,5 +1,5 @@
-import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame } from '../utils/gameHelpers';
-import { simulateTournament } from '../utils/international';
+import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, summariseStints } from '../utils/gameHelpers';
+import { simulateTournament, resolveNatDivision } from '../utils/international';
 import { runPostSeasonFlow } from './runPostSeasonFlow';
 
 export function handleTrain(ctx, t) {
@@ -68,6 +68,47 @@ export function handleTrain(ctx, t) {
     }
   }
 
+  // --- THE FIRST NHL GAME -------------------------------------------------
+  // This used to be reported by watching the career games counter cross zero,
+  // which only happens once a whole season of stats has been written. The
+  // result was a screen reading "the puck drops on your first NHL shift" handed
+  // to a player whose dashboard already showed seventy-eight games. It is not a
+  // milestone you can detect after the fact; it has to be played.
+  //
+  // So it works the way the nine-game trial does: one game is simulated, the
+  // moment is shown, and the rest of the season resumes from it with that game
+  // already in the bank.
+  const debut = player.debut || null;
+  if (!debut && !trial && !alreadyMidSeason
+      && player.league === 'NHL' && (player.stats?.nhl?.games || 0) === 0) {
+    const seg = simulateSeason(player, t?.effect, 0,
+      { forceGames: 1, lockPlacement: true, segmentOnly: true })?.segment;
+
+    if (seg) {
+      setPlayer(prev => ({ ...prev, debut: { segment: seg, training: t?.effect || {} } }));
+
+      const isG = player.pos === 'G';
+      ctx.setActiveEvent({
+        title: '\ud83c\udfd2 NHL DEBUT',
+        desc: isG
+          ? `Warm-ups are over. You scrape your crease, the anthem finishes, and you are about to take your first official start in the National Hockey League. The puck drops.`
+          : `Warm-ups are over. The anthem finishes, you step over the boards, and you are lining up across from players you grew up watching. The puck drops.`,
+        choices: isG
+          ? [
+              { label: 'Keep it simple', subLabel: 'Stick to the fundamentals and do not give up a bad one.', isRisky: false, feedback: 'A quiet, mistake-free night. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'RESOLVE_DEBUT' },
+              { label: 'Make a statement', subLabel: 'Challenge shooters and go for the highlight save. It can backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You stood tall, stopping an early barrage including a highlight-reel glove save. The building chanted your name.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You fought the puck early and let in a soft one. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'RESOLVE_DEBUT' }
+            ]
+          : [
+              { label: 'Play it safe', subLabel: 'Keep your first shift simple and avoid a costly mistake.', isRisky: false, feedback: 'A quiet, mistake-free night. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'RESOLVE_DEBUT' },
+              { label: 'Make a statement', subLabel: 'Force the issue early and go looking for a moment. It can backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You ran a veteran on your first shift and put up a point. The arena went up.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'RESOLVE_DEBUT' }
+            ],
+        isDebutEvent: true
+      });
+      ctx.setScreen('event');
+      return;
+    }
+  }
+
   // --- THE SEASON IS CUT WHERE THE CALENDAR CUTS IT ----------------------
   // Four things happen inside a hockey season, not after it, and the whole year
   // used to be simulated first with all of them bolted onto the end.
@@ -83,18 +124,20 @@ export function handleTrain(ctx, t) {
   //   stage 3 -> played to the deadline
   const season = player.season || null;
   const stage = season ? season.stage : 0;
-  const carried = season ? season.stints : (trial ? [trial.segment] : []);
+  const carried = season ? season.stints : (trial ? [trial.segment] : (debut ? [debut.segment] : []));
   const carriedGames = carried.reduce((n, s) => n + (s.games || 0), 0);
-  const effect = season ? season.training : (trial ? trial.training : t?.effect);
+  const effect = season ? season.training : (trial ? trial.training : (debut ? debut.training : t?.effect));
   const baseMissed = season ? season.gamesMissed : gamesMissed;
-  const locked = !!(trial || season);
+  const locked = !!(trial || season || debut);
 
   const partialResult = (stints) => {
     const last = stints[stints.length - 1];
-    const tot = stints.reduce((acc, s) => ({
-      games: acc.games + (s.games || 0), g: acc.g + (s.g || 0), a: acc.a + (s.a || 0),
-      saves: acc.saves + (s.saves || 0), shots: acc.shots + (s.shots || 0), sho: acc.sho + (s.sho || 0)
-    }), { games: 0, g: 0, a: 0, saves: 0, shots: 0, sho: 0 });
+    // The same summary the dashboard draws, so the two can never disagree again.
+    const sum = summariseStints(stints) || {};
+    const tot = {
+      games: sum.games || 0, g: sum.goals || 0, a: sum.assists || 0, pm: sum.plusMinus || 0,
+      saves: sum.saves || 0, shots: sum.shots || 0, sho: sum.shutouts || 0, avgToi: sum.avgToi || 0
+    };
     return {
       recap: { ...tot, standings: last.standings, madePlayoffs: last.standings <= 16, awards: [] },
       currentLg: last.league, currentTeam: last.team,
@@ -103,18 +146,18 @@ export function handleTrain(ctx, t) {
   };
 
   const advanceTo = (stints, nextStage) => {
-    setPlayer(prev => ({ ...prev, trial: null, season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: nextStage } }));
+    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: nextStage } }));
     setPendingSeasonResult(partialResult(stints));
   };
 
   // Sends the player to a tournament and parks the season until he is back.
   const goToTournament = (stints, nextStage, context, isWJC, isOlympicYear) => {
     const sim = simulateTournament({
-      player, natDiv: player.natDiv, pOvr: player.ovr,
+      player, natDiv: resolveNatDivision(player, ctx.safeNationalities), pOvr: player.ovr,
       safeNationalities: ctx.safeNationalities, isWJC, isOlympicYear
     });
     advanceTo(stints, nextStage);
-    setPlayer(prev => ({ ...prev, intlData: sim.intlData, intlStakes: sim.intlStakes, isOlympicYear }));
+    setPlayer(prev => ({ ...prev, intlData: sim.intlData, intlStakes: sim.intlStakes, intlOppTier: sim.intlOppTier, isOlympicYear }));
     if (ctx.setIntlResult) ctx.setIntlResult(null);
     ctx.setMinigameContext(context);
     ctx.setScreen('intl-minigame');
@@ -125,11 +168,24 @@ export function handleTrain(ctx, t) {
   // the previous stage just played.
   let stints = [...carried];
   let played = carriedGames;
+  // How good the club is this year is decided once, on the first segment, and
+  // every later segment inherits it. Without this the team was re-rolled at the
+  // World Juniors, the All-Star break, the deadline and the run-in, so the
+  // standings the deadline screen showed had no bearing on where the season
+  // actually finished.
+  let seasonTeamFactor = carried.find(s => typeof s.teamFactor === 'number')?.teamFactor;
   const playNext = (fraction) => {
     const seg = simulateSeason(player, effect, baseMissed + played, {
-      gamesFraction: fraction, segmentOnly: true, ...(locked ? { lockPlacement: true } : {})
+      gamesFraction: fraction, segmentOnly: true,
+      ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {}),
+      ...(locked ? { lockPlacement: true } : {})
     })?.segment;
-    if (seg && seg.games > 0) { stints = [...stints, seg]; played += seg.games; return seg; }
+    if (seg && seg.games > 0) {
+      if (typeof seasonTeamFactor !== 'number' && typeof seg.teamFactor === 'number') {
+        seasonTeamFactor = seg.teamFactor;
+      }
+      stints = [...stints, seg]; played += seg.games; return seg;
+    }
     return null;
   };
 
@@ -152,10 +208,13 @@ export function handleTrain(ctx, t) {
       const isOlympicYear = ctx.currentYear % 4 === 2;
 
       if (isOlympicYear) {
-        const isTopDiv = (player.natDiv || '') === 'Top Division';
+        const isTopDiv = resolveNatDivision(player, ctx.safeNationalities) === 'Top Division';
         const goes = player.age > 19 && player.ovr >= 78 && (isTopDiv ? Math.random() > 0.35 : Math.random() > 0.75);
         if (goes) { goToTournament(stints, 2, 'olympics', false, true); return; }
       } else if (madeAllStarGame(player, seg)) {
+        // Mark the selection so the end-of-season awards can tell a player who
+        // actually went from one who merely had the numbers for it.
+        setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), allStarSelected: true } }));
         advanceTo(stints, 2);
         ctx.setScreen('all-star');
         return;
@@ -184,7 +243,12 @@ export function handleTrain(ctx, t) {
     // rest of the year, so the usual mid-season demotion roll does not overrule
     // it. It also keeps a kept prospect out of the AHL, which a CHL-eligible
     // teenager cannot play in.
-    priorStints.length ? { priorStints, lockPlacement: true } : {}
+    // The run-in finishes the same season, so it inherits the same club rather
+    // than drawing a new one.
+    {
+      ...(priorStints.length ? { priorStints, lockPlacement: true } : {}),
+      ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {})
+    }
   );
   if (!result) return;
 
@@ -213,6 +277,12 @@ export function handleTrain(ctx, t) {
       shutouts: recap.sho,
       plusMinus: recap.pm,
       awards: recap.awards || [],
+      // The letter on the sweater belongs to the season, not to the playoffs.
+      // It was only ever written in proceedFromPlayoffs, so a captain or an
+      // alternate who missed the postseason lost his letter from the career
+      // table for that year and appeared to have been stripped of it.
+      isCaptain: !!updatedPlayer.isCaptain,
+      isAlternate: !!updatedPlayer.isAlternate,
       titleWon: false,
       avgToi: recap.avgToi,
       // Where the year was actually played. A split season carries one entry per
@@ -235,7 +305,11 @@ export function handleTrain(ctx, t) {
   }
 
   // The season is finished, so the trial is spent.
-  setPlayer({ ...updatedPlayer, trial: null, season: null });
+  setPlayer({
+    ...updatedPlayer,
+    trial: null, debut: null, season: null,
+    storylines: { ...(updatedPlayer.storylines || {}), allStarSelected: false }
+  });
   setStatChanges(statChanges);
   setTimeout(() => setStatChanges(null), 3000);
 
@@ -285,22 +359,10 @@ export function handleTrain(ctx, t) {
      let moveDesc = null;
      let moveChoices = null;
 
-     if (oldNhlGames === 0 && newNhlGames > 0 && currentLg === 'NHL' && !wasAHLtoNHL && !isWaiverClaim) {
-         moveTitle = '🏒 NHL DEBUT';
-         if (player.pos === 'G') {
-             moveDesc = `You step onto the ice for your first official NHL start. The lights are blinding, the crowd is roaring, and you stare down players you grew up watching. The puck drops.`;
-             moveChoices = [
-                 { label: 'Keep it simple', subLabel: 'Stick to the fundamentals and avoid giving up a bad goal in your first start.', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'ROUTE_SEASON_END' },
-                 { label: 'Make a Statement', subLabel: 'Challenge shooters and go for a highlight-reel save, could backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You stood tall in your NHL debut, stopping an early barrage of shots including a highlight-reel glove save. The crowd chanted your name.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You fought the puck early and let in a soft goal. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'ROUTE_SEASON_END' }
-             ];
-         } else {
-             moveDesc = `You step onto the ice for your first official NHL shift. The lights are blinding, the crowd is roaring, and you line up across from players you grew up watching. The puck drops.`;
-             moveChoices = [
-                 { label: 'Play it Safe', subLabel: 'Keep your game simple and avoid a costly mistake in your first shift.', isRisky: false, feedback: 'You played a quiet, mistake-free game. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'ROUTE_SEASON_END' },
-                 { label: 'Make a Statement', subLabel: 'Force the issue early for a highlight-reel moment, could backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You laid out a veteran on your first shift and scored a point! The arena went wild.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'ROUTE_SEASON_END' }
-             ];
-         }
-     } else if (oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
+     // The debut is played as its own game at the top of this function now, so
+     // it is no longer reported here. Watching the career counter cross zero
+     // only ever fired once a full season of games had already been written.
+     if (oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
          moveTitle = '🥈 THE SILVER STICK (1000 GAMES)';
          moveDesc = `Tonight is your 1000th career NHL game. The team holds a pre-game ceremony, presenting you with the traditional silver stick. The crowd gives you a standing ovation for your incredible longevity.`;
          moveChoices = [

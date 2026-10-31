@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import { useId } from 'react';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const TrophySVG = ({ league, className = "w-24 h-24 sm:w-32 sm:h-32" }) => {
-  // Generate a unique ID prefix so SVG gradients don't collide and turn black!
-  const uid = useMemo(() => Math.random().toString(36).substring(2, 9), []);
+  // A unique id prefix so SVG gradients don't collide and turn black.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
 
   const silver = `url(#silver-${uid})`;
   const darkSilver = `url(#darkSilver-${uid})`;

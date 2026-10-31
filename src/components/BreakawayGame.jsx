@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
-const BreakawayGame = ({ player, onComplete }) => {
+const BreakawayGame = ({ player, onComplete, difficulty = 0 }) => {
   const [phase, setPhase] = useState('setup'); // setup, waiting, deking, result
   const [direction, setDirection] = useState(null);
   const [strategy, setStrategy] = useState(null); // 'cheatLeft', 'cheatRight', 'hold'
@@ -37,8 +38,9 @@ const BreakawayGame = ({ player, onComplete }) => {
         setPhase('deking');
         
         // Reaction window relies on Hockey IQ and Reflexes, but is tighter since you waited
-        let window = Math.min(900, 450 + (player.hockeyIQ * 5));
-        if (player.archetype === 'Reflex' || player.archetype === 'Butterfly') window += 100;
+        let window = Math.min(900, (450 + (player.hockeyIQ * 5)) * lerpDifficulty(1.0, 0.72, difficulty));
+        const arch = player.archetype || '';
+        if (arch.includes('Reflex') || arch.includes('Butterfly')) window += 100;
         
         innerTo = setTimeout(() => {
           setPhase(prev => {
@@ -49,12 +51,12 @@ const BreakawayGame = ({ player, onComplete }) => {
             }
             return prev;
           });
-        }, window);
+        }, Math.max(MIN_REACTION_MS, window));
       }
     }, delay);
 
     return () => { clearTimeout(to); if (innerTo) clearTimeout(innerTo); };
-  }, [phase, strategy, player, finish]);
+  }, [phase, strategy, player, finish, difficulty]);
 
   const startPlay = (strat) => {
     setStrategy(strat);

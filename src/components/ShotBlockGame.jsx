@@ -1,6 +1,7 @@
 import  { useEffect, useState } from 'react';
+import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 
-const ShotBlockGame = ({ player, onComplete }) => {
+const ShotBlockGame = ({ player, onComplete, difficulty = 0 }) => {
   const [shotLane, setShotLane] = useState(null);
   const [blocks, setBlocks] = useState(0);
   const [status, setStatus] = useState('waiting');
@@ -26,7 +27,7 @@ const ShotBlockGame = ({ player, onComplete }) => {
     }
 
     return () => clearTimeout(timer);
-  }, [status, blocks, onComplete]);
+  }, [status, blocks, onComplete, difficulty]);
   
   // Scaled, high-pressure expiration timer
   useEffect(() => {
@@ -34,7 +35,8 @@ const ShotBlockGame = ({ player, onComplete }) => {
     if (status === 'active') {
       const skating = player?.skating || 50;
       // 850ms window at 50 skating, scales down to an elite 600ms window at 100 skating
-      const reactionTime = Math.max(500, 1100 - (skating * 5)); 
+      // Floored so the lane is always reachable, however big the game.
+      const reactionTime = Math.max(MIN_REACTION_MS + 60, (1100 - (skating * 5)) * lerpDifficulty(1.0, 0.70, difficulty));
       
       failTimer = setTimeout(() => {
         setResultMsg('TOO SLOW!');
@@ -43,7 +45,7 @@ const ShotBlockGame = ({ player, onComplete }) => {
       }, reactionTime);
     }
     return () => clearTimeout(failTimer);
-  }, [status, onComplete, player]);
+  }, [status, onComplete, player, difficulty]);
 
   const handleBlockAction = (laneChoice) => {
     if (status !== 'active') return;
