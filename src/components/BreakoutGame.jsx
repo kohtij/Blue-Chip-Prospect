@@ -1,102 +1,174 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
+import { SlotSheet, Marker, Puck, Move, Surface } from './rink/Ice';
+import { SLOT_VIEW } from './rink/geometry';
+import { Stage, Hud, Verdict, ActionButton } from './minigame/Shell';
+
+// The breakout.
+//
+// Three grey columns again, with a shield emoji for a forechecker and a stick
+// emoji for the winger. The read it wants is a real one, though: under pressure
+// behind your own net you have a moment when a winger comes open, and hitting
+// him a beat early or a beat late is a turnover in the worst place on the ice.
+//
+// You are behind your own goal line with the puck. Two forecheckers are closing
+// and your wingers are working the walls. One comes open. Hit him while he is
+// open, with the pass drawn the way a pass is drawn, and you are out of the
+// zone.
+
+const LANES = [
+  { id: 0, label: 'Left wall', x: 16 },
+  { id: 1, label: 'Up the middle', x: 50 },
+  { id: 2, label: 'Right wall', x: 84 }
+];
 
 export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
-  const [status, setStatus] = useState('waiting'); // waiting, active, result
-  const [resultMsg, setResultMsg] = useState('');
-  const [wingerActive, setWingerActive] = useState(false);
-  const [openLane, setOpenLane] = useState(null);
-
-  // Hockey IQ controls how large your passing window is
   const iq = getActiveStat(player, 'hockeyIQ');
-  // Floored so a high-stakes game narrows the lane without closing it.
-  const windowTime = Math.max(MIN_REACTION_MS + 80, (300 + (iq * 6)) * lerpDifficulty(1.0, 0.68, difficulty));
-  const timeoutRef = useRef(null);
+
+  const [phase, setPhase] = useState('read');    // read, open, result
+  const [openLane] = useState(() => Math.floor(Math.random() * LANES.length));
+  const [picked, setPicked] = useState(null);
+  const [status, setStatus] = useState('live');
+  const [note, setNote] = useState(null);
+
+  const doneRef = useRef(false);
+  const timerRef = useRef(null);
+
+  // Hockey IQ is how long the lane stays open to you.
+  const window = Math.max(
+    MIN_REACTION_MS + 80,
+    (320 + iq * 6) * lerpDifficulty(1.0, 0.68, difficulty)
+  );
+
+  const finish = useCallback((win, why, delay = 1600) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setStatus(win ? 'out' : 'turnover');
+    setNote(why);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setTimeout(() => onComplete(win), delay);
+  }, [onComplete]);
 
   useEffect(() => {
-    const initTimer = setTimeout(() => {
-      const lane = Math.floor(Math.random() * 3);
-      setOpenLane(lane);
-      setStatus('active');
+    // He takes a moment to get his feet moving and find the soft spot.
+    const open = setTimeout(() => {
+      if (doneRef.current) return;
+      setPhase('open');
+      timerRef.current = setTimeout(() => {
+        if (doneRef.current) return;
+        setPhase('result');
+        finish(false, 'the lane shut before you moved it and they pinned you in');
+      }, window);
+    }, 900 + Math.random() * 1400);
 
-      // The winger takes a moment to get open
-      const flashDelay = 800 + Math.random() * 1200;
-      timeoutRef.current = setTimeout(() => {
-        setWingerActive(true);
-        
-        // If the player misses the window, the lane closes
-        timeoutRef.current = setTimeout(() => {
-          setWingerActive(false);
-          setResultMsg('MISSED THE WINDOW! TURNOVER!');
-          setStatus('result');
-          setTimeout(() => onComplete(false), 1500);
-        }, windowTime);
-      }, flashDelay);
-    }, 1000);
+    return () => { clearTimeout(open); if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [window, finish]);
 
-    return () => {
-      clearTimeout(initTimer);
-      clearTimeout(timeoutRef.current);
-    };
-  }, [iq, onComplete, windowTime, difficulty]);
+  const pass = (id) => {
+    if (doneRef.current || phase === 'result') return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPicked(id);
+    setPhase('result');
 
-  const handleLaneClick = (lane) => {
-    if (status === 'result') return;
-    clearTimeout(timeoutRef.current);
-    setStatus('result');
-
-    if (lane === openLane) {
-      if (wingerActive) {
-        setResultMsg('TAPE TO TAPE! GREAT BREAKOUT!');
-        setTimeout(() => onComplete(true), 1500);
-      } else {
-        setResultMsg('ICING! WINGER WAS NOT READY!');
-        setTimeout(() => onComplete(false), 1500);
-      }
+    if (id !== openLane) {
+      finish(false, 'straight onto a forechecker’s stick');
+    } else if (phase === 'read') {
+      finish(false, 'you moved it before he was there and it died on the wall');
     } else {
-      setResultMsg('INTERCEPTED BY FORECHECKER!');
-      setTimeout(() => onComplete(false), 1500);
+      finish(true, 'tape to tape, and the zone is behind you');
     }
   };
 
-  return (
-    <div className="w-full max-w-md mx-auto text-center font-sans">
-      <h2 className="text-2xl font-black sports-font uppercase mb-2 text-[#3b82f6]">THE BREAKOUT</h2>
-      <p className="text-slate-300 text-sm mb-6">
-        Wait for your winger to flash <strong className="text-[#22E748]">GREEN</strong> in the open lane. Do not pass to the red forecheckers!
-      </p>
+  const isOpen = phase === 'open';
+  const right = status === 'out';
 
-      <div className="grid grid-cols-3 gap-3 h-52 bg-slate-900/80 p-4 rounded-xl border border-slate-800 relative mb-4">
-        {[0, 1, 2].map(lane => {
-          const isForechecker = status !== 'waiting' && lane !== openLane;
-          const isWinger = status !== 'waiting' && lane === openLane && wingerActive;
-          
-          return (
-            <div key={lane} className="relative flex flex-col items-center justify-between border-x border-slate-800/50 py-2">
-              <div className="w-full h-16 flex items-center justify-center">
-                {isForechecker && <div className="w-10 h-10 bg-[#ef4444] rounded shadow-[0_0_15px_rgba(239,68,68,0.5)] flex items-center justify-center text-xl">🛡️</div>}
-                {isWinger && <div className="w-10 h-10 bg-[#22E748] rounded-full shadow-[0_0_15px_rgba(34,231,72,0.5)] flex items-center justify-center text-xl animate-pulse">🏒</div>}
-              </div>
-              <button
-                onClick={() => handleLaneClick(lane)}
-                disabled={status === 'result'}
-                className="mt-auto w-full py-2 bg-slate-800 hover:bg-[#3b82f6] border border-slate-700 hover:border-[#3b82f6] rounded text-[10px] font-black uppercase text-white transition-colors cursor-pointer"
-              >
-                PASS
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      
-      <div className="h-8">
-        {status === 'result' && (
-          <span className={`text-xl font-black sports-font tracking-widest ${resultMsg.includes('GREAT') ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-            {resultMsg}
-          </span>
+  return (
+    <Stage
+      hud={
+        <Hud
+          left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            Own zone, under pressure
+          </span>}
+          right={
+            <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
+              isOpen ? 'text-[#22E748]' : 'text-slate-600'
+            }`}>
+              {phase === 'result' ? '—' : isOpen ? 'Lane open' : 'Checking'}
+            </span>
+          }
+        />
+      }
+      verdict={
+        <Verdict
+          show={status !== 'live'}
+          won={right}
+          word={right ? 'CLEAN EXIT' : 'TURNOVER'}
+          detail={note}
+        />
+      }
+      caption={
+        status !== 'live' ? null
+          : isOpen ? 'He is open now. Move it.'
+            : 'Wait for a winger to actually come open. A pass to a covered man is a turnover.'
+      }
+    >
+      <Surface view={SLOT_VIEW}>
+        {/* The sheet is our own end: the net below us, the ice running away. */}
+        <SlotSheet />
+
+        {/* Forecheckers, closing from above. */}
+        {LANES.filter(l => l.id !== openLane).map(l => (
+          <Marker key={l.id} at={[l.x, 30]} kind="opp" label="F" r="4.3" />
+        ))}
+
+        {/* The winger, working his wall. He is only a target once he is open. */}
+        {(
+          <g opacity={isOpen || phase === 'result' ? 1 : 0.42}
+             style={{ transition: 'opacity 140ms linear' }}>
+            <Marker at={[LANES[openLane].x, isOpen || phase === 'result' ? 24 : 38]} kind="mate" label="W" r="4.3" />
+            {isOpen && (
+              <circle cx={LANES[openLane].x} cy="24" r="7.6" fill="none"
+                      stroke="rgba(96,165,250,0.5)" strokeWidth="0.8" strokeDasharray="2.4 2.4" />
+            )}
+          </g>
         )}
+
+        {/* The pass, once it has been made. */}
+        {picked !== null && (
+          <Move
+            move={{
+              type: 'pass',
+              from: [50, 66],
+              to: [LANES[picked].x, picked === openLane ? 26 : 31],
+              ink: right ? '#60a5fa' : '#ef4444'
+            }}
+            stops={[[LANES[picked].x, picked === openLane ? 24 : 30]]}
+          />
+        )}
+
+        {/* Me, with the puck, behind my own goal line. */}
+        <Marker at={[50, 66]} kind="me" label="YOU" r="5.2" />
+        {picked === null && <Puck at={[56, 69]} r="2" />}
+      </Surface>
+
+      <div className="flex gap-2 p-3 pt-0">
+        {LANES.map(l => (
+          <ActionButton
+            key={l.id}
+            wide
+            onClick={() => pass(l.id)}
+            disabled={phase === 'result'}
+            state={
+              phase === 'result'
+                ? (l.id === picked ? (right ? 'right' : 'wrong') : 'spent')
+                : 'idle'
+            }
+          >
+            {l.label}
+          </ActionButton>
+        ))}
       </div>
-    </div>
+    </Stage>
   );
 }

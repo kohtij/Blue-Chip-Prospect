@@ -30,7 +30,7 @@ export const LEAGUE_CONFIG = {
   WHL:   { name: 'Western Hockey League',            games: 68, playoffSpots: 16, logo: leagueLogos.WHL,   conferences: ['East','West'], divisions: ['East','Central','BC','US'],                  playoffFormat: 'best-of-7-16' },
   QMJHL: { name: 'Quebec Maritimes Junior Hockey League', games: 64, playoffSpots: 16, logo: leagueLogos.QMJHL, conferences: [],          divisions: ['East','Central','West'],                     playoffFormat: 'best-of-7-16' },
   USHL:  { name: 'United States Hockey League',      games: 62, playoffSpots: 8,  logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'ushl-8' },
-  NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3', pathView: true },
+  NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
   SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 8,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
   LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 8,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
@@ -613,7 +613,26 @@ export const icehlTeams = [
 export const getTeamData = (teamId, league) => {
   if (!teamId) return null;
   const pool = getOpponentPool(league);
-  return pool.find(t => t.id === teamId) || { id: teamId, name: teamId, bg: '#101410', color: '#FFFFFF' };
+  const hit = pool.find(t => t.id === teamId);
+  if (hit) return hit;
+
+  // A year spent on NHL paper in the minors gets recorded in places against the
+  // parent club's id with the AHL as the league, and there is no AHL club whose
+  // id is NHL. Everything downstream then fell through to the placeholder
+  // below, so the recap read "the rest of the year in the AHL with PIT" and the
+  // crest did not draw. Resolve the pair to the affiliate the id points at, and
+  // the same in reverse for an affiliate id asked for as its parent.
+  if (league === 'AHL') {
+    const parent = nhlTeams.find(t => t.id === teamId);
+    const affiliate = parent && ahlTeams.find(t => t.id === parent.ahlId);
+    if (affiliate) return affiliate;
+  }
+  if (league === 'NHL') {
+    const parent = nhlTeams.find(t => t.ahlId === teamId);
+    if (parent) return parent;
+  }
+
+  return { id: teamId, name: teamId, bg: '#101410', color: '#FFFFFF' };
 };
 
 export const getOpponentPool = (league) => {
@@ -703,13 +722,6 @@ export const getDivisions = (league) => {
 export const getPlayoffFormat = (league) => {
   return LEAGUE_CONFIG[league]?.playoffFormat || 'best-of-7-16';
 };
-
-// Which leagues show their postseason as a run of one-off results rather than
-// as a deck of cards to turn over. A best-of-seven is a series you grind out
-// card by card; a single-elimination tournament is four results in a row, and
-// the nine-card grid was the wrong picture of it. Flagged per league so it can
-// be turned on elsewhere, international tournaments being the obvious next one.
-export const usesPathView = (league) => Boolean(LEAGUE_CONFIG[league]?.pathView);
 
 // What each league actually calls its rounds.
 //

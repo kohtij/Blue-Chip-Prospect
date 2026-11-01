@@ -19,6 +19,23 @@ export const shuffleArray = (array) => {
   return out;
 };
 
+// A placing, written the way it is said. Appending a flat "th" to the number
+// produced "the Toronto Maple Leafs sit 23th". The teens are the exception that
+// catches naive versions of this: 11, 12 and 13 all take "th" despite ending in
+// 1, 2 and 3, and that holds at 111, 112, 113 as well.
+export const ordinal = (n) => {
+  const num = Math.trunc(Number(n));
+  if (!Number.isFinite(num)) return `${n}`;
+  const lastTwo = Math.abs(num) % 100;
+  const last = Math.abs(num) % 10;
+  const suffix = (lastTwo >= 11 && lastTwo <= 13) ? 'th'
+    : last === 1 ? 'st'
+      : last === 2 ? 'nd'
+        : last === 3 ? 'rd'
+          : 'th';
+  return `${num}${suffix}`;
+};
+
 export const cap = (val) => Math.min(100, Math.max(0, val));
 
 export const capFanStatus = (val) => Math.min(1000, Math.max(0, val));
@@ -54,7 +71,9 @@ export const getTransferImpact = (oldTeamId, newTeamId) => {
 
 export const getActiveStat = (p, stat) => {
   let val = p[stat];
-  p.buffs.forEach(b => { if (b.effect[stat]) val += b.effect[stat]; });
+  // A player carries no buffs until the first one lands, and an older save has
+  // no buffs array at all, so this read has to tolerate both.
+  (p.buffs || []).forEach(b => { if (b?.effect?.[stat]) val += b.effect[stat]; });
   return cap(val);
 };
 
@@ -99,15 +118,43 @@ export const recomputeOvr = (p) => {
   return Math.round((sht * 0.30) + (skt * 0.25) + (iq * 0.25) + (phy * 0.10) + (sta * 0.10));
 };
 
+// What a rating point handed out by a moment is actually worth to you.
+//
+// Camps, medals, letters, big nights, contract perks: a season is full of
+// things that pay "+1 OVR", and they all used to pay it in full. Four or five
+// of those a year sit on top of the player's own development, which is how a
+// 72 overall who only reached the league at 23 is a superstar by 27 without
+// ever having a season that deserved it.
+//
+// Getting better is harder the better you already are. Below the top end a
+// point is a point; at the top it is a sliver of one. Nothing is thrown away:
+// the remainder is carried on the player and paid out when it adds up to a
+// whole point. Losses are never damped, because falling off is easy.
+const ovrGainFactor = (ovr) =>
+  ovr >= 92 ? 0.02
+    : ovr >= 88 ? 0.05
+      : ovr >= 84 ? 0.10
+        : ovr >= 80 ? 0.12
+          : ovr >= 75 ? 0.25
+            : ovr >= 70 ? 0.60
+              : 0.85;
+
 export const applyOvrDelta = (player, delta) => {
   const rawOvr = recomputeOvr(player);
   const hiddenDelta = (player.ovr || rawOvr) - rawOvr;
-  const totalDelta = (delta || 0) + hiddenDelta;
 
-  if (!totalDelta) return player;
-  
+  const raw = delta || 0;
+  const scaled = raw > 0 ? raw * ovrGainFactor(player.ovr || rawOvr) : raw;
+  const credit = (player.ovrCredit || 0) + scaled;
+  const whole = credit >= 0 ? Math.floor(credit) : Math.ceil(credit);
+  const carried = credit - whole;
+  const totalDelta = whole + hiddenDelta;
+
+  if (!totalDelta) return { ...player, ovrCredit: carried };
+
   return {
     ...player,
+    ovrCredit: carried,
     shooting: cap(player.shooting + totalDelta),
     skating: cap(player.skating + totalDelta),
     physicality: cap(player.physicality + totalDelta),
@@ -526,7 +573,15 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     : Math.min(10, Math.max(1, 5.0 + (g + a + pm * 0.5) / games * 5));
   rating = Number(rating.toFixed(1));
 
+  // Where these games were actually played, which is not necessarily where he
+  // is standing at the end of them: a call-up moves the club and the league
+  // under him. Both have to be captured, not just the league. Keeping only the
+  // league meant the stint was filed as the parent NHL club playing in the
+  // AHL, a pairing that exists nowhere, so the recap read "the rest of the year
+  // in the AHL with PIT" and the deadline screen put an NHL crest over an AHL
+  // label.
   let playedLg = currentLg;
+  let playedTeam = currentTeam;
 
   if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
     currentLg = 'NHL';
@@ -541,7 +596,6 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   }
 
   const tempPlayer = { ...player, league: playedLg };
-  const awards = _computeAwards({ player: tempPlayer, rating, g, a, saves, shots, games, standings });
   const offPercent = p.pos === 'G' ? 0 : Math.min(100, Math.round(((g + a) / ((g * 2) + 40)) * 100));
   const newAge = p.age + 1;
   
@@ -551,7 +605,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   if (options.segmentOnly) {
     return {
       segment: {
-        team: currentTeam, league: currentLg, games,
+        team: playedTeam, league: playedLg, games,
         g, a, pm, saves, shots, sho, avgToi, rating, standings,
         // Carried so the next segment inherits the same club, rather than
         // re-rolling how good the team is at every checkpoint of the year.
@@ -562,7 +616,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   }
 
   // Every stint of this season, earlier ones first, this one last.
-  const thisStint = { team: currentTeam, league: playedLg, games, g, a, pm, saves, shots, sho, avgToi, rating };
+  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, saves, shots, sho, avgToi, rating };
   // Consecutive stints at the same club are one spell, not two: a prospect kept
   // past his nine games played 71 games for that team, not "9 and then 62".
   const stints = [...(options.priorStints || []), thisStint].reduce((acc, s) => {
@@ -581,6 +635,28 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     pm: acc.pm + (s.pm || 0), saves: acc.saves + (s.saves || 0),
     shots: acc.shots + (s.shots || 0), sho: acc.sho + (s.sho || 0)
   }), { games: 0, g: 0, a: 0, pm: 0, saves: 0, shots: 0, sho: 0 });
+
+  // Trophies are a judgement on a season, not on whichever slice of it this
+  // call happened to simulate. The year is played in segments now (the World
+  // Juniors, the All-Star break, the deadline, the run-in), and this used to be
+  // computed from the last segment's goals and assists, so a hundred and thirty
+  // point season was being assessed on the thirty-odd points scored after the
+  // deadline and won nothing at all.
+  //
+  // Only the games played in this league count toward this league's awards: a
+  // year split between nine NHL games and fifty in junior is two separate
+  // bodies of work, and the junior trophies belong to the junior half.
+  const leagueYear = stints.filter(s => s.league === playedLg).reduce((acc, s) => ({
+    games: acc.games + (s.games || 0), g: acc.g + (s.g || 0), a: acc.a + (s.a || 0),
+    saves: acc.saves + (s.saves || 0), shots: acc.shots + (s.shots || 0)
+  }), { games: 0, g: 0, a: 0, saves: 0, shots: 0 });
+
+  const awards = _computeAwards({
+    player: tempPlayer, rating,
+    g: leagueYear.g, a: leagueYear.a,
+    saves: leagueYear.saves, shots: leagueYear.shots,
+    games: leagueYear.games, standings
+  });
 
   const coachItem = shopItems.find(i => i.id === 'coach');
   const coachModifier = p.inventory.includes('coach') ? (coachItem?.effect?.declineModifier ?? 0.5) : 1;
@@ -655,7 +731,17 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     currentAsg: rating >= 8.5 ? playedLg : null,
     teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), currentTeam])),
     relationships: (currentTeam !== p.team) ? { coach: 50, teammates: 50, media: 50 } : p.relationships,
-    storylines: (currentTeam !== p.team) ? { ...(p.storylines || {}), lockerRoom: 0 } : p.storylines,
+    // A letter belongs to the room that gave it. A player claimed off waivers or
+    // sent down to the affiliate does not walk into a dressing room he has never
+    // been in still wearing an A, and the club he walks into has not had its own
+    // chance to offer one, so alternateGiven is cleared along with it. The season
+    // he just played keeps its letter: the history entry is written from who he
+    // was during it, not from this object.
+    isCaptain: (currentTeam !== p.team) ? false : p.isCaptain,
+    isAlternate: (currentTeam !== p.team) ? false : p.isAlternate,
+    storylines: (currentTeam !== p.team)
+      ? { ...(p.storylines || {}), lockerRoom: 0, alternateGiven: false }
+      : p.storylines,
     age: p.age + 1,
     ovr: nextOvr,
     shooting: cap(newSht),
@@ -710,11 +796,19 @@ function seriesOdds(wins, needed) {
 export function generatePlayoffDeck(standings, playoffSpots, round, gamesPerMatchup = 7) {
   const seedStrength = Math.max(0, Math.min(1, 1 - (standings - 1) / Math.max(1, playoffSpots - 1)));
 
-  // Single elimination is one game, so it is still a straight roll.
+  // Single elimination is still one game, but the player picks a square out
+  // of a 4x4 grid rather than being handed one predetermined result. Only
+  // the clicked square ever decides the game, since one win ends it, so
+  // each of the sixteen gets its own independent roll at the same win
+  // chance the old single roll used. The odds of advancing are unchanged;
+  // only how they are presented is different.
   if (gamesPerMatchup === 1) {
     const tighten = Math.max(0, round - 1) * 0.03;
     const chance = Math.max(0.30, Math.min(0.80, 0.40 + (seedStrength * 0.35) - tighten));
-    return [{ isWin: Math.random() < chance }];
+    return Array.from({ length: 16 }, () => {
+      const isWin = Math.random() < chance;
+      return { isWin, ...singleGameScore(isWin) };
+    });
   }
 
   // A series is always a three by three grid of nine cards, and it always holds
@@ -846,8 +940,14 @@ export const isNineGameCandidate = (p) => {
   const hasJuniorRights = !!p.chlRights
     || (p.seasonHistory || []).some(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
   if (!hasJuniorRights) return false;
-  // Once ten NHL games are on the record the year is already burned.
-  return !(p.seasonHistory || []).some(s => s.league === 'NHL' && (s.games || 0) >= 10);
+  // The nine-game look happens once in a career, not once a season. The old
+  // guard only disqualified a year of ten games or more, so a player sent back
+  // after nine was eligible again the following autumn and the event fired in
+  // back-to-back seasons. The flag is what settles it now; any NHL games at all
+  // on the record are the fallback for a career that started before the flag
+  // existed, since the only way to have them this young is to have had the look.
+  if (p.nineGameUsed) return false;
+  return !(p.seasonHistory || []).some(s => s.league === 'NHL' && (s.games || 0) > 0);
 };
 
 // The club's read on those nine games. This is a judgement call, not a formula

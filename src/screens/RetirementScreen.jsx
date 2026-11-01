@@ -580,6 +580,17 @@ export default function RetirementScreen() {
                                                    
                                                    {(season.awards || [])
                                                        .filter(aw => !aw.toLowerCase().includes('1st team all-star'))
+                                                       // The championship already has its own pill, drawn above from
+                                                       // titleWon, and the same cup is also written into the season's
+                                                       // award list. Both were being rendered, which is why a
+                                                       // cup-winning year showed two identical trophies side by side.
+                                                       .filter(aw => {
+                                                          if (!season.titleWon) return true;
+                                                          const own = season.league === 'NHL' ? 'stanley cup'
+                                                            : season.league === 'AHL' ? 'calder cup'
+                                                              : 'championship';
+                                                          return !aw.toLowerCase().includes(own);
+                                                       })
                                                        .map((aw, aIdx) => {
                                                        let text = aw.replace(/^\d{4}\s/, '');
                                                        

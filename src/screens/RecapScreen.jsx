@@ -129,7 +129,33 @@ export default function RecapScreen() {
           const rivalName = rivalObj ? (rivalObj.name || rivalObj.id) : null;
           const rivalWonTitle = rivalObj && seasonRecap?.leagueChampion?.id === rivalObj.id;
 
-          if (seasonRecap?.titleWon === 1) {
+          // How many championships this makes in a row, counting back through
+          // the seasons immediately before this one. A repeat is the rarest
+          // thing in the sport and it used to read exactly like a first one.
+          const streak = (() => {
+            const hist = player.seasonHistory || [];
+            let n = 1;
+            for (let i = hist.length - 1; i >= 0; i--) {
+              // The season being recapped may already be written; skip it once.
+              if (i === hist.length - 1 && hist[i].year === (2026 + ((player.stats?.seasonsPlayed || 1) - 1))) continue;
+              if (hist[i].titleWon) n += 1; else break;
+            }
+            return n;
+          })();
+
+          if (seasonRecap?.titleWon === 1 && streak >= 2) {
+             const cupName = player.league === 'NHL' ? 'the Stanley Cup' : (titles?.cupName || 'the Championship');
+             if (streak === 2) {
+                 narrativeTitle = 'BACK-TO-BACK CHAMPIONS';
+                 narrative = `Twice. Winning ${cupName} once can be a good year and a hot goaltender; winning it again is the part nobody manages. This team does not have to argue about it any more.`;
+             } else if (streak === 3) {
+                 narrativeTitle = 'THREE IN A ROW';
+                 narrative = `Three straight. There are franchises a century old that have never done this once, and you have done it three years running. People have started using the word dynasty without smirking.`;
+             } else {
+                 narrativeTitle = `${streak} STRAIGHT`;
+                 narrative = `${streak} in a row. Whatever the rest of the league is building, it is being built to beat you, and it is not working. This is a dynasty by any measure anyone has ever used.`;
+             }
+          } else if (seasonRecap?.titleWon === 1) {
              if (player.league === 'NHL') {
                  narrativeTitle = 'STANLEY CUP CHAMPIONS';
                  narrative = `Absolute glory. You climbed the mountain and won the Stanley Cup! Your name is immortalized.`;

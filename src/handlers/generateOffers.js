@@ -288,6 +288,13 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
             }
         }
 
+        // A club that held his rights and declined to sign him does not then
+        // turn up in free agency the same summer bidding for the player it
+        // just let walk.
+        if (player.rightsLapsedBy) {
+          pool = pool.filter(t => t.id !== player.rightsLapsedBy);
+        }
+
         if (pool.length > 0) {
           const t = pool[Math.floor(Math.random() * pool.length)].id;
           if (t !== actingTeam && !offers.find(o => o.team === t)) {

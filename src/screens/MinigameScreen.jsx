@@ -1,56 +1,69 @@
 import 'react';
 import { useAppContext } from '../AppContext';
-import { ACCENT } from '../utils/appHelpers';
 import { findMinigame } from '../data/minigames';
 import { getStakes } from '../utils/stakes';
+import { Brief } from '../components/minigame/Shell';
 
-// Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
+// The frame a live-play moment happens in.
+//
+// This used to carry a coloured top border taken from each game's own accent, a
+// warning-triangle chip on everything from training camp to a gold medal game,
+// and a black inner box that every game then drew its own furniture inside. The
+// games now share one shell (components/minigame/Shell) and one ice
+// (components/rink/Ice), so this is only the brief and the handover.
+
 export default function MinigameScreen() {
-  const { BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame, OneTimerGame, ScreenedShotGame, ShootoutGame, ShotBlockGame, ZoneBattleGame, activeMinigame, handleInteractiveResult, minigameContext, minigameStarted, player, setMinigameStarted } = useAppContext();  return (() => {
-          const mg = findMinigame(activeMinigame, player.pos);
-          const accent = ACCENT[mg?.accent] || ACCENT.blue;
+  const {
+    BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame,
+    OneTimerGame, ScreenedShotGame, ShootoutGame, ShotBlockGame, ZoneBattleGame,
+    activeMinigame, handleInteractiveResult, minigameContext, minigameStarted,
+    player, setMinigameStarted
+  } = useAppContext();
 
-          // What this moment is worth and how hard it should be. Every game reads
-          // its challenge off the player's ratings, so meeting him with a sterner
-          // opponent is what makes a final bite for all twelve of them at once.
-          const stakes = getStakes(minigameContext, player.intlStakes, player.intlOppTier);
+  const mg = findMinigame(activeMinigame, player.pos);
 
-          return (
-            <div className={`game-panel p-6 sm:p-12 mt-2 border-t-2 ${accent.border} text-center flex flex-col`}>
-              {!minigameStarted ? (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <div className="inline-block px-4 py-1.5 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-full text-[#F59E0B] text-xs sm:text-sm font-black uppercase tracking-widest mb-6">
-                    ⚠️ {stakes.label}
-                  </div>
-                  <h2 className={`text-4xl sm:text-6xl font-black mb-6 ${accent.heading} sports-font tracking-tighter uppercase leading-tight text-balance sm:whitespace-nowrap`}>{mg?.title}</h2>
-                  <p className="text-lg sm:text-2xl text-slate-300 mb-10 max-w-2xl mx-auto text-center leading-relaxed">{mg?.desc}</p>
-                  
-                  <button
-                    onClick={() => setMinigameStarted(true)}
-                    className="btn-primary py-4 px-10 rounded-xl text-xl sm:text-2xl cursor-pointer sports-font tracking-widest shadow-[0_0_20px_rgba(34,231,72,0.3)] transition-transform hover:scale-105"
-                  >
-                    🟢 ENTER SITUATION
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col h-full w-full fade-up">
-                  <h2 className={`text-2xl sm:text-3xl font-black mb-6 ${accent.heading} sports-font tracking-tighter uppercase leading-tight`}>{mg?.title}</h2>
-                  <div className="bg-black/50 p-6 sm:p-10 rounded-2xl border border-[rgba(255,255,255,0.05)] shadow-inner min-h-[350px] sm:min-h-[400px] flex flex-col justify-center relative flex-1">
-                     {mg?.gameType === 'shootout' && <ShootoutGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'faceoff' && <FaceoffGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'crease' && <CreaseGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'film' && <FilmRoomGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'deflect' && <DeflectionGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'block' && <ShotBlockGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'breakaway' && <BreakawayGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'onetimer' && <OneTimerGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}                   
-                     {mg?.gameType === 'breakout' && <BreakoutGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'screened' && <ScreenedShotGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                     {mg?.gameType === 'zone_battle' && <ZoneBattleGame player={player} difficulty={stakes.difficulty} onComplete={(win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg)} />}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })();
+  // What this moment is worth and how hard it should be. Every game reads its
+  // challenge off the player's ratings, so meeting him with a sterner opponent
+  // is what makes a final bite for all of them at once.
+  const stakes = getStakes(minigameContext, player.intlRound, player.intlOppTier);
+
+  const done = (win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg);
+  const common = { player, difficulty: stakes.difficulty, onComplete: done };
+
+  return (
+    <div className="game-panel p-5 sm:p-8 mt-2 flex flex-col">
+      {!minigameStarted ? (
+        <Brief
+          stakes={stakes}
+          title={mg?.title}
+          blurb={mg?.desc}
+          read={mg?.read}
+          stat={mg?.stat}
+          onStart={() => setMinigameStarted(true)}
+        />
+      ) : (
+        <div className="w-full fade-up">
+          <div className="flex items-center justify-center gap-3 mb-5">
+            <span className="h-px flex-1 max-w-16 bg-[rgba(255,255,255,0.08)]" />
+            <h2 className="text-base sm:text-lg font-black text-slate-400 sports-font tracking-[0.2em] uppercase text-center">
+              {mg?.title}
+            </h2>
+            <span className="h-px flex-1 max-w-16 bg-[rgba(255,255,255,0.08)]" />
+          </div>
+
+          {mg?.gameType === 'shootout' && <ShootoutGame {...common} />}
+          {mg?.gameType === 'faceoff' && <FaceoffGame {...common} />}
+          {mg?.gameType === 'crease' && <CreaseGame {...common} />}
+          {mg?.gameType === 'film' && <FilmRoomGame {...common} />}
+          {mg?.gameType === 'deflect' && <DeflectionGame {...common} />}
+          {mg?.gameType === 'block' && <ShotBlockGame {...common} />}
+          {mg?.gameType === 'breakaway' && <BreakawayGame {...common} />}
+          {mg?.gameType === 'onetimer' && <OneTimerGame {...common} />}
+          {mg?.gameType === 'breakout' && <BreakoutGame {...common} />}
+          {mg?.gameType === 'screened' && <ScreenedShotGame {...common} />}
+          {mg?.gameType === 'zone_battle' && <ZoneBattleGame {...common} />}
+        </div>
+      )}
+    </div>
+  );
 }

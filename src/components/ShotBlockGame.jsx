@@ -1,120 +1,166 @@
-import  { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
+import { getActiveStat } from '../utils/gameHelpers';
+import { SlotSheet, Marker, Surface } from './rink/Ice';
+import { SLOT_VIEW, wavePath } from './rink/geometry';
+import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 
-const ShotBlockGame = ({ player, onComplete, difficulty = 0 }) => {
-  const [shotLane, setShotLane] = useState(null);
+// Blocking the shot, from the slot.
+//
+// This was three grey columns with a hockey-stick emoji bouncing above one of
+// them and a button marked BLOCK LANE under each. The mechanic was fine and the
+// picture told you nothing.
+//
+// Now you are standing in the slot with your own net behind you and the point
+// man winding up at the blue line. The shot comes down one of three lanes, drawn
+// as a shot the way a drill book draws one, and you get in front of it or you
+// screen your own goalie. Three in a row and the shift is over.
+
+const NEEDED = 3;
+const LANES = [
+  { id: 0, label: 'Strong side', x: 17 },
+  { id: 1, label: 'Through the middle', x: 50 },
+  { id: 2, label: 'Weak side', x: 83 }
+];
+
+export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
+  const skating = getActiveStat(player, 'skating');
+
+  const [phase, setPhase] = useState('settle');  // settle, winding, live, result
+  const [lane, setLane] = useState(null);
+  const [picked, setPicked] = useState(null);
   const [blocks, setBlocks] = useState(0);
-  const [status, setStatus] = useState('waiting');
-  const [pressedLane, setPressedLane] = useState(null);
-  const [resultMsg, setResultMsg] = useState('');
+  const [status, setStatus] = useState('live');
+  const [note, setNote] = useState(null);
 
-  // Unpredictable shot trigger
+  const doneRef = useRef(false);
+  const timerRef = useRef(null);
+
+  const finish = useCallback((win, why, delay = 1500) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setStatus(win ? 'held' : 'beaten');
+    setNote(why);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setTimeout(() => onComplete(win), delay);
+  }, [onComplete]);
+
+  // One shot: he loads it up, then it comes.
   useEffect(() => {
-    if (blocks >= 3) {
-      onComplete(true);
-      return;
-    }
+    if (phase !== 'settle' || doneRef.current) return;
 
-    let timer;
-    // FIX: Only start the countdown for the next shot AFTER the cooldown finishes
-    if (status === 'waiting') {
-      timer = setTimeout(() => {
-        setShotLane(Math.floor(Math.random() * 3));
-        setPressedLane(null);
-        setResultMsg('');
-        setStatus('active');
-      }, 400 + Math.random() * 800);
-    }
+    timerRef.current = setTimeout(() => {
+      if (doneRef.current) return;
+      const next = Math.floor(Math.random() * LANES.length);
+      setLane(next);
+      setPicked(null);
+      setPhase('live');
 
-    return () => clearTimeout(timer);
-  }, [status, blocks, onComplete, difficulty]);
-  
-  // Scaled, high-pressure expiration timer
-  useEffect(() => {
-    let failTimer;
-    if (status === 'active') {
-      const skating = player?.skating || 50;
-      // 850ms window at 50 skating, scales down to an elite 600ms window at 100 skating
       // Floored so the lane is always reachable, however big the game.
-      const reactionTime = Math.max(MIN_REACTION_MS + 60, (1100 - (skating * 5)) * lerpDifficulty(1.0, 0.70, difficulty));
-      
-      failTimer = setTimeout(() => {
-        setResultMsg('TOO SLOW!');
-        setStatus('failed');
-        setTimeout(() => onComplete(false), 1200);
-      }, reactionTime);
-    }
-    return () => clearTimeout(failTimer);
-  }, [status, onComplete, player, difficulty]);
+      const window = Math.max(
+        MIN_REACTION_MS + 60,
+        (1150 - skating * 5) * lerpDifficulty(1.0, 0.70, difficulty)
+      );
+      timerRef.current = setTimeout(() => {
+        if (doneRef.current) return;
+        setPhase('result');
+        finish(false, 'you never got across and it went through clean');
+      }, window);
+    }, 500 + Math.random() * 900);
 
-  const handleBlockAction = (laneChoice) => {
-    if (status !== 'active') return;
-    
-    setPressedLane(laneChoice);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [phase, skating, difficulty, finish]);
 
-    if (laneChoice === shotLane) {
-      setResultMsg('BLOCKED!');
-      setBlocks(b => b + 1);
-      setStatus('blocked');
-      setTimeout(() => setStatus('waiting'), 600);
+  const commit = (id) => {
+    if (phase !== 'live' || doneRef.current) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPicked(id);
+
+    if (id === lane) {
+      const made = blocks + 1;
+      setBlocks(made);
+      setPhase('result');
+      if (made >= NEEDED) {
+        finish(true, 'three blocked and the puck is out of the zone');
+      } else {
+        setNote('Blocked. He is loading up another one.');
+        setTimeout(() => { if (!doneRef.current) { setPhase('settle'); setNote(null); } }, 700);
+      }
     } else {
-      setResultMsg('MISSED!');
-      setStatus('failed');
-      setTimeout(() => onComplete(false), 1200);
+      setPhase('result');
+      finish(false, 'you dropped into the wrong lane and screened your own goalie');
     }
   };
 
+  const showShot = (phase === 'live' || phase === 'result') && lane !== null;
+  const hitLane = picked === lane;
+
   return (
-    <div className="w-full max-w-md mx-auto text-center font-sans">
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-xs font-black uppercase text-slate-400">DEFENSIVE ZONE</span>
-        <span className="text-lg font-black text-[#22E748] sports-font">BLOCKS: {blocks} / 3</span>
-      </div>
+    <Stage
+      hud={
+        <Hud
+          left={<Pips label="Blocked" filled={blocks} total={NEEDED} />}
+          right={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            Defensive slot
+          </span>}
+        />
+      }
+      verdict={
+        <Verdict
+          show={status !== 'live'}
+          won={status === 'held'}
+          word={status === 'held' ? 'ATE THEM ALL' : 'BEATEN'}
+          detail={note}
+        />
+      }
+      caption={note && status === 'live' ? note : 'He is at the point. Pick the lane and get in front of it.'}
+    >
+      <Surface view={SLOT_VIEW}>
+        <SlotSheet />
 
-      <div className="grid grid-cols-3 gap-3 h-52 bg-slate-900/80 p-4 rounded-xl border border-slate-800 relative mb-4">
-        {[0, 1, 2].map(lane => {
-          let btnClass = "mt-auto w-full py-2 border rounded text-[10px] font-black uppercase transition-colors cursor-pointer ";
-          
-          if (status === 'failed') {
-            if (lane === shotLane) {
-              btnClass += "bg-[#22E748]/20 border-[#22E748] text-[#22E748]"; // Show where it actually went
-            } else if (lane === pressedLane) {
-              btnClass += "bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]"; // Show wrong guess
-            } else {
-              btnClass += "bg-slate-800 border-slate-700 text-slate-500 opacity-50";
-            }
-          } else if (status === 'blocked' && lane === shotLane) {
-            btnClass += "bg-[#22E748] border-[#22E748] text-black";
-          } else {
-            btnClass += "bg-slate-800 hover:bg-[#3b82f6] border-slate-700 hover:border-[#3b82f6] text-white";
-          }
+        {/* The point man, winding up. */}
+        <Marker at={[LANES[lane ?? 1].x, 14]} kind="opp" label="D" r="4.4" />
 
-          return (
-            <div key={lane} className="relative flex flex-col items-center justify-between border-x border-slate-800/50 py-2">
-              {(status === 'active' || status === 'failed' || status === 'blocked') && shotLane === lane && (
-                <div className={`text-3xl ${status === 'active' ? 'animate-bounce' : ''}`}>🏒</div>
-              )}
-              <button
-                onClick={() => handleBlockAction(lane)}
-                disabled={status !== 'active'}
-                className={btnClass}
-              >
-                BLOCK LANE
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      
-      <div className="h-8">
-        {(status === 'failed' || status === 'blocked') && (
-          <span className={`text-xl font-black sports-font tracking-widest ${status === 'blocked' ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-            {resultMsg}
-          </span>
+        {/* The shot, once it is on its way. */}
+        {showShot && (
+          <path
+            d={wavePath([LANES[lane].x, 18], [50, 70], null, 1.6, 7)}
+            fill="none"
+            stroke={picked === null ? '#fbbf24' : hitLane ? '#22E748' : '#ef4444'}
+            strokeWidth="1.9" strokeLinecap="round"
+          />
         )}
-      </div>
-    </div>
-  );
-};
 
-export default ShotBlockGame;
+        {/* Me, in the slot. I slide into whichever lane I commit to. */}
+        <g style={{ transition: 'transform 120ms ease-out' }}
+           transform={`translate(${(LANES[picked ?? 1].x - 50)} 0)`}>
+          <Marker at={[50, 54]} kind="me" label="YOU" r="5.2" />
+        </g>
+
+        {/* Lane seams get a tick at the top so the three channels are obvious. */}
+        {LANES.map(l => (
+          <line key={l.id} x1={l.x} y1="9.5" x2={l.x} y2="13"
+                stroke="rgba(255,255,255,0.18)" strokeWidth="0.6" />
+        ))}
+      </Surface>
+
+      <div className="flex gap-2 p-3 pt-0">
+        {LANES.map(l => (
+          <ActionButton
+            key={l.id}
+            wide
+            onClick={() => commit(l.id)}
+            disabled={phase !== 'live'}
+            state={
+              phase === 'result' && l.id === lane ? (hitLane ? 'right' : 'spent')
+                : phase === 'result' && l.id === picked ? 'wrong'
+                  : phase === 'live' ? 'idle' : 'spent'
+            }
+          >
+            {l.label}
+          </ActionButton>
+        ))}
+      </div>
+    </Stage>
+  );
+}

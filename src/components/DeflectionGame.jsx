@@ -1,53 +1,62 @@
 import { useState, useRef, useMemo } from 'react';
 import { getActiveStat } from '../utils/gameHelpers';
 import { lerpDifficulty, MIN_TIMING_MS } from '../utils/stakes';
+import { SlotSheet, Marker, Surface } from './rink/Ice';
+import { SLOT_VIEW, bez, wavePath } from './rink/geometry';
+import { Stage, Hud, Verdict } from './minigame/Shell';
 
 // Net-front screen and tip.
 //
-// This game was unwinnable for most of the roster. Its green zone was built from
-// two independent edges, a minimum that rose as physicality fell and a maximum
-// that fell at the same time, with another five points taken off each side in a
-// final. Below 55 physicality in a final the two edges crossed and the zone had
-// negative width, so no input could win it. Even at the top end the bar crossed
-// the whole track in under a second, which made the nominal 7% zone a window of
-// about fifty milliseconds, well under what a person can time.
+// The lane the puck comes through is not something a man standing in the blue
+// paint with a defenceman on his back can see, so it is not drawn. You hold your
+// position, you decide when the puck is arriving, and you let go. The lane is
+// revealed when you do, against the point you released at.
 //
-// It is now expressed in time, which is the thing the player actually has to
-// judge, and the window can never fall below what a human can hit.
+// What the player's ratings buy him is the size of the lane itself: hands and a
+// read of the play make the window he has to hit wider. They do not tell him
+// where it is. Showing him a band to aim at, which is what this did for a while,
+// is the same as showing him the answer with extra steps.
+//
+// (Before this it was a grey progress bar with a shaded green zone, then a grey
+// progress bar with the zone hidden. It is now the shot itself, coming off the
+// point and down the slot, which is what the player is actually timing.)
+
+// The shot's path down the slot: off the point stick, past the dot, at the net.
+const FROM = [78, 14];
+const CURVE = [66, 40];
+const TO = [50, 66];
+const at = (pct) => bez(FROM, TO, CURVE, Math.max(0, Math.min(100, pct)) / 100);
+
 export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
   const physicality = getActiveStat(player, 'physicality');
   const iq = getActiveStat(player, 'hockeyIQ');
 
-  // How long the marker takes to cross the whole track, and how long the green
-  // zone lasts as it passes. Both shrink with difficulty and grow with the
-  // relevant rating, and the window has a hard floor.
-  // Drawn once per mount so the zone does not jump if the component re-renders.
   const [centerSeed] = useState(() => Math.random());
 
-  const { sweetSpotMin, sweetSpotMax, speed } = useMemo(() => {
+  const { lane, speed } = useMemo(() => {
     const crossMs = lerpDifficulty(2600, 1700, difficulty) * (1 + (iq - 50) * 0.004);
     const windowMs = Math.max(
       MIN_TIMING_MS,
       lerpDifficulty(460, 260, difficulty) * (1 + (physicality - 50) * 0.005)
     );
 
-    // The zone sits late on the track so there is a real hold, and moves a little
-    // from one attempt to the next so it cannot be played from muscle memory.
     const widthPct = Math.min(42, (windowMs / crossMs) * 100);
-    const center = 58 + centerSeed * 22;
+    const center = 55 + centerSeed * 25;
     const half = widthPct / 2;
     const min = Math.max(2, Math.min(center - half, 96 - widthPct));
+
     return {
-      sweetSpotMin: min,
-      sweetSpotMax: min + widthPct,
-      // The track is driven on a 20ms tick, so this is percent per tick.
+      lane: { min, max: min + widthPct },
       speed: (100 / crossMs) * 20
     };
   }, [physicality, iq, difficulty, centerSeed]);
 
   const [phase, setPhase] = useState('ready'); // ready, active, result
   const [progress, setProgress] = useState(0);
+  const [releasedAt, setReleasedAt] = useState(null);
   const [resultMsg, setResultMsg] = useState('');
+  const [verdict, setVerdict] = useState(null);
+  const [won, setWon] = useState(false);
 
   const intervalRef = useRef(null);
   const isProcessingRef = useRef(false);
@@ -74,62 +83,117 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
     isProcessingRef.current = true;
 
     clearInterval(intervalRef.current);
+    const finalP = manualProgress !== null ? manualProgress : progress;
+    setReleasedAt(finalP);
     setPhase('result');
 
-    const finalP = manualProgress !== null ? manualProgress : progress;
-
-    if (finalP < sweetSpotMin) {
-      setResultMsg('Released too early! You lost your net-front position.');
-      setTimeout(() => onComplete(false), 2000);
-    } else if (finalP > sweetSpotMax) {
-      setResultMsg('Held too long! Whistled for goaltender interference.');
-      setTimeout(() => onComplete(false), 2000);
+    if (finalP < lane.min) {
+      setWon(false);
+      setVerdict('TOO EARLY');
+      setResultMsg('You came off the post before it got there and the goalie saw the whole thing.');
+      setTimeout(() => onComplete(false), 2400);
+    } else if (finalP > lane.max) {
+      setWon(false);
+      setVerdict('TOO LONG');
+      setResultMsg('The puck was past you, and the whistle went for goaltender interference.');
+      setTimeout(() => onComplete(false), 2400);
     } else {
-      setResultMsg('Perfect screen and tip! Goal!');
-      setTimeout(() => onComplete(true), 2000);
+      setWon(true);
+      setVerdict('TIPPED IT');
+      setResultMsg('Blade down, half a stick in the lane, and it changes direction.');
+      setTimeout(() => onComplete(true), 2400);
     }
   };
 
+  const revealed = phase === 'result';
+  const puck = at(phase === 'ready' ? 0 : revealed ? releasedAt : progress);
+  const laneA = at(lane.min);
+  const laneB = at(lane.max);
+
   return (
-    <div className="game-panel p-6 sm:p-8 text-center animate-fade-in max-w-lg mx-auto border-t-2 border-[#3b82f6]">
-      <p className="text-slate-300 font-sans mb-6 text-sm sm:text-base">
-        Hold <strong className="text-[#3b82f6]">SCREEN GOALIE</strong> to establish position.
-        Release exactly when the puck arrives in the green zone to tip it!
-      </p>
+    <Stage
+      hud={
+        <Hud
+          left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            Net front screen
+          </span>}
+          right={
+            <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
+              phase === 'active' ? 'text-[#22E748]' : 'text-slate-600'
+            }`}>
+              {phase === 'active' ? 'Holding position' : phase === 'ready' ? 'He is winding up' : '—'}
+            </span>
+          }
+        />
+      }
+      verdict={<Verdict show={revealed} won={won} word={verdict} detail={resultMsg} />}
+      caption={
+        revealed ? null
+          : 'Nobody is going to show you where it is coming through. Your hands and your read decide how big that lane is; when to let go is on you.'
+      }
+    >
+      <Surface view={SLOT_VIEW}>
+        <SlotSheet />
 
-      <div className="w-full h-12 bg-[#101410] rounded-full relative overflow-hidden border-2 border-slate-700 mb-8">
-        <div
-          className="absolute top-0 bottom-0 bg-[#22E748]/30 border-l border-r border-[#22E748]"
-          style={{ left: `${sweetSpotMin}%`, right: `${100 - sweetSpotMax}%` }}
-        ></div>
-        <div
-          className="absolute top-0 bottom-0 w-3 bg-white rounded-full shadow-[0_0_10px_white]"
-          style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
-        ></div>
+        {/* The point man and the shot he is sending down the slot. */}
+        <Marker at={[82, 12]} kind="mate" label="D" r="4.3" />
+        <path d={wavePath(FROM, TO, CURVE, 1.3, 7)} fill="none"
+              stroke="rgba(251,191,36,0.3)" strokeWidth="1.1" strokeDasharray="2.4 3" />
+
+        {/* The lane, drawn only once it is too late to use it. */}
+        {revealed && (
+          <g>
+            <path d={wavePath(at(lane.min), at(lane.max), null, 1.1, 4)} fill="none"
+                  stroke="rgba(34,231,72,0.85)" strokeWidth="2.6" strokeLinecap="round" />
+            {[laneA, laneB].map((p, i) => (
+              <circle key={i} cx={p[0]} cy={p[1]} r="1.6" fill="#22E748" />
+            ))}
+          </g>
+        )}
+
+        {/* The defenceman on my back, and me sealing the paint. */}
+        <Marker at={[57, 56]} kind="opp" label="D" r="4.6" />
+        <Marker at={[50, 60]} kind="me" label="YOU" r="5" />
+
+        {/* The puck, where it is now, or where it was when I let go. */}
+        {phase !== 'ready' && (
+          <g>
+            {revealed && (
+              <circle cx={puck[0]} cy={puck[1]} r="5.4" fill="none"
+                      stroke={won ? '#22E748' : '#ef4444'} strokeWidth="1.1" />
+            )}
+            <circle cx={puck[0]} cy={puck[1]} r="2.4" fill="#fff"
+                    stroke="rgba(0,0,0,0.6)" strokeWidth="0.7" />
+          </g>
+        )}
+      </Surface>
+
+      <div className="p-3 pt-0">
+        {phase === 'ready' && (
+          <button
+            type="button"
+            onPointerDown={handlePress}
+            className="w-full py-4 rounded-xl border border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-200 font-black text-sm sm:text-base sports-font uppercase tracking-[0.18em] hover:border-[#22E748]/70 hover:text-white transition-all active:scale-[0.99] cursor-pointer select-none"
+          >
+            Press and hold to screen
+          </button>
+        )}
+        {phase === 'active' && (
+          <button
+            type="button"
+            onPointerUp={() => handleRelease()}
+            onPointerLeave={() => handleRelease()}
+            className="w-full py-4 rounded-xl border border-[#F59E0B] bg-[#F59E0B]/15 text-[#F59E0B] font-black text-sm sm:text-base sports-font uppercase tracking-[0.18em] cursor-pointer select-none"
+          >
+            Let go to get a blade on it
+          </button>
+        )}
+        {revealed && (
+          <div className="w-full py-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0a0d0a] text-center text-[11px] sm:text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            {won ? 'The lane was where you guessed' : 'That is where the lane was'}
+          </div>
+        )}
       </div>
-
-      {phase === 'ready' && (
-        <button
-          onPointerDown={handlePress}
-          className="w-full py-6 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-black text-xl sm:text-2xl sports-font uppercase transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] active:scale-95 cursor-pointer select-none"
-        >
-          PRESS &amp; HOLD TO SCREEN
-        </button>
-      )}
-      {phase === 'active' && (
-        <button
-          onPointerUp={() => handleRelease()}
-          onPointerLeave={() => handleRelease()}
-          className="w-full py-6 rounded-xl bg-[#F59E0B] text-black font-black text-xl sm:text-2xl sports-font uppercase shadow-[0_0_20px_rgba(245,158,11,0.5)] cursor-pointer select-none"
-        >
-          RELEASE TO DEFLECT!
-        </button>
-      )}
-      {phase === 'result' && (
-        <div className="w-full py-6 rounded-xl bg-[#101410] border border-slate-600 text-white font-black text-lg sm:text-xl sports-font uppercase">
-          {resultMsg}
-        </div>
-      )}
-    </div>
+    </Stage>
   );
 }

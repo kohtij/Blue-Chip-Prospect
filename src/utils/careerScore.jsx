@@ -88,6 +88,33 @@ export function computeCareerScore(player) {
   else if (nhlGames >= 500) addPoints(150, `500+ NHL Games`);
   if (nhlGoals >= 500) addPoints(400, `500+ NHL Goals`);
 
+  // 3b. WHAT KIND OF PLAYER HE ACTUALLY WAS
+  //
+  // Everything above this is a counting stat, so the score could only ever go
+  // up with time on the clock: twenty years of forty-point seasons out-scored
+  // ten years of being the best player in the league, and the top tier was
+  // reachable by turning up for long enough. Rate is the other half of a
+  // career, so it is scored here and it gates the top two tiers below.
+  const isGoalieScore = player.pos === 'G';
+  const isDefenceScore = ['LD', 'RD'].includes(player.pos);
+  const nhl = player.stats?.nhl || {};
+  const nhlPts = (nhl.goals || 0) + (nhl.assists || 0);
+  const nhlGp = nhl.games || 0;
+  const ppg = nhlGp >= 100 ? nhlPts / nhlGp : 0;
+  const svPct = (nhl.shots || 0) > 0 ? (nhl.saves || 0) / nhl.shots : 0;
+
+  if (!isGoalieScore && nhlGp >= 100) {
+    const bar = isDefenceScore ? [0.45, 0.60, 0.75, 0.90] : [0.70, 0.85, 1.00, 1.20];
+    if (ppg >= bar[3]) addPoints(600, `${ppg.toFixed(2)} points per game`);
+    else if (ppg >= bar[2]) addPoints(400, `${ppg.toFixed(2)} points per game`);
+    else if (ppg >= bar[1]) addPoints(200, `${ppg.toFixed(2)} points per game`);
+    else if (ppg >= bar[0]) addPoints(75, `${ppg.toFixed(2)} points per game`);
+  } else if (isGoalieScore && nhlGp >= 100) {
+    if (svPct >= 0.925) addPoints(600, `${svPct.toFixed(3).replace('0.', '.')} career save percentage`);
+    else if (svPct >= 0.918) addPoints(400, `${svPct.toFixed(3).replace('0.', '.')} career save percentage`);
+    else if (svPct >= 0.910) addPoints(200, `${svPct.toFixed(3).replace('0.', '.')} career save percentage`);
+  }
+
   // 4. MODIFIERS
   if (player.isGenerational) addPoints(250, `Generational Talent`);
   if (teams.length >= 5) addPoints(150, `Journeyman Bonus`);
@@ -95,11 +122,21 @@ export function computeCareerScore(player) {
   if (demotions > 0) addPoints(demotions * -25, `Demoted ${demotions}x`);
 
   // 5. CALCULATE TIER
+  //
+  // The top two tiers are not for sale by the year. A generational player was
+  // better than everyone else while he played, so the rate has to say so: a
+  // point a game for a forward, two thirds of that from the back end, .925 in
+  // a net. A player who piled up a huge total without ever being that is a
+  // Franchise Cornerstone, which is not an insult.
+  const enoughNhl = nhlGp >= 400;
+  const iconRate = isGoalieScore ? svPct >= 0.925 : ppg >= (isDefenceScore ? 0.65 : 1.00);
+  const fameRate = isGoalieScore ? svPct >= 0.915 : ppg >= (isDefenceScore ? 0.48 : 0.75);
+
   let tier = "Minor Leaguer";
   let color = "text-slate-400";
-  
-  if (score >= 4500) { tier = "Generational Icon"; color = "text-[#F59E0B]"; }
-  else if (score >= 3000) { tier = "Hall of Famer"; color = "text-[#c084fc]"; }
+
+  if (score >= 4500 && enoughNhl && iconRate) { tier = "Generational Icon"; color = "text-[#F59E0B]"; }
+  else if (score >= 3000 && nhlGp >= 250 && fameRate) { tier = "Hall of Famer"; color = "text-[#c084fc]"; }
   else if (score >= 1800) { tier = "Franchise Cornerstone"; color = "text-[#3b82f6]"; }
   else if (score >= 1000) { tier = "Solid Pro"; color = "text-[#22E748]"; }
   else if (score >= 400) { tier = "Journeyman"; color = "text-slate-300"; }

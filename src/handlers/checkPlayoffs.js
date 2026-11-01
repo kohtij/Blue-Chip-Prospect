@@ -1,7 +1,7 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { LEAGUE_CONFIG, getConferences, getDivisions, getOpponentPool, getPlayoffRounds, getTeamConference, getTeamData } from '../data/teams';
-import { capFanStatus, generatePlayoffDeck } from '../utils/gameHelpers';
+import { capFanStatus, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
 import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
 const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
@@ -144,12 +144,14 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
           else if (pOvr < 55) impactOdds = 0.65;
       }
 
-      // One game means one card. This branch used to deal three for a single
-      // elimination round, and since the match ends on the first card turned,
-      // the other two were dead and the player's whole tournament hung on a
-      // card that ignored his seeding.
-      const size = gpm === 1 ? 1 : gpm + 2;
-      return Array(size).fill(null).map(() => ({ isWin: Math.random() > impactOdds }));
+      // One game is still one game, but it is dealt as a 4x4 grid (16 cards)
+      // rather than a single card, so only the one the player clicks ever
+      // decides it.
+      const size = gpm === 1 ? 16 : gpm + 2;
+      return Array(size).fill(null).map(() => {
+        const isWin = Math.random() > impactOdds;
+        return { isWin, ...singleGameScore(isWin) };
+      });
     };
 
     const getDivLabel = (m, totalMatchups) => {

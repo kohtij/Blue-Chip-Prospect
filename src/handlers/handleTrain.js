@@ -1,6 +1,80 @@
-import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, summariseStints } from '../utils/gameHelpers';
-import { simulateTournament, resolveNatDivision } from '../utils/international';
+import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, ordinal, summariseStints, withTeamArticle } from '../utils/gameHelpers';
+import { resolveNatDivision } from '../utils/international';
+import { buildRun } from '../utils/intlRun';
+import { getFullTeamName } from '../utils/appHelpers';
+import { getOpponentPool } from '../data/teams';
 import { runPostSeasonFlow } from './runPostSeasonFlow';
+
+// --- THE LEADERSHIP GROUP, MID-SEASON ---------------------------------------
+// Camp, in advanceToOffseason, is the normal way a letter gets handed out, and
+// it asks the player to have finished last season in this room. That is the
+// right bar for September, but it means a deadline pickup, a waiver claim or a
+// July signing sits a full extra year before anybody will even discuss it, no
+// matter how he plays.
+//
+// By late December he has thirty-odd games in this building, which is the only
+// thing camp was really waiting for, and two things can put a letter in play:
+// he arrived since last season and the room has now made its mind up about
+// him, or the year is getting away from the club and the coach starts
+// rearranging who he leans on. Either way he has to be the one playing well:
+// handing an A to a passenger on a bad team is not a shake-up.
+//
+// Returns the event to show, or null when nothing happens, which is most years.
+export function midSeasonLetter(player, seg) {
+  if (!seg || player.league !== 'NHL') return null;
+  if (player.isCaptain || player.isAlternate || player.storylines?.alternateGiven) return null;
+
+  const trust = player.relationships?.coach || 50;
+  const proSeasons = player.stats?.seasonsPlayed || 0;
+  if (proSeasons < 3 || trust < 65 || player.ovr < 80) return null;
+  // Thirty games of a sixty-five game stretch is the room seeing him play. A
+  // player who has been hurt since October has not been in it.
+  if ((seg.games || 0) < 20) return null;
+
+  const hist = player.seasonHistory || [];
+  const lastSeason = hist[hist.length - 1];
+  const newArrival = !!lastSeason && lastSeason.team !== player.team;
+  // Bottom third of the league, in December, with nothing to point at.
+  const strugglingClub = (seg.standings || 16) >= 22;
+  if (!newArrival && !strugglingClub) return null;
+
+  // His own half of it. The club is not handing a letter to someone having a
+  // bad year, whatever the standings say.
+  if ((seg.rating || 0) < 7.0) return null;
+
+  const odds = trust >= 80 ? 0.35 : trust >= 70 ? 0.22 : 0.12;
+  if (Math.random() >= odds) return null;
+
+  const clubName = withTeamArticle(getFullTeamName(player.team, player.league), player.league, true);
+  const desc = newArrival
+    ? `You were not here last season, so nobody handed you anything in September. Thirty games later the room has made its mind up about you anyway. The coach caught you walking off after the morning skate: there is an "A" going spare and he would like it on your sweater for the rest of the year.`
+    : `The year is getting away from this team. ${clubName} sit ${ordinal(seg.standings)} coming out of December, and the coach has started rearranging the furniture, beginning with who he leans on. He wants a letter on the sweater of someone who has actually been playing, and in this room right now that is you.`;
+
+  return {
+    title: '🅰️ THE LEADERSHIP GROUP',
+    desc,
+    choices: [
+      {
+        label: 'Accept the responsibility',
+        subLabel: newArrival
+          ? 'Wear the letter for the rest of the season and make the room yours.'
+          : 'Take the letter with the club in trouble, and own whatever comes next.',
+        isRisky: false,
+        feedback: 'You are an alternate captain. The letter goes on the sweater for the rest of the season.',
+        effect: { fanStatus: 20, ovr: 1, rel: { coach: 12, teammates: 12 } },
+        action: 'MAKE_ALTERNATE'
+      },
+      {
+        label: 'Tell him to give it to someone else',
+        subLabel: 'Not in the middle of a season, and not over the heads of the people already here.',
+        isRisky: false,
+        feedback: 'You turned the letter down mid-season and told him to give it to someone who has been here longer. The room noticed that too.',
+        effect: { fanStatus: 8, ovr: 0, rel: { teammates: 18 } }
+      }
+    ],
+    isMidSeasonEvent: true
+  };
+}
 
 export function handleTrain(ctx, t) {
   const {
@@ -35,10 +109,26 @@ export function handleTrain(ctx, t) {
     if (seg) {
       const isTop10Pick = (player.draftPick || 99) <= 10;
       const verdict = nineGameVerdict(player, seg, isTop10Pick);
-      const juniorTeam = player.chlRights || player.juniorTeam || 'UNK';
-      const juniorLeague = player.chlRightsLeague || player.juniorLeague || 'OHL';
+      // Where he goes back to. The rights fields are not always set on a
+      // career that reached the NHL by another route, and the fallback used to
+      // be the literal string UNK, which is what the dashboard then displayed
+      // as his club for the rest of the season. The last junior season he
+      // actually played is the honest answer, and a real club from that league
+      // is a better last resort than nothing.
+      const lastJunior = [...(player.seasonHistory || [])].reverse()
+        .find(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
+      const juniorLeague = player.chlRightsLeague || player.juniorLeague || lastJunior?.league || 'OHL';
+      const fallbackClub = (getOpponentPool(juniorLeague) || [])[0]?.id;
+      const juniorTeam = player.chlRights || player.juniorTeam || lastJunior?.team || fallbackClub || 'OHL';
 
-      setPlayer(prev => ({ ...prev, trial: { segment: seg, verdict, training: t?.effect || {}, juniorTeam, juniorLeague } }));
+      // Spent the moment it fires, not when it resolves: going back to junior
+      // still used the look up, and this is the flag that keeps it from coming
+      // round again next season.
+      setPlayer(prev => ({
+        ...prev,
+        nineGameUsed: true,
+        trial: { segment: seg, verdict, training: t?.effect || {}, juniorTeam, juniorLeague }
+      }));
 
       const line = player.pos === 'G'
         ? `a ${(seg.saves / Math.max(1, seg.shots)).toFixed(3).replace('0.', '.')} save percentage across ${seg.games} appearances`
@@ -152,15 +242,17 @@ export function handleTrain(ctx, t) {
 
   // Sends the player to a tournament and parks the season until he is back.
   const goToTournament = (stints, nextStage, context, isWJC, isOlympicYear) => {
-    const sim = simulateTournament({
-      player, natDiv: resolveNatDivision(player, ctx.safeNationalities), pOvr: player.ovr,
-      safeNationalities: ctx.safeNationalities, isWJC, isOlympicYear
+    const run = buildRun({
+      player,
+      safeNationalities: ctx.safeNationalities,
+      context,
+      division: resolveNatDivision(player, ctx.safeNationalities),
+      year: ctx.currentYear
     });
     advanceTo(stints, nextStage);
-    setPlayer(prev => ({ ...prev, intlData: sim.intlData, intlStakes: sim.intlStakes, intlOppTier: sim.intlOppTier, isOlympicYear }));
-    if (ctx.setIntlResult) ctx.setIntlResult(null);
+    setPlayer(prev => ({ ...prev, intlRun: run, isOlympicYear }));
     ctx.setMinigameContext(context);
-    ctx.setScreen('intl-minigame');
+    ctx.setScreen('intl-tournament');
   };
 
   // setPlayer does not land inside this call, so the stints accumulate locally as
@@ -198,6 +290,17 @@ export function handleTrain(ctx, t) {
       return;
     }
     // Not going, so the tournament passes him by and the season runs straight on.
+
+    // December, with the first third of the year on the board: the other way
+    // into the leadership group, for the player camp could not consider.
+    const letter = midSeasonLetter(player, seg);
+    if (letter) {
+      advanceTo(stints, 1);
+      setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), alternateGiven: true } }));
+      ctx.setActiveEvent(letter);
+      ctx.setScreen('event');
+      return;
+    }
   }
 
   if (stage <= 1) {
@@ -276,13 +379,25 @@ export function handleTrain(ctx, t) {
       shots: recap.shots,
       shutouts: recap.sho,
       plusMinus: recap.pm,
-      awards: recap.awards || [],
+      // A tournament played inside the season finishes months before this entry
+      // exists: the World Juniors in December, the Olympics in February. The run
+      // parks its line on the player and the season picks it up here. Writing it
+      // straight into the newest history entry, which is what it used to do,
+      // filed a December tournament against the previous season, and a career
+      // whose only tournaments were mid-season ones showed none at all.
+      ...(player.pendingIntl ? { intlData: player.pendingIntl.intlData } : {}),
+      awards: [...(recap.awards || []), ...(player.pendingIntl?.awards || [])],
       // The letter on the sweater belongs to the season, not to the playoffs.
       // It was only ever written in proceedFromPlayoffs, so a captain or an
       // alternate who missed the postseason lost his letter from the career
       // table for that year and appeared to have been stripped of it.
-      isCaptain: !!updatedPlayer.isCaptain,
-      isAlternate: !!updatedPlayer.isAlternate,
+      //
+      // Read off the player as he was during the season, not off updatedPlayer:
+      // a player claimed off waivers in the same breath has his letter stripped
+      // there, and taking it from there would wipe the A off a year he spent
+      // wearing one.
+      isCaptain: !!player.isCaptain,
+      isAlternate: !!player.isAlternate,
       titleWon: false,
       avgToi: recap.avgToi,
       // Where the year was actually played. A split season carries one entry per
@@ -307,7 +422,8 @@ export function handleTrain(ctx, t) {
   // The season is finished, so the trial is spent.
   setPlayer({
     ...updatedPlayer,
-    trial: null, debut: null, season: null,
+    // pendingIntl has been written into the season above, so it is spent too.
+    trial: null, debut: null, season: null, pendingIntl: null,
     storylines: { ...(updatedPlayer.storylines || {}), allStarSelected: false }
   });
   setStatChanges(statChanges);
@@ -394,10 +510,42 @@ export function handleTrain(ctx, t) {
          moveDesc = `You've been reassigned to the ECHL. It's a tough demotion, but you need to find your game again if you want to make it back up.`;
      } else if (wasAHLtoNHL) {
          const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
-         moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW!' : '📈 CALLED UP';
+         moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW' : '📈 CALLED UP';
          moveDesc = isFirst
-             ? `The coach pulled you aside after practice with a smile. "Pack your bags. You've been called up." You're making your NHL debut!`
-             : `You've been recalled to the NHL roster! Time to prove you belong and stay up for good.`;
+             ? `The call came at eight in the morning. Pack a bag, be at the airport by noon, you are in the lineup tomorrow night. Everybody you have ever played with is already texting you, and your mother is crying down the phone.`
+             : `You have been recalled. You know the drill this time, and you know how quickly it goes the other way again.`;
+         // This is the single biggest night in most of these careers and it used
+         // to be a button that said Acknowledge. It gets a decision, like
+         // everything else does.
+         moveChoices = isFirst
+             ? [
+                 {
+                   label: 'Call everyone who got you here',
+                   subLabel: 'Your parents, the billet family, the junior coach who kept playing you.',
+                   isRisky: false,
+                   feedback: 'You spent the whole flight on the phone. Half of them could not speak. Neither could you, really.',
+                   effect: { fanStatus: 40, ovr: 0, rel: { teammates: 10 } },
+                   action: 'ROUTE_SEASON_END'
+                 },
+                 {
+                   label: 'Tell nobody until the lineup is posted',
+                   subLabel: 'You have been sent back down before. Say nothing until the sheet says your name.',
+                   isRisky: false,
+                   feedback: 'You said nothing to anyone. When the lineup went up with your name on it, you stood and looked at it for a while.',
+                   effect: { fanStatus: 15, ovr: 1, rel: { coach: 10 } },
+                   action: 'ROUTE_SEASON_END'
+                 }
+               ]
+             : [
+                 {
+                   label: 'Go up and stay up',
+                   subLabel: 'No sightseeing this time. Play like a man who is not going back.',
+                   isRisky: false,
+                   feedback: 'You went up with a plan this time, and you played like somebody who had no intention of returning.',
+                   effect: { fanStatus: 20, ovr: 0, rel: { coach: 8 } },
+                   action: 'ROUTE_SEASON_END'
+                 }
+               ];
      } else if (wasECHLtoAHL) {
          moveTitle = '📈 PROMOTED TO AHL';
          moveDesc = `Your hard work on the Coast has paid off. You've been promoted to the AHL roster!`;
@@ -411,7 +559,8 @@ export function handleTrain(ctx, t) {
              title: moveTitle,
              desc: moveDesc,
              choices: moveChoices || [{
-                 label: 'Acknowledge',
+                 label: 'Take it on the chin',
+                 subLabel: 'Nothing to decide here. Pack the bag and get to work.',
                  effect: { fanStatus: 0, ovr: 0 },
                  action: 'ROUTE_SEASON_END'
              }],

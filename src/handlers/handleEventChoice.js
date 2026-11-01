@@ -66,7 +66,11 @@ export function handleEventChoice(ctx, choice) {
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
     updated.contract = { salary: 150000, years: 1, role: 'Veteran Mentor' };
   } else if (actionStr === 'BECOME_UFA') {
+    // Who just let him go. Free agency reads this so the club that declined to
+    // sign him is not on the list of clubs offering him a contract days later.
+    const heldBy = player.rights || player.draftTeam || null;
     updated.rights = null;
+    if (heldBy && activeEvent?.title === 'RIGHTS EXPIRED') updated.rightsLapsedBy = heldBy;
   } else if (actionStr === 'JOIN_NCAA') {
     const teamId = choice.actionData?.id || choice.actionData;
     updated.team = teamId; updated.league = 'NCAA';
@@ -215,6 +219,28 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'INTL_RISKY') {
      triggerMinigame(ctx.minigameContext || 'wjc');
      return;
+  }
+
+  // --- CHANGING CLUBS --------------------------------------------------
+  // A letter belongs to the room that gave it, and the people who bought your
+  // sweater do not come with you. None of the paths above did any of this, so
+  // a deadline trade carried an A across the league and the fanbase never
+  // noticed you had gone. The club that gave the letter has also not asked
+  // this player anything, so the "already asked" flag resets with it.
+  if (updated.team !== player.team) {
+    updated.isCaptain = false;
+    updated.isAlternate = false;
+    updated.storylines = { ...(updated.storylines || {}), alternateGiven: false, lockerRoom: 0 };
+
+    // Being traded costs you standing with the people who followed you here,
+    // whether the club moved you or you asked to be moved. It scales with how
+    // much you had: a fringe player barely registers, a franchise face leaving
+    // is the story of the week.
+    const TRADES = ['ACCEPT_TRADE_DEADLINE', 'TRADE_REQUEST_ACCEPTED'];
+    if (TRADES.includes(actionStr)) {
+      const standing = updated.fanStatus || 0;
+      updated.fanStatus = capFanStatus(standing - Math.round(Math.min(70, Math.max(12, standing * 0.12))));
+    }
   }
 
   const withOvr = applyOvrDelta(updated, outcomeEffect?.ovr || 0);

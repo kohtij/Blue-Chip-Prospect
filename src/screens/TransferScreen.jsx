@@ -86,8 +86,27 @@ export default function TransferScreen() {
                    }
                 });
 
-                // 2. Map over the grouped offers to render single cards
-                return Object.values(groupedOffers).filter(g => g.main).map((group, i) => {
+                // 2. Order them. An extension from your own club is the offer
+                //    every other one is being measured against, so it leads;
+                //    then the ones that carry a story (a rival, the club that
+                //    drafted you, an offer sheet), then the rest.
+                const rivalForSort = getPrimaryRival ? getPrimaryRival(player.team, player.league) : null;
+                const weightOf = (o) => {
+                  if (!o) return 9;
+                  const isExt = o.team === owningTeam
+                    || ['EXTENSION', 'QUALIFYING OFFER', 'RFA EXTENSION', 'HOMETOWN DISCOUNT'].includes(o.type);
+                  if (isExt) return 0;
+                  if (rivalForSort && (rivalForSort.id === o.team || rivalForSort.name === o.team)) return 1;
+                  if ((player.draftTeam || player.rights) === o.team) return 2;
+                  if (o.type === 'OFFER SHEET') return 3;
+                  return 4;
+                };
+
+                // 3. Map over the grouped offers to render single cards
+                return Object.values(groupedOffers)
+                  .filter(g => g.main)
+                  .sort((a, b) => weightOf(a.main) - weightOf(b.main) || (b.main.salary || 0) - (a.main.salary || 0))
+                  .map((group, i) => {
                   const o = group.main;
                   const discountOffer = group.discount;
                   const qoOffer = group.qo;
@@ -104,9 +123,6 @@ export default function TransferScreen() {
                   const accent = teamAccent(teamData);
                   // Readable at 9px; the raw club colour is for the strip only.
                   const accentText = readableAccent(accent);
-                  // A ribbon already occupies the top edge, so the colour strip
-                  // would be drawn straight over it.
-                  const hasRibbon = isExtension || isRival || isReturnHome || o.type === 'OFFER SHEET';
 
                   // Signing adds the reaction to the move and the fan effects of
                   // the perks and flaws together, so a fan impact that counted
@@ -125,27 +141,50 @@ export default function TransferScreen() {
                   const rawState = isExtension ? 'Staying Put' : o.state;
                   const dealContext = rawState && !DEAL_TYPE_STATES.includes(rawState) ? rawState : null;
 
-                  let topBorder = 'border-[rgba(255,255,255,0.065)]';
-                  if (isExtension) { topBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]'; }
-                  else if (isRival) { topBorder = 'border-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.2)]'; }
-                  else if (isReturnHome) { topBorder = 'border-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.2)]'; }
-                  else if (o.type === 'OFFER SHEET') { topBorder = 'border-[#c084fc] shadow-[0_0_15px_rgba(192,132,252,0.15)]'; }
-
+                  // Every card is built the same way: one neutral border, the
+                  // club's own colour as the strip across the top, and nothing
+                  // else competing with it. The ribbons that used to sit above
+                  // the extension, arch-rival, returning-home and offer-sheet
+                  // cards added a band of height those cards' neighbours did
+                  // not have, so one card in a row started lower than the rest
+                  // and every line below it was out of step. What the ribbons
+                  // said is still on the card: an extension reads STAYING PUT
+                  // on the situation line, an offer sheet carries its
+                  // compensation line, and the rival and hometown deals say so
+                  // on the button you press to take them.
                   return (
-                    <div key={i} className={`bg-[#0a0d0a] border ${topBorder} rounded-xl relative overflow-hidden flex flex-col transition-all hover:scale-[1.02] shadow-lg group`}>
-                      
-                      {isExtension && <div className="relative z-10 bg-[#22E748] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">✅ {o.type === 'QUALIFYING OFFER' ? 'QUALIFYING OFFER' : 'EXTENSION OFFER'}</div>}
-                      {isRival && <div className="relative z-10 bg-[#ef4444] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">⚔️ ARCH-RIVAL OFFER</div>}
-                      {isReturnHome && !isRival && <div className="relative z-10 bg-[#F59E0B] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">🏠 RETURNING HOME</div>}
-                      {o.type === 'OFFER SHEET' && <div className="relative z-10 bg-[#c084fc] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full">📝 OFFER SHEET</div>}
+                    <div key={i} className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] rounded-xl relative overflow-hidden flex flex-col transition-all hover:scale-[1.02] shadow-lg group">
 
                       <div className="p-4 sm:p-5 flex flex-col flex-1">
-                        
+
+                        {/* What kind of offer this is, on a line every card
+                            has whether it has anything to say or not, so one
+                            card having a tag cannot shift the row below it.
+                            This is what the ribbons used to do, without the
+                            band of colour that threw the cards out of line. */}
+                        {(() => {
+                          const tag = isExtension
+                            ? { text: o.type === 'QUALIFYING OFFER' ? 'Your club · qualifying offer' : 'Extension', cls: 'text-[#22E748]' }
+                            : isReturnHome ? { text: 'Where you started', cls: 'text-[#F59E0B]' }
+                              : isRival ? { text: 'Arch-rival', cls: 'text-[#ef4444]' }
+                                : o.type === 'OFFER SHEET' ? { text: 'Offer sheet', cls: 'text-[#c084fc]' }
+                                  : null;
+                          return (
+                            <div className="h-4 mb-2 z-10 relative flex items-center">
+                              {tag && (
+                                <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] leading-none ${tag.cls}`}>
+                                  {tag.text}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {/* A strip of the club's own colour across the top, a
                             crest that is actually legible, then the money. The
                             order is deliberate: who, how much, for how long, what
                             you would be there, and only then the trade-offs. */}
-                        {!hasRibbon && <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />}
+                        <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />
                         <div
                           className="absolute inset-x-0 top-0 h-24 z-0 pointer-events-none opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-300"
                           style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }}
@@ -160,8 +199,23 @@ export default function TransferScreen() {
                                  the header two different heights, so every row
                                  of cards below it sat at a different offset.
                                  Clamped to two lines with a fixed floor. */}
-                             <h3 className="text-sm sm:text-base font-black text-white sports-font leading-tight uppercase tracking-wide break-words line-clamp-2"
-                                 title={getFullTeamName(o.team, o.league)}>{getFullTeamName(o.team, o.league)}</h3>
+                             {/* Two lines is all the header has, and some clubs are
+                                 thirty characters long ("Wilkes-Barre/Scranton
+                                 Penguins", "Blainville-Boisbriand Armada"), so a
+                                 fixed size clipped them to "HENDERSON SILVER...".
+                                 The type steps down with the length instead, which
+                                 keeps every card the same height. */}
+                             {(() => {
+                               const fullName = getFullTeamName(o.team, o.league);
+                               const size = fullName.length > 26 ? 'text-[10px] sm:text-[11px]'
+                                 : fullName.length > 21 ? 'text-[11px] sm:text-xs'
+                                   : fullName.length > 16 ? 'text-xs sm:text-sm'
+                                     : 'text-sm sm:text-base';
+                               return (
+                                 <h3 className={`${size} font-black text-white sports-font leading-tight uppercase tracking-wide break-words line-clamp-2`}
+                                     title={fullName}>{fullName}</h3>
+                               );
+                             })()}
                              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block mt-1" style={{ color: accentText }}>
                                {[o.league, teamData?.ncaaConf || teamData?.div].filter(Boolean).join(' · ')}
                              </span>
@@ -194,8 +248,8 @@ export default function TransferScreen() {
                                #8 / STAYING PUT" and left you to guess that #8
                                was where the club is projected to finish. */}
                            <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                             <span className="text-slate-500">Role</span>
-                             <span className="ml-auto shrink-0 text-white text-right">{o.role}</span>
+                             <span className="text-slate-500 shrink-0">Role</span>
+                             <span className="ml-auto text-white text-right min-w-0 break-words">{o.role}</span>
                            </p>
                            {o.standing && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
@@ -228,8 +282,8 @@ export default function TransferScreen() {
                            )}
                            {o.type === 'OFFER SHEET' && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                               <span className="text-slate-500">Compensation</span>
-                               <span className="ml-auto shrink-0 text-[#c084fc] text-right">{getCompensation(o.salary)}</span>
+                               <span className="text-slate-500 shrink-0">Compensation</span>
+                               <span className="ml-auto text-[#c084fc] text-right min-w-0 break-words">{getCompensation(o.salary)}</span>
                              </p>
                            )}
                         </div>

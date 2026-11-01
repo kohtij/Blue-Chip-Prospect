@@ -2,7 +2,9 @@ export const interactiveMinigames = [
   {
     id: 'shootout_snipe',
     title: 'THE SHOOTOUT SNIPE',
-    desc: 'The game is on your stick. Watch the goalie, wait for the weak spot to open up (green), and snipe it before the clock runs out!',
+    desc: 'The game is on your stick and there is nobody between you and him.',
+    read: 'Watch his depth and his feet. Down in the butterfly he seals the ice and gives you the top corners; standing tall he covers high and leaves the five hole. Take the one he has actually given you.',
+    stat: 'shooting',
     accent: 'blue',
     gameType: 'shootout',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
@@ -13,7 +15,9 @@ export const interactiveMinigames = [
   {
     id: 'faceoff_draw',
     title: 'THE FACEOFF DRAW',
-    desc: 'Stare down the referee. When the circle turns green, click as fast as possible to win the draw. Do not jump early!',
+    desc: 'Defensive zone draw, and the linesman is holding the puck.',
+    read: 'He drops it when he feels like dropping it. First stick on it wins the draw, and jumping early gets you one warning and then thrown out of the circle.',
+    stat: 'hockeyIQ',
     accent: 'amber',
     gameType: 'faceoff',
     pos: ['C'], // Centers only
@@ -24,7 +28,9 @@ export const interactiveMinigames = [
   {
     id: 'rapid_crease',
     title: 'RAPID FIRE CREASE',
-    desc: 'They are peppering you with shots! Click the pucks (red dots) as they appear to make the save. Make 5 saves to survive!',
+    desc: 'They have you under siege and the shots are coming from everywhere.',
+    read: 'Five saves and the barrage is over. Three past you and it is not. Get a piece of everything.',
+    stat: 'physicality',
     accent: 'red',
     gameType: 'crease',
     pos: ['G'], // Goalies only
@@ -35,7 +41,9 @@ export const interactiveMinigames = [
   {
     id: 'film_room',
     title: 'THE FILM ROOM',
-    desc: 'Coach is drawing up a play. Memorize the exact pattern, then select the matching play from the options.',
+    desc: 'Three clips on the board, and the staff want to hear what you see.',
+    read: 'These are situations, not trick questions. Read the diagram and make the call a coach would want made.',
+    stat: 'hockeyIQ',
     accent: 'emerald',
     gameType: 'film',
     pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], // Everyone
@@ -46,7 +54,9 @@ export const interactiveMinigames = [
   {
     id: 'tip_in',
     title: 'THE DEFLECTION',
-    desc: 'Your defenseman winds up from the point. Wait for the puck to enter the sweet spot (green zone) and click to tip it past the goalie!',
+    desc: 'You are screening the goalie while your defenceman winds up from the point.',
+    read: 'You cannot see the lane from in there, and nobody is going to show it to you. Hold your ground, then let go when you think the puck has arrived.',
+    stat: 'physicality',
     accent: 'emerald',
     gameType: 'deflect',
     pos: ['C', 'LW', 'RW'], // Forwards only
@@ -57,7 +67,9 @@ export const interactiveMinigames = [
   {
     id: 'shot_block',
     title: 'THE SHOT BLOCK',
-    desc: 'They are teeing up a one-timer! Watch the shooter, see which lane flashes RED, and click that lane to step in front of the puck. Block 3 shots!',
+    desc: 'Their point man is teeing one up and you are the last body in the lane.',
+    read: 'Three blocked and the puck is out of the zone. Pick the wrong lane and you have screened your own goalie.',
+    stat: 'skating',
     accent: 'amber',
     gameType: 'block',
     pos: ['LD', 'RD'], // Defensemen only
@@ -68,7 +80,9 @@ export const interactiveMinigames = [
   {
     id: 'breakaway_deke',
     title: 'THE BREAKAWAY',
-    desc: 'A star forward is coming in all alone! Watch his shoulders. When he commits to a side (arrow appears), instantly click the matching pad to make the save!',
+    desc: 'He is through everybody and coming in alone on you.',
+    read: 'Cheat to a side and you take his deke away, but you have handed him half the net. Stay square and it is all on your hands.',
+    stat: 'hockeyIQ',
     accent: 'blue',
     gameType: 'breakaway',
     pos: ['G'], // Goalies only
@@ -79,7 +93,9 @@ export const interactiveMinigames = [
   {
     id: 'one_timer',
     title: 'THE ONE-TIMER',
-    desc: 'A perfect cross-ice pass is sliding into your wheelhouse. Wait for the puck to enter the yellow sweet-spot and click to blast it home!',
+    desc: 'A pass is coming across the seam into your wheelhouse.',
+    read: 'The window is your own stick blade, and you can see it. Swing when the puck is on it, not when it is on its way.',
+    stat: 'shooting',
     accent: 'amber',
     gameType: 'onetimer',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
@@ -90,7 +106,9 @@ export const interactiveMinigames = [
   {
     id: 'camp_battle',
     title: 'TRAINING CAMP BATTLE',
-    desc: 'You are battling a veteran for the final top-6 roster spot. The coach is watching closely. When the whistle blows and the screen turns green, click immediately to win the puck battle!',
+    desc: 'One roster spot left, a veteran in front of you, and the staff watching.',
+    read: 'It comes down to a loose puck and whose stick gets there first. Go early and the whistle goes against you.',
+    stat: 'hockeyIQ',
     accent: 'emerald',
     gameType: 'faceoff', 
     pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], 
@@ -101,7 +119,9 @@ export const interactiveMinigames = [
   {
     id: 'breakout',
     title: 'THE BREAKOUT',
-    desc: 'Find the open winger under heavy forecheck pressure.',
+    desc: 'Pinned in your own end with two forecheckers closing on you.',
+    read: 'One of your wingers will come open. Hit him while he is open: a beat early and it dies on the wall, a beat late and the lane is shut.',
+    stat: 'hockeyIQ',
     accent: 'blue',
     gameType: 'breakout',
     pos: ['LD', 'RD'],
@@ -112,7 +132,9 @@ export const interactiveMinigames = [
   {
     id: 'screened',
     title: 'SCREENED SHOT',
-    desc: 'React to a shot you cannot see until the very last second.',
+    desc: 'A point shot is on its way and there is a body in front of you.',
+    read: 'You will not see the release. When it clears the screen you get one move, and guessing before then leaves you leaning the wrong way.',
+    stat: 'shooting',
     accent: 'emerald',
     gameType: 'screened',
     pos: ['G'],
@@ -123,7 +145,9 @@ export const interactiveMinigames = [
   {
     id: 'zone_battle',
     title: 'NET FRONT BATTLE',
-    desc: 'Fight the defenseman for position to tip the puck.',
+    desc: 'The puck is being worked around above the paint and a defenceman wants you out of it.',
+    read: 'Hold the ice under the puck long enough and the tip is there. Get shoved off the spot and it goes through where you were standing.',
+    stat: 'physicality',
     accent: 'amber',
     gameType: 'zone_battle',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'],

@@ -1,127 +1,170 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty } from '../utils/stakes';
+import { getActiveStat } from '../utils/gameHelpers';
+import { Marker, NetMouth, Goalie, Puck, Surface } from './rink/Ice';
+import { MOUTH, MOUTH_VIEW, MOUTH_ZONES } from './rink/geometry';
+import { Stage, Hud, Clock, Verdict } from './minigame/Shell';
 
-const ShootoutGame = ({ player, onComplete, difficulty = 0 }) => {
-  // Hard mode used to be a single on/off switch that only the Stanley Cup Final
-  // flipped, so a gold medal game played like a Tuesday. The shot clock now
-  // slides with the stakes and never drops below a usable three seconds.
-  const shotClock = Math.round(lerpDifficulty(5200, 3000, difficulty));
+// The shootout, from the shooter's end.
+//
+// This was five circles on a pale grey field with a dotted background, one of
+// which lit up green, and the game was to click the green one. That is a
+// reaction test wearing a hockey costume: the goalie was an emoji and nothing
+// you knew about the sport helped you.
+//
+// Now you are looking at a goal mouth with a goalie in it, and the read is the
+// real one. A goalie down in the butterfly seals the ice and opens the top
+// corners. A goalie standing tall covers high and leaves the five hole. A
+// goalie who has pushed across to his glove side cannot get back to the
+// blocker side in time. So you watch his feet and his depth, pick the hole he
+// has actually given you, and shoot before the clock kills the attempt.
+//
+// Shooting widens the margin for error on that read; it does not tell you the
+// answer. The stakes decide how fast he moves and how long you have.
 
-  const [activeZone, setActiveZone] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(shotClock);
-  const [jitter, setJitter] = useState({ x: 0, y: 0 });
-  const [status, setStatus] = useState('playing');
-  const poolRef = useRef([]);
+export default function ShootoutGame({ player, onComplete, difficulty = 0 }) {
+  const shooting = getActiveStat(player, 'shooting');
+
+  // How long the attempt lasts, and how quickly he works across the mouth.
+  const shotClock = Math.round(lerpDifficulty(5600, 3400, difficulty));
+  const slide = lerpDifficulty(2400, 1500, difficulty);   // ms for a full crossing
+  const stance = lerpDifficulty(1500, 950, difficulty);   // ms up-and-down cycle
+
+  // A better shooter can beat a goalie who is only fractionally out of position.
+  const edge = Math.max(0.16, 0.52 - shooting * 0.0022);
+
+  const [t, setT] = useState(0);
+  const [status, setStatus] = useState('live');
+  const [shot, setShot] = useState(null);
   const doneRef = useRef(false);
+  const startRef = useRef(null);
 
-  const finish = useCallback((win, delay = 1500) => {
+  const shift = Math.sin((t / slide) * Math.PI * 2) * 0.95;
+  const down = Math.sin((t / stance) * Math.PI * 2 + 1.1) > 0.15;
+
+  // Which holes he has given up, this instant. The glove side is stage left, so
+  // pushing to his right opens it.
+  const isOpen = useCallback((id, sh, dn) => {
+    switch (id) {
+      case 0: return dn || sh > edge;            // top glove
+      case 1: return dn || sh < -edge;           // top blocker
+      case 2: return !dn;                        // five hole
+      case 3: return sh > edge + 0.18;           // low glove
+      case 4: return sh < -(edge + 0.18);        // low blocker
+      default: return false;
+    }
+  }, [edge]);
+
+  const finish = useCallback((win, delay = 1600) => {
     if (doneRef.current) return;
     doneRef.current = true;
-    setStatus(win ? 'won' : 'lost');
+    setStatus(win ? 'scored' : 'stopped');
     setTimeout(() => onComplete(win), delay);
   }, [onComplete]);
 
   useEffect(() => {
-    if (status !== 'playing') return;
+    if (status !== 'live') return;
+    if (startRef.current === null) startRef.current = Date.now();
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - startRef.current;
+      setT(elapsed);
+      if (elapsed >= shotClock) finish(false);
+    }, 40);
+    return () => clearInterval(tick);
+  }, [status, shotClock, finish]);
 
-    let timeoutId;
+  const shoot = (zone) => {
+    if (doneRef.current) return;
+    const open = isOpen(zone.id, shift, down);
+    setShot({ zone, open, shift, down });
+    finish(open);
+  };
 
-    const getNextZone = () => {
-      if (poolRef.current.length === 0) {
-        poolRef.current = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
-      }
-      return poolRef.current.pop();
-    };
-
-    const triggerNextZone = () => {
-      const nextZ = getNextZone();
-      setActiveZone(nextZ);
-
-      const jX = Math.floor(Math.random() * 21) - 10;
-      const jY = Math.floor(Math.random() * 21) - 10;
-      setJitter({ x: jX, y: jY });
-
-      const baseSpeed = Math.max(400, 1000 - ((player?.shooting || 50) * 4));
-      const randomOffset = Math.floor(Math.random() * 201) - 100;
-      const speed = Math.max(240, (baseSpeed + randomOffset) * lerpDifficulty(1.0, 0.72, difficulty));
-
-      timeoutId = setTimeout(triggerNextZone, speed);
-    };
-
-    triggerNextZone();
-
-    const timer = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 100) {
-          clearTimeout(timeoutId);
-          clearInterval(timer);
-          finish(false); 
-          return 0;
-        }
-        return t - 100;
-      });
-    }, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(timer);
-    };
-  }, [player, status, finish, difficulty]);
-
-  const zones = [
-    { id: 0, label: 'TOP LEFT', cls: 'top-4 left-4 w-16 h-16 sm:w-20 sm:h-20' },
-    { id: 1, label: 'TOP RIGHT', cls: 'top-4 right-4 w-16 h-16 sm:w-20 sm:h-20' },
-    { id: 2, label: 'FIVE HOLE', cls: 'bottom-4 left-1/2 -translate-x-1/2 w-16 h-16 sm:w-20 sm:h-20' },
-    { id: 3, label: 'LOW GLOVE', cls: 'bottom-16 left-4 w-16 h-16 sm:w-20 sm:h-20' },
-    { id: 4, label: 'LOW BLOCKER', cls: 'bottom-16 right-4 w-16 h-16 sm:w-20 sm:h-20' }
-  ];
+  const msLeft = shotClock - t;
+  const frozen = shot ? shot : null;
+  const drawShift = frozen ? frozen.shift : shift;
+  const drawDown = frozen ? frozen.down : down;
 
   return (
-    <div className="w-full max-w-md mx-auto aspect-[4/3] bg-slate-100 border-4 border-[#ef4444] rounded-lg relative overflow-hidden flex items-center justify-center shadow-inner" style={{ backgroundImage: 'radial-gradient(#cbd5e1 2px, transparent 2px)', backgroundSize: '16px 16px' }}>
-      <div className="absolute inset-0 border-8 border-[#ef4444] rounded opacity-50 pointer-events-none z-0"></div>
-      
-      <div className={`w-3/5 h-4/5 ${status === 'won' ? 'bg-[#22E748]/20' : status === 'lost' ? 'bg-[#ef4444]/20' : 'bg-slate-800'} rounded-t-[40%] absolute bottom-0 opacity-80 flex flex-col items-center justify-center transition-colors duration-300`}>
-         <span className="text-5xl">{status === 'won' ? '🚨' : status === 'lost' ? '🧱' : '🥅'}</span>
-         {status === 'won' && <span className="bg-[#14532d] text-[#4ade80] border border-[#22c55e] px-4 py-1.5 rounded-full font-black sports-font text-xl mt-3 animate-bounce shadow-lg">SNIPE!</span>}
-         {status === 'lost' && <span className="text-[#ef4444] font-black sports-font text-2xl mt-2 drop-shadow-md">SAVED!</span>}
-      </div>
-      
-      {status === 'playing' && zones.map(z => (
-        <button
-          key={z.id}
-          onClick={() => { if (activeZone === z.id) finish(true); }}
-          style={activeZone === z.id ? { marginTop: `${jitter.y}px`, marginLeft: `${jitter.x}px` } : {}}
-          className={`absolute rounded-full transition-all duration-150 flex items-center justify-center z-10 ${
-            activeZone === z.id 
-              ? 'bg-[#22E748]/80 border-4 border-[#22E748] shadow-[0_0_30px_#22E748] scale-125 cursor-pointer animate-pulse' 
-              : 'bg-black/10 border-2 border-slate-400/40 pointer-events-none'
-          } ${z.cls}`}
-        >
-          {activeZone === z.id ? (
-             <div className="relative w-full h-full flex items-center justify-center">
-                <div className="absolute w-1 h-full bg-white/70"></div>
-                <div className="absolute w-full h-1 bg-white/70"></div>
-                <div className="w-3 h-3 bg-red-500 rounded-full z-20 shadow-md"></div>
-             </div>
-          ) : null}
-        </button>
-      ))}
+    <Stage
+      hud={
+        <Hud
+          left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            Penalty shot
+          </span>}
+          right={status === 'live' ? <Clock msLeft={msLeft} msTotal={shotClock} /> : null}
+        />
+      }
+      verdict={
+        <Verdict
+          show={status !== 'live'}
+          won={status === 'scored'}
+          word={status === 'scored' ? 'GOAL' : 'NO GOAL'}
+          detail={
+            status === 'scored' ? `${shot?.zone.label} · he had given it to you`
+              : shot ? `${shot.zone.label} · he had that covered`
+                : 'you ran out of time and he poke-checked it'
+          }
+        />
+      }
+      caption={
+        status === 'live'
+          ? 'Pick the hole he has given you. Down in the butterfly he seals the ice and opens the top corners; standing tall, the five hole is there.'
+          : null
+      }
+    >
+      <Surface view={MOUTH_VIEW}>
+        <NetMouth>
+          <Goalie shift={drawShift} down={drawDown} beaten={status === 'scored'} />
+        </NetMouth>
 
-      {/* Time Remaining Pill */}
-      {status === 'playing' && (
-         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-1 rounded-full font-black number-font text-xl shadow-lg border border-slate-700 z-20">
-            {(timeLeft / 1000).toFixed(1)}s
-         </div>
-      )}
+        {/* The five holes, marked the way a target sheet marks them: always
+            visible, never coloured in. Which one is open is the goalie's
+            problem to give away, not something the ice announces. */}
+        {MOUTH_ZONES.map(z => {
+          const hit = shot?.zone.id === z.id;
+          const stroke = hit
+            ? (shot.open ? '#22E748' : '#ef4444')
+            : 'rgba(255,255,255,0.3)';
+          return (
+            <g key={z.id}>
+              <circle
+                cx={z.x} cy={z.y} r="6.4"
+                fill={hit ? (shot.open ? 'rgba(34,231,72,0.18)' : 'rgba(239,68,68,0.18)') : 'transparent'}
+                stroke={stroke} strokeWidth={hit ? 1.5 : 0.7}
+                strokeDasharray={hit ? undefined : '2.2 2.4'}
+              />
+              <line x1={z.x - 2.2} y1={z.y} x2={z.x + 2.2} y2={z.y} stroke={stroke} strokeWidth="0.7" />
+              <line x1={z.x} y1={z.y - 2.2} x2={z.x} y2={z.y + 2.2} stroke={stroke} strokeWidth="0.7" />
+            </g>
+          );
+        })}
 
-      {/* Top-Centered Outcome Pill */}
-      {status !== 'playing' && (
-         <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/95 text-white px-8 py-3 rounded-full font-black sports-font text-4xl shadow-[0_0_40px_rgba(0,0,0,0.9)] border-2 border-slate-500 z-50 whitespace-nowrap tracking-widest">
-            {status === 'won' ? 'GOAL' : 'NO GOAL'}
-         </div>
-      )}
-    </div>
+        {/* The puck, where it finished up. */}
+        {shot && (
+          <circle cx={shot.zone.x} cy={shot.zone.y} r="2.6" fill="#fff"
+                  stroke="rgba(0,0,0,0.6)" strokeWidth="0.7" />
+        )}
+
+        {/* Hit areas, over everything, so a tap lands on the hole and not the mesh. */}
+        {status === 'live' && MOUTH_ZONES.map(z => (
+          <circle
+            key={`hit-${z.id}`} cx={z.x} cy={z.y} r="9.5"
+            fill="transparent" className="cursor-pointer"
+            onClick={() => shoot(z)}
+          >
+            <title>{z.label}</title>
+          </circle>
+        ))}
+
+        {/* The shooter, coming in, labelled the way he is everywhere else in the
+            game rather than left as an anonymous dot. */}
+        <g>
+          <Puck at={[50, MOUTH.yBot + 5.2]} r={1.9} />
+          <Marker at={[50, MOUTH.yBot + 12]} label="YOU" r={4.3} />
+        </g>
+      </Surface>
+
+    </Stage>
   );
-};
-
-export default ShootoutGame;
+}

@@ -1,118 +1,169 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
+import { NetMouth, Goalie, Surface } from './rink/Ice';
+import { MOUTH, MOUTH_VIEW } from './rink/geometry';
+import { Stage, Hud, Verdict, ActionButton, Callout } from './minigame/Shell';
+
+// The screened shot.
+//
+// A grey box with the word "Traffic" written across it in faded capitals, three
+// columns underneath, and a hockey-stick emoji that appeared in one of them. It
+// is a good idea, badly dressed: a shot through a double screen really is a
+// thing you pick up late and have to move to on instinct.
+//
+// You are in your net. There is a body in front of you and the point shot is
+// already on its way somewhere behind him. You see it when it clears the screen
+// and then it is a race to that side of the mouth.
+
+const SIDES = [
+  { id: 0, label: 'Glove side', x: 27 },
+  { id: 1, label: 'Through the middle', x: 50 },
+  { id: 2, label: 'Blocker side', x: 73 }
+];
 
 export default function ScreenedShotGame({ player, onComplete, difficulty = 0 }) {
-  const [status, setStatus] = useState('waiting'); // waiting, emerging, result
-  const [shotLane, setShotLane] = useState(null);
-  const [clickedLane, setClickedLane] = useState(null);
-  const [resultMsg, setResultMsg] = useState('');
-
-  // Reflexes (Shooting for goalies) dictate how long you have to react once the puck emerges
+  // Goalies read this off their shooting rating, which is where their reflexes live.
   const reflexes = getActiveStat(player, 'shooting');
-  // Floored at a genuine human reaction: a shorter window is a coin toss, not a test.
-  const reactionTime = Math.max(MIN_REACTION_MS, (200 + (reflexes * 5)) * lerpDifficulty(1.0, 0.72, difficulty));
 
-  const timeoutRef = useRef(null);
+  const [phase, setPhase] = useState('hidden');   // hidden, clear, result
+  const [side] = useState(() => Math.floor(Math.random() * SIDES.length));
+  const [picked, setPicked] = useState(null);
+  const [status, setStatus] = useState('live');
+  const [note, setNote] = useState(null);
+
+  const doneRef = useRef(false);
+  const timerRef = useRef(null);
+
+  const window = Math.max(
+    MIN_REACTION_MS,
+    (240 + reflexes * 5) * lerpDifficulty(1.0, 0.72, difficulty)
+  );
+
+  const finish = useCallback((win, why, delay = 1600) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setStatus(win ? 'saved' : 'beaten');
+    setNote(why);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setTimeout(() => onComplete(win), delay);
+  }, [onComplete]);
 
   useEffect(() => {
-    const initTimer = setTimeout(() => {
-      const lane = Math.floor(Math.random() * 3);
-      setShotLane(lane);
-      
-      // The puck is hidden in traffic for 1 to 1.5 seconds
-      const travelTime = 1000 + Math.random() * 500;
-      timeoutRef.current = setTimeout(() => {
-        setStatus('emerging');
-        
-        // You have a fraction of a second to react
-        timeoutRef.current = setTimeout(() => {
-           setStatus('result');
-           setResultMsg('TOO SLOW! GOAL!');
-           setTimeout(() => onComplete(false), 1500);
-        }, reactionTime);
-        
-      }, travelTime);
-    }, 1000);
+    // It is behind the screen for a moment, then it clears.
+    const clear = setTimeout(() => {
+      if (doneRef.current) return;
+      setPhase('clear');
+      timerRef.current = setTimeout(() => {
+        if (doneRef.current) return;
+        setPhase('result');
+        finish(false, 'you never picked it up and it was in before you moved');
+      }, window);
+    }, 1100 + Math.random() * 700);
 
-    return () => {
-      clearTimeout(initTimer);
-      clearTimeout(timeoutRef.current);
-    }
-  }, [onComplete, reactionTime, difficulty]);
+    return () => { clearTimeout(clear); if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [window, finish]);
 
-  const handleBlock = (lane) => {
-    if (status === 'waiting') {
-       clearTimeout(timeoutRef.current);
-       setClickedLane(lane);
-       setStatus('result');
-       setResultMsg('GUESSED EARLY AND BITTEN! GOAL!');
-       setTimeout(() => onComplete(false), 1500);
-       return;
-    }
-    if (status !== 'emerging') return;
-    
-    clearTimeout(timeoutRef.current);
-    setClickedLane(lane);
-    setStatus('result');
+  const commit = (id) => {
+    if (doneRef.current || phase === 'result') return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPicked(id);
+    setPhase('result');
 
-    if (lane === shotLane) {
-       setResultMsg('WHAT A REFLEX SAVE!');
-       setTimeout(() => onComplete(true), 1500);
+    if (phase === 'hidden') {
+      finish(false, 'you guessed before it cleared the screen and committed to nothing');
+    } else if (id === side) {
+      finish(true, `fought through the screen and got there, ${SIDES[id].label.toLowerCase()}`);
     } else {
-       setResultMsg('BEATEN CLEAN! GOAL!');
-       setTimeout(() => onComplete(false), 1500);
+      finish(false, `it went ${SIDES[side].label.toLowerCase()} and you had gone the other way`);
     }
   };
 
+  const visible = phase === 'clear' || phase === 'result';
+  const saved = status === 'saved';
+
   return (
-    <div className="w-full max-w-md mx-auto text-center font-sans">
-      <h2 className="text-2xl font-black sports-font uppercase mb-2 text-[#c084fc]">SCREENED SHOT</h2>
-      <p className="text-slate-300 text-sm mb-6">
-        You cannot see the release! Wait for the puck to emerge from the traffic block and react instantly.
-      </p>
+    <Stage
+      hud={
+        <Hud
+          left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            Point shot through traffic
+          </span>}
+          right={
+            <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
+              phase === 'clear' ? 'text-[#F59E0B]' : 'text-slate-600'
+            }`}>
+              {phase === 'result' ? '—' : phase === 'clear' ? 'Picked it up' : 'Screened'}
+            </span>
+          }
+        />
+      }
+      verdict={
+        <Verdict
+          show={status !== 'live'}
+          won={saved}
+          word={saved ? 'REFLEX SAVE' : 'BEATEN CLEAN'}
+          detail={note}
+        />
+      }
+      caption={
+        status !== 'live' ? null
+          : visible ? 'There it is. Move.'
+            : 'You cannot see the release. Do not guess, or you will be leaning the wrong way when it comes.'
+      }
+    >
+      <Surface view={MOUTH_VIEW}>
+        <NetMouth>
+          <Goalie
+            shift={picked === null ? 0 : (SIDES[picked].x - 50) / 23}
+            down={picked !== null}
+            beaten={status === 'beaten'}
+          />
+        </NetMouth>
 
-      <div className="relative h-64 bg-slate-900/80 p-4 rounded-xl border border-slate-800 mb-4 overflow-hidden">
-        {/* The Traffic Block */}
-        <div className="absolute top-0 left-0 right-0 h-[65%] bg-slate-800/95 border-b-4 border-slate-700 z-10 flex items-center justify-center">
-            <span className="text-slate-500 font-black tracking-widest uppercase opacity-50 text-xl">Traffic</span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 h-full relative z-0">
-          {[0, 1, 2].map(lane => {
-            const isPuckHere = status === 'emerging' && lane === shotLane;
-            const isFailedPuck = status === 'result' && lane === shotLane && !resultMsg.includes('SAVE');
-            let btnClass = "mt-auto w-full py-3 border rounded text-[10px] font-black uppercase transition-colors cursor-pointer relative z-20 ";
-            
-            if (status === 'result') {
-                if (lane === clickedLane && resultMsg.includes('SAVE')) btnClass += "bg-[#22E748] border-[#22E748] text-black";
-                else if (lane === clickedLane) btnClass += "bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]";
-                else btnClass += "bg-slate-800 border-slate-700 text-slate-500 opacity-50";
-            } else {
-                btnClass += "bg-slate-800 hover:bg-[#c084fc] border-slate-700 hover:border-[#c084fc] text-white";
-            }
-
-            return (
-              <div key={lane} className="flex flex-col items-center justify-end h-full pb-2">
-                <div className="h-16 flex items-center justify-center w-full relative z-0">
-                    {(isPuckHere || isFailedPuck) && <div className="text-3xl animate-pulse">🏒</div>}
-                </div>
-                <button onClick={() => handleBlock(lane)} disabled={status === 'result'} className={btnClass}>
-                  PAD SAVE
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      
-      <div className="h-8">
-        {status === 'result' && (
-          <span className={`text-xl font-black sports-font tracking-widest ${resultMsg.includes('SAVE') ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-            {resultMsg}
-          </span>
+        {/* The puck, once it has cleared the screen. */}
+        {visible && side !== null && (
+          <g>
+            <line
+              x1={SIDES[side].x} y1={MOUTH.yBot + 8}
+              x2={SIDES[side].x} y2={40}
+              stroke={saved ? 'rgba(34,231,72,0.5)' : 'rgba(251,191,36,0.5)'}
+              strokeWidth="1.1" strokeDasharray="2.6 2.2"
+            />
+            <circle cx={SIDES[side].x} cy="40" r="3" fill="#fff"
+                    stroke="rgba(0,0,0,0.6)" strokeWidth="0.8" />
+          </g>
         )}
+
+        {/* The screen: two bodies planted in front of the mouth, which is what
+            you are actually looking through. */}
+        <g>
+          <rect x="30" y={MOUTH.yBot - 4} width="17" height="24" rx="5"
+                fill="rgba(200,44,44,0.82)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" />
+          <rect x="52" y={MOUTH.yBot - 1} width="16" height="22" rx="5"
+                fill="rgba(56,120,220,0.8)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" />
+        </g>
+      </Surface>
+
+      {phase === 'hidden' && <Callout text="Can't see it" y="22%" />}
+
+      <div className="flex gap-2 p-3 pt-0">
+        {SIDES.map(s => (
+          <ActionButton
+            key={s.id}
+            wide
+            onClick={() => commit(s.id)}
+            disabled={phase === 'result'}
+            state={
+              phase === 'result'
+                ? (s.id === picked ? (saved ? 'right' : 'wrong') : s.id === side ? 'right' : 'spent')
+                : 'idle'
+            }
+          >
+            {s.label}
+          </ActionButton>
+        ))}
       </div>
-    </div>
+    </Stage>
   );
 }

@@ -5,10 +5,10 @@ import { eventDeck } from '../data/economy';
 import { getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
 import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
-import { simulateTournament } from '../utils/international';
+import { buildRun } from '../utils/intlRun';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) {
-  const { player, playoffs, setActiveEvent, setActivePress, setIntlResult, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
+  const { player, playoffs, setActiveEvent, setActivePress, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
 
     setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
 
@@ -157,6 +157,14 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         return;
     }
 
+    // Captains are made out of alternates. A club hands the C to a man who has
+    // already worn a letter and shown what he does with it; handing it to
+    // someone who never has happens, but it is rare enough that it should feel
+    // like the exception rather than the normal route into the job.
+    const woreTheA = !!player.isAlternate
+      || (player.seasonHistory || []).some(s => s.isAlternate || s.isCaptain);
+    const wearsOrWoreTheA = woreTheA || Math.random() < 0.08;
+
     // STAGE 2 / 3: THE RESOLUTION
     if (lockerStage === 1 && currentLg === 'NHL') {
         if (coachTrust <= 30 && pOvr >= 80) {
@@ -182,7 +190,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             });
             setScreen('event');
             return;
-        } else if (coachTrust >= 80 && pAge >= 21) {
+        } else if (coachTrust >= 80 && pAge >= 21 && wearsOrWoreTheA) {
             // RESOLUTION B: PASSING THE TORCH (You earned their respect)
             setPlayer(p => ({ ...p, storylines: { ...p.storylines, lockerRoom: 2 } })); // Ends arc
             setActiveEvent({
@@ -204,7 +212,10 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const hometownStage = player.storylines?.hometown || 0;
 
     // STAGE 1: THE HONEYMOON (Drafted or developed into a highly-rated savior)
-    if (hometownStage === 0 && currentLg === 'NHL' && pOvr >= 78 && Math.random() < 0.12) {
+    // A fifty-year drought is not something you tell a player who lifted the
+    // thing himself three seasons ago in this building.
+    const wonHere = (player.seasonHistory || []).some(s => s.titleWon && s.team === currentTeam);
+    if (hometownStage === 0 && currentLg === 'NHL' && pOvr >= 78 && !wonHere && Math.random() < 0.12) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 1 } }));
         setActiveEvent({
             title: '🏙️ THE SAVIOR ARRIVES',
@@ -508,13 +519,6 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     const playerNatData = ctx.safeNationalities.find(n => n.id === player.nat) || { tier: 4, division: 'Division I-B', id: player.nat, name: 'Unknown' };
     const activeNatDiv = player.natDiv || playerNatData.division;
 
-    // THE GROUP STAGE SIMULATOR
-      // The World Championship. The other two tournaments now run inside the
-      // season, where they belong on the calendar.
-      const simulateGroupStage = (isWJC, isOlympicYear) => simulateTournament({
-        player, natDiv: activeNatDiv, pOvr, safeNationalities: ctx.safeNationalities, isWJC, isOlympicYear
-      });
-
     // THE WORLD CHAMPIONSHIP (May)
     // The only tournament that genuinely belongs after the season. The World
     // Juniors are played in late December and the Olympics in February, and both
@@ -531,11 +535,13 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
        const playWorlds = isTopDiv ? Math.random() > 0.45 : Math.random() > 0.2;
 
        if (playWorlds) {
-          const sim = simulateGroupStage(false, false);
-          setPlayer(p => ({ ...p, intlData: sim.intlData, intlStakes: sim.intlStakes, intlOppTier: sim.intlOppTier, isOlympicYear: false }));
-          setIntlResult(null);
+          const run = buildRun({
+            player, safeNationalities: ctx.safeNationalities,
+            context: 'worlds', division: activeNatDiv, year: nextYear
+          });
+          setPlayer(p => ({ ...p, intlRun: run, isOlympicYear: false }));
           setMinigameContext('worlds');
-          setScreen('intl-minigame');
+          setScreen('intl-tournament');
           return;
        }
     }

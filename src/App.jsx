@@ -12,7 +12,6 @@ import {
 import { withOfferPerks } from './data/offerPerks';
 import { projectDraftPick } from './utils/draftScouting';
 import { getStakes, applyStakesToReward } from './utils/stakes';
-import { resolveIntlGame } from './handlers/resolveIntlGame';
 import {
   makeInitialPlayer, getRole, getWinsNeeded,
   MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName, getTrainingQuality
@@ -46,7 +45,7 @@ import CreationScreen from './screens/CreationScreen';
 import RetirementScreen from './screens/RetirementScreen';
 import ArbitrationScreen from './screens/ArbitrationScreen';
 import TradeDeadlineScreen from './screens/TradeDeadlineScreen';
-import IntlMinigameScreen from './screens/IntlMinigameScreen';
+import IntlTournamentScreen from './screens/IntlTournamentScreen';
 import RecapScreen from './screens/RecapScreen';
 import PlayoffsScreen from './screens/PlayoffsScreen';
 import TransferScreen from './screens/TransferScreen';
@@ -104,7 +103,6 @@ function App() {
   const [activePress, setActivePress] = useState({ journalists: [], questions: [], currentQ: 0, answers: [] });
   const [minigameContext, setMinigameContext] = useState('season');
   const [seasonEvents, setSeasonEvents] = useState([]);
-  const [intlResult, setIntlResult] = useState(null);
   const [eventFeedback, setEventFeedback] = useState('');
   const [statChanges, setStatChanges] = useState(null);
   const [seasonRecap, setSeasonRecap] = useState(null);
@@ -555,28 +553,10 @@ function App() {
       return; 
     }
 
-    if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) {
-      // One resolver owns the whole knockout run. This used to be two near-identical
-      // 100-line copies, here and in handleMinigameChoice, which had already drifted.
-      const intl = resolveIntlGame({
-        player, minigameContext, isWin, msg,
-        currentYear, safeNationalities, unlockAchievement
-      });
-
-      if (intl.isTournamentOver) {
-        setSeasonEvents(prev => [...prev, { feedback: intl.resultMsg, effect: intl.resultEffect }]);
-      }
-
-      setPlayer(intl.updatedPlayer);
-      setIntlResult({
-        isWin,
-        msg: intl.resultMsg,
-        feedback: intl.resultMsg,
-        effect: intl.resultEffect,
-        nextStake: intl.nextStake
-      });
-      return;
-    }
+    // International duty does not come through here any more. The tournament
+    // screen runs its own last-chance minigames and commits the whole run
+    // itself, so a result arriving here from one of them would be settled twice.
+    if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) return;
 
     const payout = reward || { win: { fanStatus: 5 }, loss: { fanStatus: -2 } };
     const outcome = isWin ? (payout.win || {}) : (payout.loss || {});
@@ -612,7 +592,7 @@ function App() {
 
     // What the moment was worth. A shootout in a gold medal game and a shootout
     // in a meaningless February game used to pay out exactly the same.
-    const stakes = getStakes(minigameContext, player.intlStakes, player.intlOppTier);
+    const stakes = getStakes(minigameContext);
     const payout = applyStakesToReward(
       isWin ? (reward?.win || {}) : (reward?.loss || {}),
       stakes.rewardMulti
@@ -702,28 +682,10 @@ function App() {
         return; 
     }
 
-    if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) {
-      // One resolver owns the whole knockout run. This used to be two near-identical
-      // 100-line copies, here and in handleMinigameChoice, which had already drifted.
-      const intl = resolveIntlGame({
-        player, minigameContext, isWin, msg,
-        currentYear, safeNationalities, unlockAchievement
-      });
-
-      if (intl.isTournamentOver) {
-        setSeasonEvents(prev => [...prev, { feedback: intl.resultMsg, effect: intl.resultEffect }]);
-      }
-
-      setPlayer(intl.updatedPlayer);
-      setIntlResult({
-        isWin,
-        msg: intl.resultMsg,
-        feedback: intl.resultMsg,
-        effect: intl.resultEffect,
-        nextStake: intl.nextStake
-      });
-      return;
-    }
+    // International duty does not come through here any more. The tournament
+    // screen runs its own last-chance minigames and commits the whole run
+    // itself, so a result arriving here from one of them would be settled twice.
+    if (['wjc', 'olympics', 'worlds'].includes(minigameContext)) return;
 
     setPlayer(updatedPlayer);
     setSeasonEvents(prev => {
@@ -745,7 +707,7 @@ function App() {
     player, playoffs, seasonRecap, isAmateur, currentYear,
     safeEuroLeagues, safeJuniorLeagues, safeNationalities, activeEvent, minigameContext,
     setActiveEvent, setActivePress, setEventFeedback, setFreeAgencyOffers,
-    setHasDemandedTrade, setIntlResult, setMinigameContext, setPendingPlayoffs,
+    setHasDemandedTrade, setMinigameContext, setPendingPlayoffs,
     setPendingSeasonResult, setPlayer, setPlayoffs, setScreen,
     setSeasonEvents, setSeasonRecap, setStatChanges,
     unlockAchievement, triggerMinigame, generateTraining,
@@ -1118,7 +1080,17 @@ function App() {
       },
       // FIX: Strip captaincy if moving to a new team
       isCaptain: isNewTeam ? false : p.isCaptain,
-      isAlternate: isNewTeam ? false : p.isAlternate
+      isAlternate: isNewTeam ? false : p.isAlternate,
+      // Signing ends the summer the rights lapsed in, so the club that let him
+      // walk is eligible to be interested in him again next time.
+      rightsLapsedBy: null,
+      // alternateGiven stops one club asking twice. A new club has not asked at
+      // all, so carrying the flag across a move meant a player who turned a
+      // letter down once, or wore one and was traded, could never be offered
+      // another for the rest of his career.
+      storylines: isNewTeam
+        ? { ...(withPerks.storylines || {}), alternateGiven: false }
+        : withPerks.storylines
     };
 
     const fullyUpdatedPlayer = { ...updatedPlayer, ovr: recomputeOvr(updatedPlayer) };
@@ -1258,7 +1230,7 @@ function App() {
        // The deadline sits about seventy per cent of the way through the year, so
        // whatever was just decided here governs the games that are left. Go back
        // into the season and play them, with the new club if there is one.
-       if (currentPlayer.season) { handleTrain(null); return; }
+       if (currentPlayer.season) { handleTrain(null, currentPlayer); return; }
 
        runPostSeasonFlow(currentPlayer.age, currentPlayer.ovr, currentPlayer.league, currentPlayer.team, newTeamMadePlayoffs, 2026 + (currentPlayer.stats?.seasonsPlayed || 0), newTeamStandings);
        return;
@@ -1267,10 +1239,14 @@ function App() {
     // The nine-game verdict is the middle of the season, not the end of it. Go
     // back in and play out the games that are left, wherever the club has just
     // decided the player belongs.
-    if (currentEvent?.isNineGameEvent) { handleTrain(null); return; }
+    if (currentEvent?.isNineGameEvent) { handleTrain(null, currentPlayer); return; }
     // The debut is one game played at the top of the season; answering it drops
     // back into handleTrain, which picks the segment up and plays the rest.
-    if (currentEvent?.isDebutEvent) { handleTrain(null); return; }
+    if (currentEvent?.isDebutEvent) { handleTrain(null, currentPlayer); return; }
+    // Anything that happens inside the season (the leadership group in
+    // December) parks the year on player.season before it shows, so answering
+    // it goes straight back in to play the rest of the schedule.
+    if (currentEvent?.isMidSeasonEvent) { handleTrain(null, currentPlayer); return; }
 
     if (currentEvent?.isPortalEvent) { advanceToOffseason(currentPlayer); return; }
     // The career-opening event. Straight to the first preseason.
@@ -1301,7 +1277,7 @@ function App() {
       // The World Juniors and the Olympics are played in the middle of the season,
       // so coming home from one means going back to your club for the rest of the
       // year. Only the World Championship, in May, finishes a season.
-      if (currentPlayer.season) { handleTrain(null); return; }
+      if (currentPlayer.season) { handleTrain(null, currentPlayer); return; }
 
       if (pendingPlayoffs) {
         const pp = pendingPlayoffs;
@@ -1344,13 +1320,13 @@ function App() {
     handleCombineReflex, handleDraftChoice, handleDraftDay, handleEndMemCup,
     handleEndPress, handleEventChoice, handleGridClick, handleInteractiveResult,
     handleMinigameChoice, handleNewGame, handlePressAnswer,
-    handleStart, handleTrain, hasDemandedTrade, intlResult,
+    handleStart, handleTrain, hasDemandedTrade,
     isJunior, memCup, minigameContext, minigameStarted,
     negotiation, pendingSeasonResult, player, playoffs,
     pressAnswerKeys, proceedFromPlayoffs, proceedToNextScreen, runPostSeasonFlow,
     safeNationalities, seasonEvents, setSeasonEvents, seasonRecap, setActiveEvent,
     setArbState, setCombinePhase, setCombineScore,
-    setEventFeedback, setNegotiation, setHasDemandedTrade, setIntlResult, setMemCup,
+    setEventFeedback, setNegotiation, setHasDemandedTrade, setMemCup,
     setMinigameStarted, setPlayer, setPlayoffs, setScreen, setStatChanges,
     setSeasonRecap, setShowAchievementsMenu, showAchievementsMenu, signContract,
     startNegotiation, triggerMinigame, resetMinigameLock, unlockAchievement, unlockedAchievements,
@@ -1454,7 +1430,7 @@ function App() {
             {screen === 'preseason' && <PreseasonScreen />}
             {screen === 'arbitration_minigame' && <ArbitrationScreen />}
             {screen === 'trade-deadline' && <TradeDeadlineScreen />}
-            {screen === 'intl-minigame' && <IntlMinigameScreen />}
+            {screen === 'intl-tournament' && <IntlTournamentScreen />}
             {screen === 'recap' && <RecapScreen />}
             {screen === 'event' && <EventScreen />}
             {screen === 'minigame' && <MinigameScreen />}

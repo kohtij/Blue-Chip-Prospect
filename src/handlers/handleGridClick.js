@@ -45,10 +45,13 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
     }
 
     // A single-elimination round is one game, so it gets a scoreboard rather
-    // than a series tally. Generated once here and stored on the match so it
-    // does not reshuffle every time the screen re-renders.
+    // than a series tally. The clicked card already carries its own score
+    // (rolled when the deck was dealt, so it doesn't reshuffle on re-render);
+    // fall back to a fresh roll only for older saves whose cards predate that.
     const scoreline = (isFrozenFour && matchStatus !== 'playing')
-      ? singleGameScore(matchStatus === 'won')
+      ? (card.score1 != null
+          ? { score1: card.score1, score2: card.score2, ot: card.ot }
+          : singleGameScore(matchStatus === 'won'))
       : null;
 
     const newMatch = {
@@ -135,13 +138,17 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
             if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
 
             const nextGpm = getGamesPerMatchup(playoffs.currentLg, nextRoundIdx);
-            // One game, one card. Dealing three for a single-elimination round
-            // left two of them dead, since the match ends on the first one.
-            const nextDeckSize = nextGpm === 1 ? 1 : nextGpm + 2;
+            // One game is still one game, but it is dealt as a 4x4 grid (16
+            // cards) rather than a single card, so only the one the player
+            // clicks ever decides it.
+            const nextDeckSize = nextGpm === 1 ? 16 : nextGpm + 2;
             const nextDeck = isPlayerMatch
               ? (generatePlayoffDeck
                   ? generatePlayoffDeck(playoffs.standings || 1, playoffs.spots, nextRoundIdx + 1, nextGpm)
-                  : Array(nextDeckSize).fill(null).map(() => ({ isWin: Math.random() > 0.45 })))
+                  : Array(nextDeckSize).fill(null).map(() => {
+                      const isWin = Math.random() > 0.45;
+                      return { isWin, ...singleGameScore(isWin) };
+                    }))
               : null;
 
             nextR[Math.floor(i / 2)] = {

@@ -81,14 +81,14 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           <div className="flex flex-col w-full min-w-0 justify-center shrink-0">
             <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
               
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 shrink">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                 <div className="flex flex-col items-center shrink-0">
                  <span className="number-font text-5xl sm:text-6xl text-white leading-none">{player.ovr}</span>
                   <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 leading-none">OVR</p>
                 </div>
 
-                <div className="flex flex-col min-w-0 justify-center">
-                  <div className="flex items-center gap-2 mb-1 w-full">
+                <div className="flex flex-col min-w-0 flex-1 justify-center">
+                  <div className="flex items-center gap-2 mb-1 w-full min-w-0">
                     <img src={safeNationalities.find(n => n.id === player.nat)?.img} alt={player.nat} className="h-3.5 md:h-4 w-[21px] md:w-[26px] shrink-0 rounded-[2px] object-cover border border-slate-700 shadow-sm" />
                     <p 
                       className={`font-black sports-font leading-none text-white uppercase whitespace-nowrap tracking-tight ${
@@ -106,13 +106,19 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                     {getFullTeamName(player.team, player.league)}
                   </p>
                   
-                  <div className="text-[9px] font-bold uppercase tracking-tight text-slate-500 flex items-center gap-1 mb-0.5 flex-nowrap whitespace-nowrap min-w-0">
-                       <span className="shrink-0">{currentYear} / {nextYear} · {player.age} YRS OLD</span>
+                  {/* This row used to be nowrap on a single line. The line is
+                      almost exactly as wide as the card allows, so a three
+                      letter status pill on the end had nowhere to go and spilled
+                      out of the column and under the crest, which paints over
+                      it. Wrapping lets the pill drop to a second line instead;
+                      each piece stays nowrap so nothing breaks mid-phrase. */}
+                  <div className="text-[9px] font-bold uppercase tracking-tight text-slate-500 flex flex-wrap items-center gap-x-1 gap-y-1 mb-0.5 min-w-0">
+                       <span className="shrink-0 whitespace-nowrap">{currentYear} / {nextYear} · {player.age} YRS OLD</span>
                        {player.league !== 'NCAA' && (() => {
                           const isJunior = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(player.league);
                           if (isJunior) {
                              if (player.age >= 20) {
-                                return <span className="text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30 shrink-0">OVERAGER</span>;
+                                return <span className="text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30 shrink-0 whitespace-nowrap">OVERAGER</span>;
                              }
                              return null;
                           }
@@ -123,7 +129,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                                 // eligibility, not a contract, so "YRS LEFT" read as
                                 // term on a deal that does not exist.
                                 const isScholarship = player.league === 'NCAA' || player.contract.isScholarship;
-                                return <span className="shrink-0">· {player.contract.years} YRS {isScholarship ? 'ELIG.' : 'LEFT'}</span>;
+                                return <span className="shrink-0 whitespace-nowrap">· {player.contract.years} YRS {isScholarship ? 'ELIG.' : 'LEFT'}</span>;
                              }
                              const proSeasons = player.stats?.seasonsPlayed || 0;
                              const isRFA = player.age < 27 && proSeasons < 7;
@@ -136,8 +142,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                              
                              return (
                                 <>
-                                  <span className="shrink-0">· {player.contract.years} YRS LEFT</span>
-                                  <span className={`text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest leading-none shrink-0 ${pillClass}`}>
+                                  <span className="shrink-0 whitespace-nowrap">· {player.contract.years} YRS LEFT</span>
+                                  <span className={`text-[7px] md:text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest leading-none shrink-0 whitespace-nowrap ${pillClass}`}>
                                     {status}
                                   </span>
                                 </>
@@ -147,8 +153,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                        })()}
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-1.5 mt-0.5">
-                    <p className="text-[9px] font-bold uppercase leading-snug tracking-wide text-slate-500">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-1.5 mt-0.5 min-w-0">
+                    <p className="text-[9px] font-bold uppercase leading-snug tracking-wide text-slate-500 min-w-0 break-words">
                       {player.pos} · {player.archetype ? `${player.archetype.toUpperCase()} · ` : ''}{getDisplayDeployment(player.ovr, player.pos, player.league)}
                     </p>
                     <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest leading-none shrink-0 ${intlStatus.color}`}>
@@ -219,7 +225,17 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               // was showing last season's finished line. At the trade deadline it
               // claimed a full 64 games while the deadline screen correctly
               // reported the 45 actually played.
-              const live = summariseStints(player.season?.stints);
+              // The nine-game look and the NHL debut are played before a season
+              // object exists: they are parked on the player while the event is
+              // on screen. Without them this panel fell through to the last
+              // finished season, so a prospect watching his nine-game verdict
+              // was looking at a dashboard reporting the sixty-odd games he
+              // played in junior last year.
+              const live = summariseStints(
+                player.season?.stints
+                || (player.trial ? [player.trial.segment] : null)
+                || (player.debut ? [player.debut.segment] : null)
+              );
               const ls = live
                  || (player.seasonHistory && player.seasonHistory.length > 0
                       ? player.seasonHistory[player.seasonHistory.length - 1]

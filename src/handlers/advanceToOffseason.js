@@ -155,7 +155,11 @@ export function advanceToOffseason(ctx) {
            }
        }
 
-       if (player.ovr >= 60) {
+       // Europe is for a player who is free to go. A man with years left on an
+       // NHL contract cannot take a farewell tour in Finland: the club holds
+       // him, and this used to be offered to him anyway, next to the option of
+       // honouring the very deal it ignored.
+       if (player.ovr >= 60 && !hasContract) {
            choices.push({ label: 'Sign a Twilight Contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You packed your bags for a European farewell tour. Less travel, bigger ice, pure hockey.', effect: { fanStatus: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
        }
 

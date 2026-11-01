@@ -1,9 +1,8 @@
 import  { useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
-import { getPlayoffRounds, getTeamData, getPrimaryRival, usesPathView } from '../data/teams';
+import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
-import TournamentPath from '../components/TournamentPath';
 import TrophyImage from '../components/TrophyImage';
 import { applyOvrDelta, recomputeOvr } from '../utils/gameHelpers';
 
@@ -15,16 +14,11 @@ export default function PlayoffsScreen() {
   const activeMatch = playerMatchIndex >= 0 ? activeRound[playerMatchIndex] : null;
 
   // The NCAA tournament is single elimination from the regional semifinal to
-  // the national championship, so its rounds hand over a one-card deck rather
-  // than the nine-card grid a series uses. Dropping that single card into a
-  // three-column grid left it stranded in the top-left corner, and winning it
-  // announced a SERIES VICTORY for a series that was never played.
-  const isSingleGame = (activeMatch?.deck || []).length === 1;
-
-  // Leagues flagged for the path view show the whole run as a row of results
-  // instead of a deck to turn over. NCAA only for now; the flag lives on the
-  // league config so international tournaments can join later.
-  const usePath = usesPathView(playoffs?.currentLg);
+  // the national championship, so every round is one game rather than a
+  // series. It still deals a 4x4 grid of cards like any other round, just one
+  // where the first card turned over ends it, so the flavor text and card
+  // labels need to read "one game" instead of "SERIES VICTORY".
+  const isSingleGame = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex) === 1;
   const titles = getPlayoffTitles(player.league);
 
 
@@ -318,20 +312,11 @@ export default function PlayoffsScreen() {
                </div>
             ) : playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? (
               <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
-                 {/* The final has its own moment, but the run that got you here
-                     should not vanish on the one screen where it matters most.
-                     Read-only: the championship is played through the minigame
-                     below, not by turning a card over. */}
-                 {usePath && (
-                   <div className="w-full mb-5">
-                     <TournamentPath playoffs={playoffs} canPlay={false} onPlay={() => {}} />
-                   </div>
-                 )}
                  {activeMatch.status === 'playing' ? (
                    <>
                      <h3 className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font uppercase mb-3">THE FINAL SHIFT</h3>
                      <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 max-w-md mx-auto">
-                        {usePath
+                        {isSingleGame
                           ? 'Third period, tie game, winner takes the national title. One shift between you and everything.'
                           : 'Game 7. Third Period. Tie Game. The entire season comes down to this single moment. Your legacy is on the line.'}
                      </p>
@@ -359,38 +344,39 @@ export default function PlayoffsScreen() {
               </div>
             ) : (
               <>
-                {/* 3x3 CARD GRID. Nine squares holding exactly the wins the
-                    format needs: four in a best-of-seven, three in a best-of-five,
-                    two in a best-of-three. Single elimination gets one card
-                    instead, because there is only one game to play. */}
-                {usePath ? (
-                  <>
-                    <p className="text-[10px] sm:text-[11px] font-black text-[#F59E0B] uppercase tracking-widest text-center mb-3 font-sans">
-                      ⚡ Single elimination · Winner advances
-                    </p>
-                    <TournamentPath
-                      playoffs={playoffs}
-                      canPlay={activeMatch.status === 'playing'}
-                      onPlay={(rIdx) => handleGridClick(rIdx, playerMatchIndex, 0)}
-                    />
-                  </>
-                ) : (
-                <div className={isSingleGame ? 'grid grid-cols-1' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
+                {/* CARD GRID. A series deals nine squares holding exactly the
+                    wins the format needs: four in a best-of-seven, three in a
+                    best-of-five, two in a best-of-three. Single elimination
+                    deals sixteen (a 4x4 grid) instead of nine, since there is
+                    no series to grind out, but the mechanic is the same: pick
+                    a square, and whichever one comes back decides the game.
+                    Each square shows the actual score once turned over,
+                    rather than a plain win/loss letter, since one game is
+                    worth seeing the final score of. */}
+                {isSingleGame && (
+                  <p className="text-[10px] sm:text-[11px] font-black text-[#F59E0B] uppercase tracking-widest text-center mb-3 font-sans">
+                    ⚡ Single elimination · Winner advances
+                  </p>
+                )}
+                <div className={isSingleGame ? 'grid grid-cols-4 gap-1.5 sm:gap-2' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
                   {(activeMatch.deck || []).map((item, cIndex) => {
                     const isRevealed = (activeMatch.revealed || []).includes(cIndex);
                     const isOver = ['won', 'lost'].includes(activeMatch.status);
                     const showForcefully = isOver && !isRevealed;
                     const isWinCard = item && (item.isWin || item.win);
-                    const isRigged = item && item.rigged && !isRevealed; 
-                    
+                    const isRigged = item && item.rigged && !isRevealed;
+                    const cardLabel = isSingleGame && item && item.score1 != null
+                      ? `${item.score1}-${item.score2}${item.ot ? ' OT' : ''}`
+                      : (isWinCard ? 'W' : 'L');
+
                     let btnClass = (isSingleGame
-                      ? 'h-28 sm:h-32 text-4xl sm:text-5xl '
+                      ? 'h-14 sm:h-16 text-[11px] sm:text-sm '
                       : 'h-16 sm:h-20 text-2xl sm:text-3xl ')
                       + 'font-black rounded-xl border transition-all duration-200 flex items-center justify-center sports-font ';
-                    
+
                     if (isRevealed || showForcefully) {
-                      btnClass += isWinCard 
-                        ? 'bg-[#22E748]/20 border-[#22E748] text-[#22E748] shadow-[0_0_10px_rgba(34,231,72,0.3)]' 
+                      btnClass += isWinCard
+                        ? 'bg-[#22E748]/20 border-[#22E748] text-[#22E748] shadow-[0_0_10px_rgba(34,231,72,0.3)]'
                         : 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444] shadow-[0_0_10px_rgba(239,68,68,0.3)]';
                     } else if (isRigged) {
                       btnClass += 'bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse cursor-pointer hover:scale-105 active:scale-95';
@@ -399,18 +385,17 @@ export default function PlayoffsScreen() {
                     }
 
                     return (
-                      <button 
-                        key={`card-${cIndex}`} 
-                        onClick={() => handleGridClick(playoffs.activeRoundIndex, playerMatchIndex, cIndex)} 
-                        className={btnClass} 
+                      <button
+                        key={`card-${cIndex}`}
+                        onClick={() => handleGridClick(playoffs.activeRoundIndex, playerMatchIndex, cIndex)}
+                        className={btnClass}
                         disabled={isOver || isRevealed}
                       >
-                        {(isRevealed || showForcefully) ? (isWinCard ? 'W' : 'L') : (isRigged ? '⭐' : '?')}
+                        {(isRevealed || showForcefully) ? cardLabel : (isRigged ? '⭐' : '?')}
                       </button>
                     );
                   })}
                 </div>
-                )}
 
                 {/* BOTTOM ACTION AREA */}
                 <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[110px] sm:min-h-[120px]">
@@ -420,7 +405,7 @@ export default function PlayoffsScreen() {
                         const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
                         const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
                         return (
-                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">{usePath ? 'Play the next round. Win and you move on, lose and the season is over.' : `Select a card to play the next game (${formatText})`}</p>
+                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">{`Select a card to play the next game (${formatText})`}</p>
                         );
                       })()}
 
