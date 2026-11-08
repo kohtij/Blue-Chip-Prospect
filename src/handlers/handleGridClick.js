@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { capFanStatus, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
+import { fanGain, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
 import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
 export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
@@ -175,7 +175,7 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
           // because this path adds no award entry to compare against.
           playerUpdates = p => ({
             ...p,
-            fanStatus: capFanStatus(p.fanStatus + 30)
+            fanStatus: fanGain(p.fanStatus, 30)
           });
           if (player.league === 'NHL') unlockAchievement('stanley_cup');
           if (player.league === 'AHL') unlockAchievement('ahl_champ');

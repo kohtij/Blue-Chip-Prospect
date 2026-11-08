@@ -288,7 +288,7 @@ export default function RecapScreen() {
                 </li>
                 
                 {player.pos === 'G' ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Recorded a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} SV%</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Went <strong className="text-white">{seasonRecap?.wins || 0}&ndash;{seasonRecap?.losses || 0}&ndash;{seasonRecap?.otl || 0}</strong> with a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} save percentage</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Truly elite numbers between the pipes.' :
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.905 ? 'A reliable, steady presence in the crease.' :
                     'Struggled to find consistency this year.'

@@ -1,4 +1,4 @@
-import { getOpponentPool, getTeamData, ncaaTeams, ohlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
+import { getOpponentPool, getTeamData, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
@@ -469,6 +469,39 @@ export function advanceToOffseason(ctx) {
                actionData: t.id
            }));
 
+           // THE OTHER ROUTE.
+           //
+           // A seventeen-year-old in the USHL is being recruited by college
+           // programmes and major junior clubs at the same time, and that is
+           // the actual decision of his career: four years and a degree, or
+           // sixty-eight games a year and a bus. He was only ever shown one
+           // side of it, so the choice was between college and nothing.
+           if (currentLeague === 'USHL' && Math.random() < 0.6) {
+             const chlPool = [
+               ...(ohlTeams || []).map(t => ({ ...t, lg: 'OHL' })),
+               ...(whlTeams || []).map(t => ({ ...t, lg: 'WHL' })),
+               ...(qmjhlTeams || []).map(t => ({ ...t, lg: 'QMJHL' }))
+             ].sort(() => 0.5 - Math.random()).slice(0, numOffers >= 3 ? 2 : 1);
+
+             chlPool.forEach(t => {
+               const { perks: cPerks, flaws: cFlaws } = rollOfferPerks(t.lg, { maxPerks: 2, maxFlaws: 2 });
+               const tot = [...cPerks, ...cFlaws].reduce((acc, x) => ({
+                 ovr: acc.ovr + (x.ovr || 0), fans: acc.fans + (x.fanStatus || 0), money: acc.money + (x.money || 0)
+               }), { ovr: 0, fans: 0, money: 0 });
+               choices.push({
+                 label: `Report to ${getFullTeamName(t.id, t.lg)}`,
+                 subLabel: `${t.lg} · a full junior schedule, and your college eligibility goes with it.`,
+                 perks: cPerks,
+                 flaws: cFlaws,
+                 isRisky: false,
+                 feedback: `You signed with ${getFullTeamName(t.id, t.lg)} and gave up your NCAA eligibility.`,
+                 effect: { fanStatus: tot.fans + 10, ovr: Math.max(0, tot.ovr + 1), money: tot.money },
+                 action: 'JOIN_CHL',
+                 actionData: { id: t.id, league: t.lg }
+               });
+             });
+           }
+
            choices.push({
                label: `Decline offers and stay in ${leagueWithArticle(currentLeague)}`,
                // The label already says what the button does. This says what it
@@ -481,10 +514,12 @@ export function advanceToOffseason(ctx) {
            });
 
            setActiveEvent({
-             title: 'NCAA RECRUITMENT',
-             desc: numOffers > 1
-                ? `Your stellar play in ${leagueWithArticle(currentLeague)} has attracted major attention. Offers are rolling in. Some programs offer great perks with no drawbacks, others carry serious baggage. Choose wisely.`
-                : `The head coach of ${offeredTeams[0].name} has offered you a scholarship. Review their program's perks and flaws before committing.`,
+             title: choices.some(c => c.action === 'JOIN_CHL') ? 'THE RECRUITERS' : 'NCAA RECRUITMENT',
+             desc: choices.some(c => c.action === 'JOIN_CHL')
+                ? `Your play in ${leagueWithArticle(currentLeague)} has brought both kinds of recruiter to the rink. College programmes are offering scholarships; major junior clubs are offering a roster spot and a sixty-eight game season. Taking the second closes the first for good.`
+                : numOffers > 1
+                  ? `Your stellar play in ${leagueWithArticle(currentLeague)} has attracted major attention. Offers are rolling in. Some programs offer great perks with no drawbacks, others carry serious baggage. Choose wisely.`
+                  : `The head coach of ${offeredTeams[0].name} has offered you a scholarship. Review their program's perks and flaws before committing.`,
              choices: choices,
              isOffseasonEvent: true
            });

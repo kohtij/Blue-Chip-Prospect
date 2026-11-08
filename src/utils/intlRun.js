@@ -18,7 +18,7 @@
 
 import { getPlaybook } from '../data/intlPlaybook';
 import { PRESTIGE } from './stakes';
-import { capFanStatus, applyOvrDelta, recomputeOvr } from './gameHelpers';
+import { fanGain, applyOvrDelta, recomputeOvr } from './gameHelpers';
 
 const TOURNEY_NAME = {
   wjc: 'World Juniors',
@@ -123,6 +123,22 @@ function nationalLetter(player, nation) {
   const age = player.age || 24;
   const maturity = age < 23 ? -14 : age < 25 ? -6 : age < 27 ? 0 : age < 35 ? 6 : 2;
 
+  // GOALIES DO NOT WEAR LETTERS.
+  //
+  // Not a judgement call: the rule book does not allow a goaltender to be
+  // captain, and no federation names one as an alternate either. A
+  // twenty-four-year-old backup was being handed an A for the United States
+  // on the strength of an overall rating, which is two separate things wrong
+  // at once.
+  if (player.pos === 'G') return null;
+
+  // And a man who does not play does not lead. The letter goes to somebody in
+  // the top six or the top pair, not to whoever is rated highest on a roster
+  // sheet. Last season is the evidence.
+  const lastYear = [...hist].reverse().find(ss => (ss.games || 0) > 0) || null;
+  const workload = lastYear?.avgToi || 0;
+  const regular = (lastYear?.games || 0) >= 35;
+
   const clubLetter = player.isCaptain ? 10 : player.isAlternate ? 5 : 0;
   const profile = Math.min(8, Math.floor((player.fanStatus || 0) / 90));
   const trusted = ((player.relationships?.teammates || 50) - 50) * 0.12;
@@ -144,14 +160,19 @@ function nationalLetter(player, nation) {
   const eliteNation = (nation?.iihfRank ?? 99) <= 7;
 
   if (eliteNation) {
-    // Four hard conditions before the score is even consulted. Each of them
-    // is something every real captain of these countries has had.
-    const credentialled = player.isCaptain || (player.isAlternate && medals >= 3);
-    if (credentialled && tournaments >= 4 && age >= 26 && level >= 4 && standing >= 118) return 'C';
-    if ((clubLetter > 0 || medals >= 2) && tournaments >= 2 && age >= 23 && level >= 4 && standing >= 104) return 'A';
+    // Hard conditions before the score is even consulted, every one of them
+    // something a real captain of these countries has had. A letter at club
+    // level is not negotiable here: these rooms are full of NHL captains and
+    // the staff picks from inside that group.
+    if (!regular || workload < 15) return null;
+    if (player.isCaptain && tournaments >= 4 && age >= 26 && level >= 4 && standing >= 118) return 'C';
+    if (clubLetter > 0 && tournaments >= 2 && age >= 24 && level >= 4 && standing >= 108) return 'A';
     return null;
   }
 
+  // A smaller federation picks from a smaller room, so being its best player
+  // is a real qualification. He still has to be playing.
+  if (!regular) return null;
   if (standing >= 102 && tournaments >= 3) return 'C';
   if (standing >= 90 && tournaments >= 1) return 'A';
   return null;
@@ -614,7 +635,7 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
   updated = {
     ...withOvr,
     ovr: recomputeOvr(withOvr),
-    fanStatus: capFanStatus((withOvr.fanStatus || 0) + fanDelta)
+    fanStatus: fanGain(withOvr.fanStatus || 0, fanDelta)
   };
 
   const fullAward = awardName && awardName !== 'Promotion'

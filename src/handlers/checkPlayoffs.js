@@ -1,7 +1,7 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { LEAGUE_CONFIG, getConferences, getDivisions, getOpponentPool, getPlayoffRounds, getTeamConference, getTeamData } from '../data/teams';
-import { capFanStatus, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
+import { fanGain, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
 import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
 const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
@@ -248,7 +248,7 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
 
       if (run.overallStatus === 'won_cup') {
         // Still on the roster, so the name goes on the trophy and the fans notice.
-        if (ctx.setPlayer) ctx.setPlayer(p => ({ ...p, fanStatus: capFanStatus((p.fanStatus || 0) + 15) }));
+        if (ctx.setPlayer) ctx.setPlayer(p => ({ ...p, fanStatus: fanGain(p.fanStatus || 0, 15) }));
         if (ctx.unlockAchievement) {
           if (currentLg === 'NHL') ctx.unlockAchievement('stanley_cup');
           if (currentLg === 'AHL') ctx.unlockAchievement('ahl_champ');

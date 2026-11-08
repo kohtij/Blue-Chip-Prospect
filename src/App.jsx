@@ -7,7 +7,7 @@ import {
 import { skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool } from './data/minigames';
 import {
-  cap, capFanStatus, getFanTier, applyOvrDelta, recomputeOvr
+  cap, fanGain, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
 import { createDraftClass } from './utils/peers';
 import { recordTitle } from './utils/titles';
@@ -398,7 +398,7 @@ function App() {
       draftLeague: p.league,
       draftPick: overallPick,
       draftRound: round,
-      fanStatus: capFanStatus((p.fanStatus || 0) + fanBoost)
+      fanStatus: fanGain(p.fanStatus || 0, fanBoost)
     }));
 
     if (overallPick === 1) unlockAchievement('first_overall');
@@ -487,7 +487,7 @@ function App() {
 
     const withOvr = applyOvrDelta(player, ovrDelta);
     const updatedPlayer = { 
-      ...withOvr, fanStatus: capFanStatus(withOvr.fanStatus + fanDelta), ovr: recomputeOvr(withOvr),
+      ...withOvr, fanStatus: fanGain(withOvr.fanStatus, fanDelta), ovr: recomputeOvr(withOvr),
       relationships: {
         ...withOvr.relationships,
         media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + mediaDelta)),
@@ -590,7 +590,7 @@ function App() {
     const withOvr = applyOvrDelta(player, outcome.ovr || 0);
     const updatedPlayer = {
       ...withOvr,
-      fanStatus: capFanStatus(withOvr.fanStatus + (outcome.fanStatus || 0)),
+      fanStatus: fanGain(withOvr.fanStatus, outcome.fanStatus || 0),
       ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
@@ -628,7 +628,7 @@ function App() {
     const withOvr = applyOvrDelta(player, payout.ovr || 0);
     let updatedPlayer = {
       ...withOvr, 
-      fanStatus: capFanStatus((withOvr.fanStatus || 0) + (payout.fanStatus || 0)), 
+      fanStatus: fanGain(withOvr.fanStatus || 0, payout.fanStatus || 0), 
       ovr: recomputeOvr(withOvr),
       stats: { 
           ...withOvr.stats, 
@@ -677,7 +677,7 @@ function App() {
         return { ...prev, bracket: newBracket, overallStatus: isWin ? 'won_cup' : 'eliminated' };
       });
 
-      updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) + (isWin ? 100 : -25));
+      updatedPlayer.fanStatus = fanGain(updatedPlayer.fanStatus || 0, isWin ? 100 : -25);
 
       setPlayer(updatedPlayer);
       const finalMsg = isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.";
@@ -691,7 +691,7 @@ function App() {
 
     if (minigameContext === 'memcup') {
         if (isWin && memCup.round === 1) {
-            updatedPlayer.fanStatus = capFanStatus((updatedPlayer.fanStatus || 0) + 50);
+            updatedPlayer.fanStatus = fanGain(updatedPlayer.fanStatus || 0, 50);
             updatedPlayer.stats = { ...updatedPlayer.stats, memCupBoost: 50, titles: (updatedPlayer.stats.titles || 0) + 1 };
             if (updatedPlayer.seasonHistory && updatedPlayer.seasonHistory.length > 0) {
                 const lastIdx = updatedPlayer.seasonHistory.length - 1;
@@ -1101,7 +1101,7 @@ function App() {
 
     const updatedPlayer = {
       ...withPerks, team: o.team, league: o.league || 'NHL',
-      fanStatus: capFanStatus((p.fanStatus || 0) + (o.fanHit || 0) + (bonus.fanStatus || 0)),
+      fanStatus: fanGain(p.fanStatus || 0, (o.fanHit || 0) + (bonus.fanStatus || 0)),
       // isScholarship marks this as eligibility rather than a signed pro deal.
       // Without it a scholarship is indistinguishable from a contract once it
       // is in the player object, and everything downstream that asks "is he
@@ -1207,7 +1207,7 @@ function App() {
       // Apply the intended stats
       if (item.effect?.stamina) next.stamina = cap((next.stamina || 50) + item.effect.stamina);
       if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ || 50) + item.effect.hockeyIQ);
-      if (item.effect?.fanStatus) next.fanStatus = capFanStatus(next.fanStatus + item.effect.fanStatus);
+      if (item.effect?.fanStatus) next.fanStatus = fanGain(next.fanStatus, item.effect.fanStatus);
       if (item.effect?.physicality) next.physicality = cap((next.physicality || 50) + item.effect.physicality);
       if (item.effect?.shooting) next.shooting = cap((next.shooting || 50) + item.effect.shooting);
       if (item.effect?.skating) next.skating = cap((next.skating || 50) + item.effect.skating);

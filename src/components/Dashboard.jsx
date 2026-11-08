@@ -2,7 +2,7 @@ import { getTeamData, nationalities } from '../data/teams';
 import { careerTrophies, formatMoney, getActiveStat, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
-import { findRival, peerUnit, peerValue, scoutingBoard } from '../utils/peers';
+import { findRival, groupName, peerUnit, peerValue, posGroup, scoutingBoard } from '../utils/peers';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 
@@ -32,7 +32,13 @@ import TeamLogo from './TeamLogo';
 const Cell = ({ value, label, tone = 'text-white', hint, children }) => (
   <div className="relative px-1 py-2 flex flex-col justify-center items-center min-h-[48px]">
     {children}
-    <p className={`text-lg sm:text-xl font-black number-font leading-none ${tone}`}>{value}</p>
+    {/* A goalie's record is three numbers and two dashes in a cell built for
+        two digits, so a long value steps down a size rather than spilling. */}
+    <p className={`font-black number-font leading-none whitespace-nowrap ${tone} ${
+      String(value).length > 8 ? 'text-[10px] sm:text-xs'
+        : String(value).length > 6 ? 'text-xs sm:text-sm'
+          : String(value).length > 4 ? 'text-sm sm:text-base'
+            : 'text-lg sm:text-xl'}`}>{value}</p>
     <p className="mt-1 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">{label}</p>
     {hint}
   </div>
@@ -60,7 +66,7 @@ const FAN_LADDER = [
   { label: 'Known', at: 100 },
   { label: 'Loved', at: 300 },
   { label: 'Icon', at: 600 },
-  { label: 'Legend', at: 1000 }
+  { label: 'Legend', at: 900 }
 ];
 
 const Strip = ({ title, children, cols = 5 }) => (
@@ -119,7 +125,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const fanBarColor = (f) =>
     f < 300 ? 'linear-gradient(90deg, color-mix(in srgb, #64748b 55%, #1e293b), #94a3b8)'
       : f < 600 ? 'linear-gradient(90deg, color-mix(in srgb, #3b82f6 55%, #1e3a8a), #60a5fa)'
-        : f < 1000 ? 'linear-gradient(90deg, color-mix(in srgb, #F59E0B 55%, #78350f), #fbbf24)'
+        : f < 900 ? 'linear-gradient(90deg, color-mix(in srgb, #F59E0B 55%, #78350f), #fbbf24)'
           : 'linear-gradient(90deg, color-mix(in srgb, #22E748 55%, #14532d), #4ade80)';
 
   const activeBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA', 'SHL', 'LIIGA'].includes(player.league)
@@ -133,6 +139,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const cShots = player.stats?.[activeBucket]?.shots || 0;
   const cSaves = player.stats?.[activeBucket]?.saves || 0;
   const cSHO = player.stats?.[activeBucket]?.shutouts || 0;
+  const cW = player.stats?.[activeBucket]?.wins || 0;
+  const cL = player.stats?.[activeBucket]?.losses || 0;
+  const cOTL = player.stats?.[activeBucket]?.otl || 0;
+  const cRecord = `${cW}-${cL}-${cOTL}`;
   const cSV = cShots > 0 ? (cSaves / cShots).toFixed(3).replace('0.', '.') : '.000';
   const cGAA = cGP > 0 ? ((cShots - cSaves) / cGP).toFixed(2) : '0.00';
 
@@ -160,9 +170,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   // Goalies used to get nothing here, because every peer function filtered
   // them out. They are ranked on shutouts rather than points.
   const myCareerValue = isGoalie ? cSHO : cPts;
-  const rival = findRival(player.peers, myCareerValue, isGoalie);
+  const rival = findRival(player.peers, myCareerValue, player.pos);
   const rivalValue = rival ? peerValue(rival, isGoalie) : 0;
   const compareUnit = peerUnit(isGoalie);
+  const myGroup = groupName(posGroup(player.pos));
 
   // Before the draft there are no careers to compare, so this panel showed
   // nothing at all for the two or three seasons when the question "who else
@@ -452,7 +463,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               {(() => {
                 const currentIdx = Math.max(0, FAN_LADDER.findIndex(t => t.label === tier.label));
                 const floor = FAN_LADDER[currentIdx]?.at ?? 0;
-                const ceil = tier.next || 1000;
+                const ceil = tier.next || 900;
                 const gated = tier.req === 0 && !!tier.need;
                 const atTop = tier.req === 0 && !tier.need;
                 const pct = atTop || gated ? 100
@@ -463,7 +474,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                     {/* The number itself, which was never actually printed. */}
                     <div className="flex items-baseline justify-between gap-2 mb-2.5">
                       <span className="text-2xl font-black number-font text-white leading-none">
-                        {player.fanStatus}
+                        {Math.round(player.fanStatus || 0)}
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1.5">fans</span>
                       </span>
                       <span className="text-[11px] font-black uppercase tracking-widest text-[#F59E0B]">
@@ -511,7 +522,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                           {tier.need}.
                         </>
                       ) : (
-                        `${tier.req} more fans to reach ${tier.nextLabel}.`
+                        `${Math.round(tier.req)} more fans to reach ${tier.nextLabel}.`
                       )}
                     </p>
                   </div>
@@ -548,7 +559,9 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               style={{ gridTemplateColumns: `repeat(${isGoalie ? 5 : 5}, minmax(0, 1fr))` }}
             >
               {(isGoalie
-                ? [[cGP, 'Games', 'text-white'], [cSV, 'SV%', 'text-white'], [cGAA, 'GAA', 'text-white'], [cSHO, 'SHO', 'text-[#22E748]']]
+                // A goalie's career was five numbers without the one he is
+                // actually remembered by. Games goes: the record contains it.
+                ? [[cRecord, 'W-L-OTL', 'text-white'], [cSV, 'SV%', 'text-white'], [cGAA, 'GAA', 'text-white'], [cSHO, 'SHO', 'text-[#22E748]']]
                 : [[cGP, 'Games', 'text-white'], [cG, 'Goals', 'text-white'], [cA, 'Assists', 'text-white'], [cPts, 'Points', 'text-[#22E748]']]
               ).concat([[trophies, 'Trophies', 'text-[#F59E0B]']]).map(([v, l, tone]) => (
                 <Cell key={l} value={v} label={l} tone={tone} />
@@ -562,11 +575,14 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
             {board?.myRank && (
               <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)]">
                 <Heading>Your draft year</Heading>
+                <p className="text-[10px] text-slate-500 leading-snug mb-1.5">
+                  Where the scouts have you among the {myGroup} in your class.
+                </p>
                 <div className="flex items-baseline justify-between gap-2 py-[3px]">
-                  <span className="text-xs text-white font-bold truncate">Scouts have you</span>
+                  <span className="text-xs text-white font-bold truncate">You</span>
                   <span className="shrink-0 text-xs number-font">
                     <span className="text-white font-black">{board.myRank}</span>
-                    <span className="text-[9px] font-bold text-slate-600 ml-1">OF {board.total}</span>
+                    <span className="text-[9px] font-bold text-slate-600 ml-1">of {board.total}</span>
                   </span>
                 </div>
                 {board.ahead && (
@@ -586,33 +602,53 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               </div>
             )}
 
+            {/* YOUR DRAFT CLASS.
+                Two names, a number each and "291 PTS" in nine-point grey,
+                with no statement anywhere of what was being compared or to
+                whom. It was also comparing across positions, so a goalie was
+                shown a career point total and a shutdown defenceman was told
+                he was four hundred behind the best centre in his year. The
+                line under the heading now says the group and the measure
+                once, which means the numbers themselves need no suffix. */}
             {rival && rival.career.seasons > 1 && (
               <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)]">
                 <Heading>Your draft class</Heading>
+                <p className="text-[10px] text-slate-500 leading-snug mb-2">
+                  Career {compareUnit}, against the best of the {myGroup} in your year.
+                </p>
                 {[
                   { who: 'You', val: myCareerValue, mine: true },
                   { who: rival.name, val: rivalValue, mine: false }
-                ].sort((x, y) => y.val - x.val).map(row => (
-                  <div key={row.who} className="flex items-baseline justify-between gap-2 py-[3px]">
-                    <span className={`text-xs truncate ${row.mine ? 'text-white font-bold' : 'text-slate-400 font-medium'}`}>
-                      {row.who}
-                      {!row.mine && rival.career.titles > 0 && (
-                        <span className="text-[#F59E0B] text-[10px] font-bold">
-                          {' '}{rival.career.titles === 1 ? '1 cup' : `${rival.career.titles} cups`}
-                        </span>
+                ].sort((x, y) => y.val - x.val).map((row, i) => (
+                  <div key={row.who}
+                       className={`flex items-center justify-between gap-3 py-1.5 ${
+                         i === 0 ? 'border-b border-[rgba(255,255,255,0.05)]' : ''}`}>
+                    <div className="min-w-0">
+                      <p className={`text-xs truncate ${row.mine ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
+                        {row.who}
+                      </p>
+                      {!row.mine && (rival.career.titles > 0 || rival.retired) && (
+                        <p className="text-[10px] leading-tight mt-0.5">
+                          {rival.career.titles > 0 && (
+                            <span className="text-[#F59E0B] font-bold">
+                              {rival.career.titles === 1 ? '1 cup' : `${rival.career.titles} cups`}
+                            </span>
+                          )}
+                          {rival.career.titles > 0 && rival.retired && <span className="text-slate-700"> · </span>}
+                          {rival.retired && <span className="text-slate-600">retired</span>}
+                        </p>
                       )}
-                      {!row.mine && rival.retired && <span className="text-slate-600 text-[10px] font-normal"> (retired)</span>}
-                    </span>
-                    <span className="shrink-0 text-xs number-font text-slate-300">
-                      <span className={row.mine ? 'text-white font-black' : 'font-bold'}>{row.val}</span>
-                      <span className="text-[9px] font-bold text-slate-600 ml-1">{compareUnit}</span>
+                    </div>
+                    <span className={`shrink-0 number-font ${
+                      row.mine ? 'text-white font-black text-base' : 'text-slate-300 font-bold text-sm'}`}>
+                      {row.val}
                     </span>
                   </div>
                 ))}
-                <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
                   {myCareerValue === rivalValue
                     ? 'Dead level with him.'
-                    : `${Math.abs(myCareerValue - rivalValue)} ${isGoalie ? 'shutouts' : 'points'} ${
+                    : `${Math.abs(myCareerValue - rivalValue)} ${compareUnit} ${
                         myCareerValue > rivalValue ? 'clear of him' : 'behind him'}.`}
                 </p>
               </div>

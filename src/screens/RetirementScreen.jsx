@@ -1,11 +1,11 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { careerTrophies, formatMoney } from '../utils/gameHelpers';
-import { classTable, peerUnit, peerValue } from '../utils/peers';
+import { classTable, groupName, peerUnit, peerValue, posGroup } from '../utils/peers';
 import { getAwardImage } from '../data/awards';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { computeCareerScore } from '../utils/careerScore';
 
 // What a year won, in the last column of the register.
@@ -266,6 +266,7 @@ export default function RetirementScreen() {
             ? season.stints.map(st => ({
                 team: st.team, league: st.league,
                 games: st.games || 0,
+                wins: st.wins || 0, losses: st.losses || 0, otl: st.otl || 0,
                 goals: st.g ?? st.goals ?? 0,
                 assists: st.a ?? st.assists ?? 0,
                 saves: st.saves || 0,
@@ -275,6 +276,7 @@ export default function RetirementScreen() {
               }))
             : [{
                 team: season.team, league: season.league,
+                wins: season.wins || 0, losses: season.losses || 0, otl: season.otl || 0,
                 games: season.games || 0, goals: season.goals || 0, assists: season.assists || 0,
                 saves: season.saves || 0, shots: season.shots || 0,
                 shutouts: season.shutouts || 0, plusMinus: season.plusMinus || 0
@@ -376,7 +378,8 @@ export default function RetirementScreen() {
       let t = leagueTotals.find(x => x.league === r.league);
       if (!t) {
         t = { league: r.league, games: 0, goals: 0, assists: 0, saves: 0, shots: 0,
-              shutouts: 0, plusMinus: 0, poGames: 0, poGoals: 0, poAssists: 0,
+              shutouts: 0, plusMinus: 0, wins: 0, losses: 0, otl: 0,
+              poGames: 0, poGoals: 0, poAssists: 0,
               poSaves: 0, poShots: 0, poShutouts: 0, seasons: 0 };
         leagueTotals.push(t);
       }
@@ -388,6 +391,9 @@ export default function RetirementScreen() {
       t.shots += r.shots || 0;
       t.shutouts += r.shutouts || 0;
       t.plusMinus += r.plusMinus || 0;
+      t.wins += r.wins || 0;
+      t.losses += r.losses || 0;
+      t.otl += r.otl || 0;
       t.poGames += r.playoffGames || 0;
       t.poGoals += r.playoffGoals || 0;
       t.poAssists += r.playoffAssists || 0;
@@ -699,28 +705,31 @@ export default function RetirementScreen() {
                       <thead>
                         <tr className="text-[9px] font-black uppercase tracking-widest text-slate-600">
                           <th className="px-4 py-1.5" colSpan={3}></th>
-                          <th className="px-2 py-1.5 text-center border-l border-[rgba(255,255,255,0.065)]" colSpan={isGoalie ? 4 : 5}>
+                          <th className="px-1.5 sm:px-2 py-1.5 text-center border-l border-[rgba(255,255,255,0.065)]" colSpan={5}>
                             Regular Season
                           </th>
-                          <th className="px-2 py-1.5 text-center border-l border-[rgba(255,255,255,0.065)]" colSpan={4}>
+                          <th className="px-1.5 sm:px-2 py-1.5 text-center border-l border-[rgba(255,255,255,0.065)]" colSpan={4}>
                             Playoffs
                           </th>
-                          <th className="px-4 py-1.5 border-l border-[rgba(255,255,255,0.065)]"></th>
                         </tr>
                         <tr className="bg-[#101410] border-y border-[rgba(255,255,255,0.065)] text-[10px] font-bold uppercase tracking-widest text-slate-500">
                           <th className="px-3 sm:px-4 py-2.5 font-medium">Season</th>
-                          <th className="px-2 py-2.5 font-medium">Team</th>
-                          <th className="px-2 py-2.5 font-medium">Lge</th>
-                          <th className="px-2 py-2.5 font-medium text-center border-l border-[rgba(255,255,255,0.065)]">GP</th>
-                          <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'SV%' : 'G'}</th>
-                          <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'GAA' : 'A'}</th>
-                          <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'SO' : 'Pts'}</th>
-                          {!isGoalie && <th className="px-2 py-2.5 font-medium text-center">+/-</th>}
-                          <th className="px-2 py-2.5 font-medium text-center border-l border-[rgba(255,255,255,0.065)]">GP</th>
-                          <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'SV%' : 'G'}</th>
-                          <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'GAA' : 'A'}</th>
-                          <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'SO' : 'Pts'}</th>
-                          <th className="px-4 py-2.5 font-medium w-full border-l border-[rgba(255,255,255,0.065)]">Hardware</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium">Team</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium">Lge</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center border-l border-[rgba(255,255,255,0.065)]">GP</th>
+                          {/* A goalie is quoted by his record first. The table
+                              had save percentage, goals against and shutouts
+                              and no way at all to say how a season went. */}
+                          {isGoalie && <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">W&ndash;L&ndash;OTL</th>}
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'SV%' : 'G'}</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'GAA' : 'A'}</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'SO' : 'Pts'}</th>
+                          {!isGoalie && <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">+/-</th>}
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center border-l border-[rgba(255,255,255,0.065)]">GP</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'SV%' : 'G'}</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'GAA' : 'A'}</th>
+                          <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'SO' : 'Pts'}</th>
+                          <th className="w-full"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[rgba(255,255,255,0.04)] text-sm">
@@ -730,7 +739,7 @@ export default function RetirementScreen() {
                           const poSv = r.playoffShots > 0 ? (r.playoffSaves / r.playoffShots) : 0;
                           const poGaa = r.playoffGames > 0 ? ((r.playoffShots - r.playoffSaves) / r.playoffGames) : 0;
                           const po = r.playoffGames > 0;
-                          return (
+                          const row = (
                             <tr key={`${r.year}-${r.team}-${idx}`} className="hover:bg-[rgba(255,255,255,0.025)] transition-colors">
                               <td className="px-3 sm:px-4 py-2.5 font-bold text-slate-300 tabular-nums text-[11px] sm:text-sm">
                                 <span className="flex items-center gap-2">
@@ -738,7 +747,7 @@ export default function RetirementScreen() {
                                   <Letter captain={r.isCaptain} alternate={r.isAlternate && !r.isCaptain} />
                                 </span>
                               </td>
-                              <td className="px-2 py-2.5">
+                              <td className="px-1.5 sm:px-2 py-2.5">
                                 <span className="flex items-center gap-2 min-w-0">
                                   <span className="shrink-0 w-6 h-6 flex items-center justify-center">
                                     <TeamLogo teamId={r.team} league={r.league} isAHL={r.league === 'AHL'} size="tiny" />
@@ -753,23 +762,28 @@ export default function RetirementScreen() {
                                       three times the width of "Oilers" and one
                                       club like it pushed the hardware column
                                       clean off the end of the table. */}
-                                  <span className="hidden sm:inline font-bold text-white truncate max-w-[190px] md:max-w-[240px]" title={getFullTeamName(r.team, r.league)}>{getFullTeamName(r.team, r.league)}</span>
+                                  <span className="hidden sm:inline font-bold text-white truncate max-w-[150px] md:max-w-[220px]" title={getFullTeamName(r.team, r.league)}>{getFullTeamName(r.team, r.league)}</span>
                                 </span>
                               </td>
-                              <td className="px-2 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-500">{r.league}</td>
+                              <td className="px-1.5 sm:px-2 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-500">{r.league}</td>
 
-                              <td className="px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-slate-200">{r.games || 0}</td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#22E748]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-slate-200">{r.games || 0}</td>
+                              {isGoalie && (
+                                <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-slate-200 whitespace-nowrap">
+                                  {(r.wins || 0)}&ndash;{(r.losses || 0)}&ndash;{(r.otl || 0)}
+                                </td>
+                              )}
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#22E748]">
                                 {isGoalie ? sv.toFixed(3).replace('0.', '.') : (r.goals || 0)}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-slate-200">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-slate-200">
                                 {isGoalie ? gaa.toFixed(2) : (r.assists || 0)}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
                                 {isGoalie ? (r.shutouts || 0) : ((r.goals || 0) + (r.assists || 0))}
                               </td>
                               {!isGoalie && (
-                                <td className={`px-2 py-2.5 text-center font-black number-font ${
+                                <td className={`px-1.5 sm:px-2 py-2.5 text-center font-black number-font ${
                                   (r.plusMinus || 0) > 0 ? 'text-slate-300' : (r.plusMinus || 0) < 0 ? 'text-[#ef4444]' : 'text-slate-600'}`}>
                                   {(r.plusMinus || 0) > 0 ? `+${r.plusMinus}` : (r.plusMinus || 0)}
                                 </td>
@@ -778,29 +792,50 @@ export default function RetirementScreen() {
                               {/* A year with no playoffs gets dashes rather than
                                   a row of zeroes, which is the difference between
                                   "did not qualify" and "played and scored none". */}
-                              <td className="px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-slate-200">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-slate-200">
                                 {po ? r.playoffGames : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#22E748]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#22E748]">
                                 {po ? (isGoalie ? poSv.toFixed(3).replace('0.', '.') : (r.playoffGoals || 0)) : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-slate-200">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-slate-200">
                                 {po ? (isGoalie ? poGaa.toFixed(2) : (r.playoffAssists || 0)) : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
                                 {po
                                   ? (isGoalie ? (r.playoffShutouts || 0) : ((r.playoffGoals || 0) + (r.playoffAssists || 0)))
                                   : <span className="text-slate-700">&ndash;</span>}
                               </td>
 
-                              {/* The only cell allowed to wrap. Everything
-                                  else is a number and reads worse broken over
-                                  two lines; a year that won three things needs
-                                  the room or the pills run off the table. */}
-                              <td className="px-4 py-2 w-full min-w-[180px] whitespace-normal border-l border-[rgba(255,255,255,0.065)]">
-                                <Hardware season={r} />
-                              </td>
+                              <td className="w-full"></td>
                             </tr>
+                          );
+
+                          // WHAT THE YEAR WON, UNDER THE YEAR.
+                          //
+                          // This was a last column, and with a goalie's record
+                          // in the table there were twelve of them: the one
+                          // column anybody actually reads was the one hanging
+                          // off the right-hand edge. A trophy is not a
+                          // statistic, so it does not need to be in the grid.
+                          // It sits under its own season, where it has the
+                          // whole width and can wrap.
+                          const hasHardware = r.titleWon
+                            || (r.awards || []).some(aw => !aw.toLowerCase().includes('1st team all-star'));
+                          if (!hasHardware) return row;
+                          return (
+                            <Fragment key={`${r.year}-${r.team}-${idx}-g`}>
+                              {row}
+                              {/* No rule between a season and its own
+                                  hardware: the divider the table puts between
+                                  every pair of rows made the trophies look
+                                  like they belonged to the year below. */}
+                              <tr style={{ borderTopWidth: 0 }}>
+                                <td className="px-3 sm:px-4 pb-2.5 pt-0 whitespace-normal" colSpan={12}>
+                                  <Hardware season={r} />
+                                </td>
+                              </tr>
+                            </Fragment>
                           );
                         })}
                       </tbody>
@@ -823,35 +858,40 @@ export default function RetirementScreen() {
                                 {t.league} Totals
                                 <span className="text-slate-600 font-bold"> · {t.seasons} {t.seasons === 1 ? 'season' : 'seasons'}</span>
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-white">{t.games}</td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#22E748]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-white">{t.games}</td>
+                              {isGoalie && (
+                                <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-white whitespace-nowrap">
+                                  {t.wins}&ndash;{t.losses}&ndash;{t.otl}
+                                </td>
+                              )}
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#22E748]">
                                 {isGoalie ? sv.toFixed(3).replace('0.', '.') : t.goals}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-white">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-white">
                                 {isGoalie ? gaa.toFixed(2) : t.assists}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
                                 {isGoalie ? t.shutouts : (t.goals + t.assists)}
                               </td>
                               {!isGoalie && (
-                                <td className={`px-2 py-2.5 text-center font-black number-font ${
+                                <td className={`px-1.5 sm:px-2 py-2.5 text-center font-black number-font ${
                                   t.plusMinus > 0 ? 'text-white' : t.plusMinus < 0 ? 'text-[#ef4444]' : 'text-slate-600'}`}>
                                   {t.plusMinus > 0 ? `+${t.plusMinus}` : t.plusMinus}
                                 </td>
                               )}
-                              <td className="px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-white">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-white">
                                 {po ? t.poGames : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#22E748]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#22E748]">
                                 {po ? (isGoalie ? poSv.toFixed(3).replace('0.', '.') : t.poGoals) : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-white">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-white">
                                 {po ? (isGoalie ? poGaa.toFixed(2) : t.poAssists) : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
+                              <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
                                 {po ? (isGoalie ? t.poShutouts : (t.poGoals + t.poAssists)) : <span className="text-slate-700">&ndash;</span>}
                               </td>
-                              <td className="px-4 py-2.5 border-l border-[rgba(255,255,255,0.065)]"></td>
+                              <td></td>
                             </tr>
                           );
                         })}
@@ -872,20 +912,13 @@ export default function RetirementScreen() {
                       {natObj?.img && (
                         <img src={natObj.img} alt="" className="w-6 h-6 shrink-0 rounded-full object-cover border border-[rgba(255,255,255,0.1)]" />
                       )}
+                      {/* The letter and the games both lived on this line and
+                          both said something the rows underneath already say:
+                          the C sits against each tournament he wore it for,
+                          and the games are in the GP column. */}
                       <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                         Team {fullCountryName}
                       </h4>
-                      {intlStint.letter && (
-                        <Letter captain={intlStint.letter === 'C'} alternate={intlStint.letter === 'A'} long />
-                      )}
-                      {intlStint.letter && intlStint.letterYears > 1 && (
-                        <span className="text-[10px] font-bold text-slate-600">
-                          {intlStint.letterYears} tournaments
-                        </span>
-                      )}
-                      <span className="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {intlStint.games} GP
-                      </span>
                     </div>
                     <div className="-mx-4 sm:-mx-6 overflow-x-auto">
                       <table className="w-full min-w-[560px] text-left font-sans whitespace-nowrap">
@@ -943,7 +976,7 @@ export default function RetirementScreen() {
           {(() => {
             // Goalies are ranked on shutouts. They used to be filtered out of
             // the class entirely and saw no table at all.
-            const table = classTable(player.peers, 8, isGoalie);
+            const table = classTable(player.peers, 8, player.pos);
             if (!table.length) return null;
             const mine = isGoalie
               ? (player.stats?.nhl?.shutouts || 0)
@@ -965,16 +998,23 @@ export default function RetirementScreen() {
 
             return (
               <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
-                <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-1 ml-2 font-sans">
                   YOUR DRAFT CLASS
                 </h3>
+                {/* Which players, and on what. The table used to rank the
+                    whole year group on one number without saying whose
+                    number it was, so a defenceman was placed ninth behind
+                    eight centres. */}
+                <p className="text-[10px] text-slate-500 mb-3 ml-2">
+                  The {groupName(posGroup(player.pos))} of your year, by NHL career {unit}.
+                </p>
                 {/* A header, because the purple number had nothing anywhere
                     on the screen telling anyone what it was. */}
                 <div className="flex items-center gap-3 px-3 sm:px-4 pb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Player</span>
                   <span className="w-20 text-right">Drafted</span>
-                  <span className="w-20 text-right">Cups / trophies</span>
+                  <span className="w-20 text-right">Awards</span>
                   <span className="w-14 text-right">Games</span>
                   <span className="w-20 text-right">{isGoalie ? 'Shutouts' : 'Points'}</span>
                 </div>

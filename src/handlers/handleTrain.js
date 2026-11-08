@@ -266,8 +266,18 @@ export function handleTrain(ctx, t) {
   // standings the deadline screen showed had no bearing on where the season
   // actually finished.
   let seasonTeamFactor = carried.find(s => typeof s.teamFactor === 'number')?.teamFactor;
+  // WHERE HE IS RIGHT NOW.
+  //
+  // Every segment of the year was simulated against the player as he was in
+  // September, so a demotion in November produced a stint in the American
+  // League and changed nothing the player could see: the card beside the
+  // screen kept the NHL crest on it all year and the next segment rolled
+  // placement again from the NHL. The first he knew of the move was a line of
+  // AHL games in the recap months later. The club moves under him now, as it
+  // happens, and the segment after it starts from where he actually is.
+  let livePlayer = player;
   const playNext = (fraction) => {
-    const seg = simulateSeason(player, effect, baseMissed + played, {
+    const seg = simulateSeason(livePlayer, effect, baseMissed + played, {
       gamesFraction: fraction, segmentOnly: true,
       ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {}),
       ...(locked ? { lockPlacement: true } : {})
@@ -275,6 +285,15 @@ export function handleTrain(ctx, t) {
     if (seg && seg.games > 0) {
       if (typeof seasonTeamFactor !== 'number' && typeof seg.teamFactor === 'number') {
         seasonTeamFactor = seg.teamFactor;
+      }
+      if (seg.team && (seg.team !== livePlayer.team || seg.league !== livePlayer.league)) {
+        livePlayer = { ...livePlayer, team: seg.team, league: seg.league };
+        setPlayer(prev => ({
+          ...prev,
+          team: seg.team,
+          league: seg.league,
+          teamsPlayedFor: Array.from(new Set([...(prev.teamsPlayedFor || []), seg.team]))
+        }));
       }
       stints = [...stints, seg]; played += seg.games; return seg;
     }
@@ -378,6 +397,10 @@ export function handleTrain(ctx, t) {
       saves: recap.saves,
       shots: recap.shots,
       shutouts: recap.sho,
+      // A goalie's year, the way a goalie's year is actually quoted.
+      wins: recap.wins || 0,
+      losses: recap.losses || 0,
+      otl: recap.otl || 0,
       plusMinus: recap.pm,
       // A tournament played inside the season finishes months before this entry
       // exists: the World Juniors in December, the Olympics in February. The run
@@ -508,6 +531,29 @@ export function handleTrain(ctx, t) {
      } else if (wasAHLtoECHL) {
          moveTitle = '📉 SENT TO THE COAST';
          moveDesc = `You've been reassigned to the ECHL. It's a tough demotion, but you need to find your game again if you want to make it back up.`;
+     } else if (player.league === 'NHL' && currentLg === 'NHL'
+                && (recap.stints || []).length > 1
+                && (recap.stints || []).some(st => st.league === 'AHL' && (st.games || 0) > 0)) {
+         // SENT DOWN AND BROUGHT BACK.
+         //
+         // A demotion only ever got a message when the player was still in the
+         // AHL when the season ended. Go down in November, play twenty-five
+         // games and get recalled in February and nothing was ever said: the
+         // first he heard of it was a line of AHL games in the career table
+         // months later, for a season he had no memory of leaving.
+         const ahlGames = (recap.stints || [])
+             .filter(st => st.league === 'AHL')
+             .reduce((n, st) => n + (st.games || 0), 0);
+         // Waiver exemption is real and the game already knows who has it: a
+         // player on an entry-level deal is sent down, not waived, and telling
+         // him he cleared waivers on his ELC is wrong twice over.
+         const proSeasons = player.stats?.seasonsPlayed || 0;
+         const exempt = (player.contract?.salary === 925000)
+             || (player.age < 25 && proSeasons < 3);
+         moveTitle = '🔁 DOWN AND BACK';
+         moveDesc = exempt
+             ? `It was not a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they do not need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up, which is its own kind of comment.`
+             : `It was not a good autumn. You were put on waivers, you cleared, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL, and you know now exactly how quickly it can go the other way.`;
      } else if (wasAHLtoNHL) {
          const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
          moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW' : '📈 CALLED UP';

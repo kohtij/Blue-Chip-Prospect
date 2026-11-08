@@ -1,4 +1,4 @@
-import { capFanStatus, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
+import { capFanStatus, fanGain, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { getOpponentPool, JUNIOR_PARENT_LEAGUE } from '../data/teams';
 
@@ -250,7 +250,7 @@ export function handleEventChoice(ctx, choice) {
   const withOvr = applyOvrDelta(updated, outcomeEffect?.ovr || 0);
   const finalPlayer = {
     ...withOvr,
-    fanStatus: capFanStatus(withOvr.fanStatus + (outcomeEffect?.fanStatus || 0)),
+    fanStatus: fanGain(withOvr.fanStatus, outcomeEffect?.fanStatus || 0),
     ovr: recomputeOvr(withOvr),
     stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) },
     relationships: {

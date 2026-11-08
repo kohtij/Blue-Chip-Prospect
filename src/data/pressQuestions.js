@@ -799,7 +799,7 @@ export const PRESS_QUESTIONS = [
         "You grow up quickly. That's not a bad thing at this age."
       ],
       passionate: [
-        "I miss my mum's cooking and I miss my dog. I'd still do it again tomorrow.",
+        "I miss my mom's cooking and I miss my dog. I'd still do it again tomorrow.",
         "Homesick for about a month. Then this place became home.",
         "My family gave up a lot for this. That's fuel every single night."
       ],

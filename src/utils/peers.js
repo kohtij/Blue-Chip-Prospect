@@ -81,7 +81,7 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
   // Nine per cent of a class are goalies, which is about right and leaves a
   // goalie career with two or three men to measure itself against. If the
   // player is one, the class carries enough of them to be a real field.
-  const goalieShare = playerPos === 'G' ? 0.26 : 0.09;
+  const goalieShare = playerPos === 'G' ? 0.20 : 0.09;
 
   for (let i = 0; i < size; i++) {
     const nat = pick(NATS);
@@ -124,7 +124,7 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
       // Where he was playing when he was taken.
       ...draftRoute(nat),
       season: null,
-      career: { gp: 0, g: 0, a: 0, sho: 0, saves: 0, shots: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0 }
+      career: { gp: 0, g: 0, a: 0, sho: 0, saves: 0, shots: 0, wins: 0, losses: 0, otl: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0 }
     });
   }
   // Scouts rank the class by what each player will become, with noise on it,
@@ -141,6 +141,50 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
   const span = Math.max(1, (order.length || 32) * 2);
   board.forEach((p, i) => {
     p.pick = Math.max(1, Math.min(span, Math.round(1 + i * ((span - 2) / Math.max(1, board.length - 1)))));
+  });
+
+  // NOBODY DRAFTS GOALIES THAT EARLY.
+  //
+  // The board ranked every prospect on projection alone, so a goalie with a
+  // high ceiling went third overall as readily as a centre with the same
+  // one, and a class generated for a goalie career put three of them inside
+  // the first round and eight inside the top sixty.
+  //
+  // That is not how the draft works and never has been. Roughly two dozen
+  // goalies go in a draft, about a tenth of all picks, but they are
+  // overwhelmingly late: in the last twenty years teams have taken three or
+  // four in the first two rounds combined, and the first round has averaged
+  // under one a year since 2010, with 2013, 2014, 2016 and 2018 producing
+  // none at all. A good goaltender is the hardest projection in the sport
+  // and general managers price that in.
+  //
+  // So the skaters hold the board they earned and the goalies are placed
+  // against it: one in the first round rather more often than not, two or
+  // three more across the second, and the rest into the rounds the game does
+  // not otherwise model.
+  const goalies = board.filter(p => p.pos === 'G');
+  const takenPicks = new Set(board.filter(p => p.pos !== 'G').map(p => p.pick));
+  const roundOne = order.length || 32;
+
+  // The best of them goes in the first round about two years in three, which
+  // is roughly the historical rate once a strong class is accounted for.
+  const freeIn = (lo, hi) => {
+    const open = [];
+    for (let n = lo; n <= hi; n++) if (!takenPicks.has(n)) open.push(n);
+    return open;
+  };
+  goalies.forEach((g, i) => {
+    let window;
+    if (i === 0 && Math.random() < 0.62) window = freeIn(Math.round(roundOne * 0.38), roundOne);
+    else if (i <= 2) window = freeIn(roundOne + 1, span);
+    else window = freeIn(span + 1, span + roundOne * 3);
+    if (!window.length) window = freeIn(span + 1, span + roundOne * 3);
+    const chosen = window.length ? window[Math.floor(Math.random() * window.length)] : span + 1 + i;
+    g.pick = chosen;
+    takenPicks.add(chosen);
+  });
+
+  board.forEach(p => {
     p.draftedBy = order.length ? order[(p.pick - 1) % order.length] : null;
   });
 
@@ -342,7 +386,7 @@ function playPeerSeason(peer) {
   // position accumulated nothing at all, which is why a goalie career had no
   // rival, no class table and no scoring race line: every peer function
   // filtered them out because there was nothing to compare.
-  let sho = 0, saves = 0, shots = 0;
+  let sho = 0, saves = 0, shots = 0, wins = 0, losses = 0, otl = 0;
   if (isGoalie) {
     const gp = Math.round(games * 0.62);
     // Mapped to the same save-percentage range the player's own goalie uses,
@@ -350,14 +394,29 @@ function playPeerSeason(peer) {
     // only 0.0011 per point of ability, which put every peer goalie in the
     // league under .908 and handed the entire class a career total of zero
     // shutouts.
-    const sv = Math.min(0.945, Math.max(0.860,
-      0.880 + (scaleOvr - 62) * 0.0017 + goalieAgeAdjust(peer.age) + gaussianNoise() * 0.009));
+    // Built around the league's own par rather than a single fixed number,
+    // the way the player's own season rating already is. On the flat scale a
+    // seventeen-year-old in the KHL came out at .860, which is not a save
+    // percentage anybody keeps a job with, and every junior goalie in the
+    // class finished the year with no shutouts at all because the shutout
+    // line was measured against an NHL baseline.
+    const gPace = paceOf(league);
+    const sv = Math.min(gPace.svStar + 0.012, Math.max(gPace.svPar - 0.028,
+      gPace.svPar + (scaleOvr - 70) * 0.0016 + goalieAgeAdjust(peer.age) + gaussianNoise() * 0.009));
     shots = gp * (27 + Math.round(Math.random() * 6));
     saves = Math.round(shots * sv);
-    sho = Math.max(0, Math.round((sv - 0.898) * 180 * (gp / 60)));
+    sho = Math.max(0, Math.round((sv - (gPace.svPar - 0.008)) * 170 * (gp / 60)));
+    // His record, on the same model the player's own uses: how well he
+    // played, plus how good the club in front of him was.
+    const winPct = Math.min(0.78, Math.max(0.18,
+      0.5 + (sv - gPace.svPar) * 7.5 + gaussianNoise() * 0.06));
+    wins = Math.round(gp * winPct);
+    const rest = gp - wins;
+    otl = Math.round(rest * 0.22);
+    losses = Math.max(0, rest - otl);
   }
 
-  const season = { league, team, gp: isGoalie ? Math.round(games * 0.62) : games, g, a, pts: g + a, sho, saves, shots };
+  const season = { league, team, gp: isGoalie ? Math.round(games * 0.62) : games, g, a, pts: g + a, sho, saves, shots, wins, losses, otl };
   return {
     ...peer,
     ovr,
@@ -373,6 +432,9 @@ function playPeerSeason(peer) {
       sho: (peer.career.sho || 0) + sho,
       saves: (peer.career.saves || 0) + saves,
       shots: (peer.career.shots || 0) + shots,
+      wins: (peer.career.wins || 0) + wins,
+      losses: (peer.career.losses || 0) + losses,
+      otl: (peer.career.otl || 0) + otl,
       titles: peer.career.titles,
       trophies: peer.career.trophies || 0,
       allStars: peer.career.allStars,
@@ -546,10 +608,23 @@ export function scoringBar(peers, league) {
 export const peerValue = (peer, isGoalie) =>
   isGoalie ? (peer.career.sho || 0) : (peer.career.g + peer.career.a);
 
-export const peerUnit = (isGoalie) => (isGoalie ? 'SHO' : 'PTS');
+export const peerUnit = (isGoalie) => (isGoalie ? 'shutouts' : 'points');
 
-export function findRival(peers, playerValue, isGoalie = false) {
-  const live = (peers || []).filter(p => (p.pos === 'G') === !!isGoalie && p.career.seasons > 0);
+// WHO COUNTS AS A COMPARISON.
+//
+// Everything that ranked the class split it two ways, goalies and everybody
+// else, so a shutdown defenceman was being measured on career points against
+// the best centre in his year and told he was four hundred behind. Three
+// groups, because that is how hockey compares players: the forwards together,
+// the pair together, and the goalie on his own.
+export const posGroup = (pos) => (pos === 'G' ? 'G' : (pos === 'LD' || pos === 'RD') ? 'D' : 'F');
+
+export const groupName = (group) => group === 'G' ? 'goaltenders' : group === 'D' ? 'defencemen' : 'forwards';
+
+export function findRival(peers, playerValue, pos = 'C') {
+  const group = posGroup(pos);
+  const isGoalie = group === 'G';
+  const live = (peers || []).filter(p => posGroup(p.pos) === group && p.career.seasons > 0);
   if (!live.length) return null;
   // The best of the class, unless he is miles clear of you, in which case the
   // interesting comparison is whoever you are actually next to.
@@ -566,9 +641,11 @@ export function findRival(peers, playerValue, isGoalie = false) {
 /**
  * The class table, best career first, for the retirement screen.
  */
-export function classTable(peers, limit = 10, isGoalie = false) {
+export function classTable(peers, limit = 10, pos = 'C') {
+  const group = posGroup(pos);
+  const isGoalie = group === 'G';
   return [...(peers || [])]
-    .filter(p => (p.pos === 'G') === !!isGoalie && p.career.seasons > 0)
+    .filter(p => posGroup(p.pos) === group && p.career.seasons > 0)
     .sort((x, y) => peerValue(y, isGoalie) - peerValue(x, isGoalie))
     .slice(0, limit);
 }
@@ -614,6 +691,36 @@ const scaleProduction = (pts, gp, league) => {
   return Math.min(8, ((pts || 0) / gp / star) * 6);
 };
 
+// WHAT A SCOUT SEES IN A GOALTENDER'S SEASON.
+//
+// Save percentage alone was the whole of it, which is the one number a
+// goalie can post on a bad team without winning anything and the one he can
+// miss on a good team while winning forty. Scouts watch all three: whether
+// he wins, whether he shuts teams out, and whether he stops the puck. They
+// are weighted in that order of how much they move a draft board, and the
+// record counts for nothing without the games to make it mean something.
+const goalieProduction = (season) => {
+  if (!season) return 0;
+  const gp = season.gp || 0;
+  const shots = season.shots || 0;
+  const sv = shots > 0 ? (season.saves || 0) / shots : null;
+
+  const svPart = sv != null ? Math.max(-4, Math.min(4, (sv - 0.905) * 150)) : 0;
+
+  const decided = (season.wins || 0) + (season.losses || 0) + (season.otl || 0);
+  const winPart = decided >= 12
+    ? Math.max(-3, Math.min(3.5, (((season.wins || 0) / decided) - 0.5) * 11))
+    : 0;
+
+  // Shutouts are rate-dependent: four in twenty games is a different thing
+  // from four in sixty.
+  const shoPart = gp >= 12
+    ? Math.min(2.5, ((season.sho || 0) / gp) * 28)
+    : 0;
+
+  return Math.max(-5, Math.min(8, svPart + winPart + shoPart));
+};
+
 const projectedPeak = (ovr, age) => {
   const f = 0.35 + 0.65 * Math.min(1, Math.max(0, (age - 17) / 8));
   return 52 + (ovr - 52) / f;
@@ -633,7 +740,11 @@ const nameBias = (name) => {
 };
 
 export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
-  const live = (peers || []).filter(p => !p.retired);
+  // Ranked inside his own position group. A winger is not competing with the
+  // goalies in his year for the same job, and a board that mixed all three
+  // told him he was eleventh without saying eleventh at what.
+  const group = posGroup(player?.pos || 'C');
+  const live = (peers || []).filter(p => !p.retired && posGroup(p.pos) === group);
   if (!live.length) return null;
 
   // What he is worth to a scout this winter. A season in front of them counts:
@@ -643,7 +754,7 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     const produced = p.season && p.pos !== 'G'
       ? scaleProduction(p.season.pts, p.season.gp, p.season.league)
       : p.season && p.pos === 'G' && p.season.shots
-        ? Math.min(8, Math.max(-4, ((p.season.saves / p.season.shots) - 0.900) * 240))
+        ? goalieProduction(p.season)
         : 0;
     return (p.ovr || 0) * 0.55 + (p.peak || 0) * 0.45 + (p.scoutBias || 0) + produced;
   };
@@ -674,7 +785,10 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     const mySv = last && last.shots ? last.saves / last.shots : null;
     const myGp = last ? (last.gp ?? last.games ?? 0) : 0;
     const myProduced = player.pos === 'G'
-      ? (mySv != null ? Math.min(8, Math.max(-4, (mySv - 0.900) * 240)) : 0)
+      ? goalieProduction({
+          saves: last?.saves, shots: last?.shots, sho: last?.shutouts ?? last?.sho,
+          wins: last?.wins, losses: last?.losses, otl: last?.otl, gp: myGp
+        })
       : (myPts != null ? scaleProduction(myPts, myGp, player.league) : 0);
     rows.push({
       id: 'me',

@@ -117,10 +117,13 @@ export default function TradeDeadlineScreen() {
           // into one run of text, so telling the goals from the assists meant
           // reading it rather than glancing at it. Each number gets its own tile
           // with its label underneath.
+          // A goalie's year to date, led by the thing a goalie is quoted by.
+          // The tiles were games, save percentage and shutouts, and the one
+          // number anybody asks a goalie about was not among them.
           const seasonStats = player.pos === 'G'
             ? [
-                { label: 'GP', value: res.recap?.games || 0 },
-                { label: 'SV%', value: ((res.recap?.saves || 0) / Math.max(1, res.recap?.shots || 0)).toFixed(3).replace('0.', '.'), lead: true },
+                { label: 'W-L-OTL', value: `${res.recap?.wins || 0}-${res.recap?.losses || 0}-${res.recap?.otl || 0}`, lead: true },
+                { label: 'SV%', value: ((res.recap?.saves || 0) / Math.max(1, res.recap?.shots || 0)).toFixed(3).replace('0.', '.') },
                 { label: 'SO', value: res.recap?.sho || 0 }
               ]
             : [
@@ -391,7 +394,8 @@ export default function TradeDeadlineScreen() {
                     ? 'bg-[rgba(255,255,255,0.08)] border-[rgba(255,255,255,0.22)]'
                     : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.07)]'}`}
                 >
-                  <p className="text-lg sm:text-xl font-black sports-font leading-none text-white tracking-tight">
+                  <p className={`font-black sports-font leading-none text-white tracking-tight ${
+                    String(s.value).length > 6 ? 'text-sm sm:text-base' : 'text-lg sm:text-xl'}`}>
                     {s.value}
                   </p>
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1.5 leading-none">

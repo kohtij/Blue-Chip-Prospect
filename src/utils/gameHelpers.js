@@ -42,7 +42,39 @@ export const ordinal = (n) => {
 
 export const cap = (val) => Math.min(100, Math.max(0, val));
 
-export const capFanStatus = (val) => Math.min(1000, Math.max(0, val));
+// Fans are people, so the number is a whole one. Rounded here as well as in
+// fanGain, because this is the floor every path to the value passes through
+// and a save already carrying a fractional count heals on its next write.
+export const capFanStatus = (val) => Math.round(Math.min(1000, Math.max(0, val || 0)));
+
+// HOW FAME IS ADDED.
+//
+// Every gain in the game used to be worth its face value wherever you were on
+// the scale, so a +50 was +50 at eighty fans and +50 at nine hundred, and a
+// long career walked to Legend on arithmetic alone. Getting from unknown to
+// known is a good season; getting from icon to legend is supposed to be a
+// decade and a trophy case, and the only thing standing between them was
+// addition.
+//
+// Gains are damped by how much room is left above you. Losses are not: a
+// reputation comes apart faster than it is built, which is also true.
+export const fanGain = (current, delta) => {
+  const now = Math.round(Math.max(0, current || 0));
+  if (!delta) return capFanStatus(now);
+  if (delta < 0) return capFanStatus(Math.round(now + delta));
+  const headroom = Math.max(0, 1 - now / 1000);
+  // Rounded, and always worth at least one. The damping multiplier made this
+  // fractional, which the card then printed in full: 279.65262403334293 fans.
+  // A gain that survives the damping is also never allowed to round away to
+  // nothing, or a player near the ceiling would stop moving entirely.
+  const scaled = delta * Math.pow(headroom, 0.6);
+  return capFanStatus(now + Math.max(scaled > 0 ? 1 : 0, Math.round(scaled)));
+};
+
+// And fame fades. A season of ordinary hockey does not keep a name where a
+// great one put it, so last year's noise dies down a little every summer
+// before this year's is added.
+export const fanFade = (current) => Math.max(0, (current || 0) - Math.round((current || 0) * 0.015));
 
 export const formatMoney = (amount) => {
   if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
@@ -147,8 +179,8 @@ export const getFanTier = (pts, player = null) => {
   // No player passed means the old behaviour, for any caller that only has a
   // number to hand.
   if (!player) {
-    if (pts < 1000) return { label: 'Icon', next: 1000, req: 1000 - pts, nextLabel: 'Legend' };
-    return { label: 'Legend', next: 1000, req: 0, nextLabel: 'Legend' };
+    if (pts < 900) return { label: 'Icon', next: 900, req: 900 - pts, nextLabel: 'Legend' };
+    return { label: 'Legend', next: 900, req: 0, nextLabel: 'Legend' };
   }
 
   const h = careerHonours(player);
@@ -166,12 +198,12 @@ export const getFanTier = (pts, player = null) => {
   // told he is two hundred fans short of something he cannot reach.
   if (legendWeight < 2) {
     return {
-      label: 'Icon', next: 1000, req: 0, nextLabel: 'Legend',
+      label: 'Icon', next: 900, req: 0, nextLabel: 'Legend',
       need: 'The rafters want more than this. Legends won more than one thing'
     };
   }
-  if (pts < 1000) return { label: 'Icon', next: 1000, req: 1000 - pts, nextLabel: 'Legend' };
-  return { label: 'Legend', next: 1000, req: 0, nextLabel: 'Legend' };
+  if (pts < 900) return { label: 'Icon', next: 900, req: 900 - pts, nextLabel: 'Legend' };
+  return { label: 'Legend', next: 900, req: 0, nextLabel: 'Legend' };
 };
 
 export const getTransferImpact = (oldTeamId, newTeamId) => {
@@ -703,6 +735,27 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       a = Math.floor(soften(aRaw, curves.assists.soft, curves.assists.hard));
   }
 
+  // A GOALIE'S RECORD.
+  //
+  // The game tracked save percentage, goals against and shutouts, and no
+  // wins. For every other position the season's numbers are the season, but
+  // a goalie is remembered by his record first and the save percentage
+  // second, and there was no way to say how a year had gone. It follows from
+  // the two things that decide it: how well he played and how good the team
+  // in front of him was. About a fifth of a goalie's losses go past sixty
+  // minutes, which is where the third number comes from.
+  let wins = 0, losses = 0, otl = 0;
+  if (p.pos === 'G' && games > 0) {
+    const sv = shots > 0 ? saves / shots : 0;
+    const par = paceOf(currentLg).svPar;
+    const winPct = Math.min(0.78, Math.max(0.18,
+      0.5 + (sv - par) * 7.5 + (teamStrength - 1) * 0.55 + gaussianNoise() * 0.035));
+    wins = Math.round(games * winPct);
+    const rest = games - wins;
+    otl = Math.round(rest * (0.17 + Math.random() * 0.10));
+    losses = Math.max(0, rest - otl);
+  }
+
   // Graded against the league he played in, not against a single scale shared
   // by the NHL and the OHL. See rateSeason in utils/production.js for what
   // that was doing to development.
@@ -741,7 +794,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     return {
       segment: {
         team: playedTeam, league: playedLg, games,
-        g, a, pm, saves, shots, sho, avgToi, rating, standings,
+        g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, rating, standings,
         // Carried so the next segment inherits the same club, rather than
         // re-rolling how good the team is at every checkpoint of the year.
         // The base, not this segment's jittered value, so drift does not compound.
@@ -751,7 +804,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   }
 
   // Every stint of this season, earlier ones first, this one last.
-  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, saves, shots, sho, avgToi, rating };
+  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, rating };
   // Consecutive stints at the same club are one spell, not two: a prospect kept
   // past his nine games played 71 games for that team, not "9 and then 62".
   const stints = [...(options.priorStints || []), thisStint].reduce((acc, s) => {
@@ -760,6 +813,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       last.games += (s.games || 0); last.g += (s.g || 0); last.a += (s.a || 0);
       last.pm += (s.pm || 0); last.saves += (s.saves || 0);
       last.shots += (s.shots || 0); last.sho += (s.sho || 0);
+      last.wins = (last.wins || 0) + (s.wins || 0);
+      last.losses = (last.losses || 0) + (s.losses || 0);
+      last.otl = (last.otl || 0) + (s.otl || 0);
       return acc;
     }
     return [...acc, { ...s }];
@@ -768,8 +824,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const seasonTotal = stints.reduce((acc, s) => ({
     games: acc.games + (s.games || 0), g: acc.g + (s.g || 0), a: acc.a + (s.a || 0),
     pm: acc.pm + (s.pm || 0), saves: acc.saves + (s.saves || 0),
-    shots: acc.shots + (s.shots || 0), sho: acc.sho + (s.sho || 0)
-  }), { games: 0, g: 0, a: 0, pm: 0, saves: 0, shots: 0, sho: 0 });
+    shots: acc.shots + (s.shots || 0), sho: acc.sho + (s.sho || 0),
+    wins: acc.wins + (s.wins || 0), losses: acc.losses + (s.losses || 0), otl: acc.otl + (s.otl || 0)
+  }), { games: 0, g: 0, a: 0, pm: 0, saves: 0, shots: 0, sho: 0, wins: 0, losses: 0, otl: 0 });
 
   // Trophies are a judgement on a season, not on whichever slice of it this
   // call happened to simulate. The year is played in segments now (the World
@@ -837,10 +894,16 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // profile far more than nine junior games, and a split year should say so.
   const fanStatusGain = stints.reduce((sum, s) => {
     const jr = juniorLeagues.includes(s.league) || s.league === 'NCAA';
-    const pts = (s.g || 0) + (s.a || 0);
-    if (jr) return sum + Math.floor(pts / 20);
-    if (s.league === 'AHL') return sum + Math.floor((pts + ((s.sho || 0) * 5)) / 15);
-    return sum + Math.floor((pts + ((s.sho || 0) * 5)) / 3);
+    // A goalie's profile was being read off shutouts alone and divided by
+    // three, so a .925 season with five of them was worth eight fans while
+    // the winger in front of him banked thirty. His season is save
+    // percentage and the shutouts on top of it.
+    const worth = p.pos === 'G'
+      ? ((s.sho || 0) * 8) + Math.max(0, Math.round((((s.shots || 0) > 0 ? (s.saves || 0) / s.shots : 0) - 0.900) * 2000))
+      : (s.g || 0) + (s.a || 0);
+    if (jr) return sum + Math.floor(worth / 20);
+    if (s.league === 'AHL') return sum + Math.floor(worth / 15);
+    return sum + Math.floor(worth / 3);
   }, 0);
 
   let valIncrease = p.pos === 'G'
@@ -865,13 +928,15 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       games: (p.stats[b]?.games || 0), goals: (p.stats[b]?.goals || 0),
       assists: (p.stats[b]?.assists || 0), plusMinus: (p.stats[b]?.plusMinus || 0),
       shots: (p.stats[b]?.shots || 0), saves: (p.stats[b]?.saves || 0),
-      shutouts: (p.stats[b]?.shutouts || 0)
+      shutouts: (p.stats[b]?.shutouts || 0),
+      wins: (p.stats[b]?.wins || 0), losses: (p.stats[b]?.losses || 0), otl: (p.stats[b]?.otl || 0)
     };
     mergedBuckets[b] = {
       games: base.games + (s.games || 0), goals: base.goals + (s.g || 0),
       assists: base.assists + (s.a || 0), plusMinus: base.plusMinus + (s.pm || 0),
       shots: base.shots + (s.shots || 0), saves: base.saves + (s.saves || 0),
-      shutouts: base.shutouts + (s.sho || 0)
+      shutouts: base.shutouts + (s.sho || 0),
+      wins: base.wins + (s.wins || 0), losses: base.losses + (s.losses || 0), otl: base.otl + (s.otl || 0)
     };
   }
 
@@ -902,7 +967,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     physicality: cap(newPhy),
     hockeyIQ: cap(newIq),
     stamina: cap(newSta),
-    fanStatus: capFanStatus((p.fanStatus || 0) + fanStatusGain),
+    fanStatus: fanGain(fanFade(p.fanStatus || 0), fanStatusGain),
     contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
@@ -941,6 +1006,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // the breakdown so the screen can say nine games here and fifty there.
   const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
     saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
+    wins: seasonTotal.wins, losses: seasonTotal.losses, otl: seasonTotal.otl,
     games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi,
     // Who won the scoring race and what it took, so the recap can say so
     // instead of leaving a fifty-goal season with nothing to measure it by.
