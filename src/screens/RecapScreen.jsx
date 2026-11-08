@@ -2,7 +2,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '../data/teams';
 import { splitPerk } from '../data/offerPerks';
-import { capFanStatus, formatMoney } from '../utils/gameHelpers';
+import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
 
 // Leagues that don't count toward a player's pro season number.
@@ -380,7 +380,7 @@ export default function RecapScreen() {
                     it against, because the league had nobody else in it. Now
                     the year has a leader, and some of the time he is a name
                     you were drafted alongside. */}
-                {seasonRecap?.scoringBar && player.pos !== 'G' && (() => {
+                {seasonRecap?.scoringBar && !['G', 'LD', 'RD'].includes(player.pos) && (() => {
                   const bar = seasonRecap.scoringBar;
                   const mine = (seasonRecap.g || 0) + (seasonRecap.a || 0);
                   const won = mine >= bar.total;
@@ -397,6 +397,102 @@ export default function RecapScreen() {
                         : bar.name
                           ? `${bar.name} won the scoring title with ${bar.total} points. You finished on ${mine}, ${short} back.`
                           : `It took ${bar.total} points to win the scoring title. You finished on ${mine} points, ${short} short.`}
+                      {/* And the one comparison a prospect actually makes,
+                          which the league leader is not: the best of his own
+                          year group in his own league. A classmate wins an
+                          outright scoring title about one season in twenty,
+                          so without this the junior years went by without a
+                          single familiar name in the race. */}
+                      {bar.classBest && (
+                        <span className="block text-slate-400 mt-1">
+                          {`Best of your draft class here: ${bar.classBest.name}, ${bar.classBest.pts} points.`}
+                        </span>
+                      )}
+                    </RecapRow>
+                  );
+                })()}
+
+                {/* A defenceman and a goalie get the comparison that belongs
+                    to them. Both used to be shown how far short of the
+                    scoring title they finished, which is a forward's job and
+                    not theirs: a goalie was told he was 129 points back. */}
+                {seasonRecap?.classBestAtPos && (() => {
+                  const cb = seasonRecap.classBestAtPos;
+                  const isG = player.pos === 'G';
+                  const mySv = (seasonRecap.shots || 0) > 0 ? (seasonRecap.saves || 0) / seasonRecap.shots : null;
+                  const myPts = (seasonRecap.g || 0) + (seasonRecap.a || 0);
+                  const ahead = isG ? (mySv != null && mySv >= cb.sv) : myPts >= cb.pts;
+                  const fmt = (v) => v.toFixed(3).replace('0.', '.');
+                  return (
+                    <RecapRow accent={ahead ? '#22E748' : '#64748b'}
+                              label={isG ? '🥅 Your draft class in net' : '🛡️ Your draft class on the blue line'}
+                              tint={ahead}>
+                      {isG
+                        ? (mySv == null
+                            ? `${cb.name} was the best of your draft class in this league at ${fmt(cb.sv)}.`
+                            : ahead
+                              ? `Nobody from your draft class in this league stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
+                              : `${cb.name} was the best of your draft class in this league at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
+                        : (ahead
+                            ? `No defenceman from your draft class in this league outscored your ${myPts} points. ${cb.name} was next on ${cb.pts}.`
+                            : `${cb.name} was the best defenceman from your draft class in this league with ${cb.pts} points. You finished on ${myPts}.`)}
+                    </RecapRow>
+                  );
+                })()}
+
+                {/* THE SCOUTING BOARD.
+                    The one thing the junior years were missing. Draft night
+                    used to be the first time the player saw any of these
+                    names, which is why the board on it read as thirty
+                    strangers either side of him. He reads the same list every
+                    winter now, with himself on it, so by the time the room
+                    comes round he knows who is going where and why. */}
+                {seasonRecap?.scoutBoard?.myRank && (() => {
+                  const b = seasonRecap.scoutBoard;
+                  const moved = player.prevScoutRank ? player.prevScoutRank - b.myRank : 0;
+                  const ahead = b.ahead;
+                  return (
+                    <RecapRow accent="#38bdf8" label="🔭 The scouting board" tint={b.myRank <= 5}>
+                      <p className="text-slate-300 leading-relaxed mb-3">
+                        The scouts have you <span className="font-black text-white">{ordinal(b.myRank)}</span> in
+                        your draft year
+                        {moved > 0
+                          ? `, up ${moved} place${moved === 1 ? '' : 's'} on last winter.`
+                          : moved < 0
+                            ? `, down ${-moved} place${moved === -1 ? '' : 's'} on last winter.`
+                            : player.prevScoutRank
+                              ? ', exactly where you were last winter.'
+                              : '.'}
+                        {ahead ? ` ${ahead.name} is the one directly in front of you.` : ''}
+                      </p>
+                      <div className="rounded-lg border border-[rgba(255,255,255,0.065)] overflow-hidden">
+                        {b.rows.map(r => (
+                          <div key={r.id}
+                               className={`flex items-center gap-2.5 px-3 py-1.5 border-b border-[rgba(255,255,255,0.04)] last:border-0 ${
+                                 r.me ? 'bg-[#38bdf8]/[0.12]' : ''}`}>
+                            <span className={`w-5 shrink-0 text-right text-[11px] font-black number-font ${
+                              r.me ? 'text-[#38bdf8]' : 'text-slate-600'}`}>{r.rank}</span>
+                            <span className="shrink-0 w-[22px] flex items-center justify-center">
+                              {r.flag
+                                ? <img src={r.flag} alt="" className="w-[18px] h-[13px] object-cover rounded-[1px]" />
+                                : <span className="w-[18px] h-[13px] rounded-[1px] bg-[#1a2230]" />}
+                            </span>
+                            <span className={`min-w-0 flex-1 truncate text-[12.5px] sm:text-[13px] ${
+                              r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>{r.name}</span>
+                            {/* The position is the first thing to go on a
+                                phone. A name truncated to "Con..." is not a
+                                name, and the whole point of this list is that
+                                he comes to know who these people are. */}
+                            <span className="hidden sm:block shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-500 w-8 text-right">{r.pos}</span>
+                            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-600 w-11 sm:w-14 text-right truncate">{r.league || ''}</span>
+                            <span className={`shrink-0 text-[11px] font-black number-font w-[52px] sm:w-16 text-right ${
+                              r.me ? 'text-[#38bdf8]' : 'text-slate-400'}`}>
+                              {r.sv != null ? r.sv.toFixed(3).replace('0.', '.')
+                                : r.pts != null ? `${r.pts} pts` : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </RecapRow>
                   );
                 })()}

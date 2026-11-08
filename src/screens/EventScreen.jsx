@@ -171,7 +171,27 @@ export default function EventScreen() {
                   }
               }
 
-              return { key: i, displayChoice, isPremiumChoice, isTradeChoice, isNCAAChoice, premiumTeamId, premiumLeague, isRival };
+              // WHAT IT COSTS, AND WHETHER HE HAS IT.
+              //
+              // A choice that spends money was selectable whatever the balance,
+              // so the experimental rehab could be taken for a hundred thousand
+              // by a junior who had never been paid, and the money simply went
+              // negative. The worst case across every branch is the price: a
+              // gamble that costs the same win or lose costs that either way.
+              const branches = [c.effect?.money, c.successEffect?.money, c.failEffect?.money]
+                  .filter(m => typeof m === 'number');
+              const cost = branches.length ? -Math.min(0, ...branches) : 0;
+
+              return { key: i, displayChoice, isPremiumChoice, isTradeChoice, isNCAAChoice, premiumTeamId, premiumLeague, isRival, cost };
+          });
+
+          // Nothing is ever priced out of reach if it would leave the player
+          // with no way forward: an event he cannot answer is a dead end, and
+          // some of these fire in the offseason with no other way out.
+          const bank = player.stats?.earnings || 0;
+          const affordable = prepared.filter(x => x.cost <= bank);
+          prepared.forEach(x => {
+              x.shortBy = affordable.length > 0 && x.cost > bank ? x.cost - bank : 0;
           });
 
           // Rivalry Night deliberately keeps its plain rows, so its three tactical
@@ -316,16 +336,19 @@ export default function EventScreen() {
           };
 
           // PLAIN ROW, everything that isn't a club offer keeps the full-width look.
-          const renderPlainRow = ({ key, displayChoice }) => (
+          const renderPlainRow = ({ key, displayChoice, shortBy }) => (
             <button
               key={key}
-              disabled={isProcessing}
+              disabled={isProcessing || shortBy > 0}
               onClick={() => fireChoice(displayChoice)}
-              className={`relative overflow-hidden group p-4 sm:p-5 rounded-xl text-left transition-all flex flex-col justify-center shadow-lg h-full bg-[#101410] hover:bg-[#1a2230] text-white border border-[rgba(255,255,255,0.065)] hover:border-[#3b82f6] ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`relative overflow-hidden group p-4 sm:p-5 rounded-xl text-left transition-all flex flex-col justify-center shadow-lg h-full border ${
+                shortBy > 0
+                  ? 'bg-[#0d100d] text-slate-500 border-[rgba(255,255,255,0.05)] cursor-not-allowed'
+                  : `bg-[#101410] hover:bg-[#1a2230] text-white border-[rgba(255,255,255,0.065)] hover:border-[#3b82f6] ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}`}
             >
               <div className="flex justify-between items-start w-full gap-4 relative z-10">
                  <div className="flex flex-col min-w-0">
-                     <span className="font-bold text-left leading-tight text-sm sm:text-base text-white">
+                     <span className={`font-bold text-left leading-tight text-sm sm:text-base ${shortBy > 0 ? 'text-slate-500' : 'text-white'}`}>
                          {displayChoice.label}
                      </span>
                      {displayChoice.subLabel && (
@@ -333,8 +356,16 @@ export default function EventScreen() {
                      )}
                  </div>
                  <div className="flex flex-col items-end gap-2 shrink-0">
-                   {!isRivalryNight && displayChoice.isDevBoost && <span className="bg-[#22E748]/10 text-[#22E748] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#22E748]/30">+DEV BOOST</span>}
-                   {displayChoice.isRisky && <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>}
+                   {shortBy > 0 ? (
+                     <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30 whitespace-nowrap">
+                       {formatMoney(shortBy)} short
+                     </span>
+                   ) : (
+                     <>
+                       {!isRivalryNight && displayChoice.isDevBoost && <span className="bg-[#22E748]/10 text-[#22E748] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#22E748]/30">+DEV BOOST</span>}
+                       {displayChoice.isRisky && <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>}
+                     </>
+                   )}
                  </div>
               </div>
 

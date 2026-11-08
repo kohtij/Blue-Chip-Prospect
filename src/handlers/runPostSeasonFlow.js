@@ -1,6 +1,7 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { getOpponentPool, getPrimaryRival } from '../data/teams';
+import { lastTitle } from '../utils/titles';
 import { eventDeck } from '../data/economy';
 import { getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
 import { selectPressQuestions } from '../data/pressQuestions';
@@ -215,11 +216,24 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // A fifty-year drought is not something you tell a player who lifted the
     // thing himself three seasons ago in this building.
     const wonHere = (player.seasonHistory || []).some(s => s.titleWon && s.team === currentTeam);
-    if (hometownStage === 0 && currentLg === 'NHL' && pOvr >= 78 && !wonHere && Math.random() < 0.12) {
+    // THIS CITY'S WAIT, NOT A STOCK ONE.
+    //
+    // Every club in the league was handed the same "50-year championship
+    // drought", whether it had won two seasons ago or never. The save now
+    // keeps a record of who won what and when, so the club in front of him
+    // has its own history, and a club that is not actually waiting for
+    // anything does not get the storyline at all.
+    const nowYear = 2026 + (player.stats?.seasonsPlayed || 0);
+    const drought = lastTitle(player.titleLedger, currentTeam, nowYear);
+    const realDrought = drought.never || (drought.gap ?? 0) >= 12;
+    const cityName = getFullTeamName(currentTeam, currentLg);
+    if (hometownStage === 0 && currentLg === 'NHL' && pOvr >= 78 && !wonHere && realDrought && Math.random() < 0.12) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 1 } }));
         setActiveEvent({
             title: '🏙️ THE SAVIOR ARRIVES',
-            desc: `The city has suffered a 50-year championship drought. The media and fans have immediately crowned you as their hometown savior. The expectations are astronomical, but the love is real.`,
+            desc: drought.never
+              ? `The ${cityName} have never won a championship, and the city has stopped pretending it does not think about it. The media and the fans have crowned you the man who ends that. The expectations are astronomical, but the love is real.`
+              : `The ${cityName} have not won since ${drought.year}, ${drought.gap} years of it now, and the city wears every one of them. The media and the fans have immediately crowned you their savior. The expectations are astronomical, but the love is real.`,
             choices: [
                 { label: 'Embrace the Pressure', subLabel: 'Publicly commit to winning a championship for this city.', isRisky: false, feedback: 'You told the press you are here to win a Cup. The city is ready to run through a brick wall for you.', effect: { fanStatus: 50, ovr: 1, money: 0 } },
                 { label: 'Downplay the Hype', subLabel: 'Manage expectations instead of making bold promises.', isRisky: true, successChance: 0.5, successFeedback: 'You successfully managed expectations, keeping the media calm while still impressing the fans.', successEffect: { fanStatus: 20, ovr: 0, rel: { media: 20 } }, failFeedback: 'The media accused you of lacking confidence. Not the heroic quote they wanted.', failEffect: { fanStatus: -15, ovr: 0, rel: { media: -20 } } }
@@ -275,7 +289,17 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
 
     // STAGE 1: THE HIT (Random 4% chance anytime after junior hockey)
     if (injuryStage === 0 && player.pos !== 'G' && currentLg !== 'NCAA' && pAge > 18 && Math.random() < 0.04) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 1 } }));
+        // Where and when it happened, because the comeback has to happen in
+        // the same world. Without these the revenge game could be served up
+        // three seasons later in a different country against an enforcer who
+        // has never been within a thousand miles of the player.
+        setPlayer(p => ({ ...p, storylines: {
+          ...p.storylines,
+          injury: 1,
+          injurySeason: p.stats?.seasonsPlayed || 0,
+          injuryLeague: currentLg,
+          injuryTeam: p.team
+        } }));
 
         // If the club qualified, the injury chains into a press box event instead of
         // dropping the player straight into the card minigames they cannot play.
@@ -360,7 +384,18 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
 
     // STAGE 3: THE COMEBACK / REVENGE
-    if (injuryStage === 2 && Math.random() < 0.5) {
+    //
+    // This used to be a coin flip with no deadline on it: lose the flip and
+    // the arc sat at stage two indefinitely, trying again every summer until
+    // it landed. The player could be three years and two leagues removed and
+    // still be told it was his first game back against the man who did it.
+    // The grudge now has a shelf life, and it has to be played out in the
+    // league it happened in. Miss the window and the arc simply closes.
+    const seasonsSince = (player.stats?.seasonsPlayed || 0) - (player.storylines?.injurySeason ?? -99);
+    const sameWorld = !player.storylines?.injuryLeague || player.storylines.injuryLeague === currentLg;
+    if (injuryStage === 2 && (seasonsSince > 2 || !sameWorld)) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 3 } }));
+    } else if (injuryStage === 2 && Math.random() < 0.5) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 3 } })); // Ends arc
         setActiveEvent({
             title: '🩸 BAD BLOOD',

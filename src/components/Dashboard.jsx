@@ -2,7 +2,7 @@ import { getTeamData, nationalities } from '../data/teams';
 import { careerTrophies, formatMoney, getActiveStat, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
-import { findRival, peerUnit, peerValue } from '../utils/peers';
+import { findRival, peerUnit, peerValue, scoutingBoard } from '../utils/peers';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 
@@ -163,6 +163,14 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const rival = findRival(player.peers, myCareerValue, isGoalie);
   const rivalValue = rival ? peerValue(rival, isGoalie) : 0;
   const compareUnit = peerUnit(isGoalie);
+
+  // Before the draft there are no careers to compare, so this panel showed
+  // nothing at all for the two or three seasons when the question "who else
+  // is in my year" is most on the player's mind. What exists then is the
+  // scouting board, which is the same comparison in the only currency a
+  // seventeen-year-old has: where he is ranked and who is next to him.
+  const undrafted = !player.draftTeam && !player.rights;
+  const board = undrafted ? scoutingBoard(player.peers, player, 3) : null;
 
   const earnings = player.stats?.earnings || 0;
 
@@ -496,7 +504,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
                     <p className="text-[10px] font-bold leading-snug mt-1.5 text-slate-500">
                       {atTop ? (
-                        <span className="text-[#F59E0B]">Nothing left to prove to them.</span>
+                        <span className="text-[#F59E0B]">Nothing left to prove.</span>
                       ) : gated ? (
                         <>
                           <span className="text-slate-300">You have the fans for {tier.nextLabel}. </span>
@@ -551,6 +559,33 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 Two named rows with a unit on each, rather than one shouting
                 line of capitals and a bare "549 v 549" that did not say
                 points, games or anything else. */}
+            {board?.myRank && (
+              <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)]">
+                <Heading>Your draft year</Heading>
+                <div className="flex items-baseline justify-between gap-2 py-[3px]">
+                  <span className="text-xs text-white font-bold truncate">Scouts have you</span>
+                  <span className="shrink-0 text-xs number-font">
+                    <span className="text-white font-black">{board.myRank}</span>
+                    <span className="text-[9px] font-bold text-slate-600 ml-1">OF {board.total}</span>
+                  </span>
+                </div>
+                {board.ahead && (
+                  <div className="flex items-baseline justify-between gap-2 py-[3px]">
+                    <span className="text-xs text-slate-400 font-medium truncate">{board.ahead.name}</span>
+                    <span className="shrink-0 text-xs number-font text-slate-300">
+                      <span className="font-bold">{board.ahead.rank}</span>
+                      <span className="text-[9px] font-bold text-slate-600 ml-1">{board.ahead.league || ''}</span>
+                    </span>
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                  {board.myRank === 1
+                    ? 'Nobody in your year is ranked above you.'
+                    : `${board.ahead?.name || 'The man above you'} is the one to pass.`}
+                </p>
+              </div>
+            )}
+
             {rival && rival.career.seasons > 1 && (
               <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)]">
                 <Heading>Your draft class</Heading>

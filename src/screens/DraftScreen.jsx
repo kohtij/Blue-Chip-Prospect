@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
+import { ordinal } from '../utils/gameHelpers';
 import { draftBoard, flagFor } from '../utils/peers';
 
 export default function DraftScreen() {
@@ -34,7 +35,9 @@ export default function DraftScreen() {
   // Drawn once. draftBoard puts noise on the scouting order, so recomputing
   // it on every render would reshuffle the room while the player read it.
   const [board] = useState(() =>
-    seasonRecap?.draftPick ? draftBoard(player.peers, seasonRecap.draftPick, player.name) : null);
+    seasonRecap?.draftPick
+      ? draftBoard(player.peers, seasonRecap.draftPick, player.name, 3, player.leagueState)
+      : null);
 
   return (
     <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#22E748] relative">
@@ -128,6 +131,22 @@ export default function DraftScreen() {
           name, and the club he is being taken out of. A Kitchener winger, a
           Michigan freshman and a kid out of Farjestad's J20 programme are
           three different prospects before anybody has seen them play. */}
+      {/* What the scouts had him at, which he has been reading every winter
+          since he was sixteen. Without this the board below is the first and
+          only time the ranking is mentioned, and the two or three seasons he
+          spent climbing it count for nothing on the night. */}
+      {player.scoutRank && seasonRecap?.draftPick && (
+        <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
+          The final board had you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> in
+          the class.{' '}
+          {seasonRecap.draftPick < player.scoutRank
+            ? `You went ${ordinal(seasonRecap.draftPick)}, ${player.scoutRank - seasonRecap.draftPick} spots higher than anybody had you.`
+            : seasonRecap.draftPick > player.scoutRank
+              ? `You went ${ordinal(seasonRecap.draftPick)}, and sat through ${seasonRecap.draftPick - player.scoutRank} picks you were not supposed to.`
+              : 'You went exactly where they said you would.'}
+        </p>
+      )}
+
       {board && (board.before.length > 0 || board.after.length > 0) && (
         <div className="max-w-xl mx-auto mb-10 text-left">
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 px-1">

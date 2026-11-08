@@ -10,6 +10,7 @@ import {
   cap, capFanStatus, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
 import { createDraftClass } from './utils/peers';
+import { recordTitle } from './utils/titles';
 import { withOfferPerks } from './data/offerPerks';
 import { projectDraftPick } from './utils/draftScouting';
 import { getStakes, applyStakesToReward } from './utils/stakes';
@@ -1028,8 +1029,14 @@ function App() {
         const seasonGoals = seasonRecap?.g || 0;
         const currentHigh = p.stats?.careerHighGoals || 0;
 
+        // Who won it, written into the save's own record of the league, so
+        // the hometown-savior storyline can say what a city has actually
+        // been waiting for instead of reciting "50 years" at everybody.
+        const champTeam = isCupWon ? playoffs.currentTeamId : champion;
+
         return { 
            ...p, seasonHistory: newHistory,
+           titleLedger: recordTitle(p.titleLedger, champTeam, Number(currentYearString)),
            stats: {
               ...p.stats, 
               titles: isCupWon && !alreadyAwarded ? (p.stats.titles || 0) + 1 : (p.stats.titles || 0),

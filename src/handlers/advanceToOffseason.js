@@ -519,7 +519,16 @@ export function advanceToOffseason(ctx) {
     // A player is draft eligible if they are 18 or older, but haven't aged out of amateur eligibility
     const isDraftEligibleAge = player.age >= 18 && player.age < amateurAgeOut && !isNcaaAgedOut;
 
-    if (isDraftEligibleAge && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
+    // A SIGNED PROFESSIONAL IS NOT IN THE DRAFT.
+    //
+    // A player whose club declined to sign him, who aged out of junior and
+    // then signed in the Slovak Extraliga, walked out of the signing screen
+    // and straight back into the draft, in the same summer, without having
+    // played a game. The gate only asked whether anybody held his rights,
+    // and nobody did any more, so a European league counted as an amateur
+    // route all over again. Having a professional contract now ends it.
+    if (isDraftEligibleAge && !hasSignedDeal
+        && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
       // 18-year-olds go to the Combine. Over-agers skip directly to the draft with a penalty.
       if (player.age === 18) {
           setScreen('combine');

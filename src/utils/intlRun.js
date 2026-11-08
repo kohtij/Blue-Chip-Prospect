@@ -88,21 +88,72 @@ function drawField(player, safeNationalities, division, count) {
 // names. It is its own thing: the club letter helps, but what the federation
 // is really picking is the man who has been here before and can play.
 function nationalLetter(player, nation) {
-  const tournaments = (player.seasonHistory || []).filter(s => s.intlData).length;
-  const clubLetter = player.isCaptain || player.isAlternate;
-  const standing = (player.ovr || 60) + (clubLetter ? 6 : 0) + tournaments * 3
-    + ((player.relationships?.teammates || 50) - 50) * 0.2;
+  const hist = player.seasonHistory || [];
+  const tournaments = hist.filter(s => s.intlData).length;
+
+  // WHAT A FEDERATION IS ACTUALLY PICKING.
+  //
+  // This was overall rating with three small bonuses bolted on, which meant a
+  // twenty-one-year-old in the AHL with a high rating could be handed the C
+  // for Canada. A national captaincy is a career, not a number: how long he
+  // has been coming, what he has won while he was there, whether his own club
+  // trusts him with a letter, how old he is, and whether he is playing at the
+  // level the rest of the room plays at.
+
+  // Medals already won in this sweater. A man with two golds does not have to
+  // argue for the job.
+  const medals = hist.reduce((n, s) => {
+    if (!s.intlData) return n;
+    const aw = (s.awards || []).join(' ');
+    if (aw.includes('Gold')) return n + 3;
+    if (aw.includes('Silver') || aw.includes('Bronze')) return n + 1;
+    return n;
+  }, 0);
+
+  // The room he plays in week to week. A national staff is choosing among men
+  // who are in the best league in the world; somebody in the minors is not in
+  // that conversation however he is rated.
+  const level = player.league === 'NHL' ? 10
+    : ['KHL', 'SHL', 'LIIGA', 'SWISS', 'CZECH'].includes(player.league) ? 4
+      : ['AHL', 'DEL', 'SLOVAK', 'ICEHL'].includes(player.league) ? -8
+        : -16;
+
+  // Twenty-five is young for this and thirty is not. It falls away again at
+  // the very end, when the letter tends to pass to somebody with years left.
+  const age = player.age || 24;
+  const maturity = age < 23 ? -14 : age < 25 ? -6 : age < 27 ? 0 : age < 35 ? 6 : 2;
+
+  const clubLetter = player.isCaptain ? 10 : player.isAlternate ? 5 : 0;
+  const profile = Math.min(8, Math.floor((player.fanStatus || 0) / 90));
+  const trusted = ((player.relationships?.teammates || 50) - 50) * 0.12;
+
+  const standing = (player.ovr || 60)
+    + clubLetter
+    + Math.min(6, tournaments) * 3
+    + Math.min(12, medals * 2)
+    + level
+    + maturity
+    + profile
+    + trusted;
 
   // A hockey nation does not hand its captaincy to a man who does not wear a
   // letter for his own club. Canada, Russia, Sweden and the rest pick from a
   // room full of NHL captains, and the C goes to one of them. A smaller
-  // federation is a different room: there, being the best player in it is
-  // the qualification, and plenty of those captains wear nothing at home.
+  // federation is a different room: there, being the best player in it is the
+  // qualification, and plenty of those captains wear nothing at home.
   const eliteNation = (nation?.iihfRank ?? 99) <= 7;
-  const canWearC = clubLetter || !eliteNation;
 
-  if (standing >= 104 && tournaments >= 3 && canWearC) return 'C';
-  if (standing >= 92 && tournaments >= 1) return 'A';
+  if (eliteNation) {
+    // Four hard conditions before the score is even consulted. Each of them
+    // is something every real captain of these countries has had.
+    const credentialled = player.isCaptain || (player.isAlternate && medals >= 3);
+    if (credentialled && tournaments >= 4 && age >= 26 && level >= 4 && standing >= 118) return 'C';
+    if ((clubLetter > 0 || medals >= 2) && tournaments >= 2 && age >= 23 && level >= 4 && standing >= 104) return 'A';
+    return null;
+  }
+
+  if (standing >= 102 && tournaments >= 3) return 'C';
+  if (standing >= 90 && tournaments >= 1) return 'A';
   return null;
 }
 

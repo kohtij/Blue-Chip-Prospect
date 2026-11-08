@@ -6,7 +6,7 @@ import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
 import { ageFactor, curvesFor, gaussianNoise, goalieAgeAdjust, paceOf, rateSeason, seasonForm, soften } from './production';
 import { advanceLeagueState, teamStrengthOf } from './leagueState';
-import { advancePeers, classNews, ensureClass, scoringBar } from './peers';
+import { advancePeers, classBestAt, classNews, ensureClass, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
 // shuffle: comparison sorts assume a consistent comparator, so elements drift
@@ -917,6 +917,26 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     }
   };
 
+  // WHERE THE SCOUTS HAVE HIM.
+  //
+  // A draft class the player never meets until the night he is picked is a
+  // list of strangers, and a list of strangers is not a draft. Scouts rank the
+  // whole year group every winter from the day the career starts, so by the
+  // time he walks into the room he has spent two or three seasons reading the
+  // same names and watching himself move among them. His own place on it is
+  // kept on the player so next summer's board can say which way he is going.
+  const undrafted = !p.rights && !p.draftTeam && (p.age + 1) <= 20;
+  const scoutBoard = undrafted
+    ? scoutingBoard(nextPeers, updatedPlayer, 8, {
+        pts: seasonTotal.g + seasonTotal.a, gp: seasonTotal.games,
+        saves: seasonTotal.saves, shots: seasonTotal.shots
+      })
+    : null;
+  if (scoutBoard) {
+    updatedPlayer.prevScoutRank = p.scoutRank ?? null;
+    updatedPlayer.scoutRank = scoutBoard.myRank;
+  }
+
   // The recap is the whole season: the totals add every stint, and stints keeps
   // the breakdown so the screen can say nine games here and fifty there.
   const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
@@ -925,10 +945,14 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     // Who won the scoring race and what it took, so the recap can say so
     // instead of leaving a fifty-goal season with nothing to measure it by.
     scoringBar: bar,
+    // A defenceman's and a goalie's version of the same thing, since the
+    // scoring title is neither of their jobs.
+    classBestAtPos: ['LD', 'RD', 'G'].includes(p.pos) ? classBestAt(nextPeers, playedLg, p.pos) : null,
     // And one line, most summers none, about the rest of the draft class.
     // Computed here rather than in the screen because it is a draw, and a
     // screen that redraws would roll it again every render.
     classNews: classNews(nextPeers, updatedPlayer),
+    scoutBoard,
     teamFactor: typeof options.teamFactor === 'number' ? options.teamFactor : randomTeamFactor };
 
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };

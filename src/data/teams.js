@@ -616,47 +616,47 @@ export const sphlTeams = [
 // 15. CZECH EXTRALIGA TEAMS
 // ==========================================
 export const czechTeams = [
-  { id: 'SPA', city: 'Prague', name: 'HC Sparta', bg: '#862633', color: '#FFB81C', rival: 'KOM' },
-  { id: 'TRI', city: 'Třinec', name: 'HC Oceláři', bg: '#C8102E', color: '#FFFFFF', rival: 'VIT' },
-  { id: 'PCE', city: 'Pardubice', name: 'HC Dynamo', bg: '#C8102E', color: '#FFFFFF', rival: 'MHK' },
-  { id: 'KOM', city: 'Brno', name: 'HC Kometa', bg: '#00205B', color: '#FFFFFF', rival: 'SPA' },
-  { id: 'VIT', city: 'Ostrava', name: 'HC Vítkovice', bg: '#00205B', color: '#88D0F6', rival: 'TRI' },
-  { id: 'LIB', city: 'Liberec', name: 'Bílí Tygři', bg: '#00205B', color: '#FFFFFF', rival: 'MBL' },
-  { id: 'MHK', city: 'Hradec Králové', name: 'Mountfield HK', bg: '#000000', color: '#C8102E', rival: 'PCE' },
-  { id: 'PLZ', city: 'Plzeň', name: 'HC Škoda', bg: '#00205B', color: '#FFFFFF', rival: 'KVA' }
+  { id: 'SPA', city: 'Prague', name: 'HC Sparta', bg: '#862633', color: '#FFB81C', rival: 'KOM', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/sparta_praha_hc.png' },
+  { id: 'TRI', city: 'Třinec', name: 'HC Oceláři', bg: '#C8102E', color: '#FFFFFF', rival: 'VIT', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/t%C5%99inec_hc_ocel%C3%A1%C5%99i.png' },
+  { id: 'PCE', city: 'Pardubice', name: 'HC Dynamo', bg: '#C8102E', color: '#FFFFFF', rival: 'MHK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/pardubice_hc_dynamo.png' },
+  { id: 'KOM', city: 'Brno', name: 'HC Kometa', bg: '#00205B', color: '#FFFFFF', rival: 'SPA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/brno_hc_kometa.png' },
+  { id: 'VIT', city: 'Ostrava', name: 'HC Vítkovice', bg: '#00205B', color: '#88D0F6', rival: 'TRI', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hc_v%C3%ADtkovice_ridera.png' },
+  { id: 'LIB', city: 'Liberec', name: 'Bílí Tygři', bg: '#00205B', color: '#FFFFFF', rival: 'MBL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/liberec_b%C3%ADl%C3%AD_tyg%C5%99i.png' },
+  { id: 'MHK', city: 'Hradec Králové', name: 'Mountfield HK', bg: '#000000', color: '#C8102E', rival: 'PCE', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/mountfield_hk.png' },
+  { id: 'PLZ', city: 'Plzeň', name: 'HC Škoda', bg: '#00205B', color: '#FFFFFF', rival: 'KVA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/plzen_hc_skoda.png' }
 ];
 
 // ==========================================
 // 16. SLOVAK EXTRALIGA TEAMS
 // ==========================================
 export const slovakTeams = [
-  { id: 'SLO', city: 'Bratislava', name: 'HC Slovan', bg: '#00205B', color: '#C8102E', rival: 'KOS' },
-  { id: 'KOS', city: 'Košice', name: 'HC Košice', bg: '#F26522', color: '#000000', rival: 'SLO' },
-  { id: 'ZVO', city: 'Zvolen', name: 'HKM Zvolen', bg: '#C8102E', color: '#00205B', rival: 'BBY' },
-  { id: 'POP', city: 'Poprad', name: 'HK Poprad', bg: '#00205B', color: '#FFFFFF', rival: 'SNV' },
-  { id: 'NIT', city: 'Nitra', name: 'HK Nitra', bg: '#00205B', color: '#FFFFFF', rival: 'NZA' },
-  { id: 'BBY', city: 'Banská Bystrica', name: 'HC 05', bg: '#C8102E', color: '#FFFFFF', rival: 'ZVO' },
-  { id: 'DUC', city: 'Michalovce', name: 'HK Dukla', bg: '#F26522', color: '#000000', rival: 'KOS' }
+  { id: 'SLO', city: 'Bratislava', name: 'HC Slovan', bg: '#00205B', color: '#C8102E', rival: 'KOS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/bratislava_hc_slovan.png' },
+  { id: 'KOS', city: 'Košice', name: 'HC Košice', bg: '#F26522', color: '#000000', rival: 'SLO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hc_kosice.png' },
+  { id: 'ZVO', city: 'Zvolen', name: 'HKM Zvolen', bg: '#C8102E', color: '#00205B', rival: 'BBY', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hkm_zvolen.png' },
+  { id: 'POP', city: 'Poprad', name: 'HK Poprad', bg: '#00205B', color: '#FFFFFF', rival: 'SNV', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hk_poprad.png' },
+  { id: 'NIT', city: 'Nitra', name: 'HK Nitra', bg: '#00205B', color: '#FFFFFF', rival: 'NZA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hk_nitra.png' },
+  { id: 'BBY', city: 'Banská Bystrica', name: 'HC 05', bg: '#C8102E', color: '#FFFFFF', rival: 'ZVO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/bansk%C3%A1_bystrica_hc_05.png' },
+  { id: 'DUC', city: 'Michalovce', name: 'HK Dukla', bg: '#F26522', color: '#000000', rival: 'KOS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/michalovce_hk_dukla_ingema.png' }
 ];
 
 // ==========================================
 // 17. DEL (GERMANY)
 // ==========================================
 export const delTeams = [
-  { id: 'BER', city: 'Berlin', name: 'Eisbären', bg: '#00205B', color: '#C8102E', rival: 'RBM' },
-  { id: 'RBM', city: 'München', name: 'Red Bull', bg: '#00205B', color: '#E32636', rival: 'BER' },
-  { id: 'MAN', city: 'Mannheim', name: 'Adler', bg: '#00205B', color: '#FFFFFF', rival: 'KOL' },
-  { id: 'KOL', city: 'Köln', name: 'Haie', bg: '#C8102E', color: '#000000', rival: 'DEG' },
-  { id: 'DEG', city: 'Düsseldorf', name: 'EG', bg: '#FFB81C', color: '#C8102E', rival: 'KOL' },
-  { id: 'ING', city: 'Ingolstadt', name: 'ERC', bg: '#00205B', color: '#FFFFFF', rival: 'AUG' },
-  { id: 'STR', city: 'Straubing', name: 'Tigers', bg: '#00205B', color: '#FFFFFF', rival: 'NUR' },
-  { id: 'WOL', city: 'Wolfsburg', name: 'Grizzlys', bg: '#F26522', color: '#000000', rival: 'BRE' },
-  { id: 'BRE', city: 'Bremerhaven', name: 'Pinguins', bg: '#C8102E', color: '#000000', rival: 'WOL' },
-  { id: 'NUR', city: 'Nürnberg', name: 'Ice Tigers', bg: '#C8102E', color: '#00205B', rival: 'STR' },
-  { id: 'AUG', city: 'Augsburg', name: 'Panther', bg: '#00471B', color: '#C8102E', rival: 'ING' },
-  { id: 'SWW', city: 'Schwenningen', name: 'Wild Wings', bg: '#00205B', color: '#FFFFFF', rival: 'MAN' },
-  { id: 'FRA', city: 'Frankfurt', name: 'Löwen', bg: '#F26522', color: '#000000', rival: 'MAN' },
-  { id: 'ISE', city: 'Iserlohn', name: 'Roosters', bg: '#00205B', color: '#FFFFFF', rival: 'DEG' }
+  { id: 'BER', city: 'Berlin', name: 'Eisbären', bg: '#00205B', color: '#C8102E', rival: 'RBM', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/berlin_eisb%C3%A4ren.png' },
+  { id: 'RBM', city: 'München', name: 'Red Bull', bg: '#00205B', color: '#E32636', rival: 'BER', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/m%C3%BCnchen_ehc_red_bull.png' },
+  { id: 'MAN', city: 'Mannheim', name: 'Adler', bg: '#00205B', color: '#FFFFFF', rival: 'KOL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/mannheim_adler.png' },
+  { id: 'KOL', city: 'Köln', name: 'Haie', bg: '#C8102E', color: '#000000', rival: 'DEG', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/k%C3%B6lner_haie.png' },
+  { id: 'DEG', city: 'Düsseldorf', name: 'EG', bg: '#FFB81C', color: '#C8102E', rival: 'KOL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/d%C3%BCsseldorfer_eg.png' },
+  { id: 'ING', city: 'Ingolstadt', name: 'ERC', bg: '#00205B', color: '#FFFFFF', rival: 'AUG', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/ingolstadt_erc.png' },
+  { id: 'STR', city: 'Straubing', name: 'Tigers', bg: '#00205B', color: '#FFFFFF', rival: 'NUR', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/straubing_tigers.png' },
+  { id: 'WOL', city: 'Wolfsburg', name: 'Grizzlys', bg: '#F26522', color: '#000000', rival: 'BRE', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/wolfsburg_grizzlys.png' },
+  { id: 'BRE', city: 'Bremerhaven', name: 'Pinguins', bg: '#C8102E', color: '#000000', rival: 'WOL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/fischtown_pinguins.png' },
+  { id: 'NUR', city: 'Nürnberg', name: 'Ice Tigers', bg: '#C8102E', color: '#00205B', rival: 'STR', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/n%C3%BCrnberg_ice_tigers.png' },
+  { id: 'AUG', city: 'Augsburg', name: 'Panther', bg: '#00471B', color: '#C8102E', rival: 'ING', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/augsburger_panther.png' },
+  { id: 'SWW', city: 'Schwenningen', name: 'Wild Wings', bg: '#00205B', color: '#FFFFFF', rival: 'MAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/schwenninger_wild_wings.png' },
+  { id: 'FRA', city: 'Frankfurt', name: 'Löwen', bg: '#F26522', color: '#000000', rival: 'MAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/frankfurt_l%C3%B6wen.png' },
+  { id: 'ISE', city: 'Iserlohn', name: 'Roosters', bg: '#00205B', color: '#FFFFFF', rival: 'DEG', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/iserlohn_roosters.png' }
 ];
 
 // ==========================================
