@@ -1,6 +1,7 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { formatMoney } from '../utils/gameHelpers';
+import { careerTrophies, formatMoney } from '../utils/gameHelpers';
+import { classTable, peerUnit, peerValue } from '../utils/peers';
 import { getAwardImage } from '../data/awards';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
@@ -138,6 +139,12 @@ export default function RetirementScreen() {
             }
 
             intlSeasons.push({
+                letter: season.intlData?.letter || null,
+                // The tournament rows read the same fields the club seasons
+                // do, so the C and A pills in the table are drawn by the one
+                // piece of markup rather than a second copy for INTL.
+                isCaptain: season.intlData?.letter === 'C',
+                isAlternate: season.intlData?.letter === 'A',
                 year: season.year,
                 tournamentName,
                 awards: intlAwards,
@@ -153,28 +160,68 @@ export default function RetirementScreen() {
             });
         }
 
-        // Group consecutive seasons for the SAME team into a chronological stint
-        if (!currentStint || currentStint.team !== season.team || currentStint.league !== season.league) {
-            if (currentStint) {
-                teamStints.push(currentStint);
-            }
-            currentStint = {
+        // A season is not always one club.
+        //
+        // This read season.team and nothing else, so a year with a deadline
+        // trade or a call-up was filed whole under whichever club the player
+        // finished it with, and the other one vanished from the career: no
+        // stint, no games, no row. A player traded twice could retire having
+        // apparently never played for the team he was traded from. The season's
+        // own stint list is what records the split, so walk that instead and
+        // treat each leg as its own piece of the career.
+        const legs = (Array.isArray(season.stints) && season.stints.length > 1)
+            ? season.stints.map(st => ({
+                team: st.team, league: st.league,
+                games: st.games || 0,
+                goals: st.g ?? st.goals ?? 0,
+                assists: st.a ?? st.assists ?? 0,
+                saves: st.saves || 0,
+                shots: st.shots || 0,
+                shutouts: st.sho ?? st.shutouts ?? 0,
+                plusMinus: st.pm ?? st.plusMinus ?? 0
+              }))
+            : [{
                 team: season.team, league: season.league,
-                startYear: season.year, endYear: season.year,
-                games: 0, goals: 0, assists: 0, saves: 0, shots: 0, shutouts: 0, plusMinus: 0,
-                seasons: []
-            };
-        }
+                games: season.games || 0, goals: season.goals || 0, assists: season.assists || 0,
+                saves: season.saves || 0, shots: season.shots || 0,
+                shutouts: season.shutouts || 0, plusMinus: season.plusMinus || 0
+              }];
 
-        currentStint.endYear = Math.max(currentStint.endYear, season.year);
-        currentStint.games += season.games || 0;
-        currentStint.goals += season.goals || 0;
-        currentStint.assists += season.assists || 0;
-        currentStint.saves += season.saves || 0;
-        currentStint.shots += season.shots || 0;
-        currentStint.shutouts += season.shutouts || 0;
-        currentStint.plusMinus += season.plusMinus || 0;
-        currentStint.seasons.push({ ...season, awards: clubAwards }); 
+        legs.forEach((leg, legIdx) => {
+            // Group consecutive seasons for the SAME team into a chronological stint
+            if (!currentStint || currentStint.team !== leg.team || currentStint.league !== leg.league) {
+                if (currentStint) {
+                    teamStints.push(currentStint);
+                }
+                currentStint = {
+                    team: leg.team, league: leg.league,
+                    startYear: season.year, endYear: season.year,
+                    games: 0, goals: 0, assists: 0, saves: 0, shots: 0, shutouts: 0, plusMinus: 0,
+                    seasons: []
+                };
+            }
+
+            currentStint.endYear = Math.max(currentStint.endYear, season.year);
+            currentStint.games += leg.games;
+            currentStint.goals += leg.goals;
+            currentStint.assists += leg.assists;
+            currentStint.saves += leg.saves;
+            currentStint.shots += leg.shots;
+            currentStint.shutouts += leg.shutouts;
+            currentStint.plusMinus += leg.plusMinus;
+
+            // The hardware and the letters belong to the year, so they are shown
+            // once, against the club he was with when the season ended.
+            const isLast = legIdx === legs.length - 1;
+            currentStint.seasons.push({
+                ...season,
+                ...leg,
+                titleWon: isLast ? season.titleWon : 0,
+                isCaptain: isLast ? season.isCaptain : false,
+                isAlternate: isLast ? season.isAlternate : false,
+                awards: isLast ? clubAwards : []
+            });
+        });
     });
 
     if (currentStint) {
@@ -182,7 +229,15 @@ export default function RetirementScreen() {
     }
     if (intlSeasons.length > 0) {
         const totalIntlGames = intlSeasons.reduce((sum, s) => sum + s.games, 0);
+        // Captaining your country is the kind of thing a career is remembered
+        // for, and it lived only on the tournament screen while the tournament
+        // was happening. The C outranks the A if he wore both.
+        const intlLetters = intlSeasons.map(ss => ss.letter).filter(Boolean);
+        const bestLetter = intlLetters.includes('C') ? 'C' : intlLetters.includes('A') ? 'A' : null;
+        const letterYears = intlSeasons.filter(ss => ss.letter === bestLetter).length;
         teamStints.push({
+            letter: bestLetter,
+            letterYears,
             team: player.nat || 'UNK',
             league: 'INTL',
             startYear: intlSeasons[0].year,
@@ -506,8 +561,26 @@ export default function RetirementScreen() {
                             <h4 className="text-base sm:text-lg font-black text-white sports-font leading-tight mb-0.5 break-words">
                               {stint.isNational ? `Team ${fullCountryName}` : getFullTeamName(stint.team, stint.league)}
                             </h4>
-                            <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate">
-                              {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.isNational ? 'International' : stint.league}
+                            {/* The letter used to be a third clause of the
+                                section line, in a colour nothing else on the
+                                line used, which is not how a club wears it. It
+                                is a pill now, the same pill the tournament rows
+                                carry, and it says how many tournaments he wore
+                                it for so the total is there while the stint is
+                                still folded shut. */}
+                            <p className="text-[10px] sm:text-xs text-slate-500 font-bold font-sans truncate flex items-center gap-1.5">
+                              <span className="truncate">
+                                {stint.startYear === stint.endYear ? stint.startYear : `${stint.startYear}–${stint.endYear}`} · {stint.isNational ? 'International' : stint.league}
+                              </span>
+                              {stint.isNational && stint.letter && (
+                                <span className={`shrink-0 text-[9px] font-black px-1.5 h-4 rounded uppercase tracking-widest inline-flex items-center justify-center leading-none shadow-sm ${
+                                  stint.letter === 'C'
+                                    ? 'bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444]'
+                                    : 'bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#3b82f6]'}`}>
+                                  {stint.letter === 'C' ? 'Captain' : 'Alternate'}
+                                  {stint.letterYears > 1 ? ` (${stint.letterYears} tournaments)` : ''}
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -542,6 +615,10 @@ export default function RetirementScreen() {
                                                    <span className="inline-block min-w-[105px] tabular-nums">
                                                        {season.league === 'INTL' ? season.tournamentName : `${season.year} / ${season.year + 1}`}
                                                    </span>
+                                                   {/* A year split between clubs still shows up once under
+                                                       each of them, which is the point. It used to carry a
+                                                       "1 of 2" badge saying so, and the two rows under two
+                                                       different clubs already say it. */}
                                                    {season.isCaptain && (
                                                        <span className="bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-[9px] font-black px-1.5 h-4 rounded uppercase tracking-widest inline-flex items-center justify-center leading-none shadow-sm min-w-[18px]">
                                                          C
@@ -656,6 +733,84 @@ export default function RetirementScreen() {
             )}
           </div>
 
+          {/* THE DRAFT CLASS.
+              A career used to end with its totals sitting next to nothing.
+              These are the players who came up with you, where they finished,
+              and where you finished among them. */}
+          {(() => {
+            // Goalies are ranked on shutouts. They used to be filtered out of
+            // the class entirely and saw no table at all.
+            const table = classTable(player.peers, 8, isGoalie);
+            if (!table.length) return null;
+            const mine = isGoalie
+              ? (player.stats?.nhl?.shutouts || 0)
+              : (player.stats?.nhl?.goals || 0) + (player.stats?.nhl?.assists || 0);
+            const mineGp = player.stats?.nhl?.games || 0;
+            const unit = peerUnit(isGoalie);
+            const myCups = (player.seasonHistory || []).filter(ss => ss.titleWon).length;
+            const myTrophies = careerTrophies(player).individual;
+            const rows = [
+              ...table.map(c => ({
+                name: c.name, nat: c.nat, pos: c.pos, gp: c.career.gp,
+                pts: peerValue(c, isGoalie), pick: c.pick, team: c.draftedBy,
+                cups: c.career.titles || 0, trophies: c.career.trophies || 0, me: false
+              })),
+              { name: player.name, nat: player.nat, pos: player.pos, gp: mineGp, pts: mine,
+                pick: player.draftPick, team: player.draftTeam,
+                cups: myCups, trophies: myTrophies, me: true }
+            ].sort((x, y) => y.pts - x.pts).slice(0, 9);
+
+            return (
+              <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)]">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 ml-2 font-sans">
+                  YOUR DRAFT CLASS
+                </h3>
+                {/* A header, because the purple number had nothing anywhere
+                    on the screen telling anyone what it was. */}
+                <div className="flex items-center gap-3 px-3 sm:px-4 pb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                  <span className="w-5 shrink-0" />
+                  <span className="flex-1">Player</span>
+                  <span className="w-20 text-right">Drafted</span>
+                  <span className="w-20 text-right">Cups / trophies</span>
+                  <span className="w-14 text-right">Games</span>
+                  <span className="w-20 text-right">{isGoalie ? 'Shutouts' : 'Points'}</span>
+                </div>
+                <div className="rounded-xl border border-[rgba(255,255,255,0.05)] overflow-hidden">
+                  {rows.map((r, i) => (
+                    <div
+                      key={`${r.name}-${i}`}
+                      className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 text-sm border-b border-[rgba(255,255,255,0.04)] last:border-0 ${
+                        r.me ? 'bg-[#22E748]/10' : 'bg-[#101410]'}`}
+                    >
+                      <span className="w-5 text-[10px] font-black number-font text-slate-600 shrink-0">{i + 1}</span>
+                      <span className={`flex-1 truncate font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                        {r.name}
+                      </span>
+                      {/* Where he was taken and by whom, which is the thing
+                          that makes this a draft class rather than a list. */}
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 shrink-0 w-20 text-right">
+                        {r.pick ? `#${r.pick} ${r.team || ''}` : ''}
+                      </span>
+                      {/* What they won while they were doing it. The class
+                          used to be ranked on one number with no sense of
+                          whether the man above you had four rings. */}
+                      <span className="shrink-0 w-20 text-right text-[10px] number-font">
+                        {r.cups > 0 && <span className="text-[#F59E0B] font-bold">{r.cups} cup{r.cups === 1 ? '' : 's'}</span>}
+                        {r.cups > 0 && r.trophies > 0 && <span className="text-slate-700"> · </span>}
+                        {r.trophies > 0 && <span className="text-[#c084fc] font-bold">{r.trophies}</span>}
+                        {r.cups === 0 && r.trophies === 0 && <span className="text-slate-700">None</span>}
+                      </span>
+                      <span className="text-[11px] number-font text-slate-500 shrink-0 w-14 text-right">{r.gp} GP</span>
+                      <span className={`font-black number-font shrink-0 w-20 text-right ${r.me ? 'text-[#22E748]' : 'text-white'}`}>
+                        {r.pts}<span className="text-[9px] font-bold text-slate-600 ml-1">{unit}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="text-center pt-4">
             <button 
               onClick={() => {
@@ -668,9 +823,11 @@ export default function RetirementScreen() {
                 const nhlShots = player.stats?.nhl?.shots || 0;
                 const svPct = nhlShots > 0 ? (nhlSaves / nhlShots).toFixed(3).replace('0.', '.') : '.000';
 
-                const totalIndividualAwards = Object.values(aggregatedAwards)
-                  .filter(aw => !aw.name.includes('All-Star') && !aw.name.includes('All-American') && !aw.name.includes('Team'))
-                  .reduce((sum, aw) => sum + aw.count, 0);
+                // One definition, shared with the dashboard's trophy cell,
+                // which used to count cups plus majors plus medals while this
+                // ran its own filter and produced a different number for the
+                // same career.
+                const totalIndividualAwards = careerTrophies(player).individual;
 
                 const newCareer = {
                   id: Date.now(), name: player.name, pos: player.pos, number: player.number,

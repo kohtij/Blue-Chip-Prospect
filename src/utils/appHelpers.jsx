@@ -68,7 +68,7 @@ export function getRole(salary, player) {
   return 'Bottom Six Grinder';
 }
 
-// Playoff format helpers — resolve per-round win threshold and deck length
+// Playoff format helpers, resolve per-round win threshold and deck length
 // from LEAGUE_CONFIG so the same code drives best-of-7 series and NCAA single-elim.
 export const getGamesPerMatchup = (league, roundIndex) => {
   const rounds = getPlayoffRounds(league) || [];
@@ -79,6 +79,10 @@ export const getWinsNeeded = (league, roundIndex) => {
   return Math.ceil(getGamesPerMatchup(league, roundIndex) / 2);
 };
 
+// Ability alone, which is not where a player is actually deployed: his
+// contract has a say and so does his coach. Kept for callers that only have a
+// rating to hand; anything showing a player his own line uses resolveRole in
+// gameHelpers, which is what the simulation reads.
 export const getDisplayDeployment = (ovr, pos, league) => {
   return getDeployment(ovr, pos, league);
 };
@@ -258,6 +262,8 @@ export const PRESS_JOURNALISTS = [
 const REGION_BY_LEAGUE = {
   NCAA: 'NCAA',
   OHL: 'JUNIOR', WHL: 'JUNIOR', QMJHL: 'JUNIOR', USHL: 'JUNIOR',
+  // The Nordic junior tiers are junior hockey, but covered from Europe.
+  J20: ['JUNIOR', 'EU'], U20: ['JUNIOR', 'EU'],
   SHL: 'EU', LIIGA: 'EU', KHL: 'EU', SWISS: 'EU', DEL: 'EU', ICEHL: 'EU', CZECH: 'EU', SLOVAK: 'EU'
 };
 
@@ -270,7 +276,7 @@ export const getJournalistsForLeague = (league) => {
    });
 };
 
-// Small pill for the retirement screen — one per award type, showing the
+// Small pill for the retirement screen, one per award type, showing the
 // award name, its trophy image, and how many times it was won.
 export const getAwardPill = (name, count) => {
   const gold = ['Stanley Cup', 'Hart', 'Vezina', 'Norris', 'Art Ross', 'Richard', 'Conn Smythe', 'Calder'];

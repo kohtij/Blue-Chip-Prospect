@@ -231,7 +231,7 @@ export const RUMOUR = {
   cool: [
     { label: 'MENTIONED IN PASSING', note: 'A selling club will listen on anyone, even the players it likes.' },
     { label: 'A LONG SHOT', note: "It would take a real offer, but the GM hasn't hung up on anybody." },
-    { label: 'BURIED IN THE REPORTS', note: 'You turn up on the long lists and nowhere else.' },
+    { label: 'BURIED IN THE REPORTS', note: 'Your name is on the lists nobody reads out on television.' },
     { label: 'WORTH A PHONE CALL', note: 'Somebody asked the question once. Nobody pushed it.' },
     { label: 'AN OUTSIDE CHANCE', note: 'Stranger things have happened in the last hour before a deadline.' }
   ],
@@ -271,4 +271,176 @@ export const ACTION = {
   // Nothing is being waited out in college. There is no deadline to survive,
   // only the rest of a season to go and play.
   program: ['CONTINUE THE SEASON', 'GET BACK TO WORK', 'KEEP PLAYING', 'FINISH THE YEAR']
+};
+
+// BEING TRADED.
+//
+// Every trade used to read the same two ways. A seller's deadline said the club
+// "cashed in on your value", a buyer's said "you were what the other side asked
+// for", and that was the whole range: the same sentence whether you were the
+// best player on the roster or the contract that balanced the money, whether
+// you had carried the team for three years or arrived in October.
+//
+// A trade is three facts, and a player learns them in this order: how the GM
+// told him, what the club got for him, and where he is going. Each one is drawn
+// from a pool keyed on how much he was actually worth to that club, so the
+// phone call a franchise player gets is not the phone call a fourth-liner gets.
+//
+// Two things the pools have to respect:
+//
+//   1. European clubs pay fees and do not trade draft picks, so the package
+//      lines split.
+//   2. A buyer is not selling you off, it is spending you. The player is the
+//      price of somebody else, which is a different conversation entirely.
+
+// What he was worth to the club he is leaving. Not his rating on its own: a
+// 70-rated kid having the best season of his life matters more to a dressing
+// room in March than an 84 who has been hurt since Christmas.
+export const tradeStanding = ({ elite, seasonTier, fanStatus = 0, games = 0 }) => {
+  const loved = fanStatus >= 300;
+  const carried = seasonTier === 'strong' && games >= 20;
+  if ((elite && (carried || loved)) || (carried && loved)) return 'prize';
+  if (elite || carried || fanStatus >= 150) return 'solid';
+  return 'piece';
+};
+
+const TRADE_CALL = {
+  // The club is out of the race and selling what it has.
+  selling: {
+    prize: [
+      "Your GM shut the door and said it before either of you had sat down. Nobody in the building wanted it to be you. The offer was too big to turn down anyway.",
+      "The GM had the look of a man who had been argued into something. You were the best thing this club had, and he traded you regardless.",
+      "He told you he had spent three days trying to find another way to do it, and that there wasn't one. Then he shook your hand."
+    ],
+    solid: [
+      "Your GM called you into the office and got to it quickly. The season was gone, and your name kept coming up on other people's lists.",
+      "He thanked you for the year first, which is how you knew what was coming second.",
+      "The call came with twenty minutes left on the clock. A short conversation about a big decision."
+    ],
+    piece: [
+      "Your GM called you in, glanced at a sheet of paper, and told you you had been moved.",
+      "It took two minutes. You were a line in somebody else's deal and the office made no attempt to pretend otherwise.",
+      "He got the name of your new club right and yours very slightly wrong."
+    ]
+  },
+  // The club is buying, and the player is part of what it is paying with.
+  buying: {
+    prize: [
+      "Your GM did the explaining for once. The club had a real chance this year, the player it wanted had a price, and you were most of that price.",
+      "He told you the other side had asked for you by name and would not do the deal without you. Then he said he was sorry, and meant it.",
+      "You were told you are the reason this club could do something this big. It was not much comfort, but he wasn't wrong."
+    ],
+    solid: [
+      "Your GM admitted the deal had been agreed since lunchtime and that he had been avoiding you since. The other side wouldn't sign it off without you in it.",
+      "He went through what is coming the other way before he mentioned what is going. You worked it out halfway through.",
+      "The club found the player it has been chasing since Christmas. Finding him meant giving something up, and that something is you."
+    ],
+    piece: [
+      "The trade needed one more contract to make the money balance, and yours was the one that fit.",
+      "Your GM called you in to say the deal was about somebody else entirely, and that you were going with it.",
+      "Nobody asked for you. The money asked for you."
+    ]
+  }
+};
+
+const TRADE_PACKAGE = {
+  selling: {
+    prize: [
+      'A first-round pick, their best prospect and a conditional second came back the other way. The room read the return and understood exactly what you had been worth.',
+      'The return was two picks and a kid everybody rates, and the local press spent the evening arguing about whether it was enough.',
+      'They got a first and change for you, which is the going rate and still felt light to everyone who had watched you play.'
+    ],
+    solid: [
+      'A second-round pick and a young defenceman came the other way.',
+      'The club got a pick and a prospect back, the sort of return nobody writes a column about.',
+      'Two mid-round picks. The GM called it good business, and it was.'
+    ],
+    piece: [
+      'The club got a fourth-round pick, and seemed pleased with it.',
+      'A late pick came back. The paperwork was longer than the conversation about it.',
+      'The return was a conditional pick that will probably never condition.'
+    ]
+  },
+  // Clubs here buy and sell players outright. A line about draft picks on a
+  // Skellefteå card has never made sense.
+  sellingEuro: {
+    prize: [
+      'The fee set a club record, and half the league had been on the phone about you since November.',
+      'They sold you for the kind of money this club does not normally see, and the board had been waiting for it.',
+      'The fee was large enough that nobody pretended this was a hockey decision.'
+    ],
+    solid: [
+      'There was a fee, and two players coming the other way to fill the hole.',
+      'The clubs agreed a fee and a loan back, which is how this league does business.',
+      'A decent fee, settled in an afternoon.'
+    ],
+    piece: [
+      'The fee barely covered the paperwork.',
+      'The money involved would not have bought the bus.',
+      'There was a fee. Nobody has said what it was and nobody has asked.'
+    ]
+  },
+  buying: {
+    prize: [
+      'Coming the other way is a name everybody in the league knows. You are the reason the deal could be done at all.',
+      'The club got the player it has wanted for two years. You are what that player cost.',
+      'The man arriving has his own trophy case. So does the GM who gave you up to get him.'
+    ],
+    solid: [
+      'A top-six forward is arriving, and you are most of what paid for him.',
+      'The club brought in the piece it was missing. You and a pick went out to get it.',
+      'Somebody who makes this team better is on a plane. So are you, in the other direction.'
+    ],
+    piece: [
+      'You were the salary that made the money work.',
+      'The deal was about a player who is not you. You went in the same envelope.',
+      'Your contract fit a hole in the cap, which is the entire reason this happened.'
+    ]
+  }
+};
+
+// How it landed outside the building. Only drawn when there is actually a
+// reaction to report: nobody phones a radio station about a fourth-line
+// contract changing hands in March.
+const TRADE_REACTION = {
+  prize: [
+    'The phone-in shows were still going at midnight.',
+    'Your jersey was in three shop windows that morning and out of all of them by the evening.',
+    'Two reporters were waiting in the car park before you had finished clearing out your stall.'
+  ],
+  solid: [
+    'The reaction was loud for an hour and then the league moved on.',
+    'A few hundred people said something kind on the internet, which is more than most players get.',
+    'Someone had made a sign about it by the next home game.'
+  ]
+};
+
+export const TRADE_TITLE = {
+  prize: ['THEY TRADED YOU', 'THE BIG ONE', 'YOU WERE THE DEAL'],
+  solid: ['YOU HAVE BEEN TRADED', 'A DEADLINE DEAL', 'THE CALL CAME'],
+  piece: ["YOU'RE ON THE MOVE", 'PART OF THE DEAL', 'A NAME IN THE PAPERWORK']
+};
+
+export const TRADE_FEEDBACK = [
+  'You packed your bags and joined your new club.',
+  'You were on a flight before the rink had emptied.',
+  'New room, new sweater, same job.',
+  'You reported the next morning and nobody made a fuss about it.'
+];
+
+// Builds the paragraph the trade event shows. `destLine` is the sentence
+// naming the new club, which the screen writes because only it can spell the
+// club's full name, and it is placed where a player would hear it: after the
+// call and the package, not before them.
+export const tradeStory = ({ standing, selling, euro, destLine, seed }) => {
+  const side = selling ? 'selling' : 'buying';
+  const packKey = selling && euro ? 'sellingEuro' : side;
+  const parts = [
+    pickFlavor(TRADE_CALL[side][standing], seed, 'tradeCall'),
+    destLine,
+    pickFlavor(TRADE_PACKAGE[packKey][standing], seed, 'tradePackage')
+  ];
+  const reaction = TRADE_REACTION[standing];
+  if (reaction) parts.push(pickFlavor(reaction, seed, 'tradeReaction'));
+  return parts.filter(Boolean).join(' ');
 };

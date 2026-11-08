@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../utils/appHelpers';
 import { cap, recomputeOvr } from '../utils/gameHelpers';
+import { statPillClass } from '../utils/statColors';
 
 // Your identity, chosen before your first game.
 //
@@ -149,7 +150,7 @@ export default function PreseasonScreen() {
                       <button
                         type="button"
                         key={t.id}
-                        // B1: Effort in training camp slightly bumps Front Office trust
+                        // B1: Effort in training camp slightly bumps the coach's trust
                         onClick={() => {
                             const bumped = (p) => ({
                                 ...p,
@@ -237,14 +238,12 @@ export default function PreseasonScreen() {
                                  if (stat === 'PHY') displayStat = 'POW';
                               }
 
-                              let colorCls = 'text-white bg-white/10 border-white/30';
-                              if (['PHY', 'POW', 'AGI'].includes(stat)) colorCls = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30';
-                              if (['SKT', 'POS'].includes(stat)) colorCls = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30';
-                              if (['SHT', 'REF'].includes(stat)) colorCls = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
-                              if (['IQ', 'MIND'].includes(stat)) colorCls = 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30';
-                              if (['STA', 'STM'].includes(stat)) colorCls = 'text-[#06b6d4] bg-[#06b6d4]/10 border-[#06b6d4]/30';
-                              if (stat === 'ALL') colorCls = 'text-white bg-white/20 border-white/60 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]';
-                              
+                              // The colour table used to live here, in this one
+                              // screen, which is why the same attribute came
+                              // out a different colour in the store. It is
+                              // shared now.
+                              const colorCls = statPillClass(stat);
+
                               return (
                                 <span
                                   key={idx}

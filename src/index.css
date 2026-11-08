@@ -480,3 +480,15 @@ button:focus-visible {
     transform: none;
   }
 }
+
+/* The point man tapping his stick while he loads a shot, in the net-front tip.
+   Each tap remounts this element, so the animation replays on the beat. */
+@keyframes bcp-tap {
+  0%   { transform: scale(0.35); opacity: 0.95; }
+  100% { transform: scale(1.5);  opacity: 0; }
+}
+.bcp-tap {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bcp-tap 260ms ease-out forwards;
+}

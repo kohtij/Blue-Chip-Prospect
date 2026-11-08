@@ -94,7 +94,7 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
             <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
               live ? 'text-[#F59E0B]' : 'text-slate-600'
             }`}>
-              {status === 'waiting' ? 'Setting it up' : live ? 'On its way' : '—'}
+              {status === 'waiting' ? 'Setting it up' : live ? 'On its way' : '--'}
             </span>
           }
         />

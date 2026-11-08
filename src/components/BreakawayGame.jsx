@@ -142,7 +142,7 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
             <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
               phase === 'deking' ? 'text-[#22E748]' : 'text-slate-600'
             }`}>
-              {phase === 'result' ? '—' : phase === 'deking' ? 'He has moved' : 'Closing'}
+              {phase === 'result' ? '--' : phase === 'deking' ? 'He has moved' : 'Closing'}
             </span>
           }
         />

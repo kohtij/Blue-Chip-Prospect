@@ -94,7 +94,7 @@ export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
             <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
               isOpen ? 'text-[#22E748]' : 'text-slate-600'
             }`}>
-              {phase === 'result' ? '—' : isOpen ? 'Lane open' : 'Checking'}
+              {phase === 'result' ? '--' : isOpen ? 'Lane open' : 'Checking'}
             </span>
           }
         />

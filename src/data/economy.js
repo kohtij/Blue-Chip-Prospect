@@ -1,27 +1,33 @@
 // --- ECONOMY & EVENTS ---
 
+// What you can spend career earnings on.
+//
+// The desc fields used to restate the numbers ("+2 STM. Faster recovery."),
+// which meant the store printed every effect twice once the rows got their own
+// effect chips. They now say what the thing actually is, and the chips carry
+// the numbers.
 export const shopItems = [
   // Affordable Fatigue & Training (Consumables)
-  { id: 'cryo', type: 'consumable', name: 'Cryotherapy Sessions', cost: 15000, desc: '+2 STM. Faster recovery.', duration: 1, effect: { stamina: 2 } },
-  { id: 'chef', type: 'consumable', name: 'Private Nutritionist', cost: 45000, desc: '+3 PHY. Elite diet plan.', duration: 2, effect: { physicality: 3 } },
-  { id: 'skills_camp', type: 'consumable', name: 'Off-Season Skills Camp', cost: 80000, descSkaters: '+3 SKT.', descGoalies: '+3 POS.', duration: 1, effect: { skating: 3 } },
-  { id: 'video_coach', type: 'consumable', name: 'Personal Video Coach', cost: 30000, desc: '+2 IQ. Study the tape.', duration: 1, effect: { hockeyIQ: 2 } },
-  
+  { id: 'cryo', type: 'consumable', name: 'Cryotherapy Sessions', cost: 15000, desc: 'Three minutes at minus 140 after every game. You stop feeling the back-to-backs.', duration: 1, effect: { stamina: 2 } },
+  { id: 'chef', type: 'consumable', name: 'Private Nutritionist', cost: 45000, desc: 'Every meal weighed and timed around the schedule. You carry weight you can use.', duration: 2, effect: { physicality: 3 } },
+  { id: 'skills_camp', type: 'consumable', name: 'Off-Season Skills Camp', cost: 80000, descSkaters: 'Six weeks of edge work with a skating coach who fixes what nobody told you was broken.', descGoalies: 'Six weeks rebuilding your depth and your push with a goalie coach who films everything.', duration: 1, effect: { skating: 3 } },
+  { id: 'video_coach', type: 'consumable', name: 'Personal Video Coach', cost: 30000, desc: 'Someone cuts your shifts every night and makes you watch the bad ones first.', duration: 1, effect: { hockeyIQ: 2 } },
+
   // Staff (Permanent but scaled down costs)
-  { id: 'physio', type: 'staff', name: 'Full-Time Physio', cost: 150000, desc: '+5 STM permanently. Injury prevention.', effect: { stamina: 5 } },
-  { id: 'psych', type: 'staff', name: 'Sports Psychologist', cost: 120000, desc: '+5 IQ permanently.', effect: { hockeyIQ: 5 } },
-  { id: 'agent', type: 'staff', name: 'Super Agent', cost: 250000, desc: 'Increases contract offers by 15%.', effect: { salaryModifier: 1.15 } },
-  { id: 'coach', type: 'staff', name: 'Elite Off-Season Trainer', cost: 400000, desc: 'Delays stat decline past age 30.', effect: { declineModifier: 0.5 } },
-  
+  { id: 'physio', type: 'staff', name: 'Full-Time Physio', cost: 150000, desc: 'Travels with you, treats you daily, and catches the small things before they become injuries.', effect: { stamina: 5 } },
+  { id: 'psych', type: 'staff', name: 'Sports Psychologist', cost: 120000, desc: 'The slumps get shorter when you have someone to take them apart with.', effect: { hockeyIQ: 5 } },
+  { id: 'agent', type: 'staff', name: 'Super Agent', cost: 250000, desc: 'He has the GMs on speed dial and he never takes the first offer.', effect: { salaryModifier: 1.15 } },
+  { id: 'coach', type: 'staff', name: 'Elite Off-Season Trainer', cost: 400000, desc: 'Keeps your thirties looking like your twenties for a few years longer than they should.', effect: { declineModifier: 0.5 } },
+
   // Luxury & Lifestyle (Fan Status Sinks)
-  { id: 'watch', type: 'luxury', name: 'Designer Watch', cost: 25000, desc: '+15 Fan Status', effect: { fanStatus: 15 } },
-  { id: 'sports_car', type: 'luxury', name: 'Custom Sports Car', cost: 180000, desc: '+100 Fan Status', effect: { fanStatus: 100 } },
-  { id: 'charity_gala', type: 'luxury', name: 'Host Charity Gala', cost: 75000, desc: 'Huge PR boost. +250 Fan Status', effect: { fanStatus: 250 } },
-  { id: 'hyperbaric', type: 'luxury', name: 'Hyperbaric Chamber', cost: 120000, desc: 'Ultimate recovery. Permanent +3 STM', effect: { stamina: 3 } },
-  
+  { id: 'watch', type: 'luxury', name: 'Designer Watch', cost: 25000, desc: 'It shows up in every arrival photo and the kids notice.', effect: { fanStatus: 15 } },
+  { id: 'sports_car', type: 'luxury', name: 'Custom Sports Car', cost: 180000, desc: 'Parked where the fans wait after games, which is half the point.', effect: { fanStatus: 100 } },
+  { id: 'charity_gala', type: 'luxury', name: 'Host Charity Gala', cost: 75000, desc: 'A black-tie night for the children\'s hospital. The city remembers who put it on.', effect: { fanStatus: 250 } },
+  { id: 'hyperbaric', type: 'luxury', name: 'Hyperbaric Chamber', cost: 120000, desc: 'An hour under pressure in your own basement, every day, for the rest of your career.', effect: { stamina: 3 } },
+
   // The "Millionaire" Legacy Tier
-  { id: 'penthouse', type: 'luxury', name: 'City Penthouse', cost: 2500000, desc: '+800 Fan Status', effect: { fanStatus: 800 } },
-  { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 8000000, desc: 'Legacy secured. +4 IQ, +1500 Fan Status', effect: { hockeyIQ: 4, fanStatus: 1500 } }
+  { id: 'penthouse', type: 'luxury', name: 'City Penthouse', cost: 2500000, desc: 'Top floor, downtown, walking distance from the rink. You are a resident now, not a rental.', effect: { fanStatus: 800 } },
+  { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 8000000, desc: 'You buy the club, sit in on the draft, and learn more about the game than you did playing it.', effect: { hockeyIQ: 4, fanStatus: 1500 } }
 ];
 
 export const skaterTrainingPool = [
@@ -201,7 +207,7 @@ export const eventDeck = [
     title: 'The Fired Agent', proOnly: true, minAge: 20,
     desc: 'Your agent just got caught in a massive illegal gambling scandal. The media is swarming, assuming you are involved.',
     choices: [
-      { label: 'Defend Him to the Press', subLabel: "Stake your own name on his innocence.", isRisky: true, successChance: 0.40, successFeedback: 'You cleared your name and loyalty paid off—he beat the charges and negotiated a massive endorsement for you as a thank you.', successEffect: { fanStatus: 20, ovr: 0, money: 80000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming. By defending him, your own reputation took a massive hit.', failEffect: { fanStatus: -50, ovr: 0, money: 0, rel: { media: -30 } } },
+      { label: 'Defend Him to the Press', subLabel: "Stake your own name on his innocence.", isRisky: true, successChance: 0.40, successFeedback: 'You cleared your name and loyalty paid off. He beat the charges, and negotiated a massive endorsement for you as a thank you.', successEffect: { fanStatus: 20, ovr: 0, money: 80000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming. By defending him, your own reputation took a massive hit.', failEffect: { fanStatus: -50, ovr: 0, money: 0, rel: { media: -30 } } },
       { label: 'Fire Him Immediately', subLabel: "Cut him loose before the story reaches you.", isRisky: false, feedback: 'You ruthlessly cut ties. It was cold, but it protected your brand.', effect: { fanStatus: 15, ovr: 0, money: 0, rel: { media: 15 } } }
     ]
   },

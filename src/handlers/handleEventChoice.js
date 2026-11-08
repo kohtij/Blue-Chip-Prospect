@@ -1,6 +1,6 @@
 import { capFanStatus, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
-import { getOpponentPool } from '../data/teams';
+import { getOpponentPool, JUNIOR_PARENT_LEAGUE } from '../data/teams';
 
 export function handleEventChoice(ctx, choice) {
   const { 
@@ -47,15 +47,11 @@ export function handleEventChoice(ctx, choice) {
   if (actionStr === 'VETERAN_EXTENSION') {
     updated.contract = { salary: 850000, years: 1 };
   } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
-    const euroLeague = Math.random() > 0.5 ? 'SHL' : 'LIIGA';
-    let pool = getOpponentPool(euroLeague) || [];
-    if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
-    const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
-    
-    updated.team = destTeam;
-    updated.league = euroLeague;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
-    updated.contract = { salary: 150000 + Math.floor(Math.random() * 200000), years: 1 + Math.floor(Math.random() * 2), role: 'Veteran Leader' };
+    // No club is chosen here any more. This used to roll one of two leagues and
+    // one of its teams and simply tell you where you had signed, which is the
+    // last decision of a career made for you. The deal is torn up instead, and
+    // the European market opens below so you pick the place yourself.
+    updated.contract = null;
   } else if (actionStr === 'SIGN_TWILIGHT_AHL') {
     let pool = getOpponentPool('AHL') || [];
     if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
@@ -82,6 +78,14 @@ export function handleEventChoice(ctx, choice) {
     updated.team = teamId; updated.league = lg;
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
     unlockAchievement('import_draft');
+  } else if (actionStr === 'NORDIC_STEP_UP') {
+    // Up from the club's junior side to its men's team. A first professional
+    // deal in Sweden or Finland is a modest one, and it is still a job.
+    const seniorId = choice.actionData;
+    updated.team = seniorId;
+    updated.league = JUNIOR_PARENT_LEAGUE[player.league] || 'SHL';
+    updated.contract = { salary: 120000, years: 2, role: getRole(120000, player) };
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), seniorId]));
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
     updated.contract = { salary: 925000, years: 3, role: getRole(925000, player) };
@@ -283,8 +287,28 @@ export function handleEventChoice(ctx, choice) {
 
   if (actionStr.includes('MINIGAME')) {
       triggerMinigame(minigameContext || 'season', choice.actionData);
-  } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
+  } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
+      // This used to be guarded on ctx.generateOffers being present, and it was
+      // not: the wrapper existed in App but had never been added to ctx. The
+      // guard failed silently, the choice fell through to the ordinary end of
+      // summer, and the player was left at his old club with his contract torn
+      // up and no market. If the market ever cannot be opened from here, hand
+      // the event on with the flag that routes it through the same market
+      // rather than dropping it.
       setActiveEvent(null);
+      if (ctx.generateOffers) {
+        ctx.generateOffers(false, finalPlayer.team, null, { europeOnly: true });
+      } else {
+        proceedToNextScreen({ ...activeEvent, euroMarket: true }, minigameContext, finalPlayer);
+      }
+  } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
+      // Same trap as the draft: these are summer beats, so the card handed out
+      // here has to be marked, or the offseason's own training beat offers a
+      // second one once the rest of the summer has played out.
+      setActiveEvent(null);
+      if (finalPlayer.offseason) {
+        setPlayer(p => ({ ...p, offseason: { ...p.offseason, trainingGiven: true } }));
+      }
       setScreen('preseason');
       if (generateTraining) generateTraining(finalPlayer.pos, finalPlayer);
   } else if (actionStr === 'ROUTE_ALL_STAR') {

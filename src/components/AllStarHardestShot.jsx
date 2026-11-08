@@ -92,7 +92,7 @@ export default function AllStarHardestShot({ onComplete, strategy }) {
       <EventHeader
         event="Hardest shot"
         buff={!!strategy}
-        readout={currentSpeed ? currentSpeed.toFixed(1) : bestSpeed ? bestSpeed.toFixed(1) : '—'}
+        readout={currentSpeed ? currentSpeed.toFixed(1) : bestSpeed ? bestSpeed.toFixed(1) : '--'}
         unit="mph"
         note={bestSpeed ? `Best of ${Math.min(attempts + 1, 3)}` : 'Three attempts, best one counts'}
       />

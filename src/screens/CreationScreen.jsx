@@ -9,6 +9,7 @@ export default function CreationScreen() {
   
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
+  const [showAllNations, setShowAllNations] = useState(false);
   const [isQuickStarting, setIsQuickStarting] = useState(false);
   
   // NEW: Minecraft-style random splash text for the rookie card badge
@@ -45,12 +46,18 @@ export default function CreationScreen() {
 
   // Where a sixteen-year-old of each nationality is actually playing. The CHL
   // entries for Europeans are the import route, hence the small shares.
+  // A sixteen-year-old is in junior hockey, wherever he is from. The Swedish and
+  // Finnish entries used to read SHL and LIIGA, which are men's professional
+  // leagues, so a Swedish prospect began his career in the top division at
+  // sixteen and never played a junior game. They start in J20 and U20 now, and
+  // the senior league is something they earn their way into.
   const START_LEAGUES = {
     CAN: [['OHL', 34], ['WHL', 30], ['QMJHL', 26], ['USHL', 10]],
     USA: [['USHL', 62], ['OHL', 16], ['WHL', 14], ['QMJHL', 8]],
-    SWE: [['SHL', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
-    FIN: [['LIIGA', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
-    DEFAULT: [['SHL', 34], ['LIIGA', 30], ['OHL', 14], ['WHL', 12], ['QMJHL', 10]]
+    SWE: [['J20', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
+    FIN: [['U20', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
+    DEN: [['J20', 55], ['U20', 10], ['OHL', 14], ['WHL', 11], ['QMJHL', 10]],
+    DEFAULT: [['J20', 34], ['U20', 30], ['OHL', 14], ['WHL', 12], ['QMJHL', 10]]
   };
 
   const weightedPick = (pairs) => {
@@ -58,6 +65,45 @@ export default function CreationScreen() {
     let roll = Math.random() * total;
     for (const [value, w] of pairs) { roll -= w; if (roll <= 0) return value; }
     return pairs[pairs.length - 1][0];
+  };
+
+  // The leagues a sixteen-year-old can start in, and which one is home for the
+  // nationality he has picked. Home comes from the same table Quick Start draws
+  // on, so the two agree about where a Finn actually plays.
+  const LEAGUE_OPTIONS = [
+    { id: 'OHL', label: 'OHL' },
+    { id: 'WHL', label: 'WHL' },
+    { id: 'QMJHL', label: 'QMJHL' },
+    { id: 'USHL', label: 'USHL' },
+    { id: 'J20', label: 'J20' },
+    { id: 'U20', label: 'U20' }
+  ];
+
+  const homeLeague = player.nat
+    ? (START_LEAGUES[player.nat] || START_LEAGUES.DEFAULT)[0][0]
+    : null;
+  const homeLabel = LEAGUE_OPTIONS.find(l => l.id === homeLeague)?.label || homeLeague;
+  const natName = (safeNationalities || []).find(n => n.id === player.nat)?.name || 'young';
+  const orderedLeagues = homeLeague
+    ? [...LEAGUE_OPTIONS].sort((a, b) => (b.id === homeLeague) - (a.id === homeLeague))
+    : LEAGUE_OPTIONS;
+
+  // Seven nations cover most of hockey; the other nineteen are a click away.
+  const tierOne = (safeNationalities || []).filter(n => n.tier === 1);
+  const restNations = (safeNationalities || []).filter(n => n.tier !== 1);
+  const visibleNations = showAllNations ? [...tierOne, ...restNations] : tierOne;
+
+  // Choosing where he is from moves him to that country's league, unless he has
+  // already said he wants to go elsewhere.
+  const pickNationality = (natId) => {
+    const nextHome = (START_LEAGUES[natId] || START_LEAGUES.DEFAULT)[0][0];
+    const stillDefault = !player.startLeague || player.startLeague === homeLeague;
+    setPlayer(p => ({
+      ...p,
+      nat: natId,
+      startLeague: stillDefault ? nextHome : p.startLeague,
+      team: null
+    }));
   };
 
   const handleQuickStart = () => {
@@ -74,7 +120,7 @@ export default function CreationScreen() {
   return (
           <div className="min-h-screen flex items-center justify-center p-6 text-white relative">
 
-            {/* LAYER 1: base radial ambient glow — dim green heartbeat at center,
+            {/* LAYER 1: base radial ambient glow, dim green heartbeat at center,
                 fading to deep black at the edges. Using fixed positioning ensures 
                 it covers the entire browser window seamlessly. */}
             <div
@@ -84,7 +130,7 @@ export default function CreationScreen() {
               }}
             />
 
-            {/* LAYER 2: spotlight cone from above — like arena rigging casting
+            {/* LAYER 2: spotlight cone from above, like arena rigging casting
                 a soft beam down onto the panel. */}
             <div
               className="fixed inset-0 pointer-events-none z-[-1]"
@@ -93,7 +139,7 @@ export default function CreationScreen() {
               }}
             />
 
-            {/* LAYER 3: vignette — darkens the outer corners so the eye is
+            {/* LAYER 3: vignette, darkens the outer corners so the eye is
                 drawn firmly to the center. */}
             <div
               className="absolute inset-0 pointer-events-none"
@@ -102,7 +148,7 @@ export default function CreationScreen() {
               }}
             />
 
-            {/* LAYER 4: faint rink-line pattern — abstract circles suggesting
+            {/* LAYER 4: faint rink-line pattern, abstract circles suggesting
                 a hockey rink's face-off circles, extremely low opacity. Sits
                 well behind everything else. */}
             <div
@@ -116,7 +162,7 @@ export default function CreationScreen() {
               }}
             />
 
-            {/* LAYER 5: drifting ice particles — 12 slow-rising specks with
+            {/* LAYER 5: drifting ice particles, 12 slow-rising specks with
                 staggered timings and positions. Pure CSS, no state, no
                 intervals, zero JS overhead. */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -263,7 +309,15 @@ export default function CreationScreen() {
               {!showManualSetup ? (
                  <div data-nosnippet className="flex flex-col sm:flex-row gap-3 mb-4 w-full">
                    <button 
-                     onClick={() => setShowManualSetup(true)} 
+                     onClick={() => {
+                       // Open on a valid combination rather than an empty one,
+                       // so the only thing that ever has to be touched here is
+                       // whatever the player actually wants to change.
+                       if (!player.nat) {
+                         setPlayer(p => ({ ...p, nat: 'CAN', startLeague: p.startLeague || 'OHL', team: null }));
+                       }
+                       setShowManualSetup(true);
+                     }} 
                      disabled={!player.name} 
                      className={`flex-1 py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all flex flex-col items-center justify-center gap-1.5 ${
                        !player.name 
@@ -294,78 +348,88 @@ export default function CreationScreen() {
                  </div>
               ) : (
                 <div data-nosnippet className="animate-fade-in">
-                  <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase">Select Junior League</h3>
+                  {/* Manual setup, reordered around the one fact that decides
+                      the rest of it.
+                      This used to be a league grid on top of twenty-six
+                      nationality flags laid out in four labelled tiers, all of
+                      them on screen at once, which made the panel twice as tall
+                      as the window and put the start button below the fold. It
+                      also asked for the league first and the nationality
+                      second, though where a sixteen-year-old plays follows from
+                      where he is from. So: nationality first, the seven that
+                      cover most careers in one row and the rest behind a
+                      toggle, then the leagues with his home one chosen already
+                      and marked. Nothing is lost; you can still put a Czech in
+                      the QMJHL. */}
+                  <div className="flex items-center justify-between mb-3">
+                     <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase">Where are you from</h3>
                      <button onClick={() => setShowManualSetup(false)} className="text-xs font-bold text-slate-500 hover:text-white uppercase cursor-pointer">Cancel</button>
                   </div>
-                  
-                  <div className="grid grid-cols-3 gap-3 mb-6 w-full">
-                    {[
-                      { id: 'OHL', label: 'OHL' },
-                      { id: 'WHL', label: 'WHL' },
-                      { id: 'QMJHL', label: 'QMJHL' },
-                      { id: 'USHL', label: 'USHL (USA)' },
-                      { id: 'SHL', label: 'SHL (SWE)' },
-                      { id: 'LIIGA', label: 'LIIGA (FIN)' }
-                    ].map(lg => (
+
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                    {visibleNations.map(n => (
                       <button
-                        key={lg.id}
-                        onClick={() => setPlayer({ ...player, startLeague: lg.id, team: null })}
-                        className={`p-2 sm:p-3 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
+                        key={n.id}
+                        onClick={() => pickNationality(n.id)}
+                        className={`pt-3 pb-1.5 px-1 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                          player.nat === n.id
+                            ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]'
+                            : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
+                        }`}
+                        title={n.name}
                       >
-                        <h3 className="text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</h3>
+                        <img src={n.img} alt={n.name} className="w-7 h-5 object-cover rounded-sm shadow-sm" />
+                        <span className={`text-[9px] font-bold font-sans uppercase tracking-widest ${player.nat === n.id ? 'text-[#22E748]' : 'text-slate-400'}`}>
+                          {n.id}
+                        </span>
                       </button>
                     ))}
                   </div>
 
-                  <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3 text-left">Select Nationality</h3>
-                  <div className="flex flex-col gap-4 mb-8">
-                    {[
-                      { tier: 1, title: 'TIER 1: SUPERPOWERS' },
-                      { tier: 2, title: 'TIER 2: CONTENDERS' },
-                      { tier: 3, title: 'TIER 3: TOP DIVISION' },
-                      { tier: 4, title: 'TIER 4: DEVELOPING' }
-                    ].map(group => {
-                      const tierNations = safeNationalities.filter(n => n.tier === group.tier);
-                      if (tierNations.length === 0) return null;
-                      
-                      return (
-                        <div key={group.tier}>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 text-left">
-                            {group.title}
-                          </p>
-                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                            {tierNations.map(n => (
-                              <button
-                                key={n.id}
-                                onClick={() => setPlayer({ ...player, nat: n.id })}
-                                // BUG 3 FIX: pt-5 & pb-1 visually pushes the flag perfectly to the center
-                                className={`pt-4 pb-2 px-2 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 ${
-                                  player.nat === n.id 
-                                    ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]' 
-                                    : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
-                                }`}
-                                title={n.name}
-                              >
-                                <img src={n.img} alt={n.name} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-                                <span className={`text-[9px] font-bold font-sans uppercase tracking-widest ${player.nat === n.id ? 'text-[#22E748]' : 'text-slate-400'}`}>
-                                  {n.id}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {restNations.length > 0 && (
+                    <button
+                      onClick={() => setShowAllNations(v => !v)}
+                      className="mt-2 text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest cursor-pointer"
+                    >
+                      {showAllNations ? 'Show fewer' : `+ ${restNations.length} more nations`}
+                    </button>
+                  )}
+
+                  <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mt-6 mb-1 text-left">Where you play now</h3>
+                  <p className="text-[10px] text-slate-500 font-sans mb-3 text-left">
+                    {homeLeague
+                      ? `Most sixteen-year-olds in ${natName} are in ${homeLabel}. Any of these will take you.`
+                      : 'Pick the league you start in.'}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2.5 mb-6 w-full">
+                    {orderedLeagues.map(lg => (
+                      <button
+                        key={lg.id}
+                        onClick={() => setPlayer({ ...player, startLeague: lg.id, team: null })}
+                        className={`relative py-2.5 px-2 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
+                      >
+                        <h3 className="text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</h3>
+                        {lg.id === homeLeague && (
+                          <span className="absolute top-1 right-1.5 text-[7px] font-black uppercase tracking-widest text-[#22E748]">Home</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
 
-                  <button 
-                    onClick={() => handleStart(false)} 
-                    disabled={!player.name} 
-                    className="w-full py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02] mb-4"
+                  <button
+                    onClick={() => handleStart(false)}
+                    disabled={!player.name}
+                    className={`w-full py-4 rounded-xl text-base sm:text-xl font-black sports-font tracking-widest transition-all mb-2 ${
+                      player.name
+                        ? 'bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] cursor-pointer hover:scale-[1.02]'
+                        : 'bg-[#101410] border border-slate-800 text-slate-600 cursor-not-allowed'
+                    }`}
                   >
                     LACE UP THE SKATES
                   </button>
+                  {!player.name && (
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-4">Give him a name first</p>
+                  )}
                 </div>
               )}
               

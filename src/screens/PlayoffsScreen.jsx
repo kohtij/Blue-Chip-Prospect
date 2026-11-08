@@ -235,7 +235,7 @@ export default function PlayoffsScreen() {
                 </p>
               </div>
 
-              {/* FLAVOR / RESULT TEXT — the slot reserves enough room for the
+              {/* FLAVOR / RESULT TEXT, the slot reserves enough room for the
                   longest result line to wrap, so the card grid below never shifts
                   when the text appears. Measured worst case is 39px on mobile and
                   46px from sm up; anything longer added later would bump again. */}

@@ -366,13 +366,46 @@ export default function RecapScreen() {
                 
                 {seasonRecap?.awards && seasonRecap.awards.length > 0 && (
                   <RecapRow accent="#F59E0B" label="🏆 Hardware secured" tint>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Array.from(new Set(seasonRecap.awards)).map(aw => (
-                        <span key={aw} className="text-[10px] sm:text-xs font-black tracking-widest uppercase px-2 py-1 rounded border leading-none text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30">
-                          {aw}
-                        </span>
-                      ))}
-                    </div>
+                    {/* The trophies were a row of outlined, tinted pills, which
+                        is a lot of chrome for what is a list of names. The row
+                        already has its own border and colour. */}
+                    <span className="text-[#F59E0B] font-bold">
+                      {Array.from(new Set(seasonRecap.awards)).join(' · ')}
+                    </span>
+                  </RecapRow>
+                )}
+
+                {/* The scoring race.
+                    A fifty-goal season used to arrive with nothing to measure
+                    it against, because the league had nobody else in it. Now
+                    the year has a leader, and some of the time he is a name
+                    you were drafted alongside. */}
+                {seasonRecap?.scoringBar && player.pos !== 'G' && (() => {
+                  const bar = seasonRecap.scoringBar;
+                  const mine = (seasonRecap.g || 0) + (seasonRecap.a || 0);
+                  const won = mine >= bar.total;
+                  const short = bar.total - mine;
+                  return (
+                    <RecapRow accent={won ? '#22E748' : '#64748b'} label={won ? '🥇 You led the league' : '📊 The scoring race'} tint={won}>
+                      {/* "The scoring title went with 129. You finished 75
+                          back on 54." The unnamed branch was written as if a
+                          name would be slotted in front of it and read as
+                          nonsense without one. Both branches are sentences
+                          now. */}
+                      {won
+                        ? `Nobody in the league put up more than your ${mine} points.`
+                        : bar.name
+                          ? `${bar.name} won the scoring title with ${bar.total} points. You finished on ${mine}, ${short} back.`
+                          : `It took ${bar.total} points to win the scoring title. You finished on ${mine} points, ${short} short.`}
+                    </RecapRow>
+                  );
+                })()}
+
+                {/* The rest of your draft class, when there is anything to
+                    say. Most summers there is not. */}
+                {seasonRecap?.classNews && (
+                  <RecapRow accent="#c084fc" label="🏒 Your draft class">
+                    {seasonRecap.classNews.line}
                   </RecapRow>
                 )}
 

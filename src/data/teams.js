@@ -11,6 +11,10 @@ export const leagueLogos = {
   USHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d7/USHL_logo.svg/250px-USHL_logo.svg.png',
   NCAA: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/250px-NCAA_logo.svg.png',
   SHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Swedish_Hockey_League_logo.svg/250px-Swedish_Hockey_League_logo.svg.png',
+  // The junior tiers run under their federations' own marks; the senior league
+  // crest stands in, the same way the league label carries the distinction.
+  J20: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Swedish_Hockey_League_logo.svg/250px-Swedish_Hockey_League_logo.svg.png',
+  U20: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png',
   LIIGA: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png',
   KHL: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/kontinental_hockey_league.png',
   SWISS: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/national_league.png',
@@ -32,6 +36,11 @@ export const LEAGUE_CONFIG = {
   USHL:  { name: 'United States Hockey League',      games: 62, playoffSpots: 8,  logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'ushl-8' },
   NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
   SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 8,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  // No playoff in the junior tiers: a season there is a development year and
+  // ends with the regular season. playoffSpots 0 is what says so, because a
+  // finish is only a playoff finish when it is inside the spots.
+  J20:   { name: 'J20 Nationell',                    games: 44, playoffSpots: 0,  logo: leagueLogos.J20,   conferences: [],              divisions: [], playoffFormat: null },
+  U20:   { name: 'U20 SM-sarja',                     games: 44, playoffSpots: 0,  logo: leagueLogos.U20,   conferences: [],              divisions: [], playoffFormat: null },
   LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 8,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
   SWISS: { name: 'National League',                  games: 52, playoffSpots: 10, logo: leagueLogos.SWISS, conferences: [],              divisions: [], playoffFormat: 'shl-10' },
@@ -43,7 +52,14 @@ export const LEAGUE_CONFIG = {
   SLOVAK: { name: 'Slovak Extraliga',                games: 50, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [],             divisions: [], playoffFormat: 'shl-10' }
 };
 
-export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL'];
+// The Nordic junior tiers belong here and not in euroLeagues: they are where a
+// sixteen-year-old plays, so everything that treats a junior league as a junior
+// league, the slide rule, aging out, amateur graduation, the import draft,
+// applies to them the same way it does to the CHL.
+export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'];
+export const nordicJuniorLeagues = ['J20', 'U20'];
+// Which senior league a junior tier feeds, for a call-up to the men's side.
+export const JUNIOR_PARENT_LEAGUE = { J20: 'SHL', U20: 'LIIGA' };
 // Added DEL and ICEHL to professional Euro loop
 export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
 
@@ -432,6 +448,62 @@ export const liigaTeams = [
 ];
 
 // ==========================================
+// 9b. NORDIC JUNIOR TEAMS (J20 NATIONELL, U20 SM-SARJA)
+// ==========================================
+// J20 Nationell, the Swedish under-twenty league.
+//
+// These were derived from the fourteen SHL clubs with the men's crest and the
+// men's name, which got the idea across and not much else: five of the clubs a
+// Swedish junior actually plays against have no men's team in this game at all,
+// and every badge on screen was the senior one. These are the real clubs with
+// their own J20 crests. seniorId is the men's side to be called up to, and null
+// where the club has none, which is a real thing: a Djurgården junior who turns
+// professional signs somewhere else.
+export const j20Teams = [
+  { id: 'LHF-J20', city: 'Luleå', name: 'HF J20', bg: '#C8102E', color: '#FFB81C', rival: 'SAIK-J20', seniorId: 'LHF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/lule%C3%A5_hf_j20.png' },
+  { id: 'SAIK-J20', city: 'Skellefteå', name: 'AIK J20', bg: '#000000', color: '#FFB81C', rival: 'LHF-J20', seniorId: 'SAIK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/skellefte%C3%A5_aik_j20.png' },
+  { id: 'FBK-J20', city: 'Färjestad', name: 'BK J20', bg: '#00471B', color: '#FFB81C', rival: 'FHC-J20', seniorId: 'FBK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/f%C3%A4rjestads_bk_j20.png' },
+  { id: 'FHC-J20', city: 'Frölunda', name: 'HC J20', bg: '#C8102E', color: '#00471B', rival: 'FBK-J20', seniorId: 'FHC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/fr%C3%B6lunda_hc_j20.png' },
+  { id: 'VHK-J20', city: 'Växjö', name: 'Lakers J20', bg: '#00205B', color: '#F26522', rival: 'RBK-J20', seniorId: 'VHK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/v%C3%A4xj%C3%B6_lakers_hc_j20.png' },
+  { id: 'RBK-J20', city: 'Rögle', name: 'BK J20', bg: '#00471B', color: '#FFFFFF', rival: 'MIF-J20', seniorId: 'RBK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/r%C3%B6gle_bk_j20.png' },
+  { id: 'LIF-J20', city: 'Leksands', name: 'IF J20', bg: '#00205B', color: '#FFFFFF', rival: 'MORA-J20', seniorId: 'LIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/leksands_if_j20.png' },
+  { id: 'MIF-J20', city: 'Malmö', name: 'Redhawks J20', bg: '#000000', color: '#C8102E', rival: 'RBK-J20', seniorId: 'MIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/if_malm%C3%B6_redhawks_j20.png' },
+  { id: 'LHC-J20', city: 'Linköping', name: 'HC J20', bg: '#00205B', color: '#C8102E', rival: 'HV71-J20', seniorId: 'LHC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/link%C3%B6ping_hc_j20.png' },
+  { id: 'OHK-J20', city: 'Örebro', name: 'HK J20', bg: '#C8102E', color: '#000000', rival: 'TIK-J20', seniorId: 'OHK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/%C3%B6rebro_hk_j20.png' },
+  { id: 'TIK-J20', city: 'Timrå', name: 'IK J20', bg: '#C8102E', color: '#FFFFFF', rival: 'OHK-J20', seniorId: 'TIK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/timr%C3%A5_ik_j20.png' },
+  { id: 'HV71-J20', city: 'HV71', name: 'Jönköping J20', bg: '#00205B', color: '#FFB81C', rival: 'LHC-J20', seniorId: 'HV71', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hv71_j20.png' },
+  { id: 'BIF-J20', city: 'Brynäs', name: 'IF J20', bg: '#000000', color: '#C8102E', rival: 'LIF-J20', seniorId: 'BIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/bryn%C3%A4s_if_j20.png' },
+  { id: 'MODO-J20', city: 'MoDo', name: 'Hockey J20', bg: '#C8102E', color: '#00471B', rival: 'BJL-J20', seniorId: 'MODO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/modo_hockey_j20.png' },
+  { id: 'DIF-J20', city: 'Djurgårdens', name: 'IF J20', bg: '#002E5F', color: '#D2232A', rival: 'AIK-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/djurg%C3%A5rdens_if_j20.png' },
+  { id: 'AIK-J20', city: 'AIK', name: 'Stockholm J20', bg: '#000000', color: '#FFDA00', rival: 'DIF-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/aik_j20.png' },
+  { id: 'SSK-J20', city: 'Södertälje', name: 'SK J20', bg: '#C8102E', color: '#FFFFFF', rival: 'DIF-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/s%C3%B6dert%C3%A4lje_sk_j20.png' },
+  { id: 'MORA-J20', city: 'Mora', name: 'IK J20', bg: '#C8102E', color: '#000000', rival: 'LIF-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/mora_ik_j20.png' },
+  { id: 'BJL-J20', city: 'Björklöven', name: 'Umeå J20', bg: '#00693E', color: '#FFB81C', rival: 'MODO-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/if_bj%C3%B6rkl%C3%B6ven_j20.png' }
+];
+
+// U20 SM-sarja, the Finnish under-twenty league. Finland calls these the
+// A-juniors and the crest pack files them that way.
+export const u20Teams = [
+  { id: 'TAP-U20', city: 'Tappara', name: 'Tampere U20', bg: '#00205B', color: '#F26522', rival: 'ILK-U20', seniorId: 'TAP', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/tampere_tappara_a.png' },
+  { id: 'ILK-U20', city: 'Ilves', name: 'Tampere U20', bg: '#00471B', color: '#FFB81C', rival: 'TAP-U20', seniorId: 'ILK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/tampere_ilves_a.png' },
+  { id: 'HIFK-U20', city: 'HIFK', name: 'Helsinki U20', bg: '#C8102E', color: '#00205B', rival: 'JOK-U20', seniorId: 'HIFK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/helsinki_hifk_a.png' },
+  { id: 'KAR-U20', city: 'Kärpät', name: 'Oulu U20', bg: '#000000', color: '#FFB81C', rival: 'TAP-U20', seniorId: 'KAR', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/oulu_k%C3%A4rp%C3%A4t_a.png' },
+  { id: 'TPS-U20', city: 'TPS', name: 'Turku U20', bg: '#000000', color: '#FFFFFF', rival: 'HIFK-U20', seniorId: 'TPS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/turku_tps_a.png' },
+  { id: 'LUK-U20', city: 'Lukko', name: 'Rauma U20', bg: '#00205B', color: '#FFB81C', rival: 'TPS-U20', seniorId: 'LUK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/rauma_lukko_a.png' },
+  { id: 'KAL-U20', city: 'KalPa', name: 'Kuopio U20', bg: '#FFB81C', color: '#000000', rival: 'JYP-U20', seniorId: 'KAL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/kuopio_kalpa_a.png' },
+  { id: 'PEL-U20', city: 'Pelicans', name: 'Lahti U20', bg: '#00205B', color: '#F26522', rival: 'HIFK-U20', seniorId: 'PEL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/lahti_pelicans_a.png' },
+  { id: 'KOO-U20', city: 'KooKoo', name: 'Kouvola U20', bg: '#000000', color: '#F26522', rival: 'PEL-U20', seniorId: 'KOO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/kouvola_kookoo_a.png' },
+  { id: 'HPK-U20', city: 'HPK', name: 'Hämeenlinna U20', bg: '#F26522', color: '#00205B', rival: 'TAP-U20', seniorId: 'HPK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/h%C3%A4meenlinna_hpk_a.png' },
+  { id: 'JYP-U20', city: 'JYP', name: 'Jyväskylä U20', bg: '#C8102E', color: '#000000', rival: 'KAL-U20', seniorId: 'JYP', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/jyv%C3%A4skyl%C3%A4_jyp_a.png' },
+  { id: 'SAI-U20', city: 'SaiPa', name: 'Lappeenranta U20', bg: '#FFB81C', color: '#000000', rival: 'KOO-U20', seniorId: 'SAI', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/lappeenranta_saipa_a.png' },
+  { id: 'JUK-U20', city: 'Jukurit', name: 'Mikkeli U20', bg: '#00205B', color: '#FFB81C', rival: 'KAL-U20', seniorId: 'JUK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/mikkeli_jukurit_a.png' },
+  { id: 'SPO-U20', city: 'Sport', name: 'Vaasa U20', bg: '#C8102E', color: '#FFB81C', rival: 'KAR-U20', seniorId: 'SPO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/vaasa_sport_a.png' },
+  { id: 'AKH-U20', city: 'Kiekko-Espoo', name: 'Espoo U20', bg: '#00205B', color: '#FFB81C', rival: 'HIFK-U20', seniorId: 'AKH', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/kiekko-espoo_a.png' },
+  { id: 'JOK-U20', city: 'Jokerit', name: 'Helsinki U20', bg: '#003E7E', color: '#FFFFFF', rival: 'HIFK-U20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/helsinki_jokerit_a.png' },
+  { id: 'ASS-U20', city: 'Ässät', name: 'Pori U20', bg: '#C8102E', color: '#000000', rival: 'TPS-U20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/pori_%C3%A4ss%C3%A4t_a.png' }
+];
+
+// ==========================================
 // 10. ECHL TEAMS
 // ==========================================
 export const echlTeams = [
@@ -647,6 +719,8 @@ export const getOpponentPool = (league) => {
     case 'NCAA': return ncaaTeams;
     case 'SHL': return shlTeams;
     case 'LIIGA': return liigaTeams;
+    case 'J20': return j20Teams;
+    case 'U20': return u20Teams;
     case 'KHL': return khlTeams;
     case 'SWISS': return swissTeams;
     case 'DEL': return delTeams;

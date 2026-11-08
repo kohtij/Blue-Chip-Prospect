@@ -6,7 +6,7 @@ import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTra
 import { handleTransferPortal as _handleTransferPortal } from '../handlers/handleTransferPortal';
 import { hasProContract as _hasProContract } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
-import { ACTION, CONTRACT, EURO_LEAGUES, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, pickFlavor } from '../data/deadlineFlavor';
+import { ACTION, CONTRACT, EURO_LEAGUES, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, TRADE_FEEDBACK, TRADE_TITLE, pickFlavor, tradeStanding, tradeStory } from '../data/deadlineFlavor';
 
 export default function TradeDeadlineScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -190,28 +190,49 @@ export default function TradeDeadlineScreen() {
                     let targetLg = tradeLg;
                     // A seller cashing in and a buyer paying a price are not the same
                     // phone call, and the old copy assumed you were always the asset
-                    // being sold even when your club was first in the league.
-                    let eventDesc = isSelling
-                      ? `Just as the deadline was expiring, your GM called you into the office. You've been traded. With the season gone they cashed in on your value and shipped you to the **${getFullTeamName(destTeam.id, tradeLg)}**.`
-                      : `Just as the deadline was expiring, your GM called you into the office. You've been traded. The club went out and got the piece it wanted for a run, and you were what the other side asked for. You are off to the **${getFullTeamName(destTeam.id, tradeLg)}**.`;
-                    let feedback = `You packed your bags and joined your new squad.`;
+                    // being sold even when your club was first in the league. It also
+                    // read identically whether you were the best player on the roster
+                    // or the contract that made the money balance, which is the one
+                    // thing a traded player cares about. tradeStanding works out which
+                    // of the three you were and the story is drawn to match.
+                    const assetTier = tradeStanding({
+                      elite: isElite,
+                      seasonTier,
+                      fanStatus: player.fanStatus || 0,
+                      games: gp
+                    });
+                    let eventDesc = tradeStory({
+                      standing: assetTier,
+                      selling: isSelling,
+                      euro: EURO_LEAGUES.includes(tradeLg),
+                      // The destination's position used to be bolted on to the end of
+                      // the paragraph, after everything else had been said. It belongs
+                      // with the name of the club, which is the sentence a player
+                      // actually listens for.
+                      destLine: `You are off to the **${getFullTeamName(destTeam.id, tradeLg)}**, who sit **#${destStandings}** and in a playoff spot.`,
+                      seed: `${seed}|trade|${destTeam.id}`
+                    });
+                    let eventTitle = pickFlavor(TRADE_TITLE[assetTier], `${seed}|${destTeam.id}`, 'tradeTitle');
+                    let feedback = pickFlavor(TRADE_FEEDBACK, `${seed}|${destTeam.id}`, 'tradeFeedback');
 
                     if (isAHL && destTeam.ahlId) {
                         const ahlName = getFullTeamName(destTeam.ahlId, 'AHL');
                         targetTeamObj = { id: destTeam.ahlId, name: ahlName };
                         targetLg = 'AHL';
-                        eventDesc = `Your NHL parent club decided to cash in on your value and shipped your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have immediately been assigned to their AHL affiliate, the **${ahlName}**.`;
+                        eventDesc = `Your NHL parent club decided to cash in on your value and shipped your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have immediately been assigned to their AHL affiliate, the **${ahlName}**. The parent club sits **#${destStandings}** and in a playoff spot, which is somebody else's good news for now.`;
+                        eventTitle = 'YOUR RIGHTS HAVE MOVED';
                         feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
                     }
-
-                    // The destination's outlook is generated above but was never shown anywhere,
-                    // so the player reacted to a trade with no idea what they were walking into.
-                    eventDesc += ` They sit **#${destStandings}** in the standings, firmly in a playoff spot.`;
 
                     if (player.contract?.nmc) {
                         setActiveEvent({
                            title: 'WAIVE YOUR NMC?',
-                           desc: `Your GM called you in. The team is struggling, and they have a massive trade package lined up from the **${getFullTeamName(destTeam.id, tradeLg)}**. You hold a No-Movement Clause. Will you waive it?`,
+                           // The club is not always struggling. A contender asking a
+                           // player to waive a clause is asking him to be the price of
+                           // somebody else's arrival, which is a different question.
+                           desc: isSelling
+                             ? `Your GM called you in. The season is gone and the **${getFullTeamName(destTeam.id, tradeLg)}** have put a package on the table he cannot ignore. You hold a No-Movement Clause. Will you waive it?`
+                             : `Your GM called you in. The club has a deal agreed with the **${getFullTeamName(destTeam.id, tradeLg)}** for the player it has been chasing all year, and you are what they want back. You hold a No-Movement Clause. Will you waive it?`,
                            choices: [
                               // showTeamCard gives this the full team card (logo, rank, perks and
                               // flaws) so the destination can be judged before waiving the clause.
@@ -222,7 +243,7 @@ export default function TradeDeadlineScreen() {
                         });
                     } else {
                         setActiveEvent({
-                           title: '11TH HOUR BLOCKBUSTER!',
+                           title: eventTitle,
                            desc: eventDesc,
                            choices: [
                               // No showTeamCard here on purpose: the trade has already happened and
@@ -324,27 +345,31 @@ export default function TradeDeadlineScreen() {
               ? 'bg-[#ef4444]/[0.07] border-[#ef4444]/25'
               : 'bg-[#F59E0B]/[0.07] border-[#F59E0B]/25'}`}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                {isProgram ? 'WHERE YOU STAND' : 'TEAM OUTLOOK'}
-              </p>
-              <p className={`text-xl sm:text-2xl font-black sports-font uppercase leading-tight ${isContender ? 'text-[#22E748]' : isBottomTier ? 'text-[#ef4444]' : 'text-[#F59E0B]'}`}>
-                {isProgram
-                  ? (isContender ? 'TOURNAMENT PACE' : 'ON THE BUBBLE')
-                  : isContender ? 'BUYING / CONTENDING'
-                    : isBottomTier ? 'SELLING / REBUILDING'
-                      : 'UNDECIDED / ON THE EDGE'}
-              </p>
-              <p className="text-xs sm:text-sm font-bold uppercase text-slate-400 mt-0.5">
-                #{standings} in the {res.currentLg}
-              </p>
-            </div>
-            <span className={`shrink-0 text-[9px] sm:text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider font-sans border whitespace-nowrap ${isContender ? 'bg-[#22E748]/10 border-[#22E748]/30 text-[#22E748]' : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'}`}>
-              {isCollege
-                ? (isContender ? 'IN THE FIELD' : 'OUTSIDE THE FIELD')
-                : (isContender ? 'IN PLAYOFFS' : 'OUT OF PLAYOFFS')}
-            </span>
+          {/* The playoff position used to be a pill off to the right, which
+              took a third of the card's width away from the outlook beside
+              it and pushed "UNDECIDED / ON THE EDGE" onto two lines. It is
+              the same fact as the standing, so it sits on the standing's
+              line now and the outlook gets the full width. */}
+          <div className="min-w-0">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+              {isProgram ? 'WHERE YOU STAND' : 'TEAM OUTLOOK'}
+            </p>
+            <p className={`text-xl sm:text-2xl font-black sports-font uppercase leading-tight ${isContender ? 'text-[#22E748]' : isBottomTier ? 'text-[#ef4444]' : 'text-[#F59E0B]'}`}>
+              {isProgram
+                ? (isContender ? 'TOURNAMENT PACE' : 'ON THE BUBBLE')
+                : isContender ? 'BUYING / CONTENDING'
+                  : isBottomTier ? 'SELLING / REBUILDING'
+                    : 'UNDECIDED / ON THE EDGE'}
+            </p>
+            <p className="text-xs sm:text-sm font-bold uppercase text-slate-400 mt-0.5">
+              #{standings} in the {res.currentLg}
+              {' · '}
+              <span className={isContender ? 'text-[#22E748]' : 'text-[#ef4444]'}>
+                {isCollege
+                  ? (isContender ? 'In the field' : 'Outside the field')
+                  : (isContender ? 'In playoffs' : 'Out of playoffs')}
+              </span>
+            </p>
           </div>
           {!isProgram && (
             <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-snug mt-2">

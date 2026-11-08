@@ -5,7 +5,7 @@ import { Component } from 'react';
 // silently blanking the right panel of the app. Provides the error message and
 // a "Return to Preseason" button so a crash never traps the player.
 //
-// React error boundaries have to be class components — this is one of the
+// React error boundaries have to be class components, this is one of the
 // few things you literally can't do with hooks. Do not convert to a function.
 
 export default class ErrorBoundary extends Component {
@@ -37,7 +37,7 @@ export default class ErrorBoundary extends Component {
   };
 
   handleReload = () => {
-    // Nuclear option — reload the whole page. Loses in-memory state but the
+    // Nuclear option, reload the whole page. Loses in-memory state but the
     // player's save should persist if the app writes to localStorage.
     window.location.reload();
   };

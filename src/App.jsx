@@ -1,14 +1,15 @@
 import  { useState, useEffect, useCallback, useRef } from 'react';
 
 import {
-  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, ncaaTeams, echlTeams,
+  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, j20Teams, u20Teams, ncaaTeams, echlTeams,
   nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds
 } from './data/teams';
-import { shopItems, skaterTrainingPool, goalieTrainingPool } from './data/economy';
+import { skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool } from './data/minigames';
 import {
-  cap, capFanStatus, formatMoney, getFanTier, applyOvrDelta, recomputeOvr
+  cap, capFanStatus, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
+import { createDraftClass } from './utils/peers';
 import { withOfferPerks } from './data/offerPerks';
 import { projectDraftPick } from './utils/draftScouting';
 import { getStakes, applyStakesToReward } from './utils/stakes';
@@ -29,6 +30,7 @@ import NegotiationScreen from './screens/NegotiationScreen';
 import AllStarScreen from './screens/AllStarScreen';
 import TeamLogo from './components/TeamLogo';
 import Dashboard from './components/Dashboard';
+import Store from './components/Store';
 import ShootoutGame from './components/ShootoutGame';
 import FaceoffGame from './components/FaceoffGame';
 import CreaseGame from './components/CreaseGame';
@@ -303,11 +305,19 @@ function App() {
     let currentNat = player.nat;
 
     if (!lg || lg === 'RANDOM' || lg === 'ANY') {
-       const possibleLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'SHL', 'LIIGA'];
+       const possibleLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'];
        lg = possibleLeagues[Math.floor(Math.random() * possibleLeagues.length)];
     }
 
-    let pool = lg === 'WHL' ? whlTeams : lg === 'QMJHL' ? qmjhlTeams : lg === 'USHL' ? ushlTeams : lg === 'SHL' ? shlTeams : lg === 'LIIGA' ? liigaTeams : ohlTeams;
+    // Every startable league needs its own pool here. This chain had no branch
+    // for J20 or U20, so a Swedish or Finnish prospect fell through to the
+    // final else and was handed an OHL club while his league said J20, which is
+    // why his team had no name that matched and no crest that belonged to it.
+    const START_POOLS = {
+      OHL: ohlTeams, WHL: whlTeams, QMJHL: qmjhlTeams, USHL: ushlTeams,
+      SHL: shlTeams, LIIGA: liigaTeams, J20: j20Teams, U20: u20Teams
+    };
+    let pool = START_POOLS[lg] || ohlTeams;
     pool = pool || [];
     
     // RULE: You must be American to play for the US National Team Development Program
@@ -339,7 +349,13 @@ function App() {
         ...p, team: startTeam.id, league: lg, nat: currentNat, startLeague: lg, teamsPlayedFor: [startTeam.id],
         shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta,
         isGenerational: isGen, archetype: arch, storylines: { ...p.storylines, mediaNemesis: isGen ? 1 : 0 },
-        nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null
+        nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null,
+        // The rest of your year group, created once, here, and aged alongside
+        // you for the next twenty seasons. Until now the hockey world had one
+        // player in it, which is why no trophy had anyone else's name on it
+        // and no career had anything to be measured against.
+        peers: createDraftClass(p.age || 16, 28, p.pos, p.leagueState),
+        leagueState: {}
       };
       return { ...updated, ovr: recomputeOvr(updated) };
     });
@@ -429,6 +445,15 @@ function App() {
        setEventFeedback(`You decided to return to ${player.league} for another year of development.`);
      }
      
+     // The draft is a beat inside the summer, not the end of it. This screen
+     // hands out a training card on its own, and the offseason machine is still
+     // parked mid-summer with its own training beat ahead of it, so without
+     // this it played out the rest of the summer when the card was picked and
+     // then offered a second one. That is the preseason upgrade, event,
+     // preseason upgrade a draft year could produce. Mark the card as given.
+     if (player.offseason) {
+       setPlayer(p => ({ ...p, offseason: { ...p.offseason, trainingGiven: true } }));
+     }
      generateTraining(player.pos, player);
      setScreen('preseason');
   }, [generateTraining, player, seasonRecap?.draftedBy]);
@@ -735,7 +760,7 @@ function App() {
     // and re-running the graduation check would loop on it forever.
     if (p0.offseason) { _advanceToOffseason(offCtx); return; }
 
-    const isAgedOutJunior = ['OHL', 'WHL', 'QMJHL', 'USHL'].includes(p0.league) && p0.age >= 21;
+    const isAgedOutJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'].includes(p0.league) && p0.age >= 21;
     const isAgedOutNCAA = p0.league === 'NCAA' && p0.age >= 24;
 
     if (isAgedOutJunior || isAgedOutNCAA) {
@@ -878,8 +903,8 @@ function App() {
   const runPostSeasonFlow  = (pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) =>
                              _runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings);
   const handleGridClick    = (rIndex, mIndex, cIndex) => _handleGridClick(ctx, rIndex, mIndex, cIndex);
-  const generateOffers     = (isTradeRequest = false, overrideTeam = null, overrideLeague = null) =>
-                             _generateOffers(ctx, isTradeRequest, overrideTeam, overrideLeague);
+  const generateOffers     = (isTradeRequest = false, overrideTeam = null, overrideLeague = null, opts = {}) =>
+                             _generateOffers(ctx, isTradeRequest, overrideTeam, overrideLeague, opts);
   const checkPlayoffs      = (currentLg, currentTeamId, standings, opts) => _checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts);
   const handleEventChoice  = (choice) => _handleEventChoice(ctx, choice);
 
@@ -958,7 +983,7 @@ function App() {
     
     setPlayer(p => {
         const lg = playoffs.currentLg;
-        const statBucket = lg === 'AHL' ? 'ahl' : (['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(lg) ? 'chl' : 'nhl');
+        const statBucket = lg === 'AHL' ? 'ahl' : (['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA', 'SHL', 'LIIGA'].includes(lg) ? 'chl' : 'nhl');
         const poBucket = statBucket + 'Playoffs'; 
         
         const newHistory = [...(p.seasonHistory || [])];
@@ -980,9 +1005,16 @@ function App() {
             newHistory[lastIdx] = { 
                 ...newHistory[lastIdx], 
                 titleWon: isCupWon || newHistory[lastIdx].titleWon, 
-                playoffGames, 
-                playoffGoals: pG, 
+                playoffGames,
+                playoffGoals: pG,
                 playoffAssists: pA,
+                // A goalie's playoffs were going into the career buckets and
+                // nowhere else, so the season-by-season table on the retirement
+                // screen could show a skater's postseason and had nothing at all
+                // to show for a goalie who had just won a cup.
+                playoffSaves: pSaves,
+                playoffShots: pShots,
+                playoffShutouts: pSho,
                 isCaptain: p.isCaptain,
                 isAlternate: p.isAlternate,
                 // Deduped on the way out, which also cleans up any season that
@@ -1182,13 +1214,26 @@ function App() {
     });
   };
 
+  // Opening the preseason screen from outside the offseason machine.
+  //
+  // The machine has a beat of its own that hands out the training card, so any
+  // other route to this screen has to say the card has been given or that beat
+  // offers a second one later in the same summer. The draft screen already does
+  // this; these are the two remaining doors.
+  const openPreseason = (fromPlayer = null) => {
+    if ((fromPlayer || player)?.offseason) {
+      setPlayer(p => (p.offseason ? { ...p, offseason: { ...p.offseason, trainingGiven: true } } : p));
+    }
+    setScreen('preseason');
+  };
+
   const proceedToNextScreen = (currentEvent, currentMgContext, currentPlayer) => {
     setActiveEvent(null);
     setMinigameContext('season');
 
     // 1. PRESEASON & TRAINING CAMP ALWAYS RETURN TO PRESEASON
     if (['preseason', 'training', 'camp'].includes(currentMgContext)) {
-      setScreen('preseason');
+      openPreseason(currentPlayer);
       return;
     }
 
@@ -1257,6 +1302,12 @@ function App() {
     }
 
     if (currentEvent?.isOffseasonEvent) {
+       // The European farewell opens its own market, with European clubs only.
+       if (currentEvent.euroMarket) {
+         if (generateOffers(false, currentPlayer.team, null, { europeOnly: true }) !== false) return;
+         advanceToOffseason(currentPlayer);
+         return;
+       }
        const goesToFreeAgency = ['AMATEUR GRADUATION', 'RIGHTS EXPIRED'].includes(currentEvent.title) && currentPlayer.league !== 'NHL';
        // If the market declines to open (an amateur who should never have been
        // routed here), fall through to the rest of the summer rather than leaving
@@ -1289,7 +1340,7 @@ function App() {
       return;
     }
 
-    if (!seasonRecap && !pendingPlayoffs) { setScreen('preseason'); return; }
+    if (!seasonRecap && !pendingPlayoffs) { openPreseason(currentPlayer); return; }
 
     let madePlayoffsFlag = seasonRecap?.madePlayoffs;
     if (currentEvent && currentEvent.madePlayoffs !== undefined) madePlayoffsFlag = currentEvent.madePlayoffs;
@@ -1307,8 +1358,13 @@ function App() {
 
   ctx.proceedToNextScreen = proceedToNextScreen;
   ctx.checkPlayoffs = checkPlayoffs;
+  // The free agency market was the one thing the handlers were never given.
+  // handleEventChoice guards the European farewell on ctx.generateOffers being
+  // there, it never was, so the guard failed silently: the contract was torn
+  // up, no market opened, and the player was left sitting with his old club.
+  ctx.generateOffers = generateOffers;
 
-  const tier = getFanTier(player.fanStatus);
+  const tier = getFanTier(player.fanStatus, player);
 
   const contextValue = {
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame,
@@ -1326,7 +1382,7 @@ function App() {
     pressAnswerKeys, proceedFromPlayoffs, proceedToNextScreen, runPostSeasonFlow,
     safeNationalities, seasonEvents, setSeasonEvents, seasonRecap, setActiveEvent,
     setArbState, setCombinePhase, setCombineScore,
-    setEventFeedback, setNegotiation, setHasDemandedTrade, setMemCup,
+    setEventFeedback, generateOffers, setNegotiation, setHasDemandedTrade, setMemCup,
     setMinigameStarted, setPlayer, setPlayoffs, setScreen, setStatChanges,
     setSeasonRecap, setShowAchievementsMenu, showAchievementsMenu, signContract,
     startNegotiation, triggerMinigame, resetMinigameLock, unlockAchievement, unlockedAchievements,
@@ -1357,50 +1413,11 @@ function App() {
         </div>
       )}
       {isShopOpen && (
-        <div className="fixed inset-0 z-50 flex justify-start bg-black/40 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-md game-panel h-full flex flex-col border border-[#22E748]">
-            <div className="flex justify-between items-center p-6 border-b border-[rgba(255,255,255,0.065)] bg-[#101410] rounded-t-xl">
-              <h2 className="text-2xl font-bold text-white sports-font tracking-wide">SHOP</h2>
-              <div className="text-right">
-                <p className="text-[#22E748] font-black text-2xl sports-font">{formatMoney(player.stats?.earnings || 0)}</p>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {['staff', 'consumable', 'luxury'].map(category => (
-                <div key={category} className="mb-6">
-                  <h3 className="text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 border-b border-[rgba(255,255,255,0.065)] pb-2 font-sans">
-                    {category === 'staff' ? '💪 PERMANENT STAFF' : category === 'consumable' ? '⏳ TEMPORARY BOOSTS' : '💎 LUXURY & FANS'}
-                  </h3>
-                  <div className="space-y-3">
-                    {(shopItems || []).filter(i => i.type === category).map(item => {
-                      const isOwned = (player.inventory || []).includes(item.id) || (player.buffs || []).find(b => b.id === item.id);
-                      const canAfford = (player.stats?.earnings || 0) >= item.cost;
-                      return (
-                        <div key={item.id} className={`p-4 rounded-xl border ${isOwned ? 'border-[#22E748]/50 bg-[#22E748]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
-                          <div className="flex justify-between items-start mb-2 gap-4">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-white text-lg font-sans leading-tight">{item.name}</p>
-                              <p className="text-xs text-slate-400 mt-1">{player.pos === 'G' && item.descGoalies ? item.descGoalies : item.desc}</p>
-                            </div>
-                            <p className={`font-black sports-font shrink-0 whitespace-nowrap ${isOwned ? 'text-[#22E748]' : 'text-slate-400'}`}>
-                              {isOwned ? '✓ OWNED' : formatMoney(item.cost)}
-                            </p>
-                          </div>
-                          {!isOwned && (
-                            <button disabled={!canAfford} onClick={() => buyItem(item)} className="w-full mt-3 bg-[#1a2230] hover:bg-[#232d3f] border border-[rgba(255,255,255,0.065)] text-white disabled:opacity-50 py-2 rounded text-sm font-bold transition-colors cursor-pointer font-sans tracking-wide">BUY</button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 bg-[#101410] border-t border-[rgba(255,255,255,0.065)] rounded-b-xl">
-              <button onClick={() => setIsShopOpen(false)} className="w-full bg-[#1a2230] hover:bg-[#232d3f] border border-[rgba(255,255,255,0.065)] text-white p-4 rounded-xl font-bold transition-colors cursor-pointer font-sans tracking-wide">CLOSE SHOP</button>
-            </div>
-          </div>
-        </div>
+        <Store
+          player={player}
+          onBuy={buyItem}
+          onClose={() => setIsShopOpen(false)}
+        />
       )}
 
       <div className={`w-full mx-auto pb-10 flex-1 ${screen !== 'creation' && screen !== 'retirement' ? 'max-w-7xl flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch' : 'max-w-5xl'}`}>

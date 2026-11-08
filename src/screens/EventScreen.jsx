@@ -10,7 +10,7 @@ export default function EventScreen() {
   const { activeEvent, handleEventChoice, player } = useAppContext();
 
   // SAFEGUARD 1: Reset the click lock whenever a new event appears (chained
-  // events — e.g. Rivalry Night resolving into a follow-up event — reuse this
+  // events, e.g. Rivalry Night resolving into a follow-up event, reuse this
   // same component instance without unmounting, so state doesn't naturally
   // reset. Without this, the second event's buttons render disabled from the
   // previous click's lock.
@@ -179,7 +179,7 @@ export default function EventScreen() {
           const premiumChoices = isRivalryNight ? [] : prepared.filter(p => p.isPremiumChoice);
           const plainChoices = prepared.filter(p => !premiumChoices.includes(p));
 
-          // PREMIUM CARD — mirrors the Free Agency offer card on the Transfer screen:
+          // PREMIUM CARD, mirrors the Free Agency offer card on the Transfer screen:
           // ribbon, crest, headline figure, status row, perks/flaws, call to action.
           const renderPremiumCard = ({ key, displayChoice, isTradeChoice, isNCAAChoice, premiumTeamId, premiumLeague, isRival }) => {
               const data = displayChoice.actionData;
@@ -315,7 +315,7 @@ export default function EventScreen() {
               );
           };
 
-          // PLAIN ROW — everything that isn't a club offer keeps the full-width look.
+          // PLAIN ROW, everything that isn't a club offer keeps the full-width look.
           const renderPlainRow = ({ key, displayChoice }) => (
             <button
               key={key}

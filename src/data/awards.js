@@ -10,7 +10,7 @@ const PO = `${BASE}/Playoff%20Trophies`;
 
 // Individual awards. Keyed by a substring that uniquely identifies the trophy
 // in the strings the game emits (e.g. 'Hart Trophy', 'Emms Family Award (OHL Rookie…)').
-// Order matters — first matching key wins, so put more-specific keys first.
+// Order matters, first matching key wins, so put more-specific keys first.
 export const AWARD_IMAGES = {
   // NHL
   'Hart':                     `${AWARDS}/national_hockey_league_award_mvp.png`,
@@ -21,7 +21,7 @@ export const AWARD_IMAGES = {
   'Calder Trophy':            `${AWARDS}/national_hockey_league_award_best_rookie.png`,
   'Conn Smythe':              `${AWARDS}/national_hockey_league_award_playoff_mvp.png`,
   // NOTE: NHL All-Star and 1st Team All-Star are TEAM SELECTIONS, not physical
-  // trophies — leaving them out of the image map so getAwardImage returns null
+  // trophies, leaving them out of the image map so getAwardImage returns null
   // and the retirement pill renders text-only. The FHM asset previously used
   // here (national_hockey_league_award_PLAYERS_MVP.png) is the Ted Lindsay
   // Award artwork specifically, which the game does not currently award.
@@ -47,13 +47,13 @@ export const AWARD_IMAGES = {
   'Jacques Plante':           `${AWARDS}/quebec_major_junior_hockey_league_award_goals_against.png`,
   'RDS Cup':                  `${AWARDS}/quebec_major_junior_hockey_league_award_best_rookie.png`,
 
-  // USHL — no dedicated images in repo, fall back to NHL equivalents
+  // USHL, no dedicated images in repo, fall back to NHL equivalents
   'USHL Player of the Year':      `${AWARDS}/national_hockey_league_award_mvp.png`,
   'USHL Forward of the Year':     `${AWARDS}/national_hockey_league_award_points.png`,
   'USHL Defenceman of the Year':  `${AWARDS}/national_hockey_league_award_best_defender.png`,
   'USHL Goaltender of the Year':  `${AWARDS}/national_hockey_league_award_best_goalie.png`
 
-  // NCAA / College: 1st Team All-American is a team selection, not a trophy —
+  // NCAA / College: 1st Team All-American is a team selection, not a trophy,
   // leaving unmapped so it renders text-only, same reason as NHL All-Star above.
 };
 
@@ -76,7 +76,7 @@ export const CUP_IMAGES = {
   'Gilles-Courteau Trophy': PLAYOFF_TROPHY_IMAGES.QMJHL
 };
 
-// Substring lookup — first matching key wins. Returns URL or null.
+// Substring lookup, first matching key wins. Returns URL or null.
 export const getAwardImage = (name) => {
   if (!name) return null;
   // Check specific cups first

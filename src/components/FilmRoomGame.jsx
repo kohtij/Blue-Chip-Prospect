@@ -288,9 +288,13 @@ function Board({ diagram }) {
   return (
     <Surface view={ZONE_VIEW}>
       <ZoneSheet />
+      {/* The routes go down first, under everybody. They used to be drawn after
+          the opponents and teammates, so a pass or a skating line ran straight
+          over their position letters and you could not read who was who. A drill
+          book puts the players on top of the lines for exactly this reason. */}
+      {(d.moves || []).map((m, i) => <Move key={`v${i}`} move={m} stops={stops} />)}
       {(d.opp || []).map((p, i) => <Marker key={`o${i}`} at={p.at || p} label={p.label} kind="opp" />)}
       {(d.mates || []).map((p, i) => <Marker key={`m${i}`} at={p.at || p} label={p.label} kind="mate" />)}
-      {(d.moves || []).map((m, i) => <Move key={`v${i}`} move={m} stops={stops} />)}
       {d.me && <Marker at={d.me} label="YOU" kind="me" />}
       {d.puck && !stops.some(s => Math.hypot(d.puck[0] - s[0], d.puck[1] - s[1]) < 5) && <Puck at={d.puck} />}
     </Surface>
@@ -386,11 +390,22 @@ export default function FilmRoomGame({ onComplete }) {
       </div>
 
       <div className="mt-3 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#070b09] overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-        <div className="px-4 py-2.5 border-b border-[rgba(255,255,255,0.06)] flex items-center gap-2.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 truncate">
+        {/* The situation.
+            This is the only thing that says what you are looking at, and it was
+            a ten pixel grey line, truncated, in a thin strip above the board,
+            so the eye went straight past it to the diagram and then to the
+            question. It is the setup for both, so it is given the weight of a
+            caption: a label, full width, in white, and allowed to wrap. */}
+        <div className="px-4 py-3 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(239,68,68,0.04)]">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444] animate-pulse" />
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ef4444]">
+              The situation
+            </span>
+          </div>
+          <p className="text-[12px] sm:text-sm font-bold text-white leading-snug">
             {current.frame}
-          </span>
+          </p>
         </div>
         <Board diagram={current.diagram} />
       </div>

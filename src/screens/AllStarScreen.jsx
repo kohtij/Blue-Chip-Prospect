@@ -40,9 +40,17 @@ export default function AllStarScreen() {
   const isCaptain = player.ovr >= 90 || player.fanStatus >= 600;
 
   const [phase, setPhase] = useState('intro'); 
-  const [captainStrategy, setCaptainStrategy] = useState(null);
+  // The captain's draft philosophy starts on a sensible default rather than
+  // being a screen of its own. It buffs the skills competition, so having one
+  // selected is strictly better than being made to pick one before you are
+  // allowed to see the weekend.
+  const [captainStrategy, setCaptainStrategy] = useState(isCaptain ? 'speed' : null);
   const [carpetFeedback, setCarpetFeedback] = useState(null);
   const [skillsFeedback, setSkillsFeedback] = useState(null);
+
+  // Whether the flashy suit lands is rolled when the weekend opens rather than
+  // at the moment of the click, which keeps the roll out of render entirely.
+  const [dripLands] = useState(() => Math.random() > 0.4);
 
   const [minigameType] = useState(() => {
      if (player.pos === 'G') return 'saveStreak';
@@ -72,10 +80,9 @@ const handleQuickSim = () => {
      setPhase('result');
   };
 
-  const handleCaptainDraft = (strategy) => {
-     setCaptainStrategy(strategy);
-     setPhase('red-carpet');
-  };
+  // Picking a philosophy no longer advances anything; the entrance below is what
+  // commits the weekend.
+  const handleCaptainDraft = (strategy) => setCaptainStrategy(strategy);
 
   const handleCarpetChoice = (type) => {
     let msg, fanHit = 0, mediaHit = 0, coachHit = 0;
@@ -84,7 +91,7 @@ const handleQuickSim = () => {
       msg = "You spent an hour signing autographs for kids. A classic, classy move.";
       fanHit = 15;
     } else if (type === 'risky') {
-      if (Math.random() > 0.4) {
+      if (dripLands) {
         msg = "Your bold, flashy suit went viral! The fans absolutely loved the swagger.";
         fanHit = 40;
       } else {
@@ -100,7 +107,10 @@ const handleQuickSim = () => {
     }
 
     setCarpetFeedback({ msg, fanHit, mediaHit, coachHit });
-    setTimeout(() => setPhase('skills-comp'), 3000);
+    // Straight onto the ice. There used to be a panel here repeating what the
+    // entrance earned, on a three second timer, and then the same numbers again
+    // on the result screen at the end of the weekend.
+    setPhase('skills-comp');
   };
 
   const handleMinigameComplete = (result) => {
@@ -144,46 +154,86 @@ const handleQuickSim = () => {
       </div>
 
       {phase === 'intro' && (
-         <div className="max-w-2xl w-full mt-2 animate-fade-in flex flex-col gap-4">
-           {isCaptain ? (
-              <div className="bg-[#101410] border border-[#F59E0B]/30 p-8 rounded-xl shadow-[0_0_30px_rgba(245,158,11,0.1)]">
-                 <h3 className="text-2xl font-black text-[#F59E0B] sports-font uppercase mb-3">🎖️ {player.league === 'NCAA' ? 'ALL-AMERICAN' : 'ALL-STAR'} CAPTAIN</h3>
-                 <p className="text-slate-300 font-sans mb-8">As one of the league's top vote-getters, you've been named a Captain! It's time to build your squad. What is your draft philosophy?</p>
-                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                     <button onClick={() => handleCaptainDraft('speed')} className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#3b82f6]/50 text-white font-black sports-font uppercase py-3 px-6 rounded-lg transition-transform hover:scale-105 shadow-[0_0_15px_rgba(59,130,246,0.2)] cursor-pointer">⚡ Speed & Skill</button>
-                     <button onClick={() => handleCaptainDraft('power')} className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#ef4444]/50 text-white font-black sports-font uppercase py-3 px-6 rounded-lg transition-transform hover:scale-105 shadow-[0_0_15px_rgba(239,68,68,0.2)] cursor-pointer">💥 Raw Power</button>
-                     <button onClick={() => handleCaptainDraft('grit')} className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#22E748]/50 text-white font-black sports-font uppercase py-3 px-6 rounded-lg transition-transform hover:scale-105 shadow-[0_0_15px_rgba(34,231,72,0.2)] cursor-pointer">🧱 200-Foot Game</button>
-                 </div>
-                 
-                 {/* NEW QUICK SIM BUTTON */}
-                 <button onClick={handleQuickSim} className="mt-6 bg-slate-800 border border-slate-600 text-slate-300 hover:text-white py-2 px-6 rounded-lg font-black sports-font uppercase tracking-widest transition-colors cursor-pointer w-full sm:w-auto mx-auto block">
-                    QUICK SIM WEEKEND
-                 </button>
+         <div className="max-w-3xl w-full mt-2 animate-fade-in flex flex-col gap-5">
+           {/* One screen.
+               The weekend used to open on a panel whose only job was a button
+               that said head to the red carpet, then the carpet, then a panel
+               repeating what the carpet earned, then the competition, then the
+               result repeating it again. The invitation, the captain's call and
+               the entrance all belong together: pick an entrance and you are on
+               the ice. */}
+           <div className={`bg-[#101410] border p-5 sm:p-6 rounded-xl ${isCaptain ? 'border-[#F59E0B]/30' : 'border-[#3b82f6]/30'}`}>
+             <h3 className={`text-xl sm:text-2xl font-black sports-font uppercase mb-2 ${isCaptain ? 'text-[#F59E0B]' : 'text-white'}`}>
+               {isCaptain ? `\ud83c\udf96\ufe0f ${eventName} Captain` : `${player.league === 'NCAA' ? 'All-American' : 'All-Star'} Selection`}
+             </h3>
+             <p className="text-slate-300 font-sans text-sm sm:text-base">
+               {isCaptain
+                 ? `One of the league's top vote-getters, so you are building a squad as well as playing in ${city}.`
+                 : `You are going to ${city} to represent your club. Put on a show.`}
+             </p>
 
-                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-6">Your choice will provide a buff in the Skills Competition</p>
-              </div>
-           ) : (
-              <div className="bg-[#101410] border border-[#3b82f6]/30 p-8 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.1)]">
-                 <h3 className="text-2xl font-black text-white sports-font uppercase mb-3">{player.league === 'NCAA' ? 'ALL-AMERICAN' : 'ALL-STAR'} SELECTION</h3>
-                 <p className="text-slate-300 font-sans mb-8">Congratulations, you've been selected to represent your team at the {eventName}! Enjoy the festivities and put on a show.</p>
-                 
-                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                   <button onClick={() => setPhase('red-carpet')} className="btn-primary py-4 px-10 rounded-xl font-black sports-font text-xl uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer flex-1">
-                      HEAD TO RED CARPET
-                   </button>
-                   <button onClick={handleQuickSim} className="bg-slate-800 border border-slate-600 text-slate-300 hover:text-white py-4 px-6 rounded-xl font-black sports-font text-lg uppercase tracking-widest transition-colors cursor-pointer sm:w-1/3">
-                      QUICK SIM
-                   </button>
+             {isCaptain && (
+               <div className="mt-4">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                   Draft philosophy · buffs your skills event
+                 </p>
+                 <div className="grid grid-cols-3 gap-2">
+                   {[
+                     { key: 'speed', label: '\u26a1 Speed', accent: '#3b82f6' },
+                     { key: 'power', label: '\ud83d\udca5 Power', accent: '#ef4444' },
+                     { key: 'grit', label: '\ud83e\uddf1 200-foot', accent: '#22E748' }
+                   ].map(opt => (
+                     <button
+                       key={opt.key}
+                       onClick={() => handleCaptainDraft(opt.key)}
+                       className="py-2.5 px-2 rounded-lg font-black sports-font uppercase text-[11px] sm:text-xs tracking-widest transition-colors cursor-pointer border"
+                       style={captainStrategy === opt.key
+                         ? { borderColor: opt.accent, background: `${opt.accent}1f`, color: '#fff' }
+                         : { borderColor: 'rgba(255,255,255,0.1)', background: '#0a0d0a', color: '#94a3b8' }}
+                     >
+                       {opt.label}
+                     </button>
+                   ))}
                  </div>
-              </div>
-           )}
-           
-           {/* DECLINE OPTION FOR VETERANS */}
-           {player.age >= 32 && (
-              <button onClick={handleDecline} className="bg-[#101410] border border-slate-700 text-slate-400 py-3 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest hover:text-white hover:border-slate-500 transition-colors cursor-pointer w-full mx-auto block shadow-md">
-                 DECLINE INVITE (REST +10 STAMINA)
-              </button>
-           )}
+               </div>
+             )}
+           </div>
+
+           <div>
+             <p className="text-sm sm:text-base text-slate-300 mb-3 font-sans">
+               The carpet outside the arena in {city} is swarming with media. How do you turn up?
+             </p>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+               {[
+                 { key: 'safe', tag: 'SAFE', accent: '#3b82f6', title: 'Sign Autographs', blurb: "Give the kids a memory they'll never forget." },
+                 { key: 'risky', tag: 'RISKY', accent: '#ef4444', title: 'Drip Check', blurb: 'Wear an absurdly flashy designer outfit.' },
+                 { key: 'classy', tag: 'CLASSY', accent: '#22E748', title: 'Charity Gala', blurb: 'Attend the host city hospital fundraiser.' },
+                 { key: 'spicy', tag: 'SPICY', accent: '#F59E0B', title: 'Rivalry Banter', blurb: 'Talk some trash about your division rivals.' }
+               ].map(opt => (
+                 <button
+                   key={opt.key}
+                   onClick={() => handleCarpetChoice(opt.key)}
+                   className="bg-[#101410] hover:bg-[#1a2230] p-4 sm:p-5 rounded-xl flex flex-col gap-1.5 text-left transition-all hover:scale-[1.02] shadow-lg cursor-pointer border"
+                   style={{ borderColor: `${opt.accent}66` }}
+                 >
+                   <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase" style={{ color: opt.accent }}>{opt.tag}</span>
+                   <span className="text-base sm:text-lg font-bold text-white sports-font uppercase">{opt.title}</span>
+                   <span className="text-[10px] text-slate-400 font-sans">{opt.blurb}</span>
+                 </button>
+               ))}
+             </div>
+           </div>
+
+           <div className="flex flex-col sm:flex-row gap-3">
+             <button onClick={handleQuickSim} className="flex-1 bg-slate-800 border border-slate-600 text-slate-300 hover:text-white py-3 px-6 rounded-xl font-black sports-font text-sm uppercase tracking-widest transition-colors cursor-pointer">
+                Quick sim the weekend
+             </button>
+             {player.age >= 32 && (
+                <button onClick={handleDecline} className="flex-1 bg-[#101410] border border-slate-700 text-slate-400 py-3 px-6 rounded-xl font-black sports-font text-sm uppercase tracking-widest hover:text-white hover:border-slate-500 transition-colors cursor-pointer">
+                   Decline invite · rest
+                </button>
+             )}
+           </div>
          </div>
       )}
 
@@ -199,64 +249,6 @@ const handleQuickSim = () => {
          </div>
       )}
       
-      {phase === 'red-carpet' && (
-        <div className="max-w-3xl w-full mt-2 animate-fade-in">
-          {!carpetFeedback ? (
-            <>
-              <p className="text-lg text-slate-300 mb-8 font-sans">
-                The red carpet is swarming with media and fans outside the arena in {city}. How do you want to make your entrance?
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 px-2">
-                <button onClick={() => handleCarpetChoice('safe')} className="bg-[#101410] hover:bg-[#1a2230] border border-[#3b82f6]/40 p-5 rounded-xl flex flex-col gap-2 transition-all hover:scale-[1.02] hover:z-10 shadow-lg cursor-pointer">
-                  <span className="text-xs font-black text-[#3b82f6] tracking-widest uppercase">SAFE</span>
-                  <span className="text-lg font-bold text-white sports-font uppercase">Sign Autographs</span>
-                  <span className="text-[10px] text-slate-400 font-sans">Give the kids a memory they'll never forget.</span>
-                </button>
-                <button onClick={() => handleCarpetChoice('risky')} className="bg-[#101410] hover:bg-[#1a2230] border border-[#ef4444]/40 p-5 rounded-xl flex flex-col gap-2 transition-all hover:scale-[1.02] hover:z-10 shadow-lg cursor-pointer">
-                  <span className="text-xs font-black text-[#ef4444] tracking-widest uppercase">RISKY</span>
-                  <span className="text-lg font-bold text-white sports-font uppercase">Drip Check</span>
-                  <span className="text-[10px] text-slate-400 font-sans">Wear an absurdly flashy designer outfit.</span>
-                </button>
-                <button onClick={() => handleCarpetChoice('classy')} className="bg-[#101410] hover:bg-[#1a2230] border border-[#22E748]/40 p-5 rounded-xl flex flex-col gap-2 transition-all hover:scale-[1.02] hover:z-10 shadow-lg cursor-pointer">
-                  <span className="text-xs font-black text-[#22E748] tracking-widest uppercase">CLASSY</span>
-                  <span className="text-lg font-bold text-white sports-font uppercase">Charity Gala</span>
-                  <span className="text-[10px] text-slate-400 font-sans">Attend the host city hospital fundraiser.</span>
-                </button>
-                <button onClick={() => handleCarpetChoice('spicy')} className="bg-[#101410] hover:bg-[#1a2230] border border-[#F59E0B]/40 p-5 rounded-xl flex flex-col gap-2 transition-all hover:scale-[1.02] hover:z-10 shadow-lg cursor-pointer">
-                  <span className="text-xs font-black text-[#F59E0B] tracking-widest uppercase">SPICY</span>
-                  <span className="text-lg font-bold text-white sports-font uppercase">Rivalry Banter</span>
-                  <span className="text-[10px] text-slate-400 font-sans">Talk some trash about your division rivals to the media.</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="bg-[#101410] border border-[rgba(255,255,255,0.1)] p-8 rounded-xl shadow-2xl flex flex-col items-center">
-               <p className="text-xl font-bold text-white mb-6 text-center">{carpetFeedback.msg}</p>
-               <div className="flex flex-wrap gap-3 justify-center">
-                 {carpetFeedback.fanHit !== 0 && (
-                    <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.fanHit > 0 ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                      {carpetFeedback.fanHit > 0 ? '+' : ''}{carpetFeedback.fanHit} FANS
-                    </span>
-                 )}
-                 {carpetFeedback.mediaHit !== 0 && (
-                    <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.mediaHit > 0 ? 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                      {carpetFeedback.mediaHit > 0 ? '+' : ''}{carpetFeedback.mediaHit} MEDIA TRUST
-                    </span>
-                 )}
-                 {carpetFeedback.coachHit !== 0 && (
-                    <span className={`font-black sports-font tracking-widest text-sm px-4 py-2 rounded border ${carpetFeedback.coachHit > 0 ? 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'}`}>
-                      {carpetFeedback.coachHit > 0 ? '+' : ''}{carpetFeedback.coachHit} COACH TRUST
-                    </span>
-                 )}
-               </div>
-               <p className="text-xs text-slate-500 font-black tracking-widest uppercase mt-8 animate-pulse">
-                 Heading to the ice...
-               </p>
-            </div>
-          )}
-        </div>
-      )}
-
       {phase === 'skills-comp' && (
         <div className="w-full flex flex-col items-center justify-center">
             {minigameType === 'accuracy' && <AllStarAccuracy onComplete={handleMinigameComplete} strategy={captainStrategy} />}

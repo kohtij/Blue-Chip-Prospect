@@ -1,10 +1,22 @@
-import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams } from '../data/teams';
+import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams, delTeams, icehlTeams } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { getTransferImpact, isNhlFreeAgentEligible } from '../utils/gameHelpers';
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
+import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
 
-export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null, overrideLeague = null) {
+// A club's projected finish, read out of one table for the whole league.
+//
+// This used to convert each club's strength into a position on its own, one
+// offer at a time, which is how a free agency sheet could show two different
+// clubs both projected to finish eleventh. Ranking every club against every
+// other club once makes that impossible: a position is a position.
+const standingFromStrength = (leagueState, teamId) => {
+  const table = projectedTable(leagueState, nhlTeams || []);
+  return placeIn(table, teamId) ?? Math.round(((nhlTeams || []).length || 32) / 2);
+};
+
+export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null, overrideLeague = null, opts = {}) {
   const { currentYear, player, setEventFeedback, setFreeAgencyOffers, setScreen } = ctx;
 
     // The backstop. This function had no eligibility check of any kind, so every
@@ -12,8 +24,67 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     // amateur a page of NHL contract offers. A trade request is a different thing
     // and is exempt. Returns false so the caller can carry on with the offseason
     // instead of stalling on a screen that should never have opened.
-    if (!isTradeRequest && !isNhlFreeAgentEligible(player, ctx.safeJuniorLeagues)) {
+    if (!isTradeRequest && !opts.europeOnly && !isNhlFreeAgentEligible(player, ctx.safeJuniorLeagues)) {
        return false;
+    }
+
+    // A farewell tour in Europe.
+    //
+    // Signing a twilight contract overseas used to pick a club for you at
+    // random, out of two leagues, and tell you where you were going. It is the
+    // last decision of a career and it ought to be a decision, so it opens the
+    // market instead, with nothing on the board but European clubs.
+    if (opts.europeOnly) {
+      // Ranked by how hard the league is to get into, hardest first. A faded
+      // veteran is not signing in the KHL, but Slovakia, Austria and the Czech
+      // league will all take a former NHL player who can still skate, and the
+      // old flat list offered every one of them to everybody.
+      const EURO = [
+        { lg: 'KHL', pool: khlTeams, pay: 1.9, minOvr: 74 },
+        { lg: 'SHL', pool: shlTeams, pay: 1.00, minOvr: 70 },
+        { lg: 'SWISS', pool: swissTeams, pay: 1.35, minOvr: 68 },
+        { lg: 'LIIGA', pool: liigaTeams, pay: 0.92, minOvr: 65 },
+        { lg: 'DEL', pool: delTeams, pay: 1.05, minOvr: 61 },
+        { lg: 'CZECH', pool: czechTeams, pay: 0.80, minOvr: 57 },
+        { lg: 'ICEHL', pool: icehlTeams, pay: 0.85, minOvr: 50 },
+        { lg: 'SLOVAK', pool: slovakTeams, pay: 0.70, minOvr: 0 }
+      ].filter(e => (e.pool || []).length);
+
+      // The name on the back of the sweater is worth something over there. A
+      // long NHL career gets a club to pick up the phone it would not have
+      // picked up for the same player with the same rating and no history.
+      const nhlGames = player.stats?.nhl?.games || 0;
+      const standing = player.ovr + (nhlGames >= 500 ? 6 : nhlGames >= 200 ? 4 : nhlGames >= 40 ? 2 : 0);
+
+      // Who would actually call. Below the bottom of the board there is always
+      // somewhere to play, so the list is topped up from the least fussy
+      // leagues rather than left short: a market that opens with nothing on it
+      // is the bug this whole screen exists to avoid.
+      const within = EURO.filter(e => standing >= e.minOvr);
+      const spare = EURO.filter(e => standing < e.minOvr).sort((a, b) => a.minOvr - b.minOvr);
+      const count = Math.min(EURO.length, standing >= 78 ? 5 : standing >= 68 ? 4 : 3);
+      const board = [...within.sort(() => 0.5 - Math.random()), ...spare];
+      const picked = board.slice(0, count);
+      const base = 110000 + Math.max(0, standing - 55) * 10500;
+
+      const euroOffers = picked.map(entry => {
+        const club = entry.pool[Math.floor(Math.random() * entry.pool.length)];
+        const salary = Math.round((base * entry.pay * (0.85 + Math.random() * 0.35)) / 5000) * 5000;
+        return {
+          team: club.id,
+          league: entry.lg,
+          salary,
+          years: 1 + Math.floor(Math.random() * 2),
+          role: 'Veteran Leader',
+          fanHit: 0,
+          state: 'Europe'
+        };
+      });
+
+      setFreeAgencyOffers(euroOffers.map(o => withOfferPerks(o)));
+      if (setEventFeedback) setEventFeedback('Your agent made the calls. These are the clubs that want a veteran.');
+      setScreen('transfer');
+      return true;
     }
 
     // Safely extract the team ID in case it was accidentally passed as an object
@@ -126,7 +197,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     baseSalary = Math.max(leagueMinimum, Math.round(baseSalary / 25000) * 25000);
     let offers = [];
     
-    const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(actingLeague);
+    const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(actingLeague);
     
     const coachTrust = player.relationships?.coach || 50; // B2: Front Office Consumer
     let teamDidNotExtend = false;
@@ -155,13 +226,15 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
          }
 
          // Generate the Current Club offer
-         const currentClubStanding = actingLeague === 'NHL' ? Math.floor(Math.random() * 32) + 1 : null;
+         // Your own club's standing, from the same source every other offer
+         // now reads. This was its own separate Math.random(), so an extension
+         // from the team you already play for could describe them as a
+         // contender in the same breath that a rival offer called them a
+         // rebuild.
+         const currentClubStanding = actingLeague === 'NHL' ? standingFromStrength(player.leagueState, actingTeam) : null;
          let ccState = 'Current Club';
          if (actingLeague === 'NHL') {
-             if (currentClubStanding <= 8) ccState = 'Contender';
-             else if (currentClubStanding <= 16) ccState = 'Competitor';
-             else if (currentClubStanding <= 24) ccState = 'Outsider';
-             else ccState = 'Rebuilder';
+             ccState = clubOutlook(teamStrengthOf(player.leagueState, actingTeam)).label;
          } else if (player.league === 'AHL' || player.ovr < 75) {
              ccState = 'Two-Way Contract';
          }
@@ -304,20 +377,28 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
             let projectedStanding = null;
 
             if (targetLg === 'NHL') {
-                projectedStanding = Math.floor(Math.random() * 32) + 1;
+                // Where the club actually is, not a fresh coin flip.
+                //
+                // This was Math.floor(Math.random() * 32) + 1, rolled per
+                // offer, which is how a sheet could call a club a Contender
+                // in July and the same club finish twenty-eighth in April:
+                // the label came from one random number and the season came
+                // from the club's persisted strength, and the two had nothing
+                // to do with each other.
+                projectedStanding = standingFromStrength(player.leagueState, t);
                 
-                if (projectedStanding <= 8) {
-                    teamState = 'Contender';
-                    offerSalary = Math.round((offerSalary * 0.85) / 25000) * 25000;
-                } else if (projectedStanding <= 16) {
-                    teamState = 'Competitor';
-                } else if (projectedStanding <= 24) {
-                    teamState = 'Outsider';
-                    offerSalary = Math.round((offerSalary * 1.10) / 25000) * 25000;
-                } else {
-                    teamState = 'Rebuilder';
-                    offerSalary = Math.round((offerSalary * 1.20) / 25000) * 25000;
-                }
+                // One vocabulary for how good a club is. The offer sheet used
+                // to say Contender / Competitor / Outsider / Rebuilder while
+                // clubOutlook said Contender / In the hunt / Middling /
+                // Struggling / Rebuilding, for the same underlying number.
+                const strength = teamStrengthOf(player.leagueState, t);
+                teamState = clubOutlook(strength).label;
+
+                // A good club pays less because players want to be there, a
+                // bad one has to pay over the odds to get anyone to come.
+                const payMulti = strength >= 0.80 ? 0.85 : strength >= 0.62 ? 1.0
+                               : strength >= 0.40 ? 1.08 : strength >= 0.22 ? 1.15 : 1.22;
+                offerSalary = Math.round((offerSalary * payMulti) / 25000) * 25000;
             } else {
                 teamState = 'Development Roster';
             }

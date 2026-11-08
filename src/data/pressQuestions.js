@@ -1,3 +1,5 @@
+import { classPressQuestion } from '../utils/peers';
+
 // What the press asks, and who it makes sense to ask it of.
 //
 // The old pool lived in appHelpers and had eight questions filtered on one
@@ -965,6 +967,16 @@ export function selectPressQuestions(player, league, count = 3) {
 
   const eligible = PRESS_QUESTIONS.filter(q => fitsPosition(q.forPos, posTag) && fitsLeague(q.scope, lgTag));
 
+  // One question in the hand can be about the man you were drafted with. It
+  // has to be generated rather than stored, because it names him.
+  //
+  // It is seeded into the hand rather than dropped into the pool: shuffled in
+  // among forty eligible questions it survived to the final three about one
+  // time in seventy, which is indistinguishable from never asking.
+  const peerQ = (lgTag === 'nhl' && Math.random() < 0.22)
+    ? classPressQuestion(player?.peers, player)
+    : null;
+
   const byTrust = eligible.filter(q => {
     if (mediaTrust >= 75 && q.tag === 'negative') return false;
     if (mediaTrust <= 30 && q.tag === 'positive') return false;
@@ -986,7 +998,7 @@ export function selectPressQuestions(player, league, count = 3) {
     return picked;
   };
 
-  let picked = take(byTrust, []);
+  let picked = take(byTrust, peerQ ? [peerQ] : []);
   // Relax the balance rule, then the trust rule, rather than hand back a short
   // hand. A narrow league pool plus an extreme media trust can otherwise leave
   // fewer than three, and the screen has no way to render that.

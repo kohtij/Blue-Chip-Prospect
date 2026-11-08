@@ -161,8 +161,8 @@ export function NetMouth({ children }) {
 // A goalie in the mouth, seen from the shooter.
 //
 // The old one was five grey rounded rectangles, and the butterfly only widened
-// the pads by four units, so the one read the shootout is built on — is he down
-// or is he standing — was close to invisible. The whole point is that a goalie
+// the pads by four units, so the one read the shootout is built on, is he down
+// or is he standing, was close to invisible. The whole point is that a goalie
 // down in the butterfly seals the ice and gives up the top corners, and a goalie
 // standing tall covers high and leaves the five hole, so the two shapes now
 // differ the way they do in life: the pads swing out flat along the ice and the
@@ -264,24 +264,38 @@ export function SlotSheet({ lanes = 3 }) {
   return (
     <g>
       <rect x="0" y="0" width="100" height="80" fill={ICE} />
-      {/* the goal line and crease at the bottom, the blue line at the top */}
+      {/* the goal line and crease at the bottom, the blue line at the top.
+          The crease used to be a sixteen-unit arc against a net barely wider
+          than it, which is not the proportion of a rink: the paint is eight
+          feet across and the goal six, so it reads as a shallow apron in front
+          of the mouth rather than a dome the players stand on top of. */}
       <line x1="0" y1="72" x2="100" y2="72" stroke={RED} strokeWidth="1.1" />
-      <path d="M 34 72 A 16 16 0 0 1 66 72" fill="rgba(56,120,220,0.14)" stroke={BLUE} strokeWidth="0.7" />
+      <path d="M 39 72 A 11 11 0 0 1 61 72" fill="rgba(56,120,220,0.16)" stroke={BLUE} strokeWidth="0.7" />
       <line x1="0" y1="8" x2="100" y2="8" stroke={BLUE} strokeWidth="2.4" />
       {/* lane seams, faint, so the three channels read without becoming columns */}
       {Array.from({ length: lanes - 1 }, (_, i) => (
         <line key={i} x1={laneW * (i + 1)} y1="9" x2={laneW * (i + 1)} y2="71"
               stroke="rgba(255,255,255,0.055)" strokeWidth="0.6" strokeDasharray="2 3" />
       ))}
-      {/* the net, seen from in front */}
+      {/* The net, from above, drawn the way the Net component draws one rather
+          than as a filled grey slab sitting under the goal line looking like a
+          shelf. Posts on the line, the bag behind it, mesh across it. */}
       <g>
-        <rect x="41" y="72" width="18" height="5.4" fill="rgba(255,255,255,0.18)"
-              stroke="rgba(245,245,245,0.85)" strokeWidth="0.8" />
-        <line x1="41" y1="72" x2="59" y2="72" stroke="#e8453f" strokeWidth="1.5" />
+        <rect x="42.5" y="72" width="15" height="5.6" rx="1.1"
+              fill="rgba(255,255,255,0.16)" stroke="rgba(245,245,245,0.85)" strokeWidth="0.75" />
+        <line x1="42.5" y1="74.9" x2="57.5" y2="74.9" stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" />
+        <line x1="50" y1="72" x2="50" y2="77.6" stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" />
+        <line x1="42.5" y1="72" x2="57.5" y2="72" stroke="#e8453f" strokeWidth="1.5" />
+        <circle cx="42.5" cy="72" r="0.95" fill="#e8453f" />
+        <circle cx="57.5" cy="72" r="0.95" fill="#e8453f" />
       </g>
-      {/* faceoff dots either side, for scale */}
-      <circle cx="14" cy="40" r="1.3" fill={RED} />
-      <circle cx="86" cy="40" r="1.3" fill={RED} />
+      {/* faceoff dots either side, for scale, ringed the way a dot is painted */}
+      {[14, 86].map(x => (
+        <g key={x}>
+          <circle cx={x} cy="40" r="2.6" fill="none" stroke={RED} strokeWidth="0.6" />
+          <circle cx={x} cy="40" r="1.15" fill={RED} />
+        </g>
+      ))}
     </g>
   );
 }

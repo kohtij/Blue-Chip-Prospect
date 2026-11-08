@@ -93,7 +93,7 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
             <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
               phase === 'clear' ? 'text-[#F59E0B]' : 'text-slate-600'
             }`}>
-              {phase === 'result' ? '—' : phase === 'clear' ? 'Picked it up' : 'Screened'}
+              {phase === 'result' ? '--' : phase === 'clear' ? 'Picked it up' : 'Screened'}
             </span>
           }
         />

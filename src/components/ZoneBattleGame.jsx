@@ -23,16 +23,56 @@ const REACH = 12;   // how wide the piece of ice under me counts as mine
 
 export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   const physicality = getActiveStat(player, 'physicality');
-  const gain = (1.0 + (physicality - 50) * 0.015) * lerpDifficulty(1.0, 0.78, difficulty);
+  const gain = (1.0 + (physicality - 50) * 0.015) * lerpDifficulty(1.0, 0.86, difficulty);
 
   const [status, setStatus] = useState('live');
   const [puck, setPuck] = useState(50);
   const [me, setMe] = useState(50);
   const [hold, setHold] = useState(0);
   const [msLeft, setMsLeft] = useState(RUN_MS);
+  const [lean, setLean] = useState(1);
+
+  // Every shift is its own shift.
+  //
+  // The puck used to be two fixed sine waves read off the wall clock, so it
+  // swung back and forth across the top of the paint on the same 2.2 second
+  // arc in every game you ever played. Once you had seen it once you were not
+  // tracking a puck any more, you were following a metronome, and the
+  // defenceman behind you never actually did anything.
+  //
+  // Now the puck is moved by people: somebody carries it to a spot, somebody
+  // holds it, somebody snaps it D-to-D across the top, and how fast and how
+  // often is rolled fresh at the start of each attempt.
+  const [shiftPlan] = useState(() => ({
+    speed: 27 + Math.random() * 19,              // units a second at the ordinary pace
+    snapChance: 0.16 + Math.random() * 0.20,     // how often it goes hard across the top
+    holdChance: 0.28 + Math.random() * 0.22,     // how often somebody just holds it
+    dwellMin: 140 + Math.random() * 160,
+    dwellMax: 420 + Math.random() * 420,
+    lean: 4.2 + Math.random() * 4.8             // how hard the defenceman pushes
+  }));
+
+  // On the balance of all this: the first version was a fixed sine wave you
+  // could learn in one attempt, and replacing it with people moving the puck
+  // overshot. Modelled against a player with ordinary reactions, tapping no
+  // faster than three times a second and needing about a third of a second to
+  // register a change of direction, a 45 physicality forward was winning 33
+  // per cent of ordinary shifts and 18 per cent of the hard ones, which is not
+  // a battle, it is a formality in the other direction. The defenceman leans
+  // slightly less hard, the D-to-D snap is slower, losing the lane costs less,
+  // and the stakes scaling is gentler. Same shift, same unpredictability,
+  // winnable.
 
   const doneRef = useRef(false);
   const startRef = useRef(null);
+  const puckRef = useRef(50);
+  const targetRef = useRef(50);
+  const speedRef = useRef(30);
+  const dwellRef = useRef(0);
+  const meRef = useRef(50);
+  const holdRef = useRef(0);
+  const leanRef = useRef(1);
+  const leanFlipRef = useRef(0);
 
   const finish = useCallback((win, delay = 1600) => {
     if (doneRef.current) return;
@@ -45,32 +85,68 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
     if (status !== 'live') return;
     if (startRef.current === null) startRef.current = Date.now();
 
+    const dt = 0.05;
+
+    // Where the puck goes next, and how fast it gets there.
+    const pickTarget = (now) => {
+      const p = puckRef.current;
+      const snap = Math.random() < shiftPlan.snapChance;
+      targetRef.current = snap
+        // hard across the top, the way a D-to-D goes
+        ? (p < 50 ? 66 + Math.random() * 20 : 14 + Math.random() * 20)
+        : Math.max(14, Math.min(86, p + (Math.random() * 2 - 1) * 36));
+      speedRef.current = snap
+        ? shiftPlan.speed * 2.5
+        : shiftPlan.speed * (0.65 + Math.random() * 0.85);
+      // and sometimes nobody moves it at all for a beat
+      if (Math.random() < shiftPlan.holdChance) {
+        dwellRef.current = now + shiftPlan.dwellMin
+          + Math.random() * (shiftPlan.dwellMax - shiftPlan.dwellMin);
+      }
+    };
+
     const tick = setInterval(() => {
       const now = Date.now();
       const left = RUN_MS - (now - startRef.current);
       setMsLeft(left);
       if (left <= 0) { finish(false); return; }
 
-      // The puck is worked around the top of the paint, never on a rhythm you
-      // can simply memorise.
-      const next = 50 + Math.sin(now / 350) * 32 + Math.cos(now / 600) * 9;
-      setPuck(next);
+      if (now >= dwellRef.current) {
+        const gap = targetRef.current - puckRef.current;
+        if (Math.abs(gap) < 1.2) pickTarget(now);
+        else puckRef.current += Math.sign(gap) * Math.min(Math.abs(gap), speedRef.current * dt);
+      }
+      setPuck(puckRef.current);
 
-      setMe(cur => {
-        setHold(h => {
-          const inLane = Math.abs(next - cur) <= REACH;
-          const after = inLane ? h + 1.2 * gain : Math.max(0, h - 0.8);
-          if (after >= 100) { finish(true); return 100; }
-          return after;
-        });
-        return cur;
-      });
+      // The defenceman leans on you, and changes which way he leans, so holding
+      // the spot is work rather than a position you set once and leave.
+      if (now >= leanFlipRef.current) {
+        leanRef.current = Math.random() < 0.5 ? -1 : 1;
+        setLean(leanRef.current);
+        leanFlipRef.current = now + 800 + Math.random() * 1700;
+      }
+      meRef.current = Math.max(12, Math.min(88,
+        meRef.current + leanRef.current * shiftPlan.lean * dt));
+      setMe(meRef.current);
+
+      const inLane = Math.abs(puckRef.current - meRef.current) <= REACH;
+      // Retuned along with the motion. A puck you could predict was worth a
+      // generous gain and a slow bleed; a puck being moved by people is not, and
+      // the old numbers left an average player winning better than nine in ten.
+      holdRef.current = inLane
+        ? holdRef.current + 1.05 * gain
+        : Math.max(0, holdRef.current - 0.84);
+      if (holdRef.current >= 100) { holdRef.current = 100; setHold(100); finish(true); return; }
+      setHold(holdRef.current);
     }, 50);
 
     return () => clearInterval(tick);
-  }, [status, gain, finish]);
+  }, [status, gain, finish, shiftPlan]);
 
-  const shove = (dir) => setMe(p => Math.max(12, Math.min(88, p + dir * 15)));
+  const shove = (dir) => {
+    meRef.current = Math.max(12, Math.min(88, meRef.current + dir * 15));
+    setMe(meRef.current);
+  };
   const inLane = Math.abs(puck - me) <= REACH;
 
   return (
@@ -78,13 +154,22 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
       hud={
         <Hud
           left={
-            <div className="flex items-center gap-2 min-w-[120px]">
-              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Position</span>
+            /* This bar said Position, which is what a player reads as where he
+               is standing. It is not: it is how close the tip is, it only
+               climbs while you are under the puck, and filling it is how the
+               shift is won. So it says that. */
+            <div className="flex items-center gap-2 min-w-[150px]">
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                Tip
+              </span>
               <span className="relative h-1.5 w-20 rounded-full bg-[rgba(255,255,255,0.08)] overflow-hidden">
                 <span
                   className={`absolute inset-y-0 left-0 rounded-full ${inLane ? 'bg-[#22E748]' : 'bg-[#F59E0B]'}`}
                   style={{ width: `${hold}%`, transition: 'width 60ms linear' }}
                 />
+              </span>
+              <span className={`text-[9px] sm:text-[10px] font-black number-font tabular-nums ${inLane ? 'text-[#22E748]' : 'text-slate-500'}`}>
+                {Math.round(hold)}%
               </span>
             </div>
           }
@@ -103,8 +188,9 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
       }
       caption={
         status !== 'live' ? null
-          : inLane ? 'You are under it. Stay there.'
-            : 'Get back under the puck.'
+          : inLane
+            ? 'Under it. Hold here and the bar fills.'
+            : 'Off the spot. Work back under the puck or the bar drains.'
       }
     >
       <Surface view={SLOT_VIEW}>
@@ -119,13 +205,38 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
           style={{ transition: 'x 70ms linear' }}
         />
 
+        {/* The line the puck is on.
+            Under the puck was the whole instruction and nothing on the ice
+            actually showed it, so you were judging one small dot against a
+            wide box by eye. The puck now drops a line onto your ice: inside
+            the box and it is green, outside and it points at the gap you have
+            to close. */}
+        <line
+          x1={puck} y1="36" x2={puck} y2="68"
+          stroke={inLane ? 'rgba(34,231,72,0.55)' : 'rgba(245,158,11,0.5)'}
+          strokeWidth="0.8" strokeDasharray="2 2.4"
+        />
+        {!inLane && (
+          <line
+            x1={puck} y1="53" x2={me + Math.sign(puck - me) * REACH} y2="53"
+            stroke="rgba(245,158,11,0.75)" strokeWidth="0.9"
+          />
+        )}
+
         {/* The puck, worked around above the paint. */}
         <Puck at={[puck, 34]} r="2.4" glow={inLane} />
 
-        {/* The defenceman leaning on me, and me. */}
+        {/* The defenceman leaning on me, and me. The arrow is the way he is
+            leaning this second, which is the thing you are fighting. */}
         <g style={{ transition: 'transform 70ms linear' }} transform={`translate(${me - 50} 0)`}>
-          <Marker at={[57, 52]} kind="opp" label="D" r="4.8" />
-          <Marker at={[50, 58]} kind="me" label="YOU" r="5.2" />
+          <Marker at={[60, 50]} kind="opp" label="D" r="4.8" />
+          <Marker at={[49, 59]} kind="me" label="YOU" r="5.2" />
+          <path
+            d={lean > 0 ? 'M 44 70 L 54 70 M 51.5 67.5 L 54 70 L 51.5 72.5'
+                        : 'M 54 70 L 44 70 M 46.5 67.5 L 44 70 L 46.5 72.5'}
+            stroke="rgba(239,68,68,0.9)" strokeWidth="1.1" fill="none"
+            strokeLinecap="round" strokeLinejoin="round"
+          />
         </g>
       </Surface>
 

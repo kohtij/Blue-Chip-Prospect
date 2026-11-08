@@ -3,6 +3,10 @@ import {
   LEAGUE_CONFIG, getOpponentPool
 } from '../data/teams';
 import { shopItems } from '../data/economy';
+import { awardsFor } from '../data/leagueAwards';
+import { ageFactor, curvesFor, gaussianNoise, goalieAgeAdjust, paceOf, rateSeason, seasonForm, soften } from './production';
+import { advanceLeagueState, teamStrengthOf } from './leagueState';
+import { advancePeers, classNews, ensureClass, scoringBar } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
 // shuffle: comparison sorts assume a consistent comparator, so elements drift
@@ -46,10 +50,126 @@ export const formatMoney = (amount) => {
   return `$${amount}`;
 };
 
-export const getFanTier = (pts) => {
+// What a career actually won. The trophies live in two places: stats.awards
+// holds the Cups and the international medals, and every season award the game
+// hands out is written onto that season's history entry and never copied up, so
+// both have to be read or half the résumé is invisible.
+// Where a player actually plays, which is not what his contract says and was
+// not what the dashboard showed.
+//
+// The card printed getDeployment(ovr), a pure function of ability, while the
+// engine ran off contract.role. An 86 OVR on a bottom-six deal read as a first
+// line centre on his own dashboard and was simulated as a checking forward.
+// Both now call this, so the label on the card is the role being played.
+const CONTRACT_TIERS = [
+  [['Two-Way Deal', 'Two-Way Contract', 'AHL Start'], 0.50],
+  [['Core', 'Sniper', 'Playmaker', 'Offensive', 'Starter'], 1.25],
+  [['Middle', 'Top 4', 'Two-Way'], 0.90],
+  [['Grinder', 'Depth', 'Bottom', 'Shutdown'], 0.60],
+  [['Backup'], 0.40]
+];
+
+export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = 'NHL', coachTrust = 50 }) => {
+  const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(league);
+
+  // 1. What he signed for.
+  let signed = null;
+  for (const [keys, multi] of CONTRACT_TIERS) {
+    if (keys.some(k => contractRole.includes(k))) { signed = multi; break; }
+  }
+  if (signed === null) {
+    signed = ovr >= 70 ? 1.30 : ovr >= 62 ? 1.00 : ovr >= 56 ? 0.65 : 0.35;
+  }
+
+  // 2. What he is worth, read against his league rather than against the NHL.
+  const standing = ovr + (junior ? 16 : league === 'NHL' ? 0 : 8);
+  const deserved = standing >= 85 ? 1.30 : standing >= 78 ? 1.08
+                 : standing >= 71 ? 0.88 : standing >= 64 ? 0.66 : 0.46;
+
+  // 3. How far the coach moves him over a season.
+  const pull = Math.min(0.80, Math.max(0.15, 0.45 + ((coachTrust - 50) / 50) * 0.35));
+  const multi = signed + (deserved - signed) * pull;
+
+  // The name for where that lands him.
+  const isDef = pos === 'LD' || pos === 'RD';
+  let label;
+  if (pos === 'G') label = multi >= 0.95 ? 'Starter' : multi >= 0.6 ? 'Tandem' : 'Backup';
+  else if (multi >= 1.18) label = isDef ? '1st Pair Core' : '1st Line Core';
+  else if (multi >= 0.98) label = isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
+  else if (multi >= 0.76) label = isDef ? '3rd Pair Depth' : '3rd Line Depth';
+  else label = isDef ? '7th D Fringe' : '4th Line Fringe';
+
+  return { multi, label, signed, deserved };
+};
+
+export const careerHonours = (player) => {
+  const awards = [
+    ...(player?.stats?.awards || []),
+    ...((player?.seasonHistory || []).flatMap(s => s.awards || []))
+  ];
+  const count = (str) => awards.filter(a => a.includes(str)).length;
+
+  const cups = count('Stanley Cup');
+  const majors = count('Hart') + count('Conn Smythe') + count('Vezina')
+    + count('Norris') + count('Art Ross') + count('Maurice Richard');
+  const olympicGold = awards.filter(a => a.includes('Gold') && a.includes('Olympics')).length;
+  const worldsGold = awards.filter(a => a.includes('Gold') && !a.includes('Olympics')).length;
+  const allStars = count('All-Star');
+
+  return { cups, majors, olympicGold, worldsGold, allStars };
+};
+
+// Everything the career has won, split by whose name is on it. The dashboard
+// counted cups plus majors plus medals and called it "trophies"; the saved
+// career record ran its own filter over the award list and called that
+// "awards". Two definitions, two numbers, no shared code.
+export const careerTrophies = (player) => {
+  const h = careerHonours(player);
+  const individual = h.majors + h.olympicGold + h.worldsGold;
+  return { team: h.cups, individual, total: h.cups + individual };
+};
+
+// Fame, and what it takes to be more than famous.
+//
+// The top two tiers used to be a pure accumulation of fan status against a
+// 1000 cap, so any long career in the league reached Legend and the dashboard
+// said Max Icon Status with no silverware behind it at all. Fan status still
+// gets you to Loved on its own, which is right: play long enough in the NHL and
+// people know who you are. Past that the game asks what you actually won.
+//
+// Icon wants one real honour. Legend wants a career of them, where a Cup or a
+// major individual trophy is the full unit and the rest count for part of one.
+export const getFanTier = (pts, player = null) => {
   if (pts < 100) return { label: 'Unknown', next: 100, req: 100 - pts, nextLabel: 'Known' };
   if (pts < 300) return { label: 'Known', next: 300, req: 300 - pts, nextLabel: 'Loved' };
   if (pts < 600) return { label: 'Loved', next: 600, req: 600 - pts, nextLabel: 'Icon' };
+
+  // No player passed means the old behaviour, for any caller that only has a
+  // number to hand.
+  if (!player) {
+    if (pts < 1000) return { label: 'Icon', next: 1000, req: 1000 - pts, nextLabel: 'Legend' };
+    return { label: 'Legend', next: 1000, req: 0, nextLabel: 'Legend' };
+  }
+
+  const h = careerHonours(player);
+  const iconWorthy = h.cups > 0 || h.majors > 0 || h.olympicGold > 0 || h.allStars >= 2;
+  const legendWeight = h.cups + h.majors + h.olympicGold * 0.5
+    + h.worldsGold * 0.25 + h.allStars * 0.25;
+
+  if (!iconWorthy) {
+    return {
+      label: 'Loved', next: 600, req: 0, nextLabel: 'Icon',
+      need: 'A cup, a major trophy or a gold medal makes you an icon'
+    };
+  }
+  // Said before the points are counted, so a player the résumé rules out is not
+  // told he is two hundred fans short of something he cannot reach.
+  if (legendWeight < 2) {
+    return {
+      label: 'Icon', next: 1000, req: 0, nextLabel: 'Legend',
+      need: 'The rafters want more than this. Legends won more than one thing'
+    };
+  }
   if (pts < 1000) return { label: 'Icon', next: 1000, req: 1000 - pts, nextLabel: 'Legend' };
   return { label: 'Legend', next: 1000, req: 0, nextLabel: 'Legend' };
 };
@@ -98,7 +218,7 @@ export const recomputeOvr = (p) => {
   if (!p) return 50;
 
   if (!p.pos && typeof console !== 'undefined') {
-    console.warn('[recomputeOvr] called without pos — will default to forward formula. Caller should pass pos.', p);
+    console.warn('[recomputeOvr] called without pos, will default to forward formula. Caller should pass pos.', p);
   }
 
   const sht = p.shooting || 50;
@@ -163,71 +283,72 @@ export const applyOvrDelta = (player, delta) => {
   };
 };
 
-function _computeAwards({ player, rating, g, a, saves, shots, games, standings }) {
+function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar }) {
   const awards = [];
   const pts = g + a;
+
+  // A trophy is a contest, not a number.
+  //
+  // Every scoring award here used to be a flat threshold: the Art Ross at 105
+  // points, full stop, which a 92 OVR cleared in seventy per cent of seasons
+  // because there was nobody in the world to lose the race to. `bar` is what
+  // it actually took this year, either the best of the player's own draft
+  // class or a figure drawn from that league's history. Some years 101 wins
+  // it and some years 130 does not.
+  const field = bar || { total: 9999, goals: 9999 };
+  const wonScoring = pts >= field.total;
+  const wonGoals = g >= (field.goals ?? 9999);
+  // The MVP is not always the scoring champion, but he is always close to him.
+  const mvpPace = pts >= field.total * 0.96;
   const isGoalie = player.pos === 'G';
   const isDefense = ['LD', 'RD'].includes(player.pos);
   const svPct = saves / (shots || 1);
   const careerHighGoals = player.stats?.careerHighGoals || 0;
 
-  if (standings === 1) {
-    switch (player.league) {
-      case 'NHL': awards.push("Presidents' Trophy"); break;
-      case 'AHL': awards.push("Macgregor Kilpatrick Trophy (Regular Season Champ)"); break;
-      case 'OHL': awards.push("Hamilton Spectator Trophy (Regular Season Champ)"); break;
-      case 'WHL': awards.push("Scotty Munro Memorial Trophy (Regular Season Champ)"); break;
-      case 'QMJHL': awards.push("Jean Rougeau Trophy (Regular Season Champ)"); break;
-      case 'USHL': awards.push("Anderson Cup (Regular Season Champ)"); break;
-      default: awards.push(`${player.league} Regular Season Champion`); break;
-    }
+  // Every league, from one table, rather than a switch with a case for five
+  // of the twenty. See data/leagueAwards.js for what each one calls its
+  // trophies and why some of them are named and some are not.
+  const trophy = awardsFor(player.league);
+  const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'].includes(player.league);
+  const proSeasons = player.stats?.seasonsPlayed || 0;
+
+  if (standings === 1) awards.push(trophy.regular);
+
+  // The goalie bars move with the league, because a .915 is a good year in the
+  // NHL and an ordinary one in a low-event European league.
+  const pace = paceOf(player.league);
+  const goalieMin = junior ? 30 : 38;
+
+  if (isGoalie) {
+    // A goalie taking the league MVP is a once-a-decade event, so the bar for
+    // it sits well above the one for best goaltender. At svStar + 0.004 an 88
+    // OVR starter was winning the Hart in 63 per cent of his seasons.
+    if (svPct >= pace.svStar + 0.013 && games >= goalieMin + 14) awards.push(trophy.mvp);
+    if (svPct >= pace.svStar && games >= goalieMin) awards.push(trophy.goalie);
+  } else {
+    if (mvpPace) awards.push(trophy.mvp);
+    if (wonScoring) awards.push(trophy.scoring);
+    if (wonGoals) awards.push(trophy.goals);
+    if (isDefense && pts >= field.total * 0.61) awards.push(trophy.dman);
   }
 
-  switch (player.league) {
-    case 'OHL':
-      if (pts >= 110 || (isGoalie && svPct >= 0.925)) awards.push('Red Tilson Trophy (OHL Most Outstanding Player)');
-      if (pts >= 100) awards.push('Eddie Powers Memorial Trophy (OHL Scoring Champion)');
-      if (isDefense && pts >= 65) awards.push('Max Kaminsky Trophy (OHL Most Outstanding Defenceman)');
-      if (isGoalie && svPct >= 0.915 && games >= 35) awards.push('FW "Dinty" Moore Trophy (OHL Best Goaltender)');
-      if (player.age === 16 && pts >= 60) awards.push('Emms Family Award (OHL Rookie of the Year)');
-      break;
-    case 'WHL':
-      if (pts >= 110 || (isGoalie && svPct >= 0.925)) awards.push('Four Broncos Memorial Trophy (WHL Player of the Year)');
-      if (pts >= 100) awards.push('Bob Clarke Trophy (WHL Top Scorer)');
-      if (isDefense && pts >= 65) awards.push('Bill Hunter Memorial Trophy (WHL Top Defenceman)');
-      if (isGoalie && svPct >= 0.915 && games >= 35) awards.push('Del Wilson Trophy (WHL Top Goaltender)');
-      if (player.age === 16 && pts >= 60) awards.push('Jim Piggott Memorial Trophy (WHL Rookie of the Year)');
-      break;
-    case 'QMJHL':
-      if (pts >= 110 || (isGoalie && svPct >= 0.925)) awards.push('Michel Brière Memorial Trophy (QMJHL Most Valuable Player)');
-      if (pts >= 100) awards.push('Jean Béliveau Trophy (QMJHL Top Scorer)');
-      if (isDefense && pts >= 65) awards.push('Émile Bouchard Trophy (QMJHL Defenceman of the Year)');
-      if (isGoalie && svPct >= 0.915 && games >= 35) awards.push('Jacques Plante Trophy (QMJHL Best GAA)');
-      if (player.age === 16 && pts >= 60) awards.push('RDS Cup (QMJHL Rookie of the Year)');
-      break;
-    case 'USHL':
-      if (pts >= 85 || (isGoalie && svPct >= 0.925)) awards.push('USHL Player of the Year');
-      if (pts >= 75) awards.push('USHL Forward of the Year');
-      if (isDefense && pts >= 50) awards.push('USHL Defenceman of the Year');
-      if (isGoalie && svPct >= 0.915 && games >= 30) awards.push('USHL Goaltender of the Year');
-      break;
-    case 'NHL':
-      if (pts >= 105 || (isGoalie && svPct >= 0.925 && games >= 50)) awards.push('Hart Trophy');
-      if (g >= 55) awards.push('Maurice Richard Trophy');
-      if (pts >= 105) awards.push('Art Ross Trophy');
-      if (isDefense && pts >= 75) awards.push('Norris Trophy');
-      if (isGoalie && svPct >= 0.920 && games >= 40) awards.push('Vezina Trophy');
-      if (player.stats?.seasonsPlayed === 1 && (pts >= 65 || (isGoalie && svPct >= 0.915 && games >= 40))) awards.push('Calder Trophy');
-      
-      if (g > 92) {
-         if (careerHighGoals > 92) {
-             if (g > careerHighGoals) awards.push(`👑 BROKE OWN GOAL RECORD (${g})`);
-         } else {
-             awards.push(`👑 BROKE GRETZKY'S GOAL RECORD (${g})`);
-         }
-      }
-      break;
-    default: break;
+  // A rookie is a sixteen-year-old in junior and a first-year professional
+  // everywhere else.
+  const isRookie = junior ? player.age === 16 : proSeasons === 1;
+  if (isRookie) {
+    const rookiePace = isGoalie
+      ? (svPct >= pace.svPar + 0.010 && games >= goalieMin)
+      : pts >= field.total * 0.52;
+    if (rookiePace) awards.push(trophy.rookie);
+  }
+
+  // The one record the game tracks by name.
+  if (player.league === 'NHL' && g > 92) {
+    if (careerHighGoals > 92) {
+      if (g > careerHighGoals) awards.push(`\u{1F451} BROKE OWN GOAL RECORD (${g})`);
+    } else {
+      awards.push(`\u{1F451} BROKE GRETZKY'S GOAL RECORD (${g})`);
+    }
   }
 
   // Selection for the All-Star Game is not an end-of-season honour, it is a
@@ -280,13 +401,29 @@ function _computeProgressionDelta({ player, trainingEffect, rating, newAge, coac
       if (player.skating >= 85) st.skating = Math.min(0, st.skating); // Goalies: POS soft cap
   }
 
-  if (newAge <= 28) {
-    const pointsToDistribute = rating >= 8.5 ? 2 : rating >= 7.0 ? 1 : 0;
-    const statsToUpgrade = ['shooting', 'skating', 'stamina', 'hockeyIQ', 'physicality'];
-    for (let i = 0; i < pointsToDistribute; i++) {
-      const s = statsToUpgrade[Math.floor(Math.random() * statsToUpgrade.length)];
-      st[s]++;
-    }
+  // How much a player improves, by age first and performance second.
+  //
+  // This was a flat `rating >= 8.5 ? 2 : rating >= 7.0 ? 1 : 0` for everyone
+  // under 29, written when the rating saturated: junior seasons averaged 9.6
+  // and cleared the top tier in 93 per cent of years, so every prospect took
+  // the maximum every season and development was on rails. Now that a rating
+  // means something, those same thresholds would freeze a fourth-liner at the
+  // ability he was drafted with for his entire career.
+  //
+  // A teenager develops nearly regardless, because he is nineteen. A man of
+  // twenty-six improves only if he has earned it.
+  let pointsToDistribute = 0;
+  // A teenager improves because he is a teenager, whatever the scoresheet
+  // says, so the floor here is one point rather than zero. A fourth-line
+  // nineteen-year-old getting hard minutes is still learning the league.
+  if (newAge <= 21) pointsToDistribute = rating >= 7.0 ? 2 : 1;
+  else if (newAge <= 25) pointsToDistribute = rating >= 8.0 ? 2 : rating >= 5.5 ? 1 : 0;
+  else if (newAge <= 28) pointsToDistribute = rating >= 7.0 ? 1 : 0;
+
+  const statsToUpgrade = ['shooting', 'skating', 'stamina', 'hockeyIQ', 'physicality'];
+  for (let i = 0; i < pointsToDistribute; i++) {
+    const s = statsToUpgrade[Math.floor(Math.random() * statsToUpgrade.length)];
+    st[s]++;
   }
 
   if (newAge >= 31) {
@@ -396,37 +533,22 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   else if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; }
   else if (isEuroLg) { simSht += 10; simSkt += 10; simIq += 10; simPhy += 10; }
 
-  let roleMulti = 1.0;
-  const cRole = p.contract?.role || '';
+  // Where he starts the year, where he deserves to be, and where he ends up.
+  // All three come out of resolveRole, which the dashboard calls too so the
+  // card and the engine cannot disagree about what line he is on.
+  const roleResolved = resolveRole({
+    contractRole: p.contract?.role || '',
+    ovr: p.ovr, pos: p.pos, league: currentLg, coachTrust
+  });
+  let roleMulti = roleResolved.multi;
 
-  if (cRole) {
-    // A two-way deal is a PAY STRUCTURE, not a playing style, and a string match
-    // was confusing the two. "Two-Way Deal" landed in the same tier as "Top 4"
-    // and "Middle Six", so a fringe player on an AHL-start contract produced like
-    // a middle-six NHLer: 37 points for a 72 OVR, against 22 for the identical
-    // player labelled bottom six. A two-way man is in and out of the lineup and
-    // plays fourth-line minutes when he is up, so he belongs below the depth tier.
-    if (cRole.includes('Two-Way Deal') || cRole.includes('Two-Way Contract') || cRole.includes('AHL Start')) {
-      roleMulti = 0.50;
-    } else if (cRole.includes('Core') || cRole.includes('Sniper') || cRole.includes('Playmaker') || cRole.includes('Offensive') || cRole.includes('Starter')) {
-      roleMulti = 1.25;
-      if (cRole.includes('Sniper')) simSht += 10;
-      if (cRole.includes('Playmaker')) simIq += 10;
-      if (cRole.includes('Power')) simPhy += 10;
-    } else if (cRole.includes('Middle') || cRole.includes('Top 4') || cRole.includes('Two-Way')) {
-      roleMulti = 0.90;
-    } else if (cRole.includes('Grinder') || cRole.includes('Depth') || cRole.includes('Bottom')) { 
-      roleMulti = 0.60; 
-      if (cRole.includes('Grinder') || cRole.includes('Shutdown')) simPhy += 15; 
-    } else if (cRole.includes('Backup')) {
-      roleMulti = 0.40; 
-    }
-  } else {
-    if (p.ovr >= 70) roleMulti = 1.30;
-    else if (p.ovr >= 62) roleMulti = 1.00;
-    else if (p.ovr >= 56) roleMulti = 0.65;
-    else roleMulti = 0.35;
-  }
+  // The archetype bonuses a signed role carries, which belong to the stat
+  // line rather than to the multiplier.
+  const cRole = p.contract?.role || '';
+  if (cRole.includes('Sniper')) simSht += 10;
+  if (cRole.includes('Playmaker')) simIq += 10;
+  if (cRole.includes('Power')) simPhy += 10;
+  if (cRole.includes('Grinder') || cRole.includes('Shutdown')) simPhy += 15;
 
   const config = LEAGUE_CONFIG[currentLg];
   const teamPool = getOpponentPool(currentLg);
@@ -444,9 +566,16 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // twenty games. The jitter is small enough that a seller at the deadline is
   // still a seller in April, and large enough that the table is not decided in
   // December.
+  //
+  // Where the base number comes from changed: it was Math.random(), rolled
+  // fresh every September and thrown away every June, so a club finished
+  // third and then twenty-eighth with nothing connecting the two. It is now
+  // the club's own persisted strength, which drifts a little each summer.
+  // See utils/leagueState.js.
+  const clubBase = teamStrengthOf(p.leagueState, currentTeam);
   const randomTeamFactor = typeof options.teamFactor === 'number'
     ? Math.min(0.98, Math.max(0.02, options.teamFactor + (Math.random() - 0.5) * 0.20))
-    : Math.random();
+    : Math.min(0.97, Math.max(0.03, clubBase + gaussianNoise() * 0.06));
   let playerImpact = p.pos === 'G' ? (p.ovr - 70) / 60 : (p.ovr - 70) / 80;
 
   const salary = p.contract?.salary || 0;
@@ -529,49 +658,55 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const lgMulti = currentLg === 'NHL' ? 1.0 : (isJuniorLg ? 1.3 : 1.1);
   let g = 0, a = 0, pm = 0, saves = 0, shots = 0, sho = 0;
 
+  // The three things that turn a talent level into a season: how old he is,
+  // how the year went for him, and where the numbers stop climbing. See
+  // utils/production.js for what each of them is doing and why.
+  const ageCapped = isJuniorLg || isNCAA;
+  const ageMulti = ageFactor(p.age, ageCapped);
+  const form = seasonForm(games);
+  const curves = curvesFor(currentLg);
+
   if (p.pos === 'G') {
-      const savePctBase = 0.880 + ((simSht + simSkt + simPhy) - 150) * 0.0004 + ((teamStrength - 1) * 0.05);
-      const actualSavePct = Math.min(0.940, Math.max(0.840, savePctBase + (Math.random() * 0.02 - 0.01)));
+      const savePctBase = 0.880 + ((simSht + simSkt + simPhy) - 150) * 0.0004 + ((teamStrength - 1) * 0.05)
+                        + goalieAgeAdjust(p.age);
+      // A goalie's year swings on a normal curve rather than inside a flat
+      // ten-point band, so a .935 season and a .895 season are both on the
+      // table for the same goalie.
+      const actualSavePct = Math.min(0.945, Math.max(0.835, savePctBase + gaussianNoise() * 0.009));
       shots = games * (26 + Math.floor(Math.random() * 8));
       saves = Math.floor(shots * actualSavePct);
       
       const baseShutouts = Math.max(0, Math.floor((actualSavePct - 0.890) * 150) + Math.floor(Math.random() * 3));
       sho = Math.round(baseShutouts * (games / 82)); // Shutouts now scale proportionally to games played
   } else {
-      let gRaw, aRaw;
+      let gpg, apg;
       if (['LD', 'RD'].includes(p.pos)) {
-          const gpg = Math.max(0, (simSht - 55) * 0.004 + (simIq - 50) * 0.002);
-          const apg = Math.max(0, (simIq - 50) * 0.009 + (simSkt - 50) * 0.004);
-          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
-          aRaw = games * apg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
+          gpg = Math.max(0, (simSht - 55) * 0.004 + (simIq - 50) * 0.002);
+          apg = Math.max(0, (simIq - 50) * 0.009 + (simSkt - 50) * 0.004);
           pm = Math.floor((teamStrength - 1) * 60 + ((simPhy + simIq) - 130) * 0.2 + (Math.random() * 10 - 5));
       } else if (p.pos === 'C') {
-          const gpg = Math.max(0, (simSht - 55) * 0.009 + (simIq - 50) * 0.002);
-          const apg = Math.max(0, (simIq - 50) * 0.012 + (simSkt - 50) * 0.005);
-          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
-          aRaw = games * apg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
+          gpg = Math.max(0, (simSht - 55) * 0.009 + (simIq - 50) * 0.002);
+          apg = Math.max(0, (simIq - 50) * 0.0105 + (simSkt - 50) * 0.0045);
           pm = Math.floor((teamStrength - 1) * 50 + ((simPhy + simIq) - 130) * 0.2 + (Math.random() * 10 - 5));
       } else {
-          const gpg = Math.max(0, (simSht - 50) * 0.009 + (simSkt - 50) * 0.002); 
-          const apg = Math.max(0, (simIq - 50) * 0.008 + (simSkt - 50) * 0.004);
-          gRaw = games * gpg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
-          aRaw = games * apg * roleMulti * teamStrength * lgMulti * fatigueMultiplier * (0.85 + Math.random() * 0.3);
+          gpg = Math.max(0, (simSht - 50) * 0.009 + (simSkt - 50) * 0.002);
+          apg = Math.max(0, (simIq - 50) * 0.008 + (simSkt - 50) * 0.004);
           pm = Math.floor((teamStrength - 1) * 50 + ((simSkt + simSht) - 130) * 0.2 + (Math.random() * 10 - 5));
       }
 
-      if (currentLg === 'NHL') {
-          g = Math.floor(gRaw > 55 ? 55 + (gRaw - 55) * 0.35 : gRaw);
-          a = Math.floor(aRaw > 75 ? 75 + (aRaw - 75) * 0.40 : aRaw);
-      } else {
-          g = Math.floor(gRaw);
-          a = Math.floor(aRaw);
-      }
+      // Everything that is not luck, in one place.
+      const context = games * roleMulti * teamStrength * lgMulti * fatigueMultiplier * ageMulti;
+      const gRaw = context * gpg * form.goals;
+      const aRaw = context * apg * form.assists;
+
+      g = Math.floor(soften(gRaw, curves.goals.soft, curves.goals.hard));
+      a = Math.floor(soften(aRaw, curves.assists.soft, curves.assists.hard));
   }
 
-  let rating = p.pos === 'G'
-    ? Math.min(10, Math.max(1, 5.0 + (saves / shots - 0.900) * 100))
-    : Math.min(10, Math.max(1, 5.0 + (g + a + pm * 0.5) / games * 5));
-  rating = Number(rating.toFixed(1));
+  // Graded against the league he played in, not against a single scale shared
+  // by the NHL and the OHL. See rateSeason in utils/production.js for what
+  // that was doing to development.
+  let rating = rateSeason({ league: currentLg, pos: p.pos, games, g, a, pm, saves, shots });
 
   // Where these games were actually played, which is not necessarily where he
   // is standing at the end of them: a call-up moves the club and the league
@@ -651,15 +786,31 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     saves: acc.saves + (s.saves || 0), shots: acc.shots + (s.shots || 0)
   }), { games: 0, g: 0, a: 0, saves: 0, shots: 0 });
 
+  // The rest of the draft class plays its season here, at the end of yours,
+  // because the scoring title cannot be settled until everyone has finished.
+  const nextPeers = advancePeers(ensureClass(p.peers, p.age, p.stats?.seasonsPlayed || 0, p.pos, p.leagueState));
+  // What it actually took to lead this league this year, which is either the
+  // best of the known field or a number drawn from the league's history.
+  const bar = scoringBar(nextPeers, playedLg);
+
   const awards = _computeAwards({
     player: tempPlayer, rating,
     g: leagueYear.g, a: leagueYear.a,
     saves: leagueYear.saves, shots: leagueYear.shots,
-    games: leagueYear.games, standings
+    games: leagueYear.games, standings, bar
   });
 
+  // Every club the player had anything to do with this year is now a club the
+  // save tracks, and then the whole league moves on a year.
+  const nextLeagueState = advanceLeagueState(
+    p.leagueState,
+    stints.map(st => st.team).filter(Boolean)
+  );
+
   const coachItem = shopItems.find(i => i.id === 'coach');
-  const coachModifier = p.inventory.includes('coach') ? (coachItem?.effect?.declineModifier ?? 0.5) : 1;
+  // A player who has never bought anything has no inventory array at all, and
+  // this threw rather than simply finding no trainer.
+  const coachModifier = (p.inventory || []).includes('coach') ? (coachItem?.effect?.declineModifier ?? 0.5) : 1;
   const st = _computeProgressionDelta({ player: tempPlayer, trainingEffect, rating, newAge, coachModifier });
 
   // --- TOI DEVELOPMENT IMPACT ---
@@ -726,6 +877,8 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
 
   const updatedPlayer = {
     ...p,
+    peers: nextPeers,
+    leagueState: nextLeagueState,
     team: currentTeam,
     league: currentLg,
     currentAsg: rating >= 8.5 ? playedLg : null,
@@ -768,7 +921,15 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // the breakdown so the screen can say nine games here and fifty there.
   const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
     saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
-    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi, teamFactor: typeof options.teamFactor === 'number' ? options.teamFactor : randomTeamFactor };
+    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi,
+    // Who won the scoring race and what it took, so the recap can say so
+    // instead of leaving a fifty-goal season with nothing to measure it by.
+    scoringBar: bar,
+    // And one line, most summers none, about the rest of the draft class.
+    // Computed here rather than in the screen because it is a draw, and a
+    // screen that redraws would roll it again every render.
+    classNews: classNews(nextPeers, updatedPlayer),
+    teamFactor: typeof options.teamFactor === 'number' ? options.teamFactor : randomTeamFactor };
 
   return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
 }

@@ -491,7 +491,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                     label: 'Play a Safe, Grinding Game',
                     subLabel: 'Keep it simple and let reliability make the case for staying up.',
                     isRisky: false,
-                    feedback: 'You played 8 minutes of flawless, mistake-free hockey. The NHL coach loved your reliability and told you to unpack your bags—you are staying up.',
+                    feedback: 'You played 8 minutes of flawless, mistake-free hockey. The NHL coach loved your reliability and told you to unpack your bags. You are staying up.',
                     effect: { fanStatus: 25, ovr: 2, rel: { coach: 20 } },
                     action: 'CHANGE_LEAGUE',
                     actionData: 'NHL'
@@ -631,7 +631,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           label: 'Obsess Over Video Tape',
           subLabel: '🧠 High IQ • Tactical preparation',
           isRisky: false,
-          feedback: `Your endless film study paid off—you anticipated their breakout plays like you had their playbook!`,
+          feedback: `Your endless film study paid off. You anticipated their breakout plays like you had their playbook!`,
           effect: { fanStatus: 5, ovr: 2, money: 0 }
         },
         {

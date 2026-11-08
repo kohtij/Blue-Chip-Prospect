@@ -80,6 +80,32 @@ export default function ShootoutGame({ player, onComplete, difficulty = 0 }) {
     finish(open);
   };
 
+  // What happened, said the way a person would say it.
+  //
+  // The old lines were "he had given it to you" and "he had that covered",
+  // which reads like a write-up of the game rather than the game, and told you
+  // nothing about the read you had just got right or wrong. These say what he
+  // did and what you did with it.
+  const callIt = () => {
+    if (!shot) return 'You sat on it too long and he poked it off your stick.';
+    const { zone, open, down, shift } = shot;
+    const across = Math.abs(shift) > edge;
+    const glove = zone.id === 0 || zone.id === 3;
+    const toHisSide = (shift > 0) === glove;   // he had pushed the way you shot
+
+    if (open) {
+      if (zone.id === 2) return 'He stayed tall, and you put it through his feet.';
+      if (down && zone.id <= 1) return 'He dropped early and you went upstairs on him.';
+      if (across && !toHisSide) return 'He slid across, you waited, and went back the other way.';
+      if (down) return 'He was flat on the ice and that corner was wide open.';
+      return `${zone.label.toLowerCase()}, and he never got a piece of it.`;
+    }
+    if (zone.id === 2 && down) return 'He was already down. The five hole shut before you shot.';
+    if (across && toHisSide) return 'You shot into the side he had already taken away.';
+    if (!down && zone.id <= 1) return 'He was standing tall. That is his glove, all day.';
+    return `He had the ${zone.label.toLowerCase()} covered and swallowed it.`;
+  };
+
   const msLeft = shotClock - t;
   const frozen = shot ? shot : null;
   const drawShift = frozen ? frozen.shift : shift;
@@ -100,16 +126,12 @@ export default function ShootoutGame({ player, onComplete, difficulty = 0 }) {
           show={status !== 'live'}
           won={status === 'scored'}
           word={status === 'scored' ? 'GOAL' : 'NO GOAL'}
-          detail={
-            status === 'scored' ? `${shot?.zone.label} · he had given it to you`
-              : shot ? `${shot.zone.label} · he had that covered`
-                : 'you ran out of time and he poke-checked it'
-          }
+          detail={callIt()}
         />
       }
       caption={
         status === 'live'
-          ? 'Pick the hole he has given you. Down in the butterfly he seals the ice and opens the top corners; standing tall, the five hole is there.'
+          ? 'Watch his feet. When he drops, the top corners open up. When he stays tall, the five hole is there. Shoot before the clock kills it.'
           : null
       }
     >

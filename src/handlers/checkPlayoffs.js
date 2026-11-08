@@ -100,7 +100,10 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
   const { setPlayoffs, setScreen } = ctx;
   const sidelined = !!opts.sidelined;
 
-    const spots = LEAGUE_CONFIG[currentLg]?.playoffSpots || 16;
+    // A league with no playoff has none, rather than silently falling back to a
+    // sixteen team bracket because zero is falsy.
+    const spots = LEAGUE_CONFIG[currentLg]?.playoffSpots ?? 16;
+    if (!spots) { setScreen('recap'); return; }
     const rounds = getPlayoffRounds(currentLg);
     const totalRounds = rounds.length;
     const conferences = getConferences(currentLg);

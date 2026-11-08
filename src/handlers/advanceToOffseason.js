@@ -1,4 +1,4 @@
-import { getOpponentPool, ncaaTeams, ohlTeams } from '../data/teams';
+import { getOpponentPool, getTeamData, ncaaTeams, ohlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
@@ -19,7 +19,11 @@ export function advanceToOffseason(ctx) {
   // Four beats, in calendar order. A title is celebrated on its own beat so it
   // can never pre-empt the business of the summer: a Cup winner whose contract
   // has expired gets the parade AND his free agency, not one instead of the other.
-  const FRESH = 0, CELEBRATED = 1, SUMMER_DONE = 2, TRAINED = 3, CAMP_DONE = 4;
+  // The letter gets a beat of its own. It used to mark itself TRAINED, which is
+  // the beat that hands out the training cards, so in any year the coach offered
+  // an A the player was never shown a card at all: the stage was already spent
+  // by the time the machine came back round to it.
+  const FRESH = 0, CELEBRATED = 1, SUMMER_DONE = 2, LETTER = 3, TRAINED = 4, CAMP_DONE = 5;
 
   // Carried on the player so it survives the round trip through the event screen.
   // The recap is snapshotted because the caller clears it as the new year begins,
@@ -32,6 +36,19 @@ export function advanceToOffseason(ctx) {
   };
   const done = off.stage;
   const enterStage = (n) => setPlayer(p => ({ ...p, offseason: { ...off, stage: n } }));
+
+  // Park the offseason on the player the moment the summer opens, before any
+  // beat has run.
+  //
+  // Some beats leave the machine for a screen of their own and come back: the
+  // combine and the draft do, and so does free agency. Those exits did not
+  // persist anything, so the summer existed only as a local variable and the
+  // player still had no offseason at all. Coming back therefore looked like a
+  // brand new summer, the whole chain replayed from the top, and the training
+  // beat ran a second time after the draft screen had already handed out a
+  // card. That is the second preseason upgrade, with the rest of the summer's
+  // events sitting in between the two.
+  if (!player.offseason) setPlayer(p => ({ ...p, offseason: off }));
 
   // Camp needs these as well as the summer does, so they live out here.
   let currentTeam = player.team;
@@ -159,7 +176,15 @@ export function advanceToOffseason(ctx) {
        // NHL contract cannot take a farewell tour in Finland: the club holds
        // him, and this used to be offered to him anyway, next to the option of
        // honouring the very deal it ignored.
-       if (player.ovr >= 60 && !hasContract) {
+       //
+       // The floor used to be 60 OVR as well, which told a thirty-four-year-old
+       // who had slipped to 58 that nowhere on the continent would have him.
+       // Eight leagues over there sign former NHL players every summer and the
+       // bottom few are not fussy. Any professional out of contract gets the
+       // option; how good he still is decides which leagues ring, not whether
+       // any of them do.
+       const isPro = !['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(player.league);
+       if (isPro && !hasContract) {
            choices.push({ label: 'Sign a Twilight Contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You packed your bags for a European farewell tour. Less travel, bigger ice, pure hockey.', effect: { fanStatus: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
        }
 
@@ -302,7 +327,12 @@ export function advanceToOffseason(ctx) {
         return updatedPlayer;
     });
 
-    if (player.age === 17 && safeEuroLeagues.includes(currentLeague) && Math.random() > 0.4) {
+    // A seventeen-year-old European the CHL wants is playing junior at home, in
+    // J20 or U20, not in a men's professional league, so this has to look in
+    // both places or the import draft never reaches the players it is for.
+    const importHome = safeEuroLeagues.includes(currentLeague)
+      || nordicJuniorLeagues.includes(currentLeague);
+    if (player.age === 17 && importHome && Math.random() > 0.4) {
          const pool = ohlTeams || [];
          const chlTeam = pool[Math.floor(Math.random() * pool.length)];
          if (chlTeam) {
@@ -319,6 +349,71 @@ export function advanceToOffseason(ctx) {
            setScreen('event');
            return;
          }
+    }
+
+    // ==========================================
+    // THE STEP UP TO THE MEN'S SIDE (J20 / U20)
+    // ==========================================
+    // A Swede or a Finn does not get drafted out of junior into a pro contract
+    // the way a CHL player does. He plays up: the club's men's team takes him to
+    // training camp, and either he holds a place in a professional league at
+    // eighteen or he goes back down and dominates his age group for another
+    // year. Both are real careers, so both are on offer, and the cost of going
+    // up is ice time against men.
+    if (nordicJuniorLeagues.includes(currentLeague) && player.age >= 17 && player.age <= 19
+        && !player.storylines?.nordicStepUp) {
+      const seniorLeague = JUNIOR_PARENT_LEAGUE[currentLeague];
+      const rating = seasonRecap?.rating || 5;
+      const ready = player.ovr >= 63 || rating >= 7.5;
+
+      if (ready && seniorLeague) {
+        // Where he steps up to.
+        //
+        // Most junior sides are the junior side of a men's club and he simply
+        // moves up the corridor. Several are not: Djurgarden, AIK, Sodertalje,
+        // Mora, Bjorkloven, Jokerit and Assat field a junior team in this game
+        // and no senior one, which is true to life, and a player there signs
+        // somewhere else when he turns professional. Stripping the tier off his
+        // club id gave those players a phantom club named after the id.
+        const juniorClub = getTeamData(player.team, currentLeague);
+        const seniorPool = getOpponentPool(seniorLeague) || [];
+        const seniorId = juniorClub?.seniorId
+          || seniorPool[Math.floor(Math.random() * seniorPool.length)]?.id;
+        if (!seniorId) return;
+        const seniorClub = getTeamData(seniorId, seniorLeague);
+        const seniorName = getFullTeamName(seniorClub, seniorLeague);
+        const ownClub = !!juniorClub?.seniorId;
+
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, nordicStepUp: true } }));
+        setActiveEvent({
+          title: '⬆️ THE MEN’S TEAM WANTS YOU AT CAMP',
+          desc: ownClub
+            ? `${seniorName} have asked for you in the senior squad. It is a professional league and you would be the youngest man in the room, playing against grown men for a place you are not guaranteed to keep.`
+            : `Your club has no men's team, so the call came from somewhere else: ${seniorName} want you in their senior squad. It is a professional league and you would be the youngest man in the room, playing against grown men for a place you are not guaranteed to keep.`,
+          choices: [
+            {
+              label: `Go up to ${seniorName}`,
+              subLabel: `Take the place in ${seniorLeague} and fight men for your minutes.`,
+              isRisky: false,
+              feedback: `You signed with the senior side. Fourth line, hard minutes, and a locker room where nobody cares how good you were in junior.`,
+              effect: { fanStatus: 25, ovr: 1, money: 0 },
+              action: 'NORDIC_STEP_UP',
+              actionData: seniorId
+            },
+            {
+              label: 'Stay down another year',
+              subLabel: 'Go back to the junior side and be the best player in the league.',
+              isRisky: false,
+              feedback: 'You stayed in junior. Top line, first unit, and the puck on your stick every shift.',
+              effect: { fanStatus: 10, ovr: 2, money: 0 }
+            }
+          ],
+          isOffseasonEvent: true
+        });
+        enterStage(SUMMER_DONE);
+        setScreen('event');
+        return;
+      }
     }
 
     const getsNCAAOffer = currentLeague === 'USHL' ? true : (safeJuniorLeagues.includes(currentLeague) && Math.random() > 0.6);
@@ -388,7 +483,7 @@ export function advanceToOffseason(ctx) {
            setActiveEvent({
              title: 'NCAA RECRUITMENT',
              desc: numOffers > 1
-                ? `Your stellar play in ${leagueWithArticle(currentLeague)} has attracted major attention. Offers are rolling in—some programs offer great perks with no drawbacks, while others have serious baggage. Choose wisely.`
+                ? `Your stellar play in ${leagueWithArticle(currentLeague)} has attracted major attention. Offers are rolling in. Some programs offer great perks with no drawbacks, others carry serious baggage. Choose wisely.`
                 : `The head coach of ${offeredTeams[0].name} has offered you a scholarship. Review their program's perks and flaws before committing.`,
              choices: choices,
              isOffseasonEvent: true
@@ -416,7 +511,8 @@ export function advanceToOffseason(ctx) {
     const isUnsignedProspect = !hasSignedDeal && player.age < 21;
 
     // Calculate age-out limits before the draft check so we can use them to define the eligible window
-    const amateurAgeOut = ['OHL', 'WHL', 'QMJHL'].includes(currentLeague) ? 21 : 22;
+    // You cannot play J20 or U20 past twenty either.
+    const amateurAgeOut = ['OHL', 'WHL', 'QMJHL', 'J20', 'U20'].includes(currentLeague) ? 21 : 22;
     const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
     const isNcaaAgedOut = currentLeague === 'NCAA' && ncaaSeasons >= 4;
 
@@ -588,22 +684,12 @@ export function advanceToOffseason(ctx) {
           return;
       }
 
-      if (fanStatus >= 700 && !player.storylines?.endGlobal && currentLeague === 'NHL') {
-          setPlayer(p => ({ ...p, storylines: { ...p.storylines, endGlobal: true } }));
-          setActiveEvent({
-              title: '🌍 SIGNATURE ATHLETE',
-              desc: `You have reached the pinnacle of hockey fame. An international conglomerate wants to give you your own signature skate and apparel line.`,
-              choices: [
-                  { label: 'Become an icon', subLabel: 'Put your name on a signature skate and apparel line.', isRisky: false,
-                    perks: [{ name: '\ud83d\udcb0 Signature Line', effect: '$2.5M', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
-                    feedback: 'You signed the signature skate and apparel line. You are not just a hockey player any more, you are a brand.', effect: { fanStatus: 150, ovr: 0, money: 2500000 } }
-              ],
-              isOffseasonEvent: true
-          });
-          enterStage(SUMMER_DONE);
-          setScreen('event');
-          return;
-      }
+      // The SIGNATURE ATHLETE event stood here: at 700 fan status it offered a
+      // signature skate line with one choice and no downside, worth 150 fan
+      // status and $2.5M for a single click. It existed to reward fame and it
+      // mostly just shoved a player over the line into the top tier at exactly
+      // the point the tiers are supposed to start asking for silverware.
+
 // ==========================================
       // RANDOM CAREER TRAJECTORY EVENTS (3% Chance)
       // ==========================================
@@ -669,7 +755,7 @@ export function advanceToOffseason(ctx) {
   // A player who was traded, claimed or signed somewhere new in the summer does
   // not walk into a strange dressing room wearing a letter, however good he is,
   // so the club has to be one he actually played a season for.
-  if (done < TRAINED && !player.isCaptain && !player.isAlternate && !player.storylines?.alternateGiven) {
+  if (done < LETTER && !player.isCaptain && !player.isAlternate && !player.storylines?.alternateGiven) {
     const hist = player.seasonHistory || [];
     const lastSeason = hist[hist.length - 1];
     const sameRoom = lastSeason?.team === player.team && (lastSeason?.games || 0) >= 30;
@@ -693,7 +779,7 @@ export function advanceToOffseason(ctx) {
         ],
         isOffseasonEvent: true
       });
-      enterStage(TRAINED);
+      enterStage(LETTER);
       setScreen('event');
       return;
     }
@@ -701,9 +787,15 @@ export function advanceToOffseason(ctx) {
 
   if (done < TRAINED) {
     enterStage(TRAINED);
-    if (ctx.generateTraining) ctx.generateTraining(player.pos, player);
-    setScreen('preseason');
-    return;
+    // A draft year, or joining a junior club or a college programme, hands out
+    // the training card on its own screen before the summer has finished. That
+    // sets trainingGiven, and this beat then steps aside rather than offering a
+    // second card once the rest of the summer has played out.
+    if (!off.trainingGiven) {
+      if (ctx.generateTraining) ctx.generateTraining(player.pos, player);
+      setScreen('preseason');
+      return;
+    }
   }
 
   if (done < CAMP_DONE) {

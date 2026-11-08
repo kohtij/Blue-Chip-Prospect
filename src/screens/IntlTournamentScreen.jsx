@@ -231,15 +231,43 @@ export default function IntlTournamentScreen() {
       </div>
 
       {/* HOW IT WORKS */}
-      <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-relaxed border-y border-[rgba(255,255,255,0.065)] py-3 mb-4">
-        Every game is one read. Pick a play out of your book, and hope it is not one their video staff
-        has already picked apart. In the <strong className="text-slate-200">group</strong> you are banking points, and you need{' '}
-        <strong className="text-slate-200">{PTS_TO_ADVANCE}</strong> to get out. In the{' '}
-        <strong className="text-slate-200">knockouts</strong> getting read ends it, unless you still have your one
-        escape, which turns that game into a single moment you have to win yourself. There is no escape in a medal
-        game. Anything you have already used goes <strong className="text-slate-200">on tape</strong>, they look
-        there first, and by the end there is little left on the board they have not watched you run.
-      </p>
+      {/* How it works.
+          This was one eighty-five word paragraph that buried four separate
+          rules inside a run of prose, so the thing you needed to know before
+          picking, what getting read actually costs you tonight, was the hardest
+          part to find. One rule per line instead. */}
+      <div className="border-y border-[rgba(255,255,255,0.065)] py-3 mb-4 space-y-1.5">
+        <p className="text-[11px] sm:text-xs text-slate-300 font-sans leading-snug">
+          Every game is one read: pick a play, and hope their video staff has not already picked it apart.
+        </p>
+        {/* Only the stage you are actually standing in.
+            All four rules used to sit here at once, so a group game told you
+            what happens in a medal game and a medal game told you about an
+            escape that does not exist in one. The tape rule is not a stage, it
+            is true all tournament, so it stays. */}
+        {(() => {
+          const medal = ['FINAL', 'BRONZE', 'DECIDER'].includes(round?.key);
+          const stage = !round ? null
+            : round.kind === 'group'
+              ? ['This game', `A group game. Bank ${PTS_TO_ADVANCE} points to get out: read them cleanly for 3, scrape through for 1.`]
+              : medal
+                ? ['This game', 'A medal game. Get read and it is over, and there is no escape in one of these.']
+                : ['This game', run?.escapeUsed
+                    ? 'A knockout. Get read and you are out, and your escape is already spent.'
+                    : 'A knockout. Get read and you are out, unless you spend your one escape.'];
+          return [
+            stage,
+            ['On tape', 'Every play you run gets watched. They look there first next time.']
+          ].filter(Boolean);
+        })().map(([term, rule]) => (
+          <p key={term} className="flex gap-2 text-[11px] sm:text-xs text-slate-400 font-sans leading-snug">
+            <span className="shrink-0 w-[72px] sm:w-[84px] font-black uppercase tracking-widest text-[9px] sm:text-[10px] text-slate-500 pt-px">
+              {term}
+            </span>
+            <span>{rule}</span>
+          </p>
+        ))}
+      </div>
 
       <RunLine run={run} />
 
@@ -292,7 +320,32 @@ export default function IntlTournamentScreen() {
       ) : (
         <>
           {/* THE MATCHUP */}
-          <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl px-4 py-3 mt-3 flex items-center justify-between gap-3">
+          {/* NAMED CAPTAIN.
+              The badge beside the tournament title said he wore a letter and
+              nothing ever said he had been given one, so the single moment a
+              federation picks you out of the room passed without a word. */}
+          {run.letterIsNew && (
+            <div className={`rounded-xl border px-4 py-3 mt-3 fade-up ${
+              run.letter === 'C'
+                ? 'border-[#F59E0B]/40 bg-[#F59E0B]/[0.07]'
+                : 'border-[#3b82f6]/40 bg-[#3b82f6]/[0.07]'}`}>
+              <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                run.letter === 'C' ? 'text-[#F59E0B]' : 'text-[#3b82f6]'}`}>
+                {run.letter === 'C' ? 'Named captain' : 'Named an alternate'}
+              </p>
+              <p className="text-xs sm:text-sm text-slate-300 font-sans mt-1 leading-snug">
+                {run.letter === 'C'
+                  ? `The federation has given you the C. You lead ${countryName} at this tournament.`
+                  : `The federation has given you an A. You are part of the leadership group for ${countryName}.`}
+              </p>
+            </div>
+          )}
+
+          {/* The matchup owns the gap under itself, so everything that can
+              follow it sits the same distance away. The three branches below
+              each carried their own top margin and one of them carried none,
+              which is why the verdict text came up hard against this box. */}
+          <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl px-4 py-3 mt-3 mb-6 sm:mb-8 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] text-[#3b82f6] mb-1">
                 {round?.label}
@@ -317,7 +370,6 @@ export default function IntlTournamentScreen() {
               {round?.kind === 'knockout' ? 'Win or go home' : 'Group'}
             </span>
           </div>
-
 
           {/* LAST CHANCE */}
           {lastChance ? (
@@ -345,7 +397,7 @@ export default function IntlTournamentScreen() {
             </div>
           ) : outcome ? (
             /* THE RESULT OF THIS GAME */
-            <div className="max-w-xl mx-auto fade-up text-center mt-6 sm:mt-8">
+            <div className="max-w-xl mx-auto fade-up text-center">
               <div className={`rounded-xl border-2 p-5 sm:p-6 ${
                 outcome.survived ? 'border-[#22E748]/50 bg-[#22E748]/[0.06]' : 'border-[#ef4444]/50 bg-[#ef4444]/[0.06]'
               }`}>
@@ -385,7 +437,7 @@ export default function IntlTournamentScreen() {
           ) : (
             /* THE BOARD */
             <>
-              <div className="text-center mt-4 mb-3">
+              <div className="text-center mb-3">
                 <p className="text-sm sm:text-base font-black uppercase tracking-widest text-white sports-font">
                   {PICK_PROMPT[player.pos] || 'Pick the play.'}
                 </p>

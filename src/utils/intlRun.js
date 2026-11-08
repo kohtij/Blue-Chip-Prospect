@@ -87,13 +87,21 @@ function drawField(player, safeNationalities, division, count) {
 // for his club and has been to three of these is exactly who a national staff
 // names. It is its own thing: the club letter helps, but what the federation
 // is really picking is the man who has been here before and can play.
-function nationalLetter(player) {
+function nationalLetter(player, nation) {
   const tournaments = (player.seasonHistory || []).filter(s => s.intlData).length;
   const clubLetter = player.isCaptain || player.isAlternate;
   const standing = (player.ovr || 60) + (clubLetter ? 6 : 0) + tournaments * 3
     + ((player.relationships?.teammates || 50) - 50) * 0.2;
 
-  if (standing >= 104 && tournaments >= 3) return 'C';
+  // A hockey nation does not hand its captaincy to a man who does not wear a
+  // letter for his own club. Canada, Russia, Sweden and the rest pick from a
+  // room full of NHL captains, and the C goes to one of them. A smaller
+  // federation is a different room: there, being the best player in it is
+  // the qualification, and plenty of those captains wear nothing at home.
+  const eliteNation = (nation?.iihfRank ?? 99) <= 7;
+  const canWearC = clubLetter || !eliteNation;
+
+  if (standing >= 104 && tournaments >= 3 && canWearC) return 'C';
   if (standing >= 92 && tournaments >= 1) return 'A';
   return null;
 }
@@ -108,9 +116,44 @@ export function buildRun({ player, safeNationalities, context, division, year })
   // you lose a semi-final, and it needs somebody to play.
   const field = drawField(player, safeNationalities, division, ladder.length + 1);
 
+  // SEEDING.
+  //
+  // The field used to be shuffled and dealt out in order, so the gold medal
+  // game was whoever happened to come up fourth. That is how a World Junior
+  // final ends up being played against Austria. A tournament seeds: the
+  // nations that survive to the last rounds are the ones who were good enough
+  // to get there, and the group stage is where you meet everybody else.
+  //
+  // Ranked by IIHF position, which the nations already carry, and handed out
+  // strongest to the round that matters most. Inside the group stage the order
+  // is still a shuffle, because a group draw is a draw.
+  // Noise on the seeding, because a bracket is not a ranking. Without it the
+  // strongest nation in the draw played the final every single time: over
+  // three hundred tournaments a Canadian met Russia in the gold medal game in
+  // 188 of them. A few places of slack lets a Finland or a Sweden get through
+  // instead, and still keeps Austria out of it.
+  const byStrength = [...field]
+    .map(n2 => ({ n2, seed: (n2.iihfRank ?? 99) + (Math.random() * 2 - 1) * 3 }))
+    .sort((a, b) => a.seed - b.seed)
+    .map(e => e.n2);
+  const WEIGHT = { FINAL: 5, DECIDER: 5, SF: 4, QF: 3, R16: 2 };
+  const stageOrder = ladder
+    .map((r, i) => ({ i, w: WEIGHT[r.key] ?? 0 }))
+    .sort((a, b) => b.w - a.w || a.i - b.i);
+
+  const assigned = [];
+  stageOrder.forEach((slot, n) => { assigned[slot.i] = byStrength[n]; });
+  // The spare, for a bronze game, is whoever is left.
+  const spareNation = byStrength[stageOrder.length] || byStrength[byStrength.length - 1];
+
+  // Group games keep a random order among themselves.
+  const groupIdx = ladder.map((r, i) => (WEIGHT[r.key] ? null : i)).filter(i => i !== null);
+  const groupNations = shuffle(groupIdx.map(i => assigned[i]));
+  groupIdx.forEach((i, k) => { assigned[i] = groupNations[k]; });
+
   const rounds = ladder.map((r, i) => ({
     ...r,
-    opponent: field[i] || { id: 'TBD', name: 'TBD', tier: 3 }
+    opponent: assigned[i] || field[i] || { id: 'TBD', name: 'TBD', tier: 3 }
   }));
 
   // One play this group has run together since they were sixteen. It beats
@@ -122,7 +165,15 @@ export function buildRun({ player, safeNationalities, context, division, year })
   const favourite = hasFavourite ? book[rnd(book.length)].id : null;
   // Whether you can see it. A letter means you are in the meetings where this
   // gets talked about; otherwise it takes a genuinely high read of the game.
-  const letter = nationalLetter(player);
+  const me = (safeNationalities || []).find(n => n.id === player.nat) || null;
+  const letter = nationalLetter(player, me);
+  // Whether this is the first time. The federation naming you is a moment and
+  // the tournament screen never said a word about it.
+  const previousLetter = [...(player.seasonHistory || [])]
+    .reverse()
+    .map(ss => ss.intlData?.letter)
+    .find(l => l !== undefined) ?? null;
+  const letterIsNew = !!letter && letter !== previousLetter;
   const seesFavourite = !!favourite && (
     !!letter || (player.hockeyIQ || 50) >= 82
   );
@@ -135,10 +186,11 @@ export function buildRun({ player, safeNationalities, context, division, year })
     favourite,
     seesFavourite,
     letter,
+    letterIsNew,
     isTopDiv: isTopDiv || isOlympics,
     isOlympics,
     rounds,
-    spare: field[ladder.length] || { id: 'TBD', name: 'TBD', tier: 3 },
+    spare: spareNation || { id: 'TBD', name: 'TBD', tier: 3 },
     index: 0,
     points: 0,
     usedPlays: [],
@@ -539,6 +591,9 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
     gamesPlayed: s.games,
     stats: { g: s.g, a: s.a, pm: s.pm, saves: s.saves, shots: s.shots, sho: s.sho },
     finish: headline,
+    // Kept so the retirement screen can say he wore it, which it could not
+    // before: the letter lived only on the run and died with the tournament.
+    letter: run.letter || null,
     road: run.road.map(r => ({ short: r.short, opp: r.opponent?.id, score: r.score, won: r.won }))
   };
 
