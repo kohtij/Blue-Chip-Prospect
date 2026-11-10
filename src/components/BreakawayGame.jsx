@@ -162,7 +162,7 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
       }
     >
       <Surface view={SLOT_VIEW}>
-        <SlotSheet />
+        <SlotSheet seams={false} />
 
         {/* The shooter, with the puck, and his move once he makes it. */}
         {went && (

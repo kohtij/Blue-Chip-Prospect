@@ -72,6 +72,68 @@ export const MOUTH_ZONES = [
 // shooting lanes running out to the point.
 export const SLOT_VIEW = '0 0 100 80';
 
+// EVERY NUMBER THE SLOT SHEET IS DRAWN FROM, IN ONE PLACE.
+//
+// The sheet wrote its net out as 42.5 and 57.5 and its goal line as 72 inside
+// Ice.jsx, and the five games played on it placed their markers at 14, 30, 38,
+// 54, 66 and 69 from memory in five other files. Nothing anywhere was in a
+// position to notice when two of those numbers landed on top of each other, so
+// the point man was drawn across the lane seams and the blue line, a winger
+// stood on a faceoff dot, a loose puck was drawn over the top of the player
+// holding it, and a lean arrow finished inside the mesh.
+//
+// The rows below are the only places a player stands. The top row clears the
+// blue line, the bottom row clears the net, and the faceoff dots sit in the
+// one band between rows rather than under whatever a game draws in the slot.
+//
+// Two pairs are alternates rather than neighbours and their bands do overlap,
+// because no single game draws on both: pointRow is the point man in the games
+// shot from the point, openRow is a mate stepping up in the games played out
+// of your own end; slotRow is the slot and screenRow is the net front.
+export const SLOT = {
+  blueLine: 8,
+  goalLine: 72,
+  depth: 80,
+
+  // The net on the goal line, and the paint in front of it.
+  netHalf: 7.5,
+  netDepth: 5.6,
+  creaseHalf: 11,
+
+  // The three lanes, as centre lines.
+  lanes: [17, 50, 83],
+
+  // The faceoff dots, moved into the one horizontal band no player row
+  // occupies. At y 40 they sat directly under whatever a game drew in the
+  // slot.
+  dot: { x: [13, 87], y: 37 },
+
+  // The rows, top of the zone down to the goal mouth.
+  openRow: 22,     // a winger who has just come open, highest a mate stands
+  pointRow: 16.5,  // the point man, winding up
+  highRow: 28,     // a forechecker, or a covered winger
+  slotRow: 52,     // the slot itself
+  screenRow: 66,   // the net front, as close as anyone stands to the mouth
+
+  // The largest marker and puck these games draw. Every clearance above is
+  // measured against them.
+  markerR: 5.4,
+  puckR: 2.4
+};
+
+// The lane seams, midway between lane centres, so a seam stays between two
+// lanes however the lanes themselves move.
+export const SLOT_SEAMS = SLOT.lanes.slice(1).map((x, i) => (x + SLOT.lanes[i]) / 2);
+
+// Where a shot aimed at the net finishes: on the goal line, not in the mesh
+// behind it.
+export const SLOT_MOUTH = [50, SLOT.goalLine - 1.5];
+
+// Where a puck sits on the stick of a player standing on `row`, clear of his
+// own marker rather than drawn over the top of it.
+export const puckBeside = (x, row, markerR = SLOT.markerR) =>
+  [x + markerR + SLOT.puckR + 0.9, row + 1];
+
 // --- a faceoff dot, close --------------------------------------------------
 export const DOT_VIEW = '0 0 100 100';
 

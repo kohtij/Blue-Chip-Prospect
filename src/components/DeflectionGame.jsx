@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getActiveStat } from '../utils/gameHelpers';
 import { buildShot, judge } from '../utils/tipShot';
 import { SlotSheet, Marker, Surface } from './rink/Ice';
-import { SLOT_VIEW, bez, wavePath } from './rink/geometry';
+import { SLOT, SLOT_VIEW, bez, wavePath } from './rink/geometry';
 import { Stage, Hud, Verdict } from './minigame/Shell';
 
 // Net-front screen and tip.
@@ -34,9 +34,11 @@ import { Stage, Hud, Verdict } from './minigame/Shell';
 //                At 75 and up you also pick the shot type out of his hands.
 
 // The shot's path down the slot: off the point stick, past the dot, at the net.
-const FROM = [78, 14];
-const CURVE = [66, 40];
-const TO = [50, 66];
+// At y 14 the ring drawn round the point man reached up to 7.5 and crossed the
+// blue line painted at 8. Both ends come off named rows now.
+const FROM = [78, SLOT.pointRow];
+const CURVE = [66, 42];
+const TO = [50, SLOT.screenRow];
 const at = (frac) => bez(FROM, TO, CURVE, Math.max(0, Math.min(1, frac)));
 
 export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {

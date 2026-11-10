@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
-import { SLOT_VIEW } from './rink/geometry';
+import { SLOT, SLOT_VIEW } from './rink/geometry';
 import { Stage, Hud, Clock, Verdict } from './minigame/Shell';
 
 // The net-front battle.
@@ -20,6 +20,21 @@ import { Stage, Hud, Clock, Verdict } from './minigame/Shell';
 
 const RUN_MS = 10000;
 const REACH = 12;   // how wide the piece of ice under me counts as mine
+
+// How far I can slide before somebody gets drawn off the sheet.
+//
+// The pair was drawn as a group offset by (me - 50), with the defenceman out
+// at x 60 and me at 49, so the group reaches 14.8 to the right of wherever I
+// am. The clamp was a hand-written 12 and 88, and at 88 the defenceman's
+// marker was drawn from 93.2 to 102.8: two and a half units of him were off
+// the right-hand edge, clipped, every time I was pushed to the wall.
+// Measured from the widest thing in the group rather than from my own marker:
+// the lean arrow reaches further left than I do, so a clamp set by the marker
+// alone still pushed the arrow head off the left-hand edge at the wall.
+const GROUP_RIGHT = (60 + 4.8) - 50;    // the defenceman's outside shoulder
+const GROUP_LEFT = 50 - (44 - 2.5);     // the lean arrow's far end
+const ME_MIN = Math.ceil(GROUP_LEFT);
+const ME_MAX = Math.floor(100 - GROUP_RIGHT);
 
 export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   const physicality = getActiveStat(player, 'physicality');
@@ -125,7 +140,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
         setLean(leanRef.current);
         leanFlipRef.current = now + 800 + Math.random() * 1700;
       }
-      meRef.current = Math.max(12, Math.min(88,
+      meRef.current = Math.max(ME_MIN, Math.min(ME_MAX,
         meRef.current + leanRef.current * shiftPlan.lean * dt));
       setMe(meRef.current);
 
@@ -144,7 +159,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   }, [status, gain, finish, shiftPlan]);
 
   const shove = (dir) => {
-    meRef.current = Math.max(12, Math.min(88, meRef.current + dir * 15));
+    meRef.current = Math.max(ME_MIN, Math.min(ME_MAX, meRef.current + dir * 15));
     setMe(meRef.current);
   };
   const inLane = Math.abs(puck - me) <= REACH;
@@ -194,7 +209,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
       }
     >
       <Surface view={SLOT_VIEW}>
-        <SlotSheet />
+        <SlotSheet seams={false} />
 
         {/* The piece of ice I am holding, and whether the puck is above it. */}
         <rect
@@ -227,16 +242,27 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
         <Puck at={[puck, 34]} r="2.4" glow={inLane} />
 
         {/* The defenceman leaning on me, and me. The arrow is the way he is
-            leaning this second, which is the thing you are fighting. */}
+            leaning this second, which is the thing you are fighting.
+            The arrow used to be written out at y 70 with its head reaching
+            72.5, which is past the goal line and inside the mesh: the thing
+            you were fighting was drawn in the back of your own net. It sits
+            clear of the line now, and the two markers come off named rows. */}
         <g style={{ transition: 'transform 70ms linear' }} transform={`translate(${me - 50} 0)`}>
-          <Marker at={[60, 50]} kind="opp" label="D" r="4.8" />
-          <Marker at={[49, 59]} kind="me" label="YOU" r="5.2" />
-          <path
-            d={lean > 0 ? 'M 44 70 L 54 70 M 51.5 67.5 L 54 70 L 51.5 72.5'
-                        : 'M 54 70 L 44 70 M 46.5 67.5 L 44 70 L 46.5 72.5'}
-            stroke="rgba(239,68,68,0.9)" strokeWidth="1.1" fill="none"
-            strokeLinecap="round" strokeLinejoin="round"
-          />
+          <Marker at={[60, SLOT.slotRow]} kind="opp" label="D" r="4.8" />
+          <Marker at={[49, SLOT.slotRow + 7]} kind="me" label="YOU" r="5.2" />
+          {(() => {
+            const y = SLOT.goalLine - 3.5;   // clear of the line by the arrow head
+            const h = 2.5;
+            return (
+              <path
+                d={lean > 0
+                  ? `M 44 ${y} L 54 ${y} M ${54 - h} ${y - h} L 54 ${y} L ${54 - h} ${y + h}`
+                  : `M 54 ${y} L 44 ${y} M ${44 + h} ${y - h} L 44 ${y} L ${44 + h} ${y + h}`}
+                stroke="rgba(239,68,68,0.9)" strokeWidth="1.1" fill="none"
+                strokeLinecap="round" strokeLinejoin="round"
+              />
+            );
+          })()}
         </g>
       </Surface>
 

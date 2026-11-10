@@ -168,30 +168,85 @@ export function curvesFor(league) {
 // cleared the top progression tier in 93 per cent of years; a 72 OVR
 // nineteen-year-old averaged a flat 10.00 and cleared it in 100 per cent.
 // Development was not a thing that could go badly.
+// svStar sat twenty-one points of save percentage above svPar, which made a
+// .925 the bar for a season the league notices. In this engine's own output an
+// 88 OVR starter's median year was a .934 and a 96 OVR's was a .944, with the
+// top decile clipped flat against the .945 ceiling: the best save percentage
+// ever recorded in an NHL season is a .937, so every elite goalie here was
+// posting a historic year, every year, and the Vezina bar was sitting in the
+// middle of that. The save percentage curve itself is fixed in gameHelpers;
+// these two move with it. A .904 is an ordinary starter's season and a .915 is
+// one the league notices, which is what those numbers mean in life.
 const PACE = {
-  NHL: { par: 0.46, star: 1.00, svPar: 0.904, svStar: 0.925 },
-  AHL: { par: 0.46, star: 0.95, svPar: 0.901, svStar: 0.922 },
-  OHL: { par: 0.78, star: 1.55, svPar: 0.896, svStar: 0.920 },
-  WHL: { par: 0.78, star: 1.55, svPar: 0.896, svStar: 0.920 },
-  QMJHL: { par: 0.82, star: 1.62, svPar: 0.893, svStar: 0.918 },
-  USHL: { par: 0.70, star: 1.40, svPar: 0.898, svStar: 0.921 },
-  NCAA: { par: 0.60, star: 1.25, svPar: 0.905, svStar: 0.928 },
-  J20: { par: 0.78, star: 1.52, svPar: 0.896, svStar: 0.920 },
-  U20: { par: 0.76, star: 1.48, svPar: 0.896, svStar: 0.920 },
-  ECHL: { par: 0.52, star: 1.05, svPar: 0.900, svStar: 0.921 }
+  NHL: { par: 0.46, star: 1.00, svPar: 0.904, svStar: 0.915 },
+  AHL: { par: 0.46, star: 0.95, svPar: 0.901, svStar: 0.912 },
+  OHL: { par: 0.78, star: 1.55, svPar: 0.896, svStar: 0.907 },
+  WHL: { par: 0.78, star: 1.55, svPar: 0.896, svStar: 0.907 },
+  QMJHL: { par: 0.82, star: 1.62, svPar: 0.893, svStar: 0.904 },
+  USHL: { par: 0.70, star: 1.40, svPar: 0.898, svStar: 0.909 },
+  NCAA: { par: 0.60, star: 1.25, svPar: 0.905, svStar: 0.916 },
+  J20: { par: 0.78, star: 1.52, svPar: 0.896, svStar: 0.907 },
+  U20: { par: 0.76, star: 1.48, svPar: 0.896, svStar: 0.907 },
+  ECHL: { par: 0.52, star: 1.05, svPar: 0.900, svStar: 0.911 }
 };
 
 // Everything else is a European senior league: lower event totals than the
 // NHL, and a scoring title in the fifties rather than the hundreds.
-const PACE_EURO = { par: 0.42, star: 0.88, svPar: 0.908, svStar: 0.930 };
+const PACE_EURO = { par: 0.42, star: 0.88, svPar: 0.908, svStar: 0.919 };
 
 export const paceOf = (league) => PACE[league] || PACE_EURO;
+
+export const isDefence = (pos) => pos === 'LD' || pos === 'RD';
+
+// A DEFENCEMAN IS NOT A FORWARD WHO SCORES LESS.
+//
+// par and star in the table above are a forward's rates, and every skater was
+// graded on them. A defenceman was therefore told every spring that he had
+// come up short at a job that was never his. Measured over six hundred
+// seasons, an 88 OVR top-pair defenceman averaged a 9.01 where the same player
+// at centre averaged 9.88, and took the league MVP in 1.3 per cent of his
+// seasons against 25.8. A shutdown pair was worse off again, because points
+// were the only thing the grade could see. An ordinary NHL defenceman scores
+// about 25 points in a season and a Norris-calibre one about 57, so those are
+// the two points his year is drawn between instead.
+// par is an ordinary NHL defenceman, about 26 points in a season. star is what
+// a top-pair defenceman in this engine actually produces, which is a point a
+// game: fitted to the engine's own output rather than to real hockey, because
+// the defencemen here score more relative to the forwards than they do in life
+// and a grade keyed to reality would have punished all of them for it.
+const POS_PACE = { par: 0.70, star: 1.00 };
+
+// The two halves of the grade, and the points the defensive half is drawn
+// between. Fitted over five hundred seasons per archetype against a target
+// curve: an ordinary regular at 5, a top-pair season at 9, a seventh
+// defenceman under 4.
+const D_WEIGHT = { off: 1.9, def: 2.2 };
+const D_SHIELD_PAR = 0.40;  // plus-minus per game that maxes the defensive half
+const D_TOI_MID = 20.5;     // minutes at which a defenceman is neither trusted nor buried
+const D_TOI_SPAN = 4.5;
+
+/**
+ * The half of a defenceman's season that is not on the scoresheet.
+ *
+ * A goalie has a save percentage, which is why his year can be judged without
+ * reference to anyone's points. A defenceman's equivalent has to be built from
+ * what the engine actually simulates: the goal difference he was on the ice
+ * for, and the minutes the staff gave him, which is the coaching verdict on
+ * his defending and the nearest thing here to an eye test.
+ *
+ * Roughly -1 for a liability, +1 for the best defensive year in the league.
+ */
+export function defensiveHalf(pmPerGame, toi) {
+  const shield = Math.max(-1, Math.min(1, (pmPerGame || 0) / D_SHIELD_PAR));
+  const minutes = Math.max(-1, Math.min(1, ((toi ?? D_TOI_MID) - D_TOI_MID) / D_TOI_SPAN));
+  return shield * 0.62 + minutes * 0.38;
+}
 
 /**
  * A season graded against the league it was played in, on the same 1 to 10
  * scale the rest of the game already uses.
  */
-export function rateSeason({ league, pos, games, g, a, pm, saves, shots }) {
+export function rateSeason({ league, pos, games, g, a, pm, saves, shots, toi }) {
   if (!games) return 5.0;
   const pace = paceOf(league);
 
@@ -203,11 +258,90 @@ export function rateSeason({ league, pos, games, g, a, pm, saves, shots }) {
   }
 
   const ppg = (g + a) / games;
-  // Plus-minus still counts, but as a tiebreaker rather than a third of the
-  // grade: a plus-20 season is worth about half a point of rating.
   const pmPerGame = (pm || 0) / games;
+
+  // Two halves, either of which can carry him, because both halves are the
+  // job: a defenceman who scores like Makar grades out on the first, one who
+  // defends like Hedman on the second.
+  if (isDefence(pos)) {
+    const par = pace.par * POS_PACE.par;
+    const star = pace.star * POS_PACE.star;
+    const off = (ppg - par) / (star - par);
+    const r = 5 + off * D_WEIGHT.off + defensiveHalf(pmPerGame, toi) * D_WEIGHT.def;
+    return Math.min(10, Math.max(1, Number(r.toFixed(1))));
+  }
+
+  // Plus-minus still counts for a forward, but as a tiebreaker rather than a
+  // third of the grade: a plus-20 season is worth about half a point of rating.
   const r = 5 + ((ppg - pace.par) / (pace.star - pace.par)) * 3.5 + pmPerGame * 2.0;
   return Math.min(10, Math.max(1, Number(r.toFixed(1))));
+}
+
+// WHAT A ROLE ACTUALLY BUYS, WHICH IS MINUTES.
+//
+// The engine worked out an average time on ice every season, printed it on the
+// recap, and then produced the season from a separate role multiplier that
+// never once looked at it. Ice time was a label sitting next to a number it
+// had no connection to, which is why an 88 OVR centre on a depth contract
+// played 17.3 minutes and posted a median of 79 points: a third-line scoring
+// total that would have finished seventh in the league.
+//
+// These are the minutes each tier really plays. Even strength and powerplay
+// are kept apart because a powerplay point comes at better than twice the
+// even-strength rate, and the top unit is most of what a first-liner's edge
+// actually is.
+const ROLE_ICE = [
+  [1.18, 17.6, 3.0],  // 1st line, 1st pair
+  [0.98, 15.8, 1.7],  // 2nd line, top four
+  [0.76, 13.2, 0.5],  // 3rd line, 3rd pair
+  [0.00, 9.4, 0.0]    // 4th line, 7th D
+];
+
+// A defenceman plays more of the game than a forward in the same tier: a
+// first-pair defenceman is out for twenty-three minutes where a first-line
+// centre is out for eighteen.
+const D_SHIFT = 1.26;
+
+// A powerplay minute against an even-strength one, for scoring purposes.
+const PP_WEIGHT = 2.4;
+
+// The weighted minutes of a first-tier player, per position, so a first liner
+// comes out of this at the multiplier he already had and the change moves only
+// what the lesser roles are worth.
+const ICE_REF = {
+  F: 17.6 + 3.0 * PP_WEIGHT,
+  D: 17.6 * D_SHIFT + 3.0 * PP_WEIGHT
+};
+
+/**
+ * Minutes, and what those minutes are worth.
+ *
+ * `even`, `pp` and `toi` are the real split, for the recap to print. `factor`
+ * is the production multiplier, normalised so a first-tier player sits at the
+ * 1.27 the old role multiplier gave him.
+ */
+export function iceTime({ roleMulti, pos, coachTrust = 50, stamina = 50 }) {
+  const group = isDefence(pos) ? 'D' : 'F';
+  const tier = ROLE_ICE.find(([floor]) => roleMulti >= floor) || ROLE_ICE[ROLE_ICE.length - 1];
+  const shift = group === 'D' ? D_SHIFT : 1;
+
+  // Trust earns third-period shifts and a place on a unit, stamina earns the
+  // right to keep them. Both move him inside his tier, never out of it.
+  const trustMod = ((coachTrust - 50) / 50) * 1.9;
+  const staminaMod = ((stamina - 50) / 50) * 1.4;
+
+  const even = Math.max(6.0, Math.min(26.0, tier[1] * shift + trustMod + staminaMod));
+  // A coach who does not trust him does not put him out a man up, which is the
+  // first thing to go and the one that costs the most.
+  const pp = tier[2] * Math.max(0.35, Math.min(1.25, 0.55 + (coachTrust / 100) * 0.9));
+  const weighted = even + pp * PP_WEIGHT;
+
+  // Capped at the 1.27 a first-tier player had before, so this change can only
+  // ever take production away from a lesser role and never hand any to a top
+  // one. Without the cap a high-stamina star gained minutes he had not been
+  // getting, and the league's scoring title went from 17.5 per cent of an 88
+  // OVR centre's seasons to 27.8, which is not what was being fixed here.
+  return { even, pp, toi: even + pp, factor: Math.min(1.27, (weighted / ICE_REF[group]) * 1.27) };
 }
 
 /**
@@ -222,4 +356,23 @@ export function drawLeagueBest(league) {
   };
   const [mean, sd] = table[league] || [58, 7];
   return Math.round(mean + gaussian() * sd);
+}
+
+/**
+ * What it took to lead this league in save percentage this year.
+ *
+ * The goalie half of drawLeagueBest, which did not exist. A forward's trophies
+ * were a contest against a drawn bar that moves from season to season, and a
+ * goalie's were a fixed threshold he either cleared or did not: the Vezina was
+ * "a .925 in thirty-eight games", full stop, so an 88 OVR starter took it in
+ * 84 per cent of his seasons and a 94 OVR in 97. There was no field to lose to.
+ * Nine points above the bar for a season the league notices, which puts the
+ * NHL's leader in the mid twenties most years and occasionally past .930.
+ */
+export function drawLeagueBestSv(league) {
+  const pace = paceOf(league);
+  // Fourteen points above a season the league notices, fitted so that an 88
+  // OVR starter takes the Vezina at the rate an 88 OVR centre takes the Art
+  // Ross. At nine it was still 37 per cent against their 22.
+  return pace.svStar + 0.014 + gaussian() * 0.004;
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Surface } from './rink/Ice';
-import { SLOT_VIEW, wavePath } from './rink/geometry';
+import { SLOT, SLOT_MOUTH, SLOT_VIEW, wavePath } from './rink/geometry';
 import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 
 // Blocking the shot, from the slot.
@@ -17,10 +17,13 @@ import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 // screen your own goalie. Three in a row and the shift is over.
 
 const NEEDED = 3;
+// The lane centres come from SLOT now, so the shooting lanes, the seams the
+// sheet paints between them and the markers this game stands in them cannot
+// drift apart.
 const LANES = [
-  { id: 0, label: 'Strong side', x: 17 },
-  { id: 1, label: 'Through the middle', x: 50 },
-  { id: 2, label: 'Weak side', x: 83 }
+  { id: 0, label: 'Strong side', x: SLOT.lanes[0] },
+  { id: 1, label: 'Through the middle', x: SLOT.lanes[1] },
+  { id: 2, label: 'Weak side', x: SLOT.lanes[2] }
 ];
 
 export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
@@ -118,13 +121,16 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
       <Surface view={SLOT_VIEW}>
         <SlotSheet />
 
-        {/* The point man, winding up. */}
-        <Marker at={[LANES[lane ?? 1].x, 14]} kind="opp" label="D" r="4.4" />
+        {/* The point man, winding up. On pointRow rather than at 14, where his
+            marker was drawn across the blue line above him and across the lane
+            ticks below him at the same time. */}
+        <Marker at={[LANES[lane ?? 1].x, SLOT.pointRow]} kind="opp" label="D" r="4.4" />
 
-        {/* The shot, once it is on its way. */}
+        {/* The shot, once it is on its way. It finishes on the goal line now,
+            not at 70, which was neither the line nor the mouth. */}
         {showShot && (
           <path
-            d={wavePath([LANES[lane].x, 18], [50, 70], null, 1.6, 7)}
+            d={wavePath([LANES[lane].x, SLOT.pointRow + 4], SLOT_MOUTH, null, 1.6, 7)}
             fill="none"
             stroke={picked === null ? '#fbbf24' : hitLane ? '#22E748' : '#ef4444'}
             strokeWidth="1.9" strokeLinecap="round"
@@ -134,14 +140,12 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
         {/* Me, in the slot. I slide into whichever lane I commit to. */}
         <g style={{ transition: 'transform 120ms ease-out' }}
            transform={`translate(${(LANES[picked ?? 1].x - 50)} 0)`}>
-          <Marker at={[50, 54]} kind="me" label="YOU" r="5.2" />
+          <Marker at={[50, SLOT.slotRow]} kind="me" label="YOU" r="5.2" />
         </g>
 
-        {/* Lane seams get a tick at the top so the three channels are obvious. */}
-        {LANES.map(l => (
-          <line key={l.id} x1={l.x} y1="9.5" x2={l.x} y2="13"
-                stroke="rgba(255,255,255,0.18)" strokeWidth="0.6" />
-        ))}
+        {/* The lane ticks are gone. They sat in the band the point man's marker
+            occupies, and the sheet already paints a dashed seam between each
+            pair of lanes, so they were drawing the channels twice. */}
       </Surface>
 
       <div className="flex gap-2 p-3 pt-0">

@@ -4,6 +4,7 @@ import { getTransferImpact, isNhlFreeAgentEligible } from '../utils/gameHelpers'
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
 import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
+import { capFor, comparables, marketTier } from '../utils/contracts';
 
 // A club's projected finish, read out of one table for the whole league.
 //
@@ -126,55 +127,33 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     let baseSalary;
     let maxYears;
     let minYears = 1; // NEW: Ensure bridge deals don't roll 1-year terms
+    // The comparables this round of offers was priced from, carried onto every
+    // offer so the negotiation screen can show the player who he is being
+    // measured against rather than just the number that came out.
+    let market = null;
 
     const isRFA = actingLeague === 'NHL' && player.age < 27;
 
     // Force NHL logic if actingLeague is NHL. Impossible to get $165k here.
     if (actingLeague === 'NHL') {
-      const careerAwards = player.stats?.awards || [];
-      const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
-      
-      // 1. Calculate Recent Production (Points)
-      const isGoalie = player.pos === 'G';
-      const recentGoals = player.stats?.nhl?.goals || 0;
-      const recentAssists = player.stats?.nhl?.assists || 0;
-      const recentPoints = recentGoals + recentAssists;
-      const seasons = Math.max(1, player.stats?.seasonsPlayed || 1);
-      const avgPoints = recentPoints / seasons; // Rough career/recent average
+      // WHAT HE IS WORTH, AND WHO SAYS SO.
+      //
+      // This was a formula on his own career averages with the term gated on
+      // player.ovr. It is now his recent form priced against the classmates
+      // who are actually playing in this league, so there are names and
+      // numbers behind the figure. See utils/contracts.js for the whole of it.
+      market = comparables(player, player.peers, currentYear);
+      const tier = marketTier(market.anchor, currentYear);
+      const cap = capFor(currentYear);
 
-      // 2. Salary Cap Evolution (approx 4% increase per year from 2024)
-      const capInflation = 1 + (Math.max(0, currentYear - 2024) * 0.04);
+      // The agent takes his cut of the argument: multi is the club's appetite
+      // and repMod is what the player's reputation is doing to it.
+      baseSalary = Math.max(market.anchor * multi * repMod, cap * tier.floorShare);
+      maxYears = tier.maxYears;
+      if (isRFA) minYears = tier.rfaMinYears;
 
-      // 3. Blended Salary Logic (OVR + Production)
-      const recentSaves = player.stats?.nhl?.saves || 0;
-      const productionValue = !isGoalie 
-          ? (avgPoints * 120000) 
-          : ((recentSaves / seasons) * 4000);
-
-      const ovrValue = (player.ovr >= 70 ? (player.ovr - 70) * 200000 : 0);
-      let calculatedSalary = ((productionValue * 0.6) + (ovrValue * 0.4)) * capInflation * multi * repMod;
-
-      if (player.ovr >= 85 || isSuperstar || avgPoints >= 80) {
-        baseSalary = Math.max(calculatedSalary, 7500000 * capInflation);
-        maxYears = 8;
-        if (isRFA) minYears = 5; 
-      } else if (player.ovr >= 80 || avgPoints >= 50) {
-        baseSalary = Math.max(calculatedSalary, 4500000 * capInflation);
-        maxYears = 5;
-        if (isRFA) minYears = 3; 
-      } else if (player.ovr >= 75 || avgPoints >= 30) {
-        baseSalary = Math.max(calculatedSalary, 2000000 * capInflation);
-        maxYears = 3;
-        if (isRFA) minYears = 2; 
-      } else {
-        baseSalary = Math.max(leagueMinimum + 150000, calculatedSalary);
-        maxYears = 2;
-      }
-
-      if (isSuperstar) {
-         baseSalary = Math.max(baseSalary, 10500000 * capInflation * multi * repMod);
-         maxYears = Math.max(maxYears, 8);
-         if (isRFA) minYears = 6;
+      if (tier.tier === 'fringe') {
+        baseSalary = Math.max(leagueMinimum + 150000, baseSalary);
       }
 
       if (player.age >= 37) {
@@ -185,9 +164,12 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       } else if (player.age >= 32) {
          maxYears = Math.min(maxYears, 4);
       }
+      minYears = Math.min(minYears, maxYears);
 
-      const NHL_MAX_SALARY = 16500000 * capInflation; // Max contract scales with cap
-      baseSalary = Math.min(NHL_MAX_SALARY, baseSalary);
+      // The maximum contract is twenty per cent of the cap, which is what the
+      // real one is, rather than a hand-written number needing its own
+      // inflation term.
+      baseSalary = Math.min(cap * 0.20, baseSalary);
     } else {
       // Minor league / amateur fallback pay
       baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
@@ -467,8 +449,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
 
     offers.sort((a, b) => b.salary - a.salary);
     // Every offer carries perks and flaws now, so the screen always has something
-    // to weigh beyond the salary.
-    setFreeAgencyOffers((offers).map(o => withOfferPerks(o)));
+    // to weigh beyond the salary, and the comparables it was priced from, so
+    // the player can see the argument rather than only the number.
+    setFreeAgencyOffers((offers).map(o => withOfferPerks({ ...o, market })));
     setScreen('transfer');
     return true;
 }

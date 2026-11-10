@@ -4,9 +4,9 @@ import {
 } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
-import { ageFactor, curvesFor, gaussianNoise, goalieAgeAdjust, paceOf, rateSeason, seasonForm, soften } from './production';
+import { ageFactor, curvesFor, gaussianNoise, goalieAgeAdjust, iceTime, paceOf, rateSeason, seasonForm, soften } from './production';
 import { advanceLeagueState, teamStrengthOf } from './leagueState';
-import { advancePeers, classBestAt, classNews, ensureClass, scoringBar, scoutingBoard } from './peers';
+import { advancePeers, classBestAt, classNews, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
 // shuffle: comparison sorts assume a consistent comparator, so elements drift
@@ -119,8 +119,19 @@ export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = '
                  : standing >= 71 ? 0.88 : standing >= 64 ? 0.66 : 0.46;
 
   // 3. How far the coach moves him over a season.
+  //
+  // Capped, because a coach promotes a man a line at a time. Uncapped, an 88
+  // OVR who had signed a 0.60 depth contract was pulled all the way to 0.92 by
+  // the neutral-trust 0.45, which put him on the third line with second-line
+  // minutes and made the contract he signed very nearly irrelevant: "Bottom
+  // Six Grinder" and "Depth" both came out as 3rd Line Depth. He plays the
+  // deal he signed, earns a promotion inside it, and argues for a better one
+  // in the summer. Demotion runs further than promotion, because a coach will
+  // sit a man who is struggling sooner than he will hand a job to one who is
+  // not yet trusted with it.
   const pull = Math.min(0.80, Math.max(0.15, 0.45 + ((coachTrust - 50) / 50) * 0.35));
-  const multi = signed + (deserved - signed) * pull;
+  const wanted = (deserved - signed) * pull;
+  const multi = signed + Math.max(-0.30, Math.min(0.22, wanted));
 
   // The name for where that lands him.
   const isDef = pos === 'LD' || pos === 'RD';
@@ -315,7 +326,7 @@ export const applyOvrDelta = (player, delta) => {
   };
 };
 
-function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar }) {
+function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, pm = 0, toi = null }) {
   const awards = [];
   const pts = g + a;
 
@@ -330,8 +341,12 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   const field = bar || { total: 9999, goals: 9999 };
   const wonScoring = pts >= field.total;
   const wonGoals = g >= (field.goals ?? 9999);
-  // The MVP is not always the scoring champion, but he is always close to him.
-  const mvpPace = pts >= field.total * 0.96;
+  // The MVP is not always the scoring champion, but he has to be at least his
+  // equal. At 96 per cent of the scoring bar the Hart was strictly easier to
+  // win than the Art Ross, which is backwards: a 94 OVR centre took the
+  // scoring title in 44 per cent of his seasons and the MVP in 54. The best
+  // player of the last decade has five scoring titles and three MVPs.
+  const mvpPace = pts >= field.total * 1.04;
   const isGoalie = player.pos === 'G';
   const isDefense = ['LD', 'RD'].includes(player.pos);
   const svPct = saves / (shots || 1);
@@ -352,25 +367,65 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   const goalieMin = junior ? 30 : 38;
 
   if (isGoalie) {
-    // A goalie taking the league MVP is a once-a-decade event, so the bar for
-    // it sits well above the one for best goaltender. At svStar + 0.004 an 88
-    // OVR starter was winning the Hart in 63 per cent of his seasons.
-    if (svPct >= pace.svStar + 0.013 && games >= goalieMin + 14) awards.push(trophy.mvp);
-    if (svPct >= pace.svStar && games >= goalieMin) awards.push(trophy.goalie);
+    // THE VEZINA IS A RACE, NOT A THRESHOLD.
+    //
+    // Every skater trophy here is won against `bar`, a figure drawn fresh each
+    // season and beaten by a classmate often enough to matter. The goalie
+    // awards were the one corner of the game still doing what all of them used
+    // to do: clear a fixed .925 and the trophy is yours. With nobody to lose
+    // the race to, an 88 OVR starter took the Vezina in 84 per cent of his
+    // seasons, a 94 OVR in 97, and the league MVP in a third and two thirds of
+    // them. `gBar` is the goalie half of that contest, and it moves.
+    const lead = gBar ? gBar.sv : pace.svStar;
+    if (svPct >= lead && games >= goalieMin) awards.push(trophy.goalie);
+    // A goalie taking the MVP outright is a once-a-generation event: three
+    // times in the last forty years. Leading the league is not enough, he has
+    // to leave it behind, and over a full starter's workload.
+    if (svPct >= lead + 0.016 && games >= goalieMin + 14) awards.push(trophy.mvp);
+  } else if (isDefense) {
+    // THE NORRIS IS NOT A SHARE OF THE ART ROSS.
+    //
+    // It used to be exactly that, 61 per cent of whatever won the scoring
+    // title, which made it automatic for any good defenceman and impossible
+    // for a shutdown pair however well they played: 16 per cent of seasons at
+    // 80 OVR, 73 per cent at 88, 92 per cent at 94. It goes instead on the
+    // graded season, which is the same two halves rateSeason judges him on, so
+    // both a ninety-point year and a plus-thirty year at twenty-four minutes a
+    // night can win it. The bar is a bar rather than a contest for the same
+    // reason the Vezina's is: there is no field of defencemen to race.
+    const dGrade = rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, toi });
+    if (dGrade >= 9.42) awards.push(trophy.dman);
+    // And the MVP, which a defenceman wins roughly once a generation, needs
+    // the season to be both the best defensive year in the league and a
+    // scoring year most forwards would be happy with. At 9.85 and seven
+    // tenths of the scoring title a 94 OVR was taking it in 17 per cent of
+    // his seasons, which is five times what the whole NHL has managed since
+    // Chris Pronger.
+    if (dGrade >= 9.97 && pts >= field.total * 0.95) awards.push(trophy.mvp);
+    if (wonScoring) awards.push(trophy.scoring);
+    if (wonGoals) awards.push(trophy.goals);
   } else {
     if (mvpPace) awards.push(trophy.mvp);
     if (wonScoring) awards.push(trophy.scoring);
     if (wonGoals) awards.push(trophy.goals);
-    if (isDefense && pts >= field.total * 0.61) awards.push(trophy.dman);
   }
 
   // A rookie is a sixteen-year-old in junior and a first-year professional
   // everywhere else.
   const isRookie = junior ? player.age === 16 : proSeasons === 1;
   if (isRookie) {
+    // ONE ROOKIE AWARD, THREE POSITIONS, ONE STANDARD.
+    //
+    // It was half the scoring title for a skater and svPar + 0.010 for a
+    // goalie, two unrelated numbers, and the result at the same ability was
+    // 80 per cent for a forward, 4 for a defenceman and 77 for a goalie. All
+    // three are now set so a first-year of a given standard wins it at the
+    // same rate whatever he plays.
     const rookiePace = isGoalie
-      ? (svPct >= pace.svPar + 0.010 && games >= goalieMin)
-      : pts >= field.total * 0.52;
+      ? (svPct >= (gBar ? gBar.sv : pace.svStar) - 0.020 && games >= goalieMin)
+      : isDefense
+        ? rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, toi }) >= 7.50
+        : pts >= field.total * 0.60;
     if (rookiePace) awards.push(trophy.rookie);
   }
 
@@ -620,27 +675,30 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const finalTeamFactor = Math.min(0.95, Math.max(0.05, randomTeamFactor + playerImpact));
   const teamStrength = 0.65 + (finalTeamFactor * 0.55); 
   
-  // --- TIME ON ICE (TOI) CALCULATION ---
+  // --- TIME ON ICE ---
+  //
+  // The minutes are the role. This used to be a display figure worked out from
+  // roleMulti and then never read again, while the season was produced from
+  // roleMulti directly, so the two could not disagree but neither could the
+  // ice time mean anything. See iceTime in utils/production.js for the tiers
+  // and for what a powerplay minute is worth.
   let avgToi;
+  let ppToi = 0;
+  let iceFactor = roleMulti;
   let fatigueMultiplier = 1.0;
 
   if (p.pos === 'G') {
       avgToi = 60.0;
   } else {
-      // 1. Base TOI from role (e.g., 1.25 roleMulti = ~18.5 mins, 0.60 = ~11 mins)
-      let baseToi = 8.0 + (roleMulti * 8.5); 
+      const ice = iceTime({ roleMulti, pos: p.pos, coachTrust, stamina: p.stamina });
+      avgToi = ice.toi;
+      ppToi = ice.pp;
+      iceFactor = ice.factor;
 
-      // 2. Coach Trust Modifier (Trust earns special teams / 3rd period shifts)
-      const trustMod = (coachTrust - 50) * 0.05; // +/- 2.5 mins
-
-      // 3. Stamina Modifier
-      const staminaMod = (p.stamina - 50) * 0.04; // +/- 2 mins
-
-      avgToi = Math.min(26.5, Math.max(7.0, baseToi + trustMod + staminaMod));
-
-      // 4. Fatigue Check (Heavy minutes + Low stamina = production drop)
-      if (avgToi > 19.0 && p.stamina < 65) {
-          fatigueMultiplier = 0.85; // 15% drop in goals/assists
+      // Heavy minutes on thin legs still cost him, over and above the minutes
+      // stamina has already earned or lost him above.
+      if (ice.even > 19.0 && p.stamina < 65) {
+          fatigueMultiplier = 0.85;
       }
   }
 
@@ -669,10 +727,20 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       }
       const leagueScale = maxGames / 82; // Adjusts the bands if the league plays fewer than 82 games (e.g. NCAA)
       games = Math.floor((minG + Math.random() * (maxG - minG)) * leagueScale);
-  } else if (roleMulti <= 0.65) {
-      games = Math.floor(maxGames * (0.75 + Math.random() * 0.2));
   } else {
-      games = Math.floor(maxGames * (0.9 + Math.random() * 0.1)); 
+      // A healthy scratch is the other thing a role decides. The old split
+      // gave anyone under 0.65 between 75 and 95 per cent of the schedule and
+      // everybody else between 90 and 100, so across every role in the game
+      // the difference between a first line and a seventh defenceman was about
+      // four games. A fringe player sits, and sitting is most of what being a
+      // fringe player means.
+      // The top tier keeps exactly the band it always had, so none of this
+      // quietly inflates a first-liner's season; only the lesser roles lose
+      // games, which is the thing that was missing.
+      const floor = roleMulti >= 1.18 ? 0.90 : roleMulti >= 0.98 ? 0.88
+                  : roleMulti >= 0.76 ? 0.78 : 0.58;
+      const span = roleMulti >= 0.98 ? 0.10 : roleMulti >= 0.76 ? 0.14 : 0.26;
+      games = Math.floor(maxGames * (floor + Math.random() * span));
   }
 
   // NEW: Deduct the missed games from their total!
@@ -699,12 +767,27 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const curves = curvesFor(currentLg);
 
   if (p.pos === 'G') {
-      const savePctBase = 0.880 + ((simSht + simSkt + simPhy) - 150) * 0.0004 + ((teamStrength - 1) * 0.05)
+      // WHAT A SAVE PERCENTAGE ACTUALLY LOOKS LIKE.
+      //
+      // The slope was 0.0004 per attribute point off a 0.880 intercept, which
+      // put an 88 OVR starter's median season at .934 and a 96 OVR's at .944,
+      // with the top decile of both clipped flat against the .945 ceiling.
+      // The best save percentage in the history of the NHL is a .937. Every
+      // good goalie in this game was posting a historic season every year,
+      // which is also why his trophies fired the way they did.
+      //
+      // The curve now runs .897 at a fringe 66 to .924 at a 96, which is the
+      // real spread: a backup, an ordinary starter at .905, an elite one at
+      // .917, and the best in the world at .924 with the odd year past .930.
+      const savePctBase = 0.8826 + ((simSht + simSkt + simPhy) - 150) * 0.0003
+                        + ((teamStrength - 1) * 0.03)
                         + goalieAgeAdjust(p.age);
-      // A goalie's year swings on a normal curve rather than inside a flat
-      // ten-point band, so a .935 season and a .895 season are both on the
-      // table for the same goalie.
-      const actualSavePct = Math.min(0.945, Math.max(0.835, savePctBase + gaussianNoise() * 0.009));
+      // A goalie's year still swings on a normal curve rather than inside a
+      // flat band, so a career year and a bad one are both on the table for
+      // the same goalie. The team term is a third of what it was: a club in
+      // front of him moved his save percentage by nearly two points, which is
+      // more than the gap between an average starter and an elite one.
+      const actualSavePct = Math.min(0.942, Math.max(0.855, savePctBase + gaussianNoise() * 0.008));
       shots = games * (26 + Math.floor(Math.random() * 8));
       saves = Math.floor(shots * actualSavePct);
       
@@ -715,7 +798,19 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       if (['LD', 'RD'].includes(p.pos)) {
           gpg = Math.max(0, (simSht - 55) * 0.004 + (simIq - 50) * 0.002);
           apg = Math.max(0, (simIq - 50) * 0.009 + (simSkt - 50) * 0.004);
-          pm = Math.floor((teamStrength - 1) * 60 + ((simPhy + simIq) - 130) * 0.2 + (Math.random() * 10 - 5));
+          // A DEFENCEMAN'S PLUS-MINUS IS HIS SAVE PERCENTAGE.
+          //
+          // It was ((phy + iq) - 130) * 0.2, which moved the number by about
+          // twelve goals across the entire range of defensive ability, against
+          // thirty-three for the team in front of him. Defending was therefore
+          // a rounding error on the only defensive figure the engine keeps,
+          // and a shutdown pair and a sieve on the same club finished within a
+          // few goals of each other. Skating belongs in it as well, because a
+          // defenceman who cannot skate gets beaten wide however well he reads
+          // the game.
+          pm = Math.floor((teamStrength - 1) * 36
+             + ((simPhy + simIq + simSkt) - 200) * 0.32
+             + (Math.random() * 12 - 6));
       } else if (p.pos === 'C') {
           gpg = Math.max(0, (simSht - 55) * 0.009 + (simIq - 50) * 0.002);
           apg = Math.max(0, (simIq - 50) * 0.0105 + (simSkt - 50) * 0.0045);
@@ -726,8 +821,11 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
           pm = Math.floor((teamStrength - 1) * 50 + ((simSkt + simSht) - 130) * 0.2 + (Math.random() * 10 - 5));
       }
 
-      // Everything that is not luck, in one place.
-      const context = games * roleMulti * teamStrength * lgMulti * fatigueMultiplier * ageMulti;
+      // Everything that is not luck, in one place. iceFactor rather than
+      // roleMulti, so the season comes out of the minutes he actually played
+      // and the powerplay time he actually got, which is the whole of the
+      // difference between a first line and a fourth.
+      const context = games * iceFactor * teamStrength * lgMulti * fatigueMultiplier * ageMulti;
       const gRaw = context * gpg * form.goals;
       const aRaw = context * apg * form.assists;
 
@@ -759,7 +857,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // Graded against the league he played in, not against a single scale shared
   // by the NHL and the OHL. See rateSeason in utils/production.js for what
   // that was doing to development.
-  let rating = rateSeason({ league: currentLg, pos: p.pos, games, g, a, pm, saves, shots });
+  let rating = rateSeason({ league: currentLg, pos: p.pos, games, g, a, pm, saves, shots, toi: avgToi });
 
   // Where these games were actually played, which is not necessarily where he
   // is standing at the end of them: a call-up moves the club and the league
@@ -794,7 +892,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     return {
       segment: {
         team: playedTeam, league: playedLg, games,
-        g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, rating, standings,
+        g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating, standings,
         // Carried so the next segment inherits the same club, rather than
         // re-rolling how good the team is at every checkpoint of the year.
         // The base, not this segment's jittered value, so drift does not compound.
@@ -804,7 +902,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   }
 
   // Every stint of this season, earlier ones first, this one last.
-  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, rating };
+  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating };
   // Consecutive stints at the same club are one spell, not two: a prospect kept
   // past his nine games played 71 games for that team, not "9 and then 62".
   const stints = [...(options.priorStints || []), thisStint].reduce((acc, s) => {
@@ -840,8 +938,12 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // bodies of work, and the junior trophies belong to the junior half.
   const leagueYear = stints.filter(s => s.league === playedLg).reduce((acc, s) => ({
     games: acc.games + (s.games || 0), g: acc.g + (s.g || 0), a: acc.a + (s.a || 0),
-    saves: acc.saves + (s.saves || 0), shots: acc.shots + (s.shots || 0)
-  }), { games: 0, g: 0, a: 0, saves: 0, shots: 0 });
+    saves: acc.saves + (s.saves || 0), shots: acc.shots + (s.shots || 0),
+    // A defenceman's trophy is decided on these two as much as on his points,
+    // so the league half has to carry them the way it carries the goals.
+    pm: acc.pm + (s.pm || 0),
+    toiGames: acc.toiGames + ((s.avgToi || 0) * (s.games || 0))
+  }), { games: 0, g: 0, a: 0, saves: 0, shots: 0, pm: 0, toiGames: 0 });
 
   // The rest of the draft class plays its season here, at the end of yours,
   // because the scoring title cannot be settled until everyone has finished.
@@ -849,12 +951,17 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // What it actually took to lead this league this year, which is either the
   // best of the known field or a number drawn from the league's history.
   const bar = scoringBar(nextPeers, playedLg);
+  // And what it took to lead it in net, which the skaters have had since the
+  // trophies stopped being flat thresholds and the goalies never did.
+  const gBar = goalieBar(nextPeers, playedLg);
 
   const awards = _computeAwards({
     player: tempPlayer, rating,
     g: leagueYear.g, a: leagueYear.a,
     saves: leagueYear.saves, shots: leagueYear.shots,
-    games: leagueYear.games, standings, bar
+    games: leagueYear.games, standings, bar, gBar,
+    pm: leagueYear.pm,
+    toi: leagueYear.games > 0 ? leagueYear.toiGames / leagueYear.games : avgToi
   });
 
   // Every club the player had anything to do with this year is now a club the
@@ -1007,7 +1114,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
     saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
     wins: seasonTotal.wins, losses: seasonTotal.losses, otl: seasonTotal.otl,
-    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi,
+    games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi, ppToi,
     // Who won the scoring race and what it took, so the recap can say so
     // instead of leaving a fifty-goal season with nothing to measure it by.
     scoringBar: bar,

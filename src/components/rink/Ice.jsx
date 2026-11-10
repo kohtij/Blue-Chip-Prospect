@@ -24,7 +24,7 @@
 import {
   ICE, RED, BLUE, BOARD, INK,
   W, H, GOAL_LINE, BLUE_LINE, MID, NET_HALF, CREASE_R, CIRCLE_R,
-  DOT_X, TOP_DOT, BOT_DOT, MOUTH, bez, angleAt, wavePath
+  DOT_X, TOP_DOT, BOT_DOT, MOUTH, SLOT, SLOT_SEAMS, bez, angleAt, wavePath
 } from './geometry';
 
 
@@ -259,41 +259,56 @@ export function Goalie({ shift = 0, down = false, beaten = false }) {
 // The view a defenceman blocking a shot has, and the one the net-front games
 // use: the goal behind you, three shooting lanes running out to the point.
 
-export function SlotSheet({ lanes = 3 }) {
-  const laneW = 100 / lanes;
+// `seams` off for the games that have no lanes. The net-front battle and the
+// breakaway are played across the whole width rather than in three channels,
+// so the dashed seams were drawing channels that mean nothing in them, and a
+// player sliding from wall to wall crossed both of them.
+export function SlotSheet({ seams = true }) {
+  // Every figure here comes from SLOT in rink/geometry, which the five games
+  // played on this sheet also read, so the net cannot move without the markers
+  // moving with it. See the note on SLOT for what this file used to do instead.
+  const { blueLine, goalLine, depth, netHalf, netDepth, creaseHalf, dot } = SLOT;
+  const netL = 50 - netHalf;
+  const netR = 50 + netHalf;
   return (
     <g>
-      <rect x="0" y="0" width="100" height="80" fill={ICE} />
+      <rect x="0" y="0" width="100" height={depth} fill={ICE} />
       {/* the goal line and crease at the bottom, the blue line at the top.
           The crease used to be a sixteen-unit arc against a net barely wider
           than it, which is not the proportion of a rink: the paint is eight
           feet across and the goal six, so it reads as a shallow apron in front
           of the mouth rather than a dome the players stand on top of. */}
-      <line x1="0" y1="72" x2="100" y2="72" stroke={RED} strokeWidth="1.1" />
-      <path d="M 39 72 A 11 11 0 0 1 61 72" fill="rgba(56,120,220,0.16)" stroke={BLUE} strokeWidth="0.7" />
-      <line x1="0" y1="8" x2="100" y2="8" stroke={BLUE} strokeWidth="2.4" />
-      {/* lane seams, faint, so the three channels read without becoming columns */}
-      {Array.from({ length: lanes - 1 }, (_, i) => (
-        <line key={i} x1={laneW * (i + 1)} y1="9" x2={laneW * (i + 1)} y2="71"
+      <line x1="0" y1={goalLine} x2="100" y2={goalLine} stroke={RED} strokeWidth="1.1" />
+      <path d={`M ${50 - creaseHalf} ${goalLine} A ${creaseHalf} ${creaseHalf} 0 0 1 ${50 + creaseHalf} ${goalLine}`}
+            fill="rgba(56,120,220,0.16)" stroke={BLUE} strokeWidth="0.7" />
+      <line x1="0" y1={blueLine} x2="100" y2={blueLine} stroke={BLUE} strokeWidth="2.4" />
+      {/* lane seams, faint, so the three channels read without becoming
+          columns, and drawn between the lane centres rather than at even
+          fractions of the width, so they stay between the lanes. */}
+      {seams && SLOT_SEAMS.map(x => (
+        <line key={x} x1={x} y1={blueLine + 1} x2={x} y2={goalLine - 1}
               stroke="rgba(255,255,255,0.055)" strokeWidth="0.6" strokeDasharray="2 3" />
       ))}
       {/* The net, from above, drawn the way the Net component draws one rather
           than as a filled grey slab sitting under the goal line looking like a
           shelf. Posts on the line, the bag behind it, mesh across it. */}
       <g>
-        <rect x="42.5" y="72" width="15" height="5.6" rx="1.1"
+        <rect x={netL} y={goalLine} width={netHalf * 2} height={netDepth} rx="1.1"
               fill="rgba(255,255,255,0.16)" stroke="rgba(245,245,245,0.85)" strokeWidth="0.75" />
-        <line x1="42.5" y1="74.9" x2="57.5" y2="74.9" stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" />
-        <line x1="50" y1="72" x2="50" y2="77.6" stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" />
-        <line x1="42.5" y1="72" x2="57.5" y2="72" stroke="#e8453f" strokeWidth="1.5" />
-        <circle cx="42.5" cy="72" r="0.95" fill="#e8453f" />
-        <circle cx="57.5" cy="72" r="0.95" fill="#e8453f" />
+        <line x1={netL} y1={goalLine + netDepth * 0.52} x2={netR} y2={goalLine + netDepth * 0.52}
+              stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" />
+        <line x1="50" y1={goalLine} x2="50" y2={goalLine + netDepth}
+              stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" />
+        <line x1={netL} y1={goalLine} x2={netR} y2={goalLine} stroke="#e8453f" strokeWidth="1.5" />
+        <circle cx={netL} cy={goalLine} r="0.95" fill="#e8453f" />
+        <circle cx={netR} cy={goalLine} r="0.95" fill="#e8453f" />
       </g>
-      {/* faceoff dots either side, for scale, ringed the way a dot is painted */}
-      {[14, 86].map(x => (
+      {/* faceoff dots either side, for scale, ringed the way a dot is painted,
+          and sitting in the one band between player rows. */}
+      {dot.x.map(x => (
         <g key={x}>
-          <circle cx={x} cy="40" r="2.6" fill="none" stroke={RED} strokeWidth="0.6" />
-          <circle cx={x} cy="40" r="1.15" fill={RED} />
+          <circle cx={x} cy={dot.y} r="2.6" fill="none" stroke={RED} strokeWidth="0.6" />
+          <circle cx={x} cy={dot.y} r="1.15" fill={RED} />
         </g>
       ))}
     </g>

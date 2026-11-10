@@ -2,6 +2,7 @@ import 'react';
 import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
+import { formatComp } from '../utils/contracts';
 import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 
@@ -58,7 +59,53 @@ export default function TransferScreen() {
                             : `The ${owningTeamName} elected not to offer you a new contract. You are now testing the open market looking for a new home.`)
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
             </p>
-            
+
+            {/* WHO YOU ARE BEING MEASURED AGAINST.
+                Every offer on this screen used to be a number with no argument
+                behind it, because the salary came out of a closed formula on
+                the player's own career averages. These are the classmates the
+                price was actually built from, priced on the same scale, so the
+                best offer on the board can be read as short or generous rather
+                than simply accepted. */}
+            {(() => {
+              const market = (freeAgencyOffers || []).find(o => o.market?.comps?.length)?.market;
+              if (!market) return null;
+              const best = Math.max(...(freeAgencyOffers || []).map(o => o.salary || 0));
+              const unit = market.group === 'G'
+                ? (c) => `${(c.sv || 0).toFixed(3).replace('0.', '.')} in ${c.gp}`
+                : (c) => `${c.pts} pts in ${c.gp}`;
+              const short = market.anchor - best;
+              return (
+                <div className="max-w-2xl mx-auto mb-8 rounded-xl border border-[rgba(255,255,255,0.07)] bg-[#0a0d0a] overflow-hidden">
+                  <div className="px-4 py-2 border-b border-[rgba(255,255,255,0.06)] flex items-baseline justify-between gap-3">
+                    <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">
+                      Your agent&rsquo;s comparables
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      Market <span className="text-white font-black number-font">{formatComp(market.anchor)}</span>
+                    </span>
+                  </div>
+                  {market.comps.map(c => (
+                    <div key={c.id || c.name}
+                         className="flex items-center gap-2.5 px-4 py-1.5 border-b border-[rgba(255,255,255,0.04)] last:border-0">
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-slate-300">{c.name}</span>
+                      <span className="hidden sm:block shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-500 w-8 text-right">{c.pos}</span>
+                      <span className="shrink-0 text-[11px] font-bold text-slate-500 w-[86px] text-right truncate">{unit(c)}</span>
+                      <span className="shrink-0 text-[11px] font-black number-font text-slate-300 w-[62px] text-right">{formatComp(c.salary)}</span>
+                    </div>
+                  ))}
+                  <p className={`px-4 py-2 text-[11px] font-bold border-t border-[rgba(255,255,255,0.06)] ${
+                    short > 0 ? 'text-[#ef4444]' : 'text-[#22E748]'}`}>
+                    {short > market.anchor * 0.08
+                      ? `The best offer on the board is ${formatComp(short)} short of that.`
+                      : short > 0
+                        ? 'The best offer on the board is about right.'
+                        : `The best offer on the board is ${formatComp(-short)} above it.`}
+                  </p>
+                </div>
+              );
+            })()}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-5xl mx-auto pb-6 px-2 sm:px-0">
               {(() => {
                 // 1. Group offers perfectly: 1 Card per Team

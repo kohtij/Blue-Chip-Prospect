@@ -8,6 +8,12 @@ import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/g
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
 
+// Minutes as a clock, which is how ice time is read everywhere in hockey.
+const clock = (mins) => {
+  const v = mins || 0;
+  return `${Math.floor(v)}:${Math.round((v % 1) * 60).toString().padStart(2, '0')}`;
+};
+
 // One line of the season recap.
 //
 // Every row used to style itself, so the list drifted: some had a heading and
@@ -294,10 +300,25 @@ export default function RecapScreen() {
                     'Struggled to find consistency this year.'
                   }</li>
                 ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong>. {
-                    ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 65 ? 'Historic offensive production from the blue line.' :
-                    ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 40 ? 'Excellent puck-moving all season.' :
-                    'Focused heavily on the defensive side of the puck.'
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong>
+                    {(seasonRecap?.ppToi || 0) >= 0.2
+                      ? <>, <strong className="text-white">{clock(seasonRecap.ppToi)}</strong> of it on the powerplay</>
+                      : <> and no powerplay time at all</>}. {
+                    /* The verdict reads off the graded season now, not off the
+                       point total alone. A defenceman who finished under forty
+                       points was told he had "focused heavily on the defensive
+                       side of the puck" whether he had been plus thirty at
+                       twenty-four minutes a night or minus twenty on the third
+                       pair, which is the same sentence for the best defensive
+                       year in the league and the worst. */
+                    (seasonRecap?.rating || 5) >= 9.0 ? 'As good a year as any defenceman in the league had.' :
+                    (seasonRecap?.rating || 5) >= 8.0
+                      ? (((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 55
+                          ? 'You carried the puck out of your own end all season.'
+                          : 'You shut down the other team’s best line all season.') :
+                    (seasonRecap?.rating || 5) >= 6.5 ? 'A dependable pair, every night.' :
+                    (seasonRecap?.pm || 0) < -10 ? 'Caught out far too often.' :
+                    'A quiet year in a sheltered role.'
                   }</li>
                 ) : (
                   <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
@@ -454,8 +475,8 @@ export default function RecapScreen() {
                   return (
                     <RecapRow accent="#38bdf8" label="🔭 The scouting board" tint={b.myRank <= 5}>
                       <p className="text-slate-300 leading-relaxed mb-3">
-                        The scouts have you <span className="font-black text-white">{ordinal(b.myRank)}</span> in
-                        your draft year
+                        The scouts have you <span className="font-black text-white">{ordinal(b.myRank)}</span> among
+                        the {b.groupLabel} in your draft year
                         {moved > 0
                           ? `, up ${moved} place${moved === 1 ? '' : 's'} on last winter.`
                           : moved < 0

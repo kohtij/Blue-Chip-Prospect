@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Move, Surface } from './rink/Ice';
-import { SLOT_VIEW } from './rink/geometry';
+import { SLOT, SLOT_VIEW, puckBeside } from './rink/geometry';
 import { Stage, Hud, Verdict, ActionButton } from './minigame/Shell';
 
 // The breakout.
@@ -18,9 +18,9 @@ import { Stage, Hud, Verdict, ActionButton } from './minigame/Shell';
 // zone.
 
 const LANES = [
-  { id: 0, label: 'Left wall', x: 16 },
-  { id: 1, label: 'Up the middle', x: 50 },
-  { id: 2, label: 'Right wall', x: 84 }
+  { id: 0, label: 'Left wall', x: SLOT.lanes[0] },
+  { id: 1, label: 'Up the middle', x: SLOT.lanes[1] },
+  { id: 2, label: 'Right wall', x: SLOT.lanes[2] }
 ];
 
 export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
@@ -119,16 +119,20 @@ export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
 
         {/* Forecheckers, closing from above. */}
         {LANES.filter(l => l.id !== openLane).map(l => (
-          <Marker key={l.id} at={[l.x, 30]} kind="opp" label="F" r="4.3" />
+          <Marker key={l.id} at={[l.x, SLOT.highRow]} kind="opp" label="F" r="4.3" />
         ))}
 
-        {/* The winger, working his wall. He is only a target once he is open. */}
+        {/* The winger, working his wall. He is only a target once he is open.
+            Covered, he used to stand at 38, which put his marker squarely on
+            top of the faceoff dot painted at 40 in the wall lanes. He sits on
+            highRow now and steps up to openRow when he comes open. */}
         {(
           <g opacity={isOpen || phase === 'result' ? 1 : 0.42}
              style={{ transition: 'opacity 140ms linear' }}>
-            <Marker at={[LANES[openLane].x, isOpen || phase === 'result' ? 24 : 38]} kind="mate" label="W" r="4.3" />
+            <Marker at={[LANES[openLane].x, isOpen || phase === 'result' ? SLOT.openRow : SLOT.highRow]}
+                    kind="mate" label="W" r="4.3" />
             {isOpen && (
-              <circle cx={LANES[openLane].x} cy="24" r="7.6" fill="none"
+              <circle cx={LANES[openLane].x} cy={SLOT.openRow} r="7.6" fill="none"
                       stroke="rgba(96,165,250,0.5)" strokeWidth="0.8" strokeDasharray="2.4 2.4" />
             )}
           </g>
@@ -139,17 +143,19 @@ export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
           <Move
             move={{
               type: 'pass',
-              from: [50, 66],
-              to: [LANES[picked].x, picked === openLane ? 26 : 31],
+              from: [50, SLOT.screenRow],
+              to: [LANES[picked].x, (picked === openLane ? SLOT.openRow : SLOT.highRow) + 2.5],
               ink: right ? '#60a5fa' : '#ef4444'
             }}
-            stops={[[LANES[picked].x, picked === openLane ? 24 : 30]]}
+            stops={[[LANES[picked].x, picked === openLane ? SLOT.openRow : SLOT.highRow]]}
           />
         )}
 
-        {/* Me, with the puck, behind my own goal line. */}
-        <Marker at={[50, 66]} kind="me" label="YOU" r="5.2" />
-        {picked === null && <Puck at={[56, 69]} r="2" />}
+        {/* Me, with the puck, in front of my own net. The puck sits beside my
+            stick rather than at a hand-written 56,69, which overlapped my own
+            marker: the two were drawn one on top of the other. */}
+        <Marker at={[50, SLOT.screenRow]} kind="me" label="YOU" r="5.2" />
+        {picked === null && <Puck at={puckBeside(50, SLOT.screenRow, 5.2)} r="2" />}
       </Surface>
 
       <div className="flex gap-2 p-3 pt-0">

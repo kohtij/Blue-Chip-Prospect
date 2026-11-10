@@ -4,7 +4,7 @@ import {
   swissTeams, delTeams, khlTeams, nationalities
 } from '../data/teams';
 import { draftOrder } from './leagueState';
-import { ageFactor, curvesFor, drawLeagueBest, gaussianNoise, goalieAgeAdjust, paceOf, seasonForm, soften } from './production';
+import { ageFactor, curvesFor, drawLeagueBest, drawLeagueBestSv, gaussianNoise, goalieAgeAdjust, paceOf, seasonForm, soften } from './production';
 
 // The rest of your draft class.
 //
@@ -401,8 +401,13 @@ function playPeerSeason(peer) {
     // class finished the year with no shutouts at all because the shutout
     // line was measured against an NHL baseline.
     const gPace = paceOf(league);
-    const sv = Math.min(gPace.svStar + 0.012, Math.max(gPace.svPar - 0.028,
-      gPace.svPar + (scaleOvr - 70) * 0.0016 + goalieAgeAdjust(peer.age) + gaussianNoise() * 0.009));
+    // 0.0016 per point of rating was more than twice the real slope and put a
+    // classmate's save percentage on the same inflated scale the player's was
+    // on: at an 88 he was pinned against the ceiling. Matched to the player's
+    // own curve in gameHelpers, so the goalie the Vezina is lost to is a
+    // goalie measured the same way.
+    const sv = Math.min(gPace.svStar + 0.014, Math.max(gPace.svPar - 0.025,
+      gPace.svPar + (scaleOvr - 70) * 0.0009 + goalieAgeAdjust(peer.age) + gaussianNoise() * 0.008));
     shots = gp * (27 + Math.round(Math.random() * 6));
     saves = Math.round(shots * sv);
     sho = Math.max(0, Math.round((sv - (gPace.svPar - 0.008)) * 170 * (gp / 60)));
@@ -416,7 +421,21 @@ function playPeerSeason(peer) {
     losses = Math.max(0, rest - otl);
   }
 
-  const season = { league, team, gp: isGoalie ? Math.round(games * 0.62) : games, g, a, pts: g + a, sho, saves, shots, wins, losses, otl };
+  // A classmate's plus-minus and his minutes, which exist because a defenceman
+  // cannot be priced without them: valued on points alone, every peer
+  // defenceman came out cheaper than the player at the same ability, and the
+  // comparables an agent put on the table were quietly all too low. Derived
+  // from how good he is, since a peer has a rating and not a set of
+  // attributes.
+  const pmPer82 = isGoalie ? 0
+    : Math.round((scaleOvr - 74) * (posGroup(peer.pos) === 'D' ? 0.95 : 0.70) + gaussianNoise() * 7);
+  const season = {
+    league, team, gp: isGoalie ? Math.round(games * 0.62) : games,
+    g, a, pts: g + a, sho, saves, shots, wins, losses, otl,
+    pm: isGoalie ? 0 : Math.round(pmPer82 * (games / 82)),
+    avgToi: isGoalie ? 60 : Math.max(8, Math.min(26,
+      (posGroup(peer.pos) === 'D' ? 15.0 : 12.0) + (scaleOvr - 70) * 0.30))
+  };
   return {
     ...peer,
     ovr,
@@ -600,6 +619,34 @@ export function scoringBar(peers, league) {
 }
 
 /**
+ * The same thing for the goalies: what it took to lead this league in save
+ * percentage, and whether anybody from the player's own year did it.
+ *
+ * scoringBar has existed for the skaters since the trophies stopped being flat
+ * thresholds. The goalies never got one, so every goalie award in the game was
+ * still a fixed number with no field behind it.
+ */
+export function goalieBar(peers, league) {
+  const drawn = drawLeagueBestSv(league);
+  const field = (peers || []).filter(p =>
+    !p.retired && p.season && p.season.league === league && p.pos === 'G' && p.season.shots > 0);
+
+  const best = field.reduce((top, p) => {
+    const sv = p.season.saves / p.season.shots;
+    return sv > (top ? top.sv : -1) ? { name: p.name, sv } : top;
+  }, null);
+
+  const led = best && best.sv > drawn;
+  return {
+    sv: led ? best.sv : drawn,
+    name: led ? best.name : null,
+    // The best of his own year group between the pipes, league leader or not,
+    // which is the comparison that actually means something to him.
+    classBest: best && !led ? { name: best.name, sv: best.sv } : null
+  };
+}
+
+/**
  * The one whose career has run closest to yours: the measuring stick.
  */
 // What a career is measured by, which is points for a skater and shutouts for
@@ -619,7 +666,27 @@ export const peerUnit = (isGoalie) => (isGoalie ? 'shutouts' : 'points');
 // the pair together, and the goalie on his own.
 export const posGroup = (pos) => (pos === 'G' ? 'G' : (pos === 'LD' || pos === 'RD') ? 'D' : 'F');
 
-export const groupName = (group) => group === 'G' ? 'goaltenders' : group === 'D' ? 'defencemen' : 'forwards';
+export const groupName = (group, plural = true) =>
+  group === 'G' ? (plural ? 'goaltenders' : 'goaltender')
+    : group === 'D' ? (plural ? 'defencemen' : 'defenceman')
+      : (plural ? 'forwards' : 'forward');
+
+/**
+ * Where he came off the board among his own kind.
+ *
+ * Every board in the game ranks inside a position group, so a rank off one of
+ * them cannot be set against an overall pick number: ninth among the forwards
+ * does not mean ninth overall, and subtracting the one from the other is what
+ * produced "you sat through 45 picks you were not supposed to" out of two
+ * figures that measure different things. The only comparison that holds is how
+ * many of his own position were taken before him.
+ */
+export function positionDraftSlot(peers, pos, playerPick) {
+  const group = posGroup(pos);
+  const picked = (peers || []).filter(p => p.pick && p.pick !== playerPick && posGroup(p.pos) === group);
+  const ahead = picked.filter(p => p.pick < playerPick).length;
+  return { slot: ahead + 1, ahead, total: picked.length + 1, group };
+}
 
 export function findRival(peers, playerValue, pos = 'C') {
   const group = posGroup(pos);
@@ -824,6 +891,11 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     me: mine,
     myRank: mine ? mine.rank : null,
     total: rows.length,
+    // The board was filtered to one position group on the way in, so it has to
+    // say so on the way out. A rank printed without it reads as a place in the
+    // whole class, which is not what was counted.
+    group,
+    groupLabel: groupName(group),
     // Whoever is one place above him, which is the comparison that actually
     // bites during a junior season.
     ahead: mine && mine.rank > 1 ? rows[mine.rank - 2] : null,

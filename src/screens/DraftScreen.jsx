@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ordinal } from '../utils/gameHelpers';
-import { draftBoard, flagFor } from '../utils/peers';
+import { draftBoard, flagFor, groupName, positionDraftSlot } from '../utils/peers';
 
 export default function DraftScreen() {
   const { TeamLogo, handleDraftChoice, player, setPlayer, seasonRecap } = useAppContext();
@@ -135,17 +135,29 @@ export default function DraftScreen() {
           since he was sixteen. Without this the board below is the first and
           only time the ranking is mentioned, and the two or three seasons he
           spent climbing it count for nothing on the night. */}
-      {player.scoutRank && seasonRecap?.draftPick && (
-        <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
-          The final board had you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> in
-          the class.{' '}
-          {seasonRecap.draftPick < player.scoutRank
-            ? `You went ${ordinal(seasonRecap.draftPick)}, ${player.scoutRank - seasonRecap.draftPick} spots higher than anybody had you.`
-            : seasonRecap.draftPick > player.scoutRank
-              ? `You went ${ordinal(seasonRecap.draftPick)}, and sat through ${seasonRecap.draftPick - player.scoutRank} picks you were not supposed to.`
-              : 'You went exactly where they said you would.'}
-        </p>
-      )}
+      {player.scoutRank && seasonRecap?.draftPick && (() => {
+        // The board he has been reading every winter ranks him inside his own
+        // position, so his place on it only means something against the other
+        // players at that position. Set against the overall pick number it
+        // claimed he had been skipped by forty-five teams who were never
+        // choosing between him and a goaltender in the first place.
+        const slot = positionDraftSlot(player.peers, player.pos, seasonRecap.draftPick);
+        const one = groupName(slot.group, false);
+        const many = groupName(slot.group);
+        const gap = slot.slot - player.scoutRank;
+        return (
+          <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
+            The final board had you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> among
+            the {many} in your class. You went {ordinal(seasonRecap.draftPick)} overall,
+            the <span className="text-white font-black">{ordinal(slot.slot)}</span> {one} off the board
+            {gap > 0
+              ? `, and watched ${gap} ${gap === 1 ? one : many} you were ranked above go first.`
+              : gap < 0
+                ? `, ${-gap} spot${gap === -1 ? '' : 's'} higher than anybody had you.`
+                : ', exactly where they said you would.'}
+          </p>
+        );
+      })()}
 
       {board && (board.before.length > 0 || board.after.length > 0) && (
         <div className="max-w-xl mx-auto mb-10 text-left">
