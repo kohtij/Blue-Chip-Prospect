@@ -859,12 +859,47 @@ export function advanceToOffseason(ctx) {
     const isNewRoom = !!lastCampSeason && lastCampSeason.team !== currentTeam && !isCurrentlyAmateur;
     const arrivedMidSeason = !!lastCampSeason && lastCampSeason.tradedTo === currentTeam;
     const isContractYear = (updatedContract?.years || 0) === 1 && player.ovr >= 76 && !isCurrentlyAmateur;
+    const isHoldingOut = updatedContract?.role === 'Holdout';
 
     // A captain's first camp wearing the C is a milestone and always fires. After
     // that it is occasional: an eight-year captain should not get the identical
     // camp eight times, he should mostly get the veteran camp instead.
     const firstCaptainCamp = !player.storylines?.hadCaptainCamp;
     const isCaptainCamp = player.isCaptain && (firstCaptainCamp || Math.random() < 0.3);
+
+    if (isHoldingOut) {
+        ctx.setActiveEvent({
+            title: '🛑 RFA HOLDOUT',
+            desc: `You refused to sign your Qualifying Offer and are holding out of training camp to force a massive extension ($${(updatedContract?.salary || 0).toLocaleString()}/yr). Every day you miss, the front office gets angrier and the media pressure mounts.`,
+            choices: [
+                {
+                    label: 'Hold the Line',
+                    subLabel: 'Refuse to report until they meet your exact asking price.',
+                    isRisky: true,
+                    successChance: 0.4,
+                    successFeedback: 'The GM caved! You got your massive extension and reported to camp as the highest-paid player on the roster.',
+                    successEffect: { fanStatus: 20, ovr: 0, rel: { coach: -10, media: 20 } },
+                    failFeedback: 'The GM refused to budge and publicly called you selfish. You were forced to sign the baseline 1-year Qualifying Offer just to play this year.',
+                    failEffect: { fanStatus: -40, ovr: -2, rel: { coach: -40, teammates: -20 } },
+                    action: 'RESOLVE_HOLDOUT',
+                    actionData: { success: true }
+                },
+                {
+                    label: 'Cave and Sign the QO',
+                    subLabel: 'End the holdout, apologize, and accept a 1-year Qualifying Offer to get back on the ice.',
+                    isRisky: false,
+                    feedback: 'You folded and signed the 1-year Qualifying Offer. The holdout was for nothing, and the coach is furious you missed camp.',
+                    effect: { fanStatus: -15, ovr: -1, rel: { coach: -25, teammates: -10 } },
+                    action: 'RESOLVE_HOLDOUT',
+                    actionData: { success: false }
+                }
+            ],
+            isOffseasonEvent: true
+        });
+        enterStage(CAMP_DONE);
+        ctx.setScreen('event');
+        return;
+    }
 
     if (isNewRoom) {
         ctx.setActiveEvent({

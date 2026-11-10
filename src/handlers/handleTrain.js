@@ -1,4 +1,4 @@
-import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, ordinal, summariseStints, withTeamArticle } from '../utils/gameHelpers';
+import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, ordinal, summariseStints, withTeamArticle, formatMoney } from '../utils/gameHelpers';
 import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
 import { getFullTeamName } from '../utils/appHelpers';
@@ -320,6 +320,69 @@ export function handleTrain(ctx, t) {
       ctx.setScreen('event');
       return;
     }
+
+    // MID-SEASON EVENTS: December
+    // Devastating Injury (moved from post-season)
+    if (!player.storylines?.injury && player.pos !== 'G' && player.league !== 'NCAA' && player.age > 18 && Math.random() < 0.04) {
+      advanceTo(stints, 1);
+      setPlayer(p => ({ ...p, storylines: {
+        ...p.storylines,
+        injury: 1,
+        injurySeason: p.stats?.seasonsPlayed || 0,
+        injuryLeague: player.league,
+        injuryTeam: player.team
+      } }));
+      ctx.setActiveEvent({
+        title: '🚑 DEVASTATING INJURY',
+        desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over.`,
+        choices: [
+          {
+            label: 'Begin Recovery',
+            subLabel: 'Start the long road back. You will miss the rest of the season and the playoffs.',
+            isRisky: false,
+            feedback: 'The surgery was successful, but the road back is going to be incredibly difficult.',
+            effect: { fanStatus: 15, ovr: -3, money: 0 }
+          }
+        ],
+        madePlayoffs: false,
+        playerSidelined: true
+      });
+      ctx.setScreen('event');
+      return;
+    }
+
+    // Nagging Injury (moved from post-season)
+    if (player.league !== 'NCAA' && Math.random() < 0.05 && !player.storylines?.naggingInjury) {
+      advanceTo(stints, 1);
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, naggingInjury: true } }));
+      ctx.setActiveEvent({
+        title: '🤕 THE NAGGING INJURY',
+        desc: `You took a nasty slash to the wrist and the team doctor says it's a hairline fracture. You can sit out for 4 weeks to let it heal, or shoot up with painkillers and play through it to help the team keep pace in the standings.`,
+        choices: [
+          {
+            label: 'Rest and Heal',
+            subLabel: 'Take the full four weeks, missing crucial mid-season games.',
+            isRisky: false,
+            feedback: 'You took the time to heal. Your body is 100%, but the team struggled without you.',
+            effect: { fanStatus: -10, ovr: 0, rel: { coach: -10, teammates: -10 } }
+          },
+          {
+            label: 'Play Through the Pain',
+            subLabel: 'Mask the pain with medication to stay in the lineup.',
+            isRisky: true,
+            successChance: 0.50,
+            successFeedback: 'You gritted your teeth and played through it! Your teammates revere your toughness.', 
+            successEffect: { fanStatus: 30, ovr: 1, rel: { teammates: 40, coach: 20 } }, 
+            failFeedback: 'You played through it, but the fracture worsened. Your shot has suffered significantly.', 
+            failEffect: { fanStatus: 10, ovr: -2, rel: { teammates: 20 } } 
+          }
+        ],
+        isDemotionEvent: false,
+        madePlayoffs: false
+      });
+      ctx.setScreen('event');
+      return;
+    }
   }
 
   if (stage <= 1) {
@@ -339,6 +402,63 @@ export function handleTrain(ctx, t) {
         setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), allStarSelected: true } }));
         advanceTo(stints, 2);
         ctx.setScreen('all-star');
+        return;
+      }
+
+      // MID-SEASON EVENTS: February
+      // The Coaching Carousel (moved from post-season)
+      const coachTrustLvl = player.relationships?.coach || 50;
+      const isBottomFeeder = (seg.standings || 16) >= 27;
+      
+      if (player.league === 'NHL' && player.pos !== 'G' && isBottomFeeder && coachTrustLvl < 50 && Math.random() < 0.40) {
+        advanceTo(stints, 2);
+        ctx.setActiveEvent({
+            title: '👔 THE COACHING CAROUSEL',
+            desc: `After a disastrous first half, the front office fired the head coach. The new bench boss has pulled you into his office to discuss your role moving forward.`,
+            choices: [
+                { label: 'Pledge to play a 200-foot defensive game', subLabel: 'Commit to a team-first, defensively responsible role.', isRisky: false, feedback: 'He appreciates your commitment to a team-first system.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 30 } } },
+                { label: 'Demand the offense runs through you', subLabel: 'Push for the green light to be the focal point of the attack.', isRisky: true, successChance: (player.ovr >= 85 ? 0.7 : 0.3), successFeedback: 'He loves your confidence and gives you the green light to dominate!', successEffect: { fanStatus: 15, ovr: 1, rel: { coach: 20 } }, failFeedback: 'He hates your ego. You start the second half in his doghouse.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -30 } } }
+            ],
+            madePlayoffs: false
+        });
+        ctx.setScreen('event');
+        return;
+      }
+
+      // IN-SEASON EXTENSION (New)
+      const isExpiring = (player.contract?.years || 0) === 1;
+      if (player.league === 'NHL' && isExpiring && coachTrustLvl >= 70 && player.ovr >= 82 && Math.random() < 0.25 && !player.storylines?.declinedExtension) {
+        // Offer them 80% of what they might get in July, but guaranteed right now.
+        const cap = 88000000; // Rough baseline cap
+        const baseVal = Math.min(cap * 0.20, (player.ovr - 70) * 450000);
+        const extSalary = Math.round((baseVal * 0.8) / 25000) * 25000;
+        
+        advanceTo(stints, 2);
+        ctx.setActiveEvent({
+            title: '📝 MID-SEASON EXTENSION',
+            desc: `The GM pulls you into the office before practice. "We don't want you hitting free agency in July. We want you here." They slide a contract across the desk: ${formatMoney(extSalary)} per year. You can lock in your future right now, or bet on yourself and hit the open market this summer.`,
+            choices: [
+                { 
+                  label: 'Sign the Extension', 
+                  subLabel: `Lock in ${formatMoney(extSalary)}/yr now and skip free agency.`, 
+                  isRisky: false, 
+                  feedback: 'You signed the extension. The city loves you for staying, and you don\'t have to worry about July 1st.', 
+                  effect: { fanStatus: 50, ovr: 0, rel: { coach: 25, teammates: 15 } },
+                  action: 'SIGN_EXTENSION',
+                  actionData: { salary: extSalary, years: 5, role: 'Core Player' }
+                },
+                { 
+                  label: 'Bet on Yourself', 
+                  subLabel: 'Decline the offer. Go to free agency this summer and try to get more.', 
+                  isRisky: false, 
+                  feedback: 'You politely declined the offer. The GM wasn\'t thrilled, but you are officially going to market this summer.', 
+                  effect: { fanStatus: 0, ovr: 0, rel: { coach: -15 } },
+                  action: 'DECLINE_EXTENSION'
+                }
+            ],
+            madePlayoffs: false
+        });
+        ctx.setScreen('event');
         return;
       }
     }
@@ -493,6 +613,8 @@ export function handleTrain(ctx, t) {
      // 🌟 MILESTONE INTERCEPTOR (NEW)
      const oldNhlGames = player.stats?.nhl?.games || 0;
      const newNhlGames = updatedPlayer.stats?.nhl?.games || 0;
+     const proSeasons = player.stats?.seasonsPlayed || 0;
+     const isWaiverExempt = (player.contract?.salary === 925000) || (player.age < 25 && proSeasons < 3);
 
      let moveTitle = null;
      let moveDesc = null;
@@ -513,9 +635,22 @@ export function handleTrain(ctx, t) {
          moveChoices = [
              { label: 'Acknowledge the Milestone', subLabel: 'A quiet nod to your growing status as a veteran in this league.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { fanStatus: 50, ovr: 0, rel: { teammates: 10 } }, action: 'ROUTE_SEASON_END' }
          ];
-     } else if (isWaiverClaim) {
-         moveTitle = '✈️ CLAIMED OFF WAIVERS';
-         moveDesc = `You were placed on waivers and claimed by a new NHL organization. You are packing your bags immediately to join your new club.`;
+     } else if (isWaiverClaim || (customWaiverEvent === 'WAIVERS' && wasNHLtoAHL && !isWaiverExempt)) {
+         // WAIVER WIRE 24-HOUR INTERCEPT
+         moveTitle = '⏳ THE WAIVER WIRE';
+         moveDesc = `The GM called you into the office. You have been placed on waivers. You now have 24 agonising hours to see if another NHL club claims your contract, or if you clear and report to the AHL.`;
+         moveChoices = [
+             { 
+                 label: 'Wait for 2:00 PM', 
+                 subLabel: 'Sit by your phone and wait for the league deadline to pass.', 
+                 isRisky: false, 
+                 feedback: isWaiverClaim 
+                     ? `Your phone rang. You were claimed off waivers by ${withTeamArticle(getFullTeamName(updatedPlayer.team, 'NHL'), 'NHL', false)}! Pack your bags, you are heading to a new city.`
+                     : `2:00 PM passed in silence. You cleared waivers and are heading to the AHL.`,
+                 effect: { fanStatus: isWaiverClaim ? 10 : -10, ovr: 0, rel: { coach: -15 } },
+                 action: 'ROUTE_SEASON_END' 
+             }
+         ];
      } else if (wasJuniorReturn) {
          if (player.storylines?.hadNineGameTryout) {
              moveTitle = '📉 REASSIGNED TO JUNIORS';

@@ -267,6 +267,20 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                  perks: [{ text: '🔒 Absolute Loyalty (+100 Fans)', fanStatus: 100, ovr: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }]
              });
          }
+
+         // NEW: RFA HOLDOUT OPTION
+         if (isRFA) {
+             offers.push({
+               team: actingTeam,
+               league: actingLeague,
+               type: 'HOLDOUT',
+               salary: Math.round((baseSalary * 1.30) / 25000) * 25000, // Demanding 30% above market
+               years: maxYears,
+               role: 'Holdout', // This string acts as our flag for training camp
+               fanHit: -30,
+               state: 'Skip Camp'
+             });
+         }
       }
     }
 
@@ -448,10 +462,25 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     }
 
     offers.sort((a, b) => b.salary - a.salary);
-    // Every offer carries perks and flaws now, so the screen always has something
-    // to weigh beyond the salary, and the comparables it was priced from, so
-    // the player can see the argument rather than only the number.
-    setFreeAgencyOffers((offers).map(o => withOfferPerks({ ...o, market })));
+    
+    setFreeAgencyOffers(offers.map(o => {
+      const oWithPerks = withOfferPerks({ ...o, market });
+      
+      // Inject NMC / Trade Protection directly into the perk arrays
+      if (o.nmc && !oWithPerks.perks?.some(p => p.name?.includes('No-Move'))) {
+         oWithPerks.perks = [{ name: '🔒 No-Movement Clause', effect: 'Full Control', ovr: 0, fanStatus: 15, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }, ...(oWithPerks.perks || [])];
+      } else if (o.league === 'NHL' && !o.nmc && o.type !== 'QUALIFYING OFFER' && o.type !== 'HOLDOUT' && o.type !== 'OFFER SHEET') {
+         oWithPerks.flaws = [{ name: '⚠️ No Trade Protection', effect: 'Can be moved', ovr: 0, fanStatus: 0, money: 0 }, ...(oWithPerks.flaws || [])];
+      }
+
+      if (o.type === 'HOLDOUT') {
+         oWithPerks.flaws = [{ name: '🛑 Contract Stalemate', effect: 'Missing Camp', ovr: -1, fanStatus: -30, money: 0 }];
+         oWithPerks.perks = [{ name: '💰 Bet on Yourself', effect: 'Huge Payday', ovr: 0, fanStatus: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }];
+      }
+      
+      return oWithPerks;
+    }));
+    
     setScreen('transfer');
     return true;
 }

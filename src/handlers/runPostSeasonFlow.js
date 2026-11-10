@@ -14,28 +14,6 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
 
     // ==========================================
-    // STORYLINE 0: THE COACHING CAROUSEL
-    // ==========================================
-    const coachTrustLvl = player.relationships?.coach || 50;
-    const totalTeams = getOpponentPool(currentLg)?.length || 32;
-    const isBottomFeeder = standings >= (totalTeams - 5);
-    
-    // If the team bombs and coach trust is low, the coach is fired.
-    if (currentLg === 'NHL' && player.pos !== 'G' && isBottomFeeder && coachTrustLvl < 50 && Math.random() < 0.40) {
-        setActiveEvent({
-            title: '👔 THE COACHING CAROUSEL',
-            desc: `After a disastrous season, the front office fired the head coach. The new bench boss has pulled you into his office to discuss your role moving forward.`,
-            choices: [
-                { label: 'Pledge to play a 200-foot defensive game', subLabel: 'Commit to a team-first, defensively responsible role.', isRisky: false, feedback: 'He appreciates your commitment to a team-first system.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 30 } } },
-                { label: 'Demand the offense runs through you', subLabel: 'Push for the green light to be the focal point of the attack.', isRisky: true, successChance: (pOvr >= 85 ? 0.7 : 0.3), successFeedback: 'He loves your confidence and gives you the green light to dominate!', successEffect: { fanStatus: 15, ovr: 1, rel: { coach: 20 } }, failFeedback: 'He hates your ego. You start the season in his doghouse.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -30 } } }
-            ],
-            madePlayoffs
-        });
-        setScreen('event');
-        return;
-    }
-
-    // ==========================================
     // STORYLINE 1: THE MEDIA NEMESIS
     // ==========================================
     const nemesisStage = player.storylines?.mediaNemesis || 0;
@@ -287,86 +265,6 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // ==========================================
     const injuryStage = player.storylines?.injury || 0;
 
-    // STAGE 1: THE HIT (Random 4% chance anytime after junior hockey)
-    if (injuryStage === 0 && player.pos !== 'G' && currentLg !== 'NCAA' && pAge > 18 && Math.random() < 0.04) {
-        // Where and when it happened, because the comeback has to happen in
-        // the same world. Without these the revenge game could be served up
-        // three seasons later in a different country against an enforcer who
-        // has never been within a thousand miles of the player.
-        setPlayer(p => ({ ...p, storylines: {
-          ...p.storylines,
-          injury: 1,
-          injurySeason: p.stats?.seasonsPlayed || 0,
-          injuryLeague: currentLg,
-          injuryTeam: p.team
-        } }));
-
-        // If the club qualified, the injury chains into a press box event instead of
-        // dropping the player straight into the card minigames they cannot play.
-        // playerSidelined is what App.jsx reads to run the playoffs as a background
-        // simulation and what PlayoffsScreen reads to show the press box summary.
-        const pressBoxEvent = {
-            title: '🎙️ THE PRESS BOX',
-            desc: `Your teammates open the playoffs without you. Hobbling around on crutches in a suit and tie, you have a front-row seat to their run. How do you spend it?`,
-            choices: [
-                {
-                    label: 'Support your teammates from the press box',
-                    subLabel: 'Be seen backing the group every single night.',
-                    isRisky: false,
-                    feedback: 'You were the loudest voice in the building every night. The room noticed.',
-                    effect: { fanStatus: 20, ovr: 0, rel: { teammates: 20 } }
-                },
-                {
-                    label: 'Grind through rehab instead',
-                    subLabel: 'Skip the spectacle and attack the recovery early.',
-                    isRisky: false,
-                    feedback: 'You spent the run in the training room. Nobody saw it, but you are ahead of schedule.',
-                    effect: { fanStatus: -5, ovr: 1, rel: { coach: 10 } }
-                },
-                {
-                    label: 'Mentor the call-up taking your spot',
-                    subLabel: 'Coach up the kid who replaced you in the lineup.',
-                    isRisky: false,
-                    feedback: 'You walked the rookie through every shift. The staff will remember that.',
-                    effect: { fanStatus: 10, ovr: 0, rel: { coach: 20, teammates: 10 } }
-                },
-                {
-                    label: 'Push your timeline to return early',
-                    subLabel: 'Try to force your way back before the run is over.',
-                    isRisky: true,
-                    successChance: 0.25,
-                    successFeedback: 'You beat the timeline and took warmups with the team. The building lost its mind.',
-                    successEffect: { fanStatus: 40, ovr: 0, rel: { teammates: 20 } },
-                    failFeedback: 'You pushed too hard, re-aggravated the knee, and set your recovery back months.',
-                    failEffect: { fanStatus: -10, ovr: -2, rel: { coach: -15 } }
-                }
-            ],
-            playerSidelined: true,
-            madePlayoffs: true
-        };
-
-        setActiveEvent({
-            title: '🚑 DEVASTATING INJURY',
-            desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over.`,
-            choices: [
-                {
-                  label: madePlayoffs ? 'Watch the Playoffs from the Press Box' : 'Begin Recovery',
-                  subLabel: madePlayoffs ? 'Support your teammates as they chase the championship without you.' : 'Start the long road back.',
-                  isRisky: false,
-                  feedback: madePlayoffs
-                    ? 'You cheered the boys on from the press box. The team will do their best without you on the ice.'
-                    : 'The surgery was successful, but the road back is going to be incredibly difficult.',
-                  effect: { fanStatus: 15, ovr: -3, money: 0 }
-                }
-            ],
-            // FIX: Don't force them out of the playoffs if the team actually made it!
-            madePlayoffs: madePlayoffs,
-            followUpEvent: madePlayoffs ? pressBoxEvent : null
-        });
-        setScreen('event');
-        return;
-    }
-
     // STAGE 2: THE REHAB (Triggers the immediate next offseason)
     if (injuryStage === 1) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 2 } }));
@@ -411,42 +309,6 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
 
 // ==========================================
-    // STORYLINE 4.5: THE NAGGING INJURY (Mid-Season Risk/Reward)
-    // ==========================================
-    // Triggers organically mid-season for established players
-    if (currentLg !== 'NCAA' && madePlayoffs && Math.random() < 0.05 && !player.storylines?.naggingInjury) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, naggingInjury: true } }));
-        setActiveEvent({
-            title: '🤕 THE NAGGING INJURY',
-            desc: `You took a nasty slash to the wrist and the team doctor says it's a hairline fracture. You can sit out for 4 weeks to let it heal, or shoot up with painkillers and play through it to help the team secure a playoff spot.`,
-            choices: [
-                {
-                    label: 'Rest and Heal',
-                    subLabel: 'Take the full four weeks, even if it costs the team a playoff spot.',
-                    isRisky: false,
-                    feedback: 'You took the time to heal. Your body is 100%, but the team struggled without you.',
-                    effect: { fanStatus: -10, ovr: 0, rel: { coach: -10, teammates: -10 } },
-                    madePlayoffs: false // Sitting out causes the team to miss the playoffs!
-                },
-                {
-                    label: 'Play Through the Pain',
-                    subLabel: 'Mask the pain with medication to help secure a playoff berth.',
-                    isRisky: true,
-                    successChance: 0.50,
-                    successFeedback: 'You gritted your teeth and played through it! Your teammates revere your toughness.', 
-                    successEffect: { fanStatus: 30, ovr: 1, rel: { teammates: 40, coach: 20 } }, 
-                    failFeedback: 'You played through it, but the fracture worsened. You need off-season surgery and your shot has suffered.', 
-                    failEffect: { fanStatus: 10, ovr: -2, rel: { teammates: 20 } } 
-                }
-            ],
-            isDemotionEvent: false,
-            madePlayoffs: true // Playing through it guarantees the playoff spot
-        });
-        setScreen('event');
-        return;
-    }
-
-    // ==========================================
     // STORYLINE 5: THE POSITIONAL LOGJAM (Centers Only)
     // ==========================================
     if (!player.storylines?.positionChange && player.pos === 'C' && ['NHL', 'AHL', 'SHL', 'LIIGA'].includes(currentLg) && Math.random() < 0.15) {

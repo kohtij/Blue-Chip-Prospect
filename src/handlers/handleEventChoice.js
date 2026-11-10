@@ -44,7 +44,18 @@ export function handleEventChoice(ctx, choice) {
   let updated = { ...player };
   const actionStr = choice.action || ''; 
   
-  if (actionStr === 'VETERAN_EXTENSION') {
+  if (actionStr === 'SIGN_EXTENSION') {
+    if (choice.actionData) {
+      updated.contract = {
+        salary: choice.actionData.salary,
+        years: choice.actionData.years + 1, // +1 because the current year is still running
+        role: choice.actionData.role,
+        nmc: true // Mid-season extensions for core players usually carry an NMC
+      };
+    }
+  } else if (actionStr === 'DECLINE_EXTENSION') {
+    updated.storylines = { ...(updated.storylines || {}), declinedExtension: true };
+  } else if (actionStr === 'VETERAN_EXTENSION') {
     updated.contract = { salary: 850000, years: 1 };
   } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
     // No club is chosen here any more. This used to roll one of two leagues and
@@ -103,7 +114,16 @@ export function handleEventChoice(ctx, choice) {
            currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
            currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
         }
-  } else if (actionStr === 'RESOLVE_NINE_GAME') {
+  } else if (actionStr === 'RESOLVE_HOLDOUT') {
+    const wonHoldout = choice.actionData?.success ? (outcomeEffect === choice.successEffect) : false;
+    if (wonHoldout) {
+        // The massive salary they demanded was already stored in contract.salary by generateOffers
+        updated.contract = { ...updated.contract, role: 'Core Player', nmc: true };
+    } else {
+        // Cave and take the QO (roughly 75% of their massive demand, 1 year, no protection)
+        updated.contract = { salary: Math.max(850000, Math.floor((updated.contract.salary * 0.75) / 25000) * 25000), years: 1, role: 'Two-Way Deal', nmc: false };
+    }
+ } else if (actionStr === 'RESOLVE_NINE_GAME') {
     // The club has made its call. If he is going back, move him to the junior club
     // that holds his rights. The contract year is then protected by the ELC slide
     // in the offseason, which keys off finishing the season in junior.
