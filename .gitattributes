@@ -1,0 +1,37 @@
+# Line endings are the repository's decision, not each machine's.
+#
+# Without this file, what gets committed depends on the core.autocrlf setting
+# of whichever computer happens to be committing. That is fine while there is
+# one computer. With two it is a standing invitation to a diff in which every
+# line of a file has changed and none of its content has, which is exactly what
+# it looked like here after one machine's editor saved a file with Windows
+# endings and the other's did not.
+#
+# text=auto: git decides what is text, normalises it to LF inside the
+# repository, and leaves the working tree to the platform. Nothing on disk has
+# to change and no editor has to be reconfigured.
+* text=auto
+
+# Explicitly text, so these are never guessed at.
+*.js    text
+*.jsx   text
+*.json  text
+*.css   text
+*.html  text
+*.md    text
+*.svg   text
+
+# Explicitly binary, so git never tries to normalise them and never offers a
+# line-by-line diff of an image.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.mp3   binary
+*.mp4   binary

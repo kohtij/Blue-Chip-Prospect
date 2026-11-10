@@ -376,3 +376,23 @@ export function drawLeagueBestSv(league) {
   // Ross. At nine it was still 37 per cent against their 22.
   return pace.svStar + 0.014 + gaussian() * 0.004;
 }
+
+/**
+ * How good the best defenceman in the league was this year, as a graded
+ * season.
+ *
+ * The last trophy in the game still decided by a fixed threshold. A threshold
+ * makes the whole of the outcome depend on the player's own variance, because
+ * the thing he is measured against has none, and that is why the Norris curve
+ * would not sit on the Art Ross curve at any value: at 9.30 it fired in 21 per
+ * cent of seasons at 88 OVR and 67 at 94, against a scoring title's 21 and 42,
+ * and tightening it to fit the top end dropped the 88 to 11. Giving the bar
+ * its own spread flattens the curve, which is the whole reason the skaters'
+ * trophies behave and this one did not.
+ *
+ * rateSeason is already normalised for the league it graded, so unlike the
+ * scoring and save-percentage bars this one needs no table.
+ */
+export function drawLeagueBestDman() {
+  return 9.61 + gaussian() * 0.69;
+}

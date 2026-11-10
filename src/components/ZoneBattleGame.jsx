@@ -64,7 +64,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
     holdChance: 0.28 + Math.random() * 0.22,     // how often somebody just holds it
     dwellMin: 140 + Math.random() * 160,
     dwellMax: 420 + Math.random() * 420,
-    lean: 4.2 + Math.random() * 4.8             // how hard the defenceman pushes
+    lean: 3.0 + Math.random() * 3.4             // how hard the defenceman pushes
   }));
 
   // On the balance of all this: the first version was a fixed sine wave you
@@ -77,6 +77,11 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   // slightly less hard, the D-to-D snap is slower, losing the lane costs less,
   // and the stakes scaling is gentler. Same shift, same unpredictability,
   // winnable.
+  //
+  // That retune moved the motion and the lean but left the bar's economics
+  // where they were, and overshot: see the note on the hold rate below, where
+  // the arithmetic turned out to be asking for more of the shift than a person
+  // can physically hold.
 
   const doneRef = useRef(false);
   const startRef = useRef(null);
@@ -148,8 +153,20 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
       // Retuned along with the motion. A puck you could predict was worth a
       // generous gain and a slow bleed; a puck being moved by people is not, and
       // the old numbers left an average player winning better than nine in ten.
+      // THE BAR ASKED FOR MORE OF THE SHIFT THAN A PERSON CAN GIVE.
+      //
+      // At 1.05 a tick in and 0.84 a tick out, filling this bar meant being
+      // under the puck for about 71 per cent of the shift. Simulated against a
+      // player with ordinary reactions, seeing the puck 300ms late and tapping
+      // three times a second, the best anyone managed was 56 per cent, and it
+      // barely moved with his rating: 55 per cent at 45 physicality, 59 at 90.
+      // So the shift was decided by how fast the person holding the phone
+      // reacts and almost not at all by the player he had built, and a 45
+      // physicality forward won one in ten. At 1.35 the bar asks for about 58
+      // per cent, which is inside what the mechanic actually allows, and the
+      // rating does the deciding again.
       holdRef.current = inLane
-        ? holdRef.current + 1.05 * gain
+        ? holdRef.current + 1.35 * gain
         : Math.max(0, holdRef.current - 0.84);
       if (holdRef.current >= 100) { holdRef.current = 100; setHold(100); finish(true); return; }
       setHold(holdRef.current);

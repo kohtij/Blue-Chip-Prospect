@@ -6,7 +6,7 @@ import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
 import { ageFactor, curvesFor, gaussianNoise, goalieAgeAdjust, iceTime, paceOf, rateSeason, seasonForm, soften } from './production';
 import { advanceLeagueState, teamStrengthOf } from './leagueState';
-import { advancePeers, classBestAt, classNews, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
+import { advancePeers, classBestAt, classNews, dmanBar, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
 // shuffle: comparison sorts assume a consistent comparator, so elements drift
@@ -326,7 +326,7 @@ export const applyOvrDelta = (player, delta) => {
   };
 };
 
-function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, pm = 0, toi = null }) {
+function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, dBar = null, pm = 0, toi = null }) {
   const awards = [];
   const pts = g + a;
 
@@ -391,10 +391,18 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     // 80 OVR, 73 per cent at 88, 92 per cent at 94. It goes instead on the
     // graded season, which is the same two halves rateSeason judges him on, so
     // both a ninety-point year and a plus-thirty year at twenty-four minutes a
-    // night can win it. The bar is a bar rather than a contest for the same
-    // reason the Vezina's is: there is no field of defencemen to race.
+    // night can win it.
+    //
+    // And it is a race, which it was not. The reason given here for leaving it
+    // a fixed threshold was that there is no field of defencemen to race, the
+    // same reason the Vezina had one, and both have a field now. A threshold
+    // puts the entire outcome on the player's own variance, because the thing
+    // he is measured against has none, which is why this curve could not be
+    // made to sit on the Art Ross curve at any value: 9.30 gave 21 per cent of
+    // seasons at 88 OVR and 67 at 94 against a scoring title's 21 and 42, and
+    // the 9.42 that fixed the top end cut the 88 to 11.
     const dGrade = rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, toi });
-    if (dGrade >= 9.42) awards.push(trophy.dman);
+    if (dBar && dGrade >= dBar.grade) awards.push(trophy.dman);
     // And the MVP, which a defenceman wins roughly once a generation, needs
     // the season to be both the best defensive year in the league and a
     // scoring year most forwards would be happy with. At 9.85 and seven
@@ -954,12 +962,14 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // And what it took to lead it in net, which the skaters have had since the
   // trophies stopped being flat thresholds and the goalies never did.
   const gBar = goalieBar(nextPeers, playedLg);
+  // And on the blue line, the last of the three that was still a flat number.
+  const dBar = dmanBar(nextPeers, playedLg);
 
   const awards = _computeAwards({
     player: tempPlayer, rating,
     g: leagueYear.g, a: leagueYear.a,
     saves: leagueYear.saves, shots: leagueYear.shots,
-    games: leagueYear.games, standings, bar, gBar,
+    games: leagueYear.games, standings, bar, gBar, dBar,
     pm: leagueYear.pm,
     toi: leagueYear.games > 0 ? leagueYear.toiGames / leagueYear.games : avgToi
   });
@@ -1413,15 +1423,28 @@ export function summariseStints(stints) {
     saves: acc.saves + (s.saves || 0),
     shots: acc.shots + (s.shots || 0),
     shutouts: acc.shutouts + (s.sho || s.shutouts || 0),
+    // A goalie's record. It was the one thing this summary did not carry, and
+    // it is the first thing a goalie is quoted by: the trade deadline screen
+    // leads its goalie tiles with W-L-OTL and read them from here, so halfway
+    // through a season in which he had played forty games it told him he was
+    // 0-0-0 while the dashboard beside it showed the real record off the
+    // career totals. Everything downstream of this function was honest; the
+    // three fields simply were not in it.
+    wins: acc.wins + (s.wins || 0),
+    losses: acc.losses + (s.losses || 0),
+    otl: acc.otl + (s.otl || 0),
     // Ice time is an average, so it has to be weighted by the games in each stint.
-    toiGames: acc.toiGames + ((s.avgToi || 0) * (s.games || 0))
-  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, toiGames: 0 });
+    toiGames: acc.toiGames + ((s.avgToi || 0) * (s.games || 0)),
+    ppGames: acc.ppGames + ((s.ppToi || 0) * (s.games || 0))
+  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, wins: 0, losses: 0, otl: 0, toiGames: 0, ppGames: 0 });
 
   const last = stints[stints.length - 1];
   return {
     games: tot.games, goals: tot.goals, assists: tot.assists, plusMinus: tot.plusMinus,
     saves: tot.saves, shots: tot.shots, shutouts: tot.shutouts,
+    wins: tot.wins, losses: tot.losses, otl: tot.otl,
     avgToi: tot.games > 0 ? tot.toiGames / tot.games : 0,
+    ppToi: tot.games > 0 ? tot.ppGames / tot.games : 0,
     team: last?.team, league: last?.league, standings: last?.standings,
     inProgress: true
   };

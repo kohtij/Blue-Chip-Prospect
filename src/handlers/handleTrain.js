@@ -226,7 +226,13 @@ export function handleTrain(ctx, t) {
     const sum = summariseStints(stints) || {};
     const tot = {
       games: sum.games || 0, g: sum.goals || 0, a: sum.assists || 0, pm: sum.plusMinus || 0,
-      saves: sum.saves || 0, shots: sum.shots || 0, sho: sum.shutouts || 0, avgToi: sum.avgToi || 0
+      saves: sum.saves || 0, shots: sum.shots || 0, sho: sum.shutouts || 0, avgToi: sum.avgToi || 0,
+      // The goalie's record and his powerplay minutes, which every screen
+      // reading this partial needs and none of them were getting: the deadline
+      // leads its goalie tiles with W-L-OTL and was showing 0-0-0 to a goalie
+      // forty games into his season.
+      wins: sum.wins || 0, losses: sum.losses || 0, otl: sum.otl || 0,
+      ppToi: sum.ppToi || 0
     };
     return {
       recap: { ...tot, standings: last.standings, madePlayoffs: last.standings <= 16, awards: [] },

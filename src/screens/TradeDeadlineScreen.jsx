@@ -122,6 +122,11 @@ export default function TradeDeadlineScreen() {
           // number anybody asks a goalie about was not among them.
           const seasonStats = player.pos === 'G'
             ? [
+                // GP alongside the record, the way the skater line has carried
+                // it all along. A goalie had no games figure on this screen at
+                // all, so when his record read 0-0-0 there was nothing next to
+                // it to say whether he had played.
+                { label: 'GP', value: res.recap?.games || 0 },
                 { label: 'W-L-OTL', value: `${res.recap?.wins || 0}-${res.recap?.losses || 0}-${res.recap?.otl || 0}`, lead: true },
                 { label: 'SV%', value: ((res.recap?.saves || 0) / Math.max(1, res.recap?.shots || 0)).toFixed(3).replace('0.', '.') },
                 { label: 'SO', value: res.recap?.sho || 0 }

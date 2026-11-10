@@ -252,8 +252,8 @@ export function compLine({ comps, anchor, group }, offered) {
   }
 
   const unit = group === 'G'
-    ? (c) => `${(c.sv || 0).toFixed(3).replace('0.', '.')} in ${c.gp}`
-    : (c) => `${c.pts} in ${c.gp}`;
+    ? (c) => `${(c.sv || 0).toFixed(3).replace('0.', '.')} in ${c.gp} GP`
+    : (c) => `${c.pts} pts in ${c.gp} GP`;
 
   const named = comps.slice(0, 3)
     .map(c => `${c.name} (${unit(c)}) on ${money(c.salary)}`)

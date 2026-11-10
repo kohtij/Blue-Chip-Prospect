@@ -4,7 +4,7 @@ import {
   swissTeams, delTeams, khlTeams, nationalities
 } from '../data/teams';
 import { draftOrder } from './leagueState';
-import { ageFactor, curvesFor, drawLeagueBest, drawLeagueBestSv, gaussianNoise, goalieAgeAdjust, paceOf, seasonForm, soften } from './production';
+import { ageFactor, curvesFor, drawLeagueBest, drawLeagueBestDman, drawLeagueBestSv, gaussianNoise, goalieAgeAdjust, paceOf, rateSeason, seasonForm, soften } from './production';
 
 // The rest of your draft class.
 //
@@ -643,6 +643,36 @@ export function goalieBar(peers, league) {
     // The best of his own year group between the pipes, league leader or not,
     // which is the comparison that actually means something to him.
     classBest: best && !led ? { name: best.name, sv: best.sv } : null
+  };
+}
+
+/**
+ * And the same for the blue line: how good the league's best defenceman was,
+ * and whether one of his own year did it.
+ *
+ * The third and last of these. A classmate's season carries the plus-minus and
+ * the ice time now, so his year can be put through the same two-halved grade
+ * the player's goes through and the comparison is honest.
+ */
+export function dmanBar(peers, league) {
+  const drawn = drawLeagueBestDman();
+  const field = (peers || []).filter(p =>
+    !p.retired && p.season && p.season.league === league
+    && posGroup(p.pos) === 'D' && (p.season.gp || 0) >= 20);
+
+  const best = field.reduce((top, p) => {
+    const grade = rateSeason({
+      league, pos: p.pos, games: p.season.gp,
+      g: p.season.g, a: p.season.a, pm: p.season.pm, toi: p.season.avgToi
+    });
+    return grade > (top ? top.grade : -1) ? { name: p.name, grade } : top;
+  }, null);
+
+  const led = best && best.grade > drawn;
+  return {
+    grade: led ? best.grade : drawn,
+    name: led ? best.name : null,
+    classBest: best && !led ? { name: best.name, grade: best.grade } : null
   };
 }
 
