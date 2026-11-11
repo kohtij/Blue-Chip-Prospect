@@ -157,7 +157,7 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
         )}
       </Surface>
 
-      <div className="p-3 pt-0">
+      <div className="p-3">
         <button
           type="button"
           onClick={fire}

@@ -23,8 +23,8 @@ import { Stage, Hud, Verdict } from './minigame/Shell';
 // yourself and put the blade down.
 //
 // Reacting to the release is not enough: every shot takes longer to arrive than
-// a person can react, so letting go on the flash is always early. You have to
-// know what a slapper does against what a wrister does, which is the read.
+// a person can react, so letting go on the flash is always early. The read is
+// knowing what a slapper does against what a wrister does.
 //
 // What the ratings buy, the right way round this time:
 //   physicality  how wide the tip window is. You are holding your ground
@@ -172,7 +172,7 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
         <SlotSheet />
 
         {/* The point man. His stick is back while he loads it and through once
-            he has hit it, which is the only cue the player gets. */}
+            he has hit it. That is the only cue the player gets. */}
         {/* His stick, drawn before he is, so the shaft runs behind him instead
             of straight across his own circle. */}
         <g style={{ transition: 'transform 90ms linear' }}>
@@ -234,7 +234,7 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
         <Marker at={[49, 61]} kind="me" label="YOU" r="5" />
       </Surface>
 
-      <div className="p-3 pt-0">
+      <div className="p-3">
         {phase === 'ready' && (
           <button
             type="button"

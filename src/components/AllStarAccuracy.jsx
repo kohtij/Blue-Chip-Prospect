@@ -56,7 +56,7 @@ export default function AllStarAccuracy({ onComplete, strategy }) {
 
       let ovrBoost = 0, fanBoost = 0, msg = '';
       if (endTime <= 2.0) {
-        ovrBoost = 2; fanBoost = 50; msg = 'All four gone in under two seconds. That is a new record and the building knows it.';
+        ovrBoost = 2; fanBoost = 50; msg = 'All four gone in under two seconds. The building is on its feet.';
       } else if (endTime <= 3.5) {
         ovrBoost = 1; fanBoost = 20; msg = 'Four for four, and quick enough to put on a show.';
       } else {

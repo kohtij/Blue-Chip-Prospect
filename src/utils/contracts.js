@@ -1,22 +1,20 @@
-// WHAT A CONTRACT IS ARGUED OVER.
+// How a contract gets priced.
 //
 // generateOffers priced a player from a closed formula on his own numbers:
 // career points divided by seasons played, plus a term in his overall rating,
-// times cap inflation. Three things were wrong with it and all three are the
-// same thing.
+// times cap inflation. Three things were wrong with it.
 //
-// The production it used was a lifetime average wearing the name of recent
-// form, so a thirty-four-year-old who had put up ninety points eight years ago
-// and thirty last season was paid on sixty, and a twenty-four-year-old on his
-// way up was paid on the two thin years behind him rather than the one he had
-// just had.
+// The production it used was a lifetime average rather than recent form, so a
+// thirty-four-year-old who had put up ninety points eight years ago and thirty
+// last season was paid on sixty, and a twenty-four-year-old on his way up was
+// paid on the two thin years behind him rather than the one he had just had.
 //
 // The tiers that set his term and his floor were gated on player.ovr, a number
 // the player is never shown, so the single figure deciding whether he was
 // offered eight years or two was invisible to him.
 //
-// And there was nobody else in it. No comparable, no name, no number to point
-// at. A negotiation with no comparable is not a negotiation, it is a price.
+// And there was nobody else in it: no comparable, no name, no number to point
+// at. Without one the player is handed a price and has nothing to argue with.
 
 import { groupName, posGroup } from './peers';
 import { defensiveHalf, paceOf } from './production';
@@ -27,8 +25,8 @@ const ptsOf = (s) => (s.pts != null ? s.pts : (s.g ?? s.goals ?? 0) + (s.a ?? s.
 const gpOf = (s) => s.gp ?? s.games ?? 0;
 
 // How many seasons count, and how much each counts for. The season just
-// finished is most of the argument, which is why a career year at the right
-// moment is worth so much more than the same year two contracts ago.
+// finished carries most of the argument, so a career year at the right moment
+// is worth far more than the same year two contracts ago.
 const FORM_WEIGHTS = [0.52, 0.31, 0.17];
 
 // A defenceman's point is worth more than a forward's because there are fewer
@@ -42,9 +40,9 @@ const FORM_WEIGHTS = [0.52, 0.31, 0.17];
 const POS_WORTH = { F: 1.00, D: 1.12, G: 1.00 };
 
 // The cap as a number rather than a multiplier, because every floor and
-// ceiling below is a share of it and a share is how contracts are actually
-// discussed. The 2024 upper limit, carried forward at four per cent a year,
-// which is the same rate the old capInflation used.
+// ceiling below is a share of it, and shares are how contracts get discussed.
+// The 2024 upper limit, carried forward at four per cent a year, the same rate
+// the old capInflation used.
 export const capFor = (year) => 88000000 * (1 + Math.max(0, (year || 2026) - 2024) * 0.04);
 
 /**
@@ -171,10 +169,10 @@ const median = (arr) => {
 /**
  * The three or four names an agent puts on the table.
  *
- * They come from the player's own draft class, which is the only population of
- * careers the game actually simulates, and they are priced by exactly the
- * formula above, so the comparison is honest: these men are on what their
- * seasons are worth, measured the same way his are.
+ * They come from the player's own draft class, the only population of careers
+ * the game simulates, and they are priced by the formula above, so the
+ * comparison is honest: these men are on what their seasons are worth,
+ * measured the same way his are.
  */
 export function comparables(player, peers, year, limit = 4) {
   const group = posGroup(player.pos);

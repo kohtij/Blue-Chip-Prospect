@@ -454,7 +454,7 @@ const DEFENCE = [
 
 // --- GOALTENDERS -------------------------------------------------------------
 // Same sheet, same net. The wavy line is the shot coming at you and the solid
-// one is you moving to meet it, which is the whole job.
+// one is you moving to meet it.
 const GOALIE = [
   {
     id: 'g_butterfly', name: 'Butterfly, seal the ice', blurb: 'Down early, knees together, nothing goes underneath.',

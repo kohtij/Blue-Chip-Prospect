@@ -34,8 +34,8 @@ const logNormal = (sigma) => Math.exp(sigma * gaussian());
 // not the other, which for goals is mostly shooting percentage.
 //
 // Rolling these separately matters. Two independent rolls on goals and assists
-// partly cancel in the point total, which is why the old band came out even
-// tighter on points than it looked on either half.
+// partly cancel in the point total, so the old band came out tighter on points
+// than it looked on either half.
 const SIGMA_SHARED = 0.185;
 const SIGMA_IDIO = 0.125;
 
@@ -119,7 +119,8 @@ export function goalieAgeAdjust(age) {
  * The old cap was a straight knee: everything above 55 goals was flattened to
  * `55 + (x - 55) * 0.35`. Because the elite case sat right on top of it, the
  * knee was doing the work of the whole distribution and the result was a
- * median of exactly 55 goals with a maximum of 60. A flat line, not a tail.
+ * median of exactly 55 goals with a maximum of 60: a flat line where there
+ * should be a tail.
  *
  * This is smooth all the way up. Nothing is clipped, each extra goal of talent
  * is worth slightly less than the last, and the asymptote is a number no
@@ -146,7 +147,12 @@ const CURVES = {
   minor: { goals: { soft: 28, hard: 52 }, assists: { soft: 38, hard: 70 } }
 };
 
-const JUNIOR_ENV = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'];
+// The under-20 programmes outside Sweden and Finland are in here too now.
+// Before, a sixteen-year-old Czech or Russian was placed straight into his
+// country's men's league, so there was no junior environment for him to be
+// in and nothing to add to this list.
+const JUNIOR_ENV = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA',
+  'MHL', 'CZE20', 'SVK20', 'SUI20', 'DNL'];
 
 export function curvesFor(league) {
   if (league === 'NHL') return CURVES.nhl;
@@ -167,7 +173,7 @@ export function curvesFor(league) {
 // thousand seasons, a 68 OVR seventeen-year-old in the OHL averaged 9.62 and
 // cleared the top progression tier in 93 per cent of years; a 72 OVR
 // nineteen-year-old averaged a flat 10.00 and cleared it in 100 per cent.
-// Development was not a thing that could go badly.
+// Development could not go badly.
 // svStar sat twenty-one points of save percentage above svPar, which made a
 // .925 the bar for a season the league notices. In this engine's own output an
 // 88 OVR starter's median year was a .934 and a 96 OVR's was a .944, with the
@@ -176,7 +182,7 @@ export function curvesFor(league) {
 // posting a historic year, every year, and the Vezina bar was sitting in the
 // middle of that. The save percentage curve itself is fixed in gameHelpers;
 // these two move with it. A .904 is an ordinary starter's season and a .915 is
-// one the league notices, which is what those numbers mean in life.
+// one the league notices, and those are the numbers set here.
 const PACE = {
   NHL: { par: 0.46, star: 1.00, svPar: 0.904, svStar: 0.915 },
   AHL: { par: 0.46, star: 0.95, svPar: 0.901, svStar: 0.912 },
@@ -185,8 +191,16 @@ const PACE = {
   QMJHL: { par: 0.82, star: 1.62, svPar: 0.893, svStar: 0.904 },
   USHL: { par: 0.70, star: 1.40, svPar: 0.898, svStar: 0.909 },
   NCAA: { par: 0.60, star: 1.25, svPar: 0.905, svStar: 0.916 },
+  // The under-20 leagues. J20 is Sweden's and U20 is Finland's; the rest were
+  // missing entirely, because prospects from those countries were being put
+  // in men's leagues at sixteen. Scoring climbs as the league weakens.
   J20: { par: 0.78, star: 1.52, svPar: 0.896, svStar: 0.907 },
   U20: { par: 0.76, star: 1.48, svPar: 0.896, svStar: 0.907 },
+  MHL: { par: 0.74, star: 1.45, svPar: 0.897, svStar: 0.908 },
+  CZE20: { par: 0.76, star: 1.48, svPar: 0.894, svStar: 0.905 },
+  SVK20: { par: 0.80, star: 1.56, svPar: 0.890, svStar: 0.901 },
+  SUI20: { par: 0.82, star: 1.58, svPar: 0.889, svStar: 0.900 },
+  DNL: { par: 0.84, star: 1.62, svPar: 0.887, svStar: 0.898 },
   ECHL: { par: 0.52, star: 1.05, svPar: 0.900, svStar: 0.911 }
 };
 
@@ -226,13 +240,13 @@ const D_TOI_MID = 20.5;     // minutes at which a defenceman is neither trusted 
 const D_TOI_SPAN = 4.5;
 
 /**
- * The half of a defenceman's season that is not on the scoresheet.
+ * The half of a defenceman's season that never reaches the scoresheet.
  *
- * A goalie has a save percentage, which is why his year can be judged without
- * reference to anyone's points. A defenceman's equivalent has to be built from
- * what the engine actually simulates: the goal difference he was on the ice
- * for, and the minutes the staff gave him, which is the coaching verdict on
- * his defending and the nearest thing here to an eye test.
+ * A goalie has a save percentage, so his year can be judged without reference
+ * to anyone's points. A defenceman's equivalent has to be built out of what the
+ * engine actually simulates: the goal difference he was on the ice for, and the
+ * minutes the staff gave him. Those minutes are the coaching verdict on his
+ * defending, and the nearest thing here to an eye test.
  *
  * Roughly -1 for a liability, +1 for the best defensive year in the league.
  */
@@ -277,19 +291,18 @@ export function rateSeason({ league, pos, games, g, a, pm, saves, shots, toi }) 
   return Math.min(10, Math.max(1, Number(r.toFixed(1))));
 }
 
-// WHAT A ROLE ACTUALLY BUYS, WHICH IS MINUTES.
+// What a role buys, in minutes.
 //
 // The engine worked out an average time on ice every season, printed it on the
 // recap, and then produced the season from a separate role multiplier that
-// never once looked at it. Ice time was a label sitting next to a number it
-// had no connection to, which is why an 88 OVR centre on a depth contract
-// played 17.3 minutes and posted a median of 79 points: a third-line scoring
-// total that would have finished seventh in the league.
+// never once looked at it. Ice time was a label sitting next to a number it had
+// no connection to. So an 88 OVR centre on a depth contract played 17.3
+// minutes and posted a median of 79 points: a third-line scoring total that
+// would have finished seventh in the league.
 //
-// These are the minutes each tier really plays. Even strength and powerplay
-// are kept apart because a powerplay point comes at better than twice the
-// even-strength rate, and the top unit is most of what a first-liner's edge
-// actually is.
+// These are the minutes each tier really plays. Even strength and powerplay are
+// kept apart because a powerplay point comes at better than twice the
+// even-strength rate, and top-unit time is most of a first-liner's edge.
 const ROLE_ICE = [
   [1.18, 17.6, 3.0],  // 1st line, 1st pair
   [0.98, 15.8, 1.7],  // 2nd line, top four
@@ -331,8 +344,8 @@ export function iceTime({ roleMulti, pos, coachTrust = 50, stamina = 50 }) {
   const staminaMod = ((stamina - 50) / 50) * 1.4;
 
   const even = Math.max(6.0, Math.min(26.0, tier[1] * shift + trustMod + staminaMod));
-  // A coach who does not trust him does not put him out a man up, which is the
-  // first thing to go and the one that costs the most.
+  // A coach who does not trust him does not put him out a man up. That goes
+  // first, and it costs the most.
   const pp = tier[2] * Math.max(0.35, Math.min(1.25, 0.55 + (coachTrust / 100) * 0.9));
   const weighted = even + pp * PP_WEIGHT;
 
@@ -381,14 +394,14 @@ export function drawLeagueBestSv(league) {
  * How good the best defenceman in the league was this year, as a graded
  * season.
  *
- * The last trophy in the game still decided by a fixed threshold. A threshold
- * makes the whole of the outcome depend on the player's own variance, because
- * the thing he is measured against has none, and that is why the Norris curve
- * would not sit on the Art Ross curve at any value: at 9.30 it fired in 21 per
- * cent of seasons at 88 OVR and 67 at 94, against a scoring title's 21 and 42,
- * and tightening it to fit the top end dropped the 88 to 11. Giving the bar
- * its own spread flattens the curve, which is the whole reason the skaters'
- * trophies behave and this one did not.
+ * The Norris was the last trophy still decided by a fixed threshold. A
+ * threshold puts the whole outcome on the player's own variance, because the
+ * thing he is measured against has none, so the Norris curve would not sit on
+ * the Art Ross curve at any value: at 9.30 it fired in 21 per cent of seasons
+ * at 88 OVR and 67 at 94, against a scoring title's 21 and 42, and tightening
+ * it to fit the top end dropped the 88 to 11. Giving the bar its own spread
+ * flattens the curve. The skaters' trophies already had a field with a spread
+ * of its own, and this one did not.
  *
  * rateSeason is already normalised for the league it graded, so unlike the
  * scoring and save-percentage bars this one needs no table.

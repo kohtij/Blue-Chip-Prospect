@@ -194,7 +194,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // A fifty-year drought is not something you tell a player who lifted the
     // thing himself three seasons ago in this building.
     const wonHere = (player.seasonHistory || []).some(s => s.titleWon && s.team === currentTeam);
-    // THIS CITY'S WAIT, NOT A STOCK ONE.
+    // This city's own wait.
     //
     // Every club in the league was handed the same "50-year championship
     // drought", whether it had won two seasons ago or never. The save now
@@ -423,8 +423,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // the summer alongside this one, months out of place.
     //
     // You go to the Worlds because your club season is already over. A player
-    // still in the playoffs is unavailable, which is exactly why the tournament
-    // is full of players whose teams missed or went out early.
+    // still in the playoffs is unavailable, so the tournament fills up with
+    // players whose teams missed or went out early.
     if (pAge > 19 && pOvr >= 78 && !madePlayoffs) {
        const isTopDiv = activeNatDiv === 'Top Division';
        // A top-division federation can pick from a deep pool, so a borderline

@@ -148,7 +148,7 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
             pair of lanes, so they were drawing the channels twice. */}
       </Surface>
 
-      <div className="flex gap-2 p-3 pt-0">
+      <div className="flex gap-2 p-3">
         {LANES.map(l => (
           <ActionButton
             key={l.id}

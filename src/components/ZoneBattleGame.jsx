@@ -72,8 +72,8 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   // overshot. Modelled against a player with ordinary reactions, tapping no
   // faster than three times a second and needing about a third of a second to
   // register a change of direction, a 45 physicality forward was winning 33
-  // per cent of ordinary shifts and 18 per cent of the hard ones, which is not
-  // a battle, it is a formality in the other direction. The defenceman leans
+  // per cent of ordinary shifts and 18 per cent of the hard ones. At those
+  // rates the shift is decided before he starts. The defenceman leans
   // slightly less hard, the D-to-D snap is slower, losing the lane costs less,
   // and the stakes scaling is gentler. Same shift, same unpredictability,
   // winnable.
@@ -186,10 +186,10 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
       hud={
         <Hud
           left={
-            /* This bar said Position, which is what a player reads as where he
-               is standing. It is not: it is how close the tip is, it only
-               climbs while you are under the puck, and filling it is how the
-               shift is won. So it says that. */
+            /* This bar said Position, which reads as where the player is
+               standing. It measures how close the tip is: it climbs only while
+               you are under the puck, and filling it wins the shift. The label
+               says that now. */
             <div className="flex items-center gap-2 min-w-[150px]">
               <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
                 Tip
@@ -258,12 +258,12 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
         {/* The puck, worked around above the paint. */}
         <Puck at={[puck, 34]} r="2.4" glow={inLane} />
 
-        {/* The defenceman leaning on me, and me. The arrow is the way he is
-            leaning this second, which is the thing you are fighting.
-            The arrow used to be written out at y 70 with its head reaching
-            72.5, which is past the goal line and inside the mesh: the thing
-            you were fighting was drawn in the back of your own net. It sits
-            clear of the line now, and the two markers come off named rows. */}
+        {/* The defenceman leaning on me, and me. The arrow shows which way
+            he is leaning this second, and that lean is what you are fighting.
+            The arrow used to be drawn at y 70 with its head reaching 72.5, past
+            the goal line and inside the mesh, so what you were fighting sat in
+            the back of your own net. It sits clear of the line now, and the two
+            markers come off named rows. */}
         <g style={{ transition: 'transform 70ms linear' }} transform={`translate(${me - 50} 0)`}>
           <Marker at={[60, SLOT.slotRow]} kind="opp" label="D" r="4.8" />
           <Marker at={[49, SLOT.slotRow + 7]} kind="me" label="YOU" r="5.2" />
@@ -283,7 +283,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
         </g>
       </Surface>
 
-      <div className="flex gap-2 p-3 pt-0 select-none">
+      <div className="flex gap-2 p-3 select-none">
         <button
           type="button"
           onPointerDown={() => shove(-1)}

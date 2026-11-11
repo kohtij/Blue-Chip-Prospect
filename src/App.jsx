@@ -286,8 +286,8 @@ function App() {
 
       // Allow last season's cards back in rather than ever handing out fewer
       // than three options. This still rolls rarity: drawing flat from the pool
-      // here was handing out a Rare a third of the time, which is what pushed
-      // the real Epic and Rare rates well above the intended odds.
+      // here handed out a Rare a third of the time, and that pushed the real
+      // Epic and Rare rates well above the intended odds.
       let relaxed = 0;
       while (hand.length < 3 && relaxed < 60) {
         relaxed++;
@@ -312,8 +312,8 @@ function App() {
 
     // Every startable league needs its own pool here. This chain had no branch
     // for J20 or U20, so a Swedish or Finnish prospect fell through to the
-    // final else and was handed an OHL club while his league said J20, which is
-    // why his team had no name that matched and no crest that belonged to it.
+    // final else and was handed an OHL club while his league said J20. His team
+    // then had no name that matched and no crest that belonged to it.
     const START_POOLS = {
       OHL: ohlTeams, WHL: whlTeams, QMJHL: qmjhlTeams, USHL: ushlTeams,
       SHL: shlTeams, LIIGA: liigaTeams, J20: j20Teams, U20: u20Teams
@@ -353,8 +353,8 @@ function App() {
         nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null,
         // The rest of your year group, created once, here, and aged alongside
         // you for the next twenty seasons. Until now the hockey world had one
-        // player in it, which is why no trophy had anyone else's name on it
-        // and no career had anything to be measured against.
+        // player in it, so no trophy had anyone else's name on it and no career
+        // had anything to be measured against.
         peers: createDraftClass(p.age || 16, 28, p.pos, p.leagueState),
         leagueState: {}
       };
@@ -875,10 +875,10 @@ function App() {
              return { team: ahlTeamId, lg: 'AHL', reason: 'DEVELOPMENT' };
          }
 
-         // A ONE-WAY CONTRACT RESISTS THE DEMOTION
+         // A one-way contract resists the demotion.
          // It pays full NHL money in the AHL, so the club eats the whole cap hit
          // to bury him and usually finds another way. A two-way deal costs them
-         // very little, which is the entire point of signing one.
+         // very little, and that is why clubs sign them.
          const cRole = player.contract?.role || '';
          const isTwoWay = cRole.includes('Two-Way') || cRole.includes('AHL Start') || cRole.includes('Pro Roster');
          const capHitM = (player.contract?.salary || 0) / 1000000;

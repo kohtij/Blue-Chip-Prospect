@@ -18,7 +18,7 @@ function Hardware({ season }) {
     .filter(aw => !aw.toLowerCase().includes('1st team all-star'))
     // The championship already has its own pill, drawn from titleWon, and the
     // same cup is also written into the season's award list. Both were being
-    // rendered, which is why a cup-winning year showed two identical trophies.
+    // rendered, so a cup-winning year showed two identical trophies.
     .filter(aw => {
       if (!season.titleWon) return true;
       const own = season.league === 'NHL' ? 'stanley cup'
@@ -116,12 +116,11 @@ export default function RetirementScreen() {
 
   return (() => {
     // The badge on this screen and the record saved into the Hall of Records used
-    // two different tests for the same thing. The badge read fan status alone,
-    // which is popularity rather than achievement, and 800 is a number a career
-    // does not actually reach: across 1200 long, strong careers the highest seen
-    // was 494, so "HALL OF FAME CAREER" never once appeared, not even for a player
-    // the game then filed as a legend. Both now read the career score, which is
-    // what the Hall of Fame is actually about.
+    // two different tests for the same thing. The badge read fan status alone, a
+    // measure of popularity rather than achievement, and 800 is a number a
+    // career does not reach: across 1200 long, strong careers the highest seen
+    // was 494, so "HALL OF FAME CAREER" never once appeared, not even for a
+    // player the game then filed as a legend. Both now read the career score.
     const isLegend = scoreData.tier === 'Generational Icon' || scoreData.tier === 'Hall of Famer';
     const isGoalie = player.pos === 'G';
     const peakOvr = player.stats?.peakOvr || player.ovr;
@@ -790,8 +789,8 @@ export default function RetirementScreen() {
                               )}
 
                               {/* A year with no playoffs gets dashes rather than
-                                  a row of zeroes, which is the difference between
-                                  "did not qualify" and "played and scored none". */}
+                                  a row of zeroes, so "did not qualify" does not
+                                  read as "played and scored none". */}
                               <td className="px-1.5 sm:px-2 py-2.5 text-center font-black number-font border-l border-[rgba(255,255,255,0.065)] text-slate-200">
                                 {po ? r.playoffGames : <span className="text-slate-700">&ndash;</span>}
                               </td>
@@ -840,11 +839,10 @@ export default function RetirementScreen() {
                         })}
                       </tbody>
 
-                      {/* One line a league, which is the number a career gets
-                          remembered by. The old screen had career totals in
-                          tiles above and nothing tying them to where they were
-                          made, so 641 games said nothing about how many of them
-                          were in the NHL. */}
+                      {/* One line a league. The old screen had career totals
+                          in tiles above and nothing tying them to where they
+                          were made, so 641 games said nothing about how many of
+                          them were in the NHL. */}
                       <tfoot className="border-t-2 border-[rgba(255,255,255,0.1)]">
                         {leagueTotals.filter(t => t.games > 0).map(t => {
                           const sv = t.shots > 0 ? (t.saves / t.shots) : 0;
@@ -1026,11 +1024,12 @@ export default function RetirementScreen() {
                         r.me ? 'bg-[#22E748]/10' : 'bg-[#101410]'}`}
                     >
                       <span className="w-5 text-[10px] font-black number-font text-slate-600 shrink-0">{i + 1}</span>
+                      {/* You, not your own name, as on every other board. */}
                       <span className={`flex-1 truncate font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-300'}`}>
-                        {r.name}
+                        {r.me ? 'You' : r.name}
                       </span>
-                      {/* Where he was taken and by whom, which is the thing
-                          that makes this a draft class rather than a list. */}
+                      {/* Where he was taken and by whom, so this reads as a
+                          draft class rather than a list of names. */}
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 shrink-0 w-20 text-right">
                         {r.pick ? `#${r.pick} ${r.team || ''}` : ''}
                       </span>

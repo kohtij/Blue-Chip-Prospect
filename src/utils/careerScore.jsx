@@ -15,10 +15,10 @@ export function computeCareerScore(player) {
   // season award the game hands out, the Hart, the Conn Smythe, the Vezina, the
   // Norris, the Art Ross, the Rocket, the Calder and every All-Star Team, is
   // written onto that season's history entry and never copied up. So the whole
-  // awards section below was scoring an array that only ever contained Cups,
-  // which is why a long, decorated career still came out a Franchise Cornerstone
-  // and the top two tiers were unreachable. The two sources are disjoint, so
-  // reading both counts each trophy exactly once.
+  // awards section below was scoring an array that only ever contained Cups, and
+  // a long, decorated career still came out a Franchise Cornerstone with the top
+  // two tiers unreachable. The two sources are disjoint, so reading both counts
+  // each trophy exactly once.
   const awards = [
     ...(player.stats?.awards || []),
     ...history.flatMap(s => s.awards || [])

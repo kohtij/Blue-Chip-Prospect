@@ -29,7 +29,8 @@ export default function AllStarScreen() {
   // sends the player back out to play on towards the deadline in March.
   const finishSeason = () => handleTrain(null);
   
-  // Use the league the player earned the nod in, not just their current active league
+  // Use the league the player earned the nod in, which may not be the one he is
+  // active in now
   const asgLeague = player.currentAsg || player.league;
   
   const [city] = useState(() => {

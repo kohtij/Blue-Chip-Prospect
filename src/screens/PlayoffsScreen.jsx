@@ -127,7 +127,7 @@ export default function PlayoffsScreen() {
           } else {
               seriesFlavor = activeMatch.status === 'won'
                 ? "Win or go home, and you are still here. On to the next one."
-                : "One game, one loss, and the season is over. That is single elimination.";
+                : "One game, one loss, and the season is over.";
           }
       } else if (isFinalRound) {
           if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A dominant sweep to capture the ultimate prize! You are a champion!" : isMaxGames ? "A legendary final-game victory to win the championship! History is made." : "You conquered the finals and claimed the championship. The glory is yours!";

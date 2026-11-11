@@ -107,8 +107,8 @@ export function Stage({ hud, children, verdict, caption }) {
 }
 
 // --- the HUD ---------------------------------------------------------------
-// A count drawn as pips rather than printed as "SAVES: 3/5". You can see where
-// you are without reading it, which is the point when the clock is running.
+// A count drawn as pips rather than printed as "SAVES: 3/5". With the clock
+// running, you can see where you are without stopping to read it.
 export function Pips({ label, filled, total, tone = 'good' }) {
   const on = tone === 'bad' ? 'bg-[#ef4444] border-[#ef4444]' : 'bg-[#22E748] border-[#22E748]';
   return (
@@ -128,7 +128,7 @@ export function Pips({ label, filled, total, tone = 'good' }) {
   );
 }
 
-// The shot clock, as a bar that drains. Turns at two seconds, which is the only
+// The shot clock, as a bar that drains. It turns at two seconds, the only
 // warning a shooter gets.
 export function Clock({ msLeft, msTotal }) {
   const pct = Math.max(0, Math.min(100, (msLeft / msTotal) * 100));

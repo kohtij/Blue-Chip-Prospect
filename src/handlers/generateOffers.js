@@ -166,9 +166,8 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       }
       minYears = Math.min(minYears, maxYears);
 
-      // The maximum contract is twenty per cent of the cap, which is what the
-      // real one is, rather than a hand-written number needing its own
-      // inflation term.
+      // The maximum contract is twenty per cent of the cap, as the real one is,
+      // rather than a hand-written number needing its own inflation term.
       baseSalary = Math.min(cap * 0.20, baseSalary);
     } else {
       // Minor league / amateur fallback pay

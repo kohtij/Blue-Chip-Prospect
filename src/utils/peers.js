@@ -15,11 +15,11 @@ import { ageFactor, curvesFor, drawLeagueBest, drawLeagueBestDman, drawLeagueBes
 // fifty-goal season never told you whether it led the league, and a career
 // ended with totals that sat next to nothing.
 //
-// This is not a league simulation. It is about thirty other players, drafted
-// the same year as you, who age, develop, peak, decline and retire on their
-// own clocks, and whose seasons are produced by the same functions yours are.
-// That is enough to make a scoring race real and to give a career something
-// to be measured against.
+// What follows is far smaller than a league simulation: about thirty other
+// players, drafted the same year as you, who age, develop, peak, decline and
+// retire on their own clocks, and whose seasons are produced by the same
+// functions yours are. That is enough to make a scoring race real and to give
+// a career something to be measured against.
 
 // Names.
 //
@@ -128,8 +128,8 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
     });
   }
   // Scouts rank the class by what each player will become, with noise on it,
-  // because scouts are not oracles. Then the order of the room decides who
-  // takes whom.
+  // since nobody can see a career coming exactly. Then the order of the room
+  // decides who takes whom.
   const board = [...peers]
     .map(p => ({ p, score: p.peak + gaussianNoise() * 5 }))
     .sort((a, b) => b.score - a.score)
@@ -233,6 +233,62 @@ const ROUTES = {
   DEN: [[u20Teams, 'U20', 40], [whlTeams, 'WHL', 34], [j20Teams, 'J20', 26]]
 };
 
+// HOW OLD YOU HAVE TO BE TO BE THERE.
+//
+// A peer's route is drawn once when the class is created and then used for
+// every season before the draft, so a sixteen-year-old was shown wherever his
+// draft year was going to be. An American sixteen-year-old appeared in the
+// NCAA, where the youngest freshmen are eighteen and nobody is admitted at
+// sixteen at all. Worse, every nation outside Canada, the United States,
+// Sweden and Finland routed through a men's league: a Czech sixteen-year-old
+// was in the Extraliga, a Russian in the KHL, a German in the DEL. Below
+// these ages a prospect is in his own country's under-20 programme, which is
+// where he really is.
+const LEAGUE_MIN_AGE = {
+  NCAA: 18,
+  NHL: 18, AHL: 18,
+  KHL: 17, SHL: 17, CZECH: 17, SLOVAK: 17, SWISS: 17, DEL: 17
+};
+
+// The under-20 programme each nationality comes through, and the pool its
+// clubs are drawn from. For the countries whose route already pointed at the
+// men's league, the club stays exactly as drawn and only the league changes,
+// because a U20 side is the senior club's own junior team and wears its
+// crest: Sparta's under-20s are still Sparta.
+const HOME_JUNIOR = {
+  CAN: [ohlTeams, 'OHL'],
+  USA: [ushlTeams, 'USHL'],
+  SWE: [j20Teams, 'J20'],
+  FIN: [u20Teams, 'U20'],
+  DEN: [j20Teams, 'J20'],
+  RUS: [khlTeams, 'MHL'],
+  CZE: [czechTeams, 'CZE20'],
+  SVK: [slovakTeams, 'SVK20'],
+  SUI: [swissTeams, 'SUI20'],
+  GER: [delTeams, 'DNL']
+};
+
+/**
+ * Where a prospect actually is this season, given how old he is.
+ *
+ * Returns his drawn route once he is old enough for it, and his own
+ * country's under-20 programme until then. The club is chosen off a hash of
+ * his id rather than at random, because this runs every season and a peer who
+ * changed clubs on every render would not be a person.
+ */
+function juniorPlacement(peer) {
+  const drawn = { league: peer.juniorLeague, team: peer.juniorTeam };
+  const minAge = LEAGUE_MIN_AGE[peer.juniorLeague] || 16;
+  if ((peer.age ?? 17) >= minAge) return drawn;
+
+  const [pool, lg] = HOME_JUNIOR[peer.nat] || HOME_JUNIOR.CAN;
+  const list = pool || [];
+  if (!list.length) return drawn;
+  // Already at a club in the right pool: keep it, rename the league.
+  if (list.some(t => t.id === peer.juniorTeam)) return { league: lg, team: peer.juniorTeam };
+  return { league: lg, team: list[hash(peer.id || peer.name || 'x') % list.length].id };
+}
+
 // A tiny deterministic generator, for the parts of the draft room that are
 // drawn fresh every time the screen opens and must come out identical.
 const rngFrom = (seed) => {
@@ -287,6 +343,47 @@ const draftRoute = (nat) => {
 // and the international screens are showing the same artwork.
 export const flagFor = (nat) => (nationalities || []).find(n => n.id === nat)?.img || null;
 
+// WHAT TO CALL A LEAGUE ON A BOARD.
+//
+// "U20" told you nothing: it is Finland's under-20 league, and nothing on
+// screen said so, while Sweden's sat beside it as "J20" and the two read as
+// the same kind of label for different things. The first pass at this spelled
+// the country out beside the code, which was correct and was also five more
+// words of grey capitals on a board that already had enough. The country is
+// carried by its flag instead, the same artwork the creation screen picks a
+// nationality with, and the text goes back to the bare code.
+//
+// The internal ids stay as they are, because the pace tables and the scoring
+// races key off them; this is only what gets printed.
+const LEAGUE_LABEL = {
+  CZE20: 'U20',
+  SVK20: 'U20',
+  SUI20: 'U20',
+  // The men's leagues whose internal id is a country rather than a league.
+  CZECH: 'ELH',
+  SLOVAK: 'EL',
+  SWISS: 'NL'
+};
+
+export const leagueLabel = (id) => (id ? (LEAGUE_LABEL[id] || id) : '');
+
+// Whose league it is. The NHL and the AHL are deliberately absent: they are
+// two countries' leagues and a single flag on either would be wrong.
+const LEAGUE_HOME = {
+  OHL: 'CAN', WHL: 'CAN', QMJHL: 'CAN',
+  USHL: 'USA', NCAA: 'USA',
+  J20: 'SWE', SHL: 'SWE',
+  U20: 'FIN',
+  MHL: 'RUS', KHL: 'RUS',
+  CZE20: 'CZE', CZECH: 'CZE',
+  SVK20: 'SVK', SLOVAK: 'SVK',
+  SUI20: 'SUI', SWISS: 'SUI',
+  DNL: 'GER', DEL: 'GER'
+};
+
+export const leagueNation = (id) => LEAGUE_HOME[id] || null;
+export const leagueFlag = (id) => flagFor(leagueNation(id));
+
 // Which club he plays for. He keeps it while he stays in the league, because
 // players mostly do, and takes a new one when he moves up, down or across.
 const placeAt = (peer, league) => {
@@ -310,6 +407,9 @@ const placeAt = (peer, league) => {
 // barely half.
 const JUNIOR_GAMES = {
   OHL: 64, WHL: 66, QMJHL: 66, USHL: 60, NCAA: 38, J20: 44, U20: 44,
+  // The other under-20 programmes, which a prospect plays before he is old
+  // enough for the men's league beneath.
+  MHL: 60, CZE20: 44, SVK20: 40, SUI20: 40, DNL: 44,
   // Not every prospect's draft year is a junior one. A Russian, a Czech, a
   // Swiss or a German is usually already in the men's league at seventeen,
   // which is a shorter schedule and a far harder room.
@@ -338,9 +438,15 @@ function playPeerSeason(peer) {
   // eighteen-year-old in the league a summer before his own draft and then
   // listed him on the pre-draft scouting board as an NHL player.
   const preDraft = peer.age <= 18;
-  const junior = (preDraft || tier === 'JR') && peer.juniorLeague;
-  const league = junior ? peer.juniorLeague : tier;
-  const team = junior ? (peer.juniorTeam || placeAt(peer, 'JR')) : placeAt(peer, tier);
+  // And he has to be old enough for the room his route points at. See
+  // juniorPlacement: until he is, he is in his own country's under-20
+  // programme rather than in a men's league or an American college.
+  const placed = ((preDraft || tier === 'JR') && peer.juniorLeague)
+    ? juniorPlacement(peer)
+    : null;
+  const junior = !!placed;
+  const league = junior ? placed.league : tier;
+  const team = junior ? (placed.team || placeAt(peer, 'JR')) : placeAt(peer, tier);
 
   const isGoalie = peer.pos === 'G';
   const isD = peer.pos === 'LD' || peer.pos === 'RD';
@@ -361,15 +467,16 @@ function playPeerSeason(peer) {
       : (!junior && league === 'SHL') ? 0.74
         : junior ? (paceOf(league).par / 0.78) * 1.30
           : 1.30;
-  // A rating is read against the room it is in. Every one of these numbers is
-  // calibrated on the NHL, where 52 is replacement level, and a seventeen-
-  // year-old at 64 is nowhere near it: run through as-is he put up eight
-  // points in a sixty-six game junior season while the player beside him on
-  // the same board had forty-eight. In junior that same 64 is the best player
-  // in the league, so it is read at junior's baseline instead. Men's leagues
-  // keep the NHL scale, which is why a seventeen-year-old in the KHL scores
-  // almost nothing and should.
-  const juniorEnv = junior && ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'J20', 'U20'].includes(league);
+  // Ratings have to be read against the league a player is in. All of these
+  // numbers are calibrated on the NHL, where 52 is replacement level, and a
+  // seventeen-year-old at 64 is nowhere near it: run through as-is he put up
+  // eight points in a sixty-six game junior season while the player beside him
+  // on the same board had forty-eight. In junior that same 64 is the best
+  // player in the league, so it is read at junior's baseline instead. Men's
+  // leagues keep the NHL scale, so a seventeen-year-old in the KHL scores
+  // almost nothing, as he should.
+  const juniorEnv = junior && ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'J20', 'U20',
+    'MHL', 'CZE20', 'SVK20', 'SUI20', 'DNL'].includes(league);
   const scaleOvr = juniorEnv ? ovr + 16 : ovr;
   const depth = scaleOvr >= 85 ? 1.35 : scaleOvr >= 78 ? 1.12 : scaleOvr >= 71 ? 0.90 : scaleOvr >= 64 ? 0.68 : 0.52;
   // Scaled so that the best player in a draft class peaks around a hundred and
@@ -383,9 +490,9 @@ function playPeerSeason(peer) {
   const a = isGoalie ? 0 : Math.floor(soften(context * 0.62 * form.assists, curves.assists.soft, curves.assists.hard));
 
   // A goalie's year. Without this the nine per cent of the class who play the
-  // position accumulated nothing at all, which is why a goalie career had no
-  // rival, no class table and no scoring race line: every peer function
-  // filtered them out because there was nothing to compare.
+  // position accumulated nothing at all, so a goalie career had no rival, no
+  // class table and no scoring race line: every peer function filtered them
+  // out because there was nothing to compare.
   let sho = 0, saves = 0, shots = 0, wins = 0, losses = 0, otl = 0;
   if (isGoalie) {
     const gp = Math.round(games * 0.62);
@@ -470,7 +577,14 @@ function playPeerSeason(peer) {
  */
 export function ensureClass(peers, playerAge = 18, seasonsPlayed = 0, playerPos = 'C', leagueState = null) {
   if (Array.isArray(peers) && peers.length) return peers;
-  const draftAge = Math.max(16, playerAge - Math.max(0, seasonsPlayed));
+  // One year younger than he is, because every caller advances the class once
+  // before the player's own season is played. Built at his age, the whole year
+  // group ran a season ahead of him for the length of the career: while he was
+  // playing his sixteen-year-old season they were playing their seventeenth,
+  // and on his own draft night his classmates were nineteen with several of
+  // them already professional. A draft class is a birth year, so it should be
+  // his.
+  const draftAge = Math.max(15, playerAge - Math.max(0, seasonsPlayed) - 1);
   let built = createDraftClass(draftAge, 28, playerPos, leagueState);
   for (let i = 0; i < Math.max(0, seasonsPlayed); i++) built = advancePeers(built);
   return built;
@@ -640,8 +754,8 @@ export function goalieBar(peers, league) {
   return {
     sv: led ? best.sv : drawn,
     name: led ? best.name : null,
-    // The best of his own year group between the pipes, league leader or not,
-    // which is the comparison that actually means something to him.
+    // The best of his own year group between the pipes, league leader or not.
+    // That is the comparison he cares about.
     classBest: best && !led ? { name: best.name, sv: best.sv } : null
   };
 }
@@ -750,10 +864,11 @@ export function classTable(peers, limit = 10, pos = 'C') {
 // ---------------------------------------------------------------------------
 // WHERE THE CLASS SHOWS UP
 //
-// Having careers is not the same as being part of one. These are the handful
-// of places a classmate can walk into the story: the night you were drafted,
-// the room you walk into in September, and the short note each summer about
-// what the rest of them did. None of them fire every year, which is the point.
+// The classmates have careers of their own, but a career only reaches the
+// player when it crosses his. These are the handful of places one can: the
+// night you were drafted, the room you walk into in September, and the short
+// note each summer about what the rest of them did. None of them fires every
+// year, on purpose.
 // ---------------------------------------------------------------------------
 
 /**
@@ -788,14 +903,14 @@ const scaleProduction = (pts, gp, league) => {
   return Math.min(8, ((pts || 0) / gp / star) * 6);
 };
 
-// WHAT A SCOUT SEES IN A GOALTENDER'S SEASON.
+// How a scout reads a goaltender's season.
 //
-// Save percentage alone was the whole of it, which is the one number a
-// goalie can post on a bad team without winning anything and the one he can
-// miss on a good team while winning forty. Scouts watch all three: whether
-// he wins, whether he shuts teams out, and whether he stops the puck. They
-// are weighted in that order of how much they move a draft board, and the
-// record counts for nothing without the games to make it mean something.
+// Save percentage used to be the whole of it. That is the one number a goalie
+// can post on a bad team without winning anything, and the one he can miss on
+// a good team while winning forty. Scouts watch all three: whether he wins,
+// whether he shuts teams out, and whether he stops the puck. They are weighted
+// in that order of how much they move a draft board, and the record counts for
+// nothing without the games to make it mean something.
 const goalieProduction = (season) => {
   if (!season) return 0;
   const gp = season.gp || 0;
@@ -866,14 +981,18 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     league: p.league && p.league !== 'JR' ? p.league : p.juniorLeague,
     pts: p.season && p.pos !== 'G' ? (p.season.pts || 0) : null,
     sv: p.season && p.pos === 'G' && p.season.shots ? p.season.saves / p.season.shots : null,
+    // Games, because a point total without them is not a comparison. Fifty
+    // points is a different player in forty games than in seventy, and the
+    // board was printing the ranking with no production beside it at all.
+    gp: p.season ? (p.season.gp || 0) : null,
     score: scoreOf(p),
     me: false
   }));
 
   // The player is scored on the same two things his classmates are: what he
-  // is now, and what the scouts think he becomes. draftBonus is the whole of
-  // the second part he can move, which is the point of the combine and of
-  // every interview question he has answered since.
+  // is now, and what the scouts think he becomes. draftBonus is the only part
+  // of the second he can move, and it is what the combine and every interview
+  // question since have been feeding into.
   if (player) {
     // The season he has just played, handed in directly where the caller has
     // it, because the recap is built before it reaches his history.
@@ -897,6 +1016,7 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
       league: player.league,
       pts: player.pos !== 'G' ? myPts : null,
       sv: player.pos === 'G' ? mySv : null,
+      gp: myGp || null,
       // Scored on the same two halves his classmates are, which means he needs
       // a projection too. Inverting the peers' own age curve gives one on
       // exactly their scale: what a sixteen-year-old at this rating is usually
@@ -926,10 +1046,19 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     // whole class, which is not what was counted.
     group,
     groupLabel: groupName(group),
-    // Whoever is one place above him, which is the comparison that actually
-    // bites during a junior season.
+    // Whoever is one place above him. During a junior season that is the
+    // comparison that bites.
     ahead: mine && mine.rank > 1 ? rows[mine.rank - 2] : null,
-    behind: mine && mine.rank < rows.length ? rows[mine.rank] : null
+    behind: mine && mine.rank < rows.length ? rows[mine.rank] : null,
+    // The stretch of the board he is standing in: the two he is chasing, him,
+    // and the two chasing him. Clamped so that being first or last still shows
+    // a board rather than a stub, and so a thin class shows whatever it has.
+    near: mine
+      ? rows.slice(
+        Math.max(0, Math.min(mine.rank - 3, rows.length - 5)),
+        Math.max(0, Math.min(mine.rank - 3, rows.length - 5)) + 5
+      )
+      : []
   };
 }
 
@@ -957,13 +1086,13 @@ export function draftBoard(peers, playerPick, playerName, count = 2, leagueState
     });
   });
 
-  // THE PICKS EITHER SIDE, NOT THE CLASSMATES EITHER SIDE.
+  // The picks either side, rather than the classmates either side.
   //
   // The class is twenty-eight players spread across two rounds, so the two
   // "before" and two "after" were whoever in the year group happened to be
-  // nearest: picks 8, 10, you at 12, then 14 and 16. A draft board is the
-  // order of the room, and the names directly around yours are the whole
-  // point of looking at it. The gaps are filled with the rest of the room,
+  // nearest: picks 8, 10, you at 12, then 14 and 16. A draft board shows the
+  // order of the room, and the names directly around yours are what you look
+  // at it for. The gaps are filled with the rest of the room,
   // who exist on that one screen and nowhere else: they are generated from
   // the pick number and the class, so they are the same every time it draws
   // and after a reload, without being carried around in the save.
@@ -1030,11 +1159,11 @@ export function classNews(peers, player) {
   const live = (peers || []).filter(p => p.career.seasons > 0);
   if (!live.length) return null;
 
-  // Most summers you hear nothing about them, which is how it should be. A
-  // class of twenty-eight generates something worth saying nearly every year
-  // if you let it, and then it stops being news and becomes a drumbeat: at
-  // the first calibration this fired in sixteen of twenty seasons, including
-  // seven consecutive retirement notices.
+  // Most summers should pass with nothing said about them. A class of
+  // twenty-eight generates something worth saying nearly every year if you let
+  // it, and then it stops being news and becomes a drumbeat: at the first
+  // calibration this fired in sixteen of twenty seasons, including seven
+  // consecutive retirement notices.
   if (Math.random() > 0.42) return null;
 
   const isGoalie = player?.pos === 'G';
@@ -1133,7 +1262,7 @@ export function classPressQuestion(peers, player) {
     answers: {
       professional: [
         `I'm not playing against ${who}. I'm playing against whoever we have on Thursday.`,
-        'You can only control your own game. The rest is noise.',
+        'You can only control your own game.',
         'Comparisons are for you lot. I just try to be useful.'
       ],
       passionate: [

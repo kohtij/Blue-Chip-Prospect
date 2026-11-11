@@ -79,10 +79,10 @@ export const getWinsNeeded = (league, roundIndex) => {
   return Math.ceil(getGamesPerMatchup(league, roundIndex) / 2);
 };
 
-// Ability alone, which is not where a player is actually deployed: his
-// contract has a say and so does his coach. Kept for callers that only have a
-// rating to hand; anything showing a player his own line uses resolveRole in
-// gameHelpers, which is what the simulation reads.
+// Ability alone, which is not where a player ends up deployed: his contract has
+// a say and so does his coach. Kept for callers that only have a rating to hand.
+// Anything showing a player his own line uses resolveRole in gameHelpers, and so
+// does the simulation.
 export const getDisplayDeployment = (ovr, pos, league) => {
   return getDeployment(ovr, pos, league);
 };

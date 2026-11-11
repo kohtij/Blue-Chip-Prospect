@@ -147,12 +147,12 @@ export default function IntlTournamentScreen() {
     setPicked(play);
 
     const wasRead = board.scoutedIds.includes(play.id);
-    // Read in a group game is a bad night and nothing more. Read in a knockout
-    // puts the whole tournament on one more moment, and that moment is the
+    // Read in a group game costs a bad night and nothing more. Read in a
+    // knockout puts the whole tournament on one more moment, played as the
     // position's own minigame: a goaltender faces the breakaway, a centre takes
-    // the draw, a defenceman gets in the lane. You get one of those a
-    // tournament. Spend it in the quarter-final and the final is played without
-    // a net under you.
+    // the draw, a defenceman gets in the lane. There is one of those per
+    // tournament, so spending it in the quarter-final leaves the final with no
+    // net under you.
     const isDecider = round.key === 'FINAL' || round.key === 'BRONZE' || round.key === 'DECIDER';
     if (wasRead && round.kind === 'knockout' && !run.escapeUsed && !isDecider) {
       const pool = [...new Set(
@@ -240,11 +240,11 @@ export default function IntlTournamentScreen() {
         <p className="text-[11px] sm:text-xs text-slate-300 font-sans leading-snug">
           Every game is one read: pick a play, and hope their video staff has not already picked it apart.
         </p>
-        {/* Only the stage you are actually standing in.
+        {/* Only the stage you are standing in.
             All four rules used to sit here at once, so a group game told you
             what happens in a medal game and a medal game told you about an
-            escape that does not exist in one. The tape rule is not a stage, it
-            is true all tournament, so it stays. */}
+            escape that does not exist in one. The tape rule holds all
+            tournament rather than belonging to a stage, so it stays. */}
         {(() => {
           const medal = ['FINAL', 'BRONZE', 'DECIDER'].includes(round?.key);
           const stage = !round ? null
@@ -343,8 +343,8 @@ export default function IntlTournamentScreen() {
 
           {/* The matchup owns the gap under itself, so everything that can
               follow it sits the same distance away. The three branches below
-              each carried their own top margin and one of them carried none,
-              which is why the verdict text came up hard against this box. */}
+              each carried their own top margin and one of them carried none, so
+              the verdict text came up hard against this box. */}
           <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl px-4 py-3 mt-3 mb-6 sm:mb-8 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] text-[#3b82f6] mb-1">

@@ -89,8 +89,8 @@ export function combineScore(raw = 0) {
 
 /**
  * The full scouting file. `rawCombine` is the combine's own -4..+8 score.
- * Pass applyNoise false for a deterministic read, which is what the UI uses to
- * show a projection before the draft actually happens.
+ * Pass applyNoise false for a deterministic read. The UI uses that to show a
+ * projection before the draft happens.
  */
 export function computeScoutingScore(player, rawCombine = 0, applyNoise = true) {
   const ability = clamp01(((player.ovr || 50) - 46) / 32) * MAX_ABILITY;

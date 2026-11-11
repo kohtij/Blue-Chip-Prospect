@@ -135,8 +135,8 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
           </g>
         )}
 
-        {/* The screen: two bodies planted in front of the mouth, which is what
-            you are actually looking through. */}
+        {/* The screen: two bodies planted in front of the mouth. That is what
+            you are looking through. */}
         <g>
           <rect x="30" y={MOUTH.yBot - 4} width="17" height="24" rx="5"
                 fill="rgba(200,44,44,0.82)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" />
@@ -147,7 +147,7 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
 
       {phase === 'hidden' && <Callout text="Can't see it" y="22%" />}
 
-      <div className="flex gap-2 p-3 pt-0">
+      <div className="flex gap-2 p-3">
         {SIDES.map(s => (
           <ActionButton
             key={s.id}

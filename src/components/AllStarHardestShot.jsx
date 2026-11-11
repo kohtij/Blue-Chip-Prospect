@@ -141,7 +141,7 @@ export default function AllStarHardestShot({ onComplete, strategy }) {
           </Surface>
 
           {/* the contact meter */}
-          <div className="p-3 pt-0">
+          <div className="p-3">
             <div className="relative h-9 rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#0a0d0a] overflow-hidden">
               <div className="absolute inset-y-0 left-0 w-1/4 bg-[#ef4444]/15" />
               <div className="absolute inset-y-0 left-1/4 w-[15%] bg-[#F59E0B]/15" />

@@ -8,9 +8,9 @@
 // no two of them looked like each other.
 //
 // So the geometry is one module now, and a game asks for the view it needs. Every
-// surface is built off the real dimensions at a single scale, which is what makes
-// it read as a rink rather than a pitch with a box painted on it, and every game
-// inherits the same ice colour, the same line weights and the same notation.
+// surface is built off the real dimensions at a single scale, so it reads as a
+// rink rather than a pitch with a box painted on it, and every game inherits the
+// same ice colour, the same line weights and the same notation.
 //
 // The notation is the standard drill-book key, unchanged from the play cards:
 //
@@ -178,8 +178,8 @@ export function Goalie({ shift = 0, down = false, beaten = false }) {
   const dark = beaten ? 'rgba(80,88,100,0.5)' : 'rgba(30,41,59,0.85)';
   const ice = MOUTH.yBot;
 
-  // Everything hangs off the hips, which is the only part of him that does not
-  // move much between the two stances.
+  // Everything hangs off the hips, since they move least between the two
+  // stances.
   const hipY = down ? 41 : 36;
   const chestY = down ? 31 : 22;
   const headY = down ? 26.5 : 17.5;

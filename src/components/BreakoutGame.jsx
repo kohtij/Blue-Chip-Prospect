@@ -158,7 +158,7 @@ export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
         {picked === null && <Puck at={puckBeside(50, SLOT.screenRow, 5.2)} r="2" />}
       </Surface>
 
-      <div className="flex gap-2 p-3 pt-0">
+      <div className="flex gap-2 p-3">
         {LANES.map(l => (
           <ActionButton
             key={l.id}

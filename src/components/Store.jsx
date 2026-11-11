@@ -14,9 +14,8 @@ import { NEUTRAL_PILL, NEUTRAL_PILL_DIM, statCode, statPillClass } from '../util
 //
 // Now: the balance is stated and named, the three kinds of thing are tabs
 // rather than a scroll, and each item is one row. Affordable rows are live and
-// say what they cost; the rest say how much short you are, which is the thing
-// you actually want to know. Rows are sorted by price so the ones within reach
-// sit at the top.
+// say what they cost; the rest say how much short you are. Rows are sorted by
+// price so the ones within reach sit at the top.
 
 const SHELVES = [
   { id: 'staff', label: 'Staff', blurb: 'People you hire once. What they give you, you keep.' },
@@ -163,9 +162,9 @@ export default function Store({ player, onBuy, onClose }) {
                       {c.text}
                     </span>
                   ))}
-                  {/* How long it lasts, which is the one thing the old cards
-                      never said. A season count for the boosts, and
-                      "permanent" wherever an attribute gain never expires. */}
+                  {/* How long it lasts. The old cards never said. A season
+                      count for the boosts, and "permanent" wherever an
+                      attribute gain never expires. */}
                   {item.duration ? (
                     <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${
                       !isOwned && !canAfford ? NEUTRAL_PILL_DIM : NEUTRAL_PILL}`}>
@@ -177,9 +176,9 @@ export default function Store({ player, onBuy, onClose }) {
                       Permanent
                     </span>
                   ) : null}
-                  {/* The right-hand end of the chip row says what the row will
-                      do if you press it, since the row is the control now and
-                      there is no BUY button to point at. */}
+                  {/* The right-hand end of the chip row says what pressing
+                      the row does, since the row is the control now and there is
+                      no BUY button to point at. */}
                   {!isOwned && (
                     <span className={`text-[9px] font-bold ml-auto ${canAfford ? 'text-[#22E748]' : 'text-slate-500'}`}>
                       {canAfford ? 'Tap to buy' : `${formatMoney(short)} short`}

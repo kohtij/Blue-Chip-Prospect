@@ -12,14 +12,14 @@ import { runPostSeasonFlow } from './runPostSeasonFlow';
 // July signing sits a full extra year before anybody will even discuss it, no
 // matter how he plays.
 //
-// By late December he has thirty-odd games in this building, which is the only
-// thing camp was really waiting for, and two things can put a letter in play:
-// he arrived since last season and the room has now made its mind up about
+// What camp was really waiting for was time in the building, and by late
+// December he has thirty-odd games of it. Two things can then put a letter in
+// play: he arrived since last season and the room has made its mind up about
 // him, or the year is getting away from the club and the coach starts
-// rearranging who he leans on. Either way he has to be the one playing well:
-// handing an A to a passenger on a bad team is not a shake-up.
+// rearranging who he leans on. Either way he has to be playing well himself.
+// Handing an A to a passenger on a bad team shakes nothing up.
 //
-// Returns the event to show, or null when nothing happens, which is most years.
+// Returns the event to show, or null when nothing happens, as in most years.
 export function midSeasonLetter(player, seg) {
   if (!seg || player.league !== 'NHL') return null;
   if (player.isCaptain || player.isAlternate || player.storylines?.alternateGiven) return null;
@@ -111,10 +111,10 @@ export function handleTrain(ctx, t) {
       const verdict = nineGameVerdict(player, seg, isTop10Pick);
       // Where he goes back to. The rights fields are not always set on a
       // career that reached the NHL by another route, and the fallback used to
-      // be the literal string UNK, which is what the dashboard then displayed
-      // as his club for the rest of the season. The last junior season he
-      // actually played is the honest answer, and a real club from that league
-      // is a better last resort than nothing.
+      // be the literal string UNK, and the dashboard then displayed that as his
+      // club for the rest of the season. The last junior season he actually
+      // played is the honest answer, and a real club from that league is a
+      // better last resort than nothing.
       const lastJunior = [...(player.seasonHistory || [])].reverse()
         .find(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
       const juniorLeague = player.chlRightsLeague || player.juniorLeague || lastJunior?.league || 'OHL';
@@ -199,9 +199,9 @@ export function handleTrain(ctx, t) {
     }
   }
 
-  // --- THE SEASON IS CUT WHERE THE CALENDAR CUTS IT ----------------------
-  // Four things happen inside a hockey season, not after it, and the whole year
-  // used to be simulated first with all of them bolted onto the end.
+  // --- SEGMENTING THE SEASON ---------------------------------------------
+  // Four things happen inside a hockey season rather than after it, and the
+  // whole year used to be simulated first with all of them bolted onto the end.
   //   ~40%  World Juniors, late December, under-20, club releases you for a fortnight
   //   ~60%  the All-Star Game in late January, or the Olympics in February every
   //         fourth year, when there is no All-Star Game and the league pauses
@@ -392,8 +392,8 @@ export function handleTrain(ctx, t) {
   }
 
   if (stage <= 1) {
-    // Late January, or February every fourth year. The Olympics replace the
-    // All-Star Game entirely in those years, which is what the league does.
+    // Late January, or February every fourth year. In Olympic years the
+    // Olympics replace the All-Star Game outright, as they do in the NHL.
     const seg = playNext(0.333);
     if (seg) {
       const isOlympicYear = ctx.currentYear % 4 === 2;
@@ -530,10 +530,10 @@ export function handleTrain(ctx, t) {
       plusMinus: recap.pm,
       // A tournament played inside the season finishes months before this entry
       // exists: the World Juniors in December, the Olympics in February. The run
-      // parks its line on the player and the season picks it up here. Writing it
-      // straight into the newest history entry, which is what it used to do,
-      // filed a December tournament against the previous season, and a career
-      // whose only tournaments were mid-season ones showed none at all.
+      // parks its line on the player and the season picks it up here. It used to
+      // write straight into the newest history entry, which filed a December
+      // tournament against the previous season, and a career whose only
+      // tournaments were mid-season ones showed none at all.
       ...(player.pendingIntl ? { intlData: player.pendingIntl.intlData } : {}),
       awards: [...(recap.awards || []), ...(player.pendingIntl?.awards || [])],
       // The letter on the sweater belongs to the season, not to the playoffs.
@@ -607,7 +607,7 @@ export function handleTrain(ctx, t) {
      // The All-Star GAME already happened, back at the break in January. The
      // All-Star TEAM in recap.awards is a post-season honour, reported in the
      // recap, not a reason to send the player to an exhibition played two months
-     // ago. These were the same thing until now, and they are not the same thing.
+     // ago. The two were conflated until now.
 
      const wasAHLtoNHL = player.league === 'AHL' && currentLg === 'NHL';
      const wasECHLtoAHL = player.league === 'ECHL' && currentLg === 'AHL';

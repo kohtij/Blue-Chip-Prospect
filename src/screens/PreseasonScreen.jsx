@@ -15,7 +15,7 @@ import { statPillClass } from '../utils/statColors';
 // labelled a Playmaker for his whole career, and never got the archetype's effects
 // on progression soft caps or on the minigames that check for one.
 //
-// The archetype is now applied the moment you pick it, and it sets who you are.
+// The archetype is now applied the moment you pick it.
 const ARCHETYPE_POOLS = {
   G: {
     pool: [
@@ -239,9 +239,9 @@ export default function PreseasonScreen() {
                               }
 
                               // The colour table used to live here, in this one
-                              // screen, which is why the same attribute came
-                              // out a different colour in the store. It is
-                              // shared now.
+                              // screen, so the same attribute came out a
+                              // different colour in the store. It is shared
+                              // now.
                               const colorCls = statPillClass(stat);
 
                               return (

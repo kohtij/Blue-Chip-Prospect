@@ -7,22 +7,35 @@ import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } fr
 import TeamLogo from '../components/TeamLogo';
 
 // Each club already carries its own two colours, and `teamAccent` picks the one
-// that reads against a near-black card. That gives every offer its own identity,
-// which is what the ghosted grey crest behind the text was reaching for and
-// never managed: a watermark big enough to recognise fought with the text, and
-// small enough to ignore was just a smudge. A thin strip of the club's colour
-// does the same job in a tenth of the space.
+// that reads against a near-black card. That gives every offer its own identity.
+// The ghosted grey crest behind the text was after the same thing and never
+// managed it: a watermark big enough to recognise fought with the text, and one
+// small enough to ignore was a smudge. A thin strip of the club's colour does
+// the job in a tenth of the space.
 
 // OFFER SHEET COMPENSATION MATH
-const getCompensation = (salary) => {
-    if (salary < 1500000) return 'None';
-    if (salary < 2300000) return '3rd Round Pick';
-    if (salary < 4600000) return '2nd Round Pick';
-    if (salary < 6900000) return '1st & 3rd Round Picks';
-    if (salary < 9200000) return '1st, 2nd & 3rd Round Picks';
-    if (salary < 11500000) return 'Two 1sts, 2nd & 3rd';
-    return 'Four 1st Round Picks';
-};
+//
+// Written as rounds joined by a plus, because the long form did not fit the
+// row it is printed in. "1st, 2nd & 3rd Round Picks" is twenty-six characters
+// against about seventeen of space once the Compensation label has taken its
+// share, so at two columns it wrapped onto a second line with an orphaned
+// "3RD" on it, which also made that card's stat block a line taller than
+// every other card in the row and pushed its buttons out of alignment.
+// Compensation on an offer sheet is draft picks and nothing else, so the word
+// "picks" was carrying no information. The full phrasing is kept for the
+// title attribute.
+const COMPENSATION = [
+  [1500000, 'None', 'No compensation'],
+  [2300000, '3rd', 'A third round pick'],
+  [4600000, '2nd', 'A second round pick'],
+  [6900000, '1st+3rd', 'A first and a third round pick'],
+  [9200000, '1st+2nd+3rd', 'A first, a second and a third round pick'],
+  [11500000, '2×1st+2nd+3rd', 'Two firsts, a second and a third round pick'],
+  [Infinity, '4×1st', 'Four first round picks']
+];
+
+const getCompensation = (salary) => (COMPENSATION.find(([cap]) => salary < cap) || COMPENSATION[6])[1];
+const compensationLong = (salary) => (COMPENSATION.find(([cap]) => salary < cap) || COMPENSATION[6])[2];
 
 export default function TransferScreen() {
   const { freeAgencyOffers, player, signContract, startNegotiation, handleArbitration } = useAppContext();
@@ -286,6 +299,17 @@ export default function TransferScreen() {
                            </span>
                         </div>
 
+                        {/* NOTHING IN THIS BLOCK MAY WRAP.
+                            Cards sit in a grid row and stretch to the tallest
+                            of them, so one value spilling onto a second line
+                            adds a line to every card beside it as well as
+                            looking untidy on its own. Measured at the narrowest
+                            the cards ever get, the 640px two-column layout where
+                            each one is 312px wide, Compensation had four pixels
+                            of slack and wrapped.
+                            Each label is pinned and each value truncates with
+                            the full text on hover, so a string nobody has
+                            written yet can cost an ellipsis but never a line. */}
                         <div className="z-10 relative mb-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
                            {/* The role and the club's outlook used to share one
                                truncated line, so "Top 4 Defenseman · Staying Put"
@@ -298,18 +322,18 @@ export default function TransferScreen() {
                                was where the club is projected to finish. */}
                            <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                              <span className="text-slate-500 shrink-0">Role</span>
-                             <span className="ml-auto text-white text-right min-w-0 break-words">{o.role}</span>
+                             <span className="ml-auto min-w-0 truncate text-right text-white" title={o.role}>{o.role}</span>
                            </p>
                            {o.standing && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                               <span className="text-slate-500">Projected finish</span>
+                               <span className="text-slate-500 shrink-0">Projected finish</span>
                                <span className="ml-auto shrink-0 whitespace-nowrap text-white">#{o.standing}</span>
                              </p>
                            )}
                            {dealContext && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                               <span className="text-slate-500">Situation</span>
-                               <span className="ml-auto shrink-0 whitespace-nowrap text-white">{dealContext}</span>
+                               <span className="text-slate-500 shrink-0">Situation</span>
+                               <span className="ml-auto min-w-0 truncate text-right text-white" title={dealContext}>{dealContext}</span>
                              </p>
                            )}
                            {netFans !== 0 && (
@@ -317,7 +341,7 @@ export default function TransferScreen() {
                                 title={perkFans !== 0
                                   ? `${o.fanHit > 0 ? '+' : ''}${o.fanHit || 0} for the move, ${perkFans > 0 ? '+' : ''}${perkFans} from the perks and flaws below`
                                   : 'The reaction to the move itself'}>
-                               <span className="text-slate-500">Fan impact</span>
+                               <span className="text-slate-500 shrink-0">Fan impact</span>
                                <span className={`ml-auto shrink-0 whitespace-nowrap ${netFans > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
                                  {netFans > 0 ? '+' : ''}{netFans} FANS
                                </span>
@@ -325,14 +349,14 @@ export default function TransferScreen() {
                            )}
                            {o.nmc && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                               <span className="text-slate-500">Clause</span>
+                               <span className="text-slate-500 shrink-0">Clause</span>
                                <span className="ml-auto shrink-0 text-[#c084fc]">No-Movement</span>
                              </p>
                            )}
                            {o.type === 'OFFER SHEET' && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                                <span className="text-slate-500 shrink-0">Compensation</span>
-                               <span className="ml-auto text-[#c084fc] text-right min-w-0 break-words">{getCompensation(o.salary)}</span>
+                               <span className="ml-auto min-w-0 truncate text-right text-[#c084fc]" title={compensationLong(o.salary)}>{getCompensation(o.salary)}</span>
                              </p>
                            )}
                         </div>

@@ -101,8 +101,8 @@ export function lerpDifficulty(easy, hard, difficulty = 0) {
 }
 
 // The shortest reaction window the game is ever allowed to give you. A simple
-// visual reaction takes a person about 250ms, so anything under this is not a
-// test of skill, it is a coin toss.
+// visual reaction takes a person about 250ms, so anything under this comes down
+// to luck rather than skill.
 export const MIN_REACTION_MS = 320;
 
 // Timing a moving marker is anticipated rather than reacted to, so it can be

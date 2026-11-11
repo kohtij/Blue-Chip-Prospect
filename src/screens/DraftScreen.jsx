@@ -3,6 +3,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ordinal } from '../utils/gameHelpers';
 import { draftBoard, flagFor, groupName, positionDraftSlot } from '../utils/peers';
+import LeagueTag from '../components/LeagueTag';
 
 export default function DraftScreen() {
   const { TeamLogo, handleDraftChoice, player, setPlayer, seasonRecap } = useAppContext();
@@ -203,15 +204,22 @@ export default function DraftScreen() {
 
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center min-w-0">
+                    {/* Your own row says You, the way it does on every other
+                        board in the game. Your own name read back in a list of
+                        strangers puts you among them. */}
                     <span className={`truncate text-sm ${r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
-                      {r.name}
+                      {r.me ? 'You' : r.name}
                     </span>
                   </span>
                   {/* Where he is coming from. */}
-                  <span className="block truncate text-[10px] text-slate-600 mt-0.5">
-                    {r.from
-                      ? `${getFullTeamName(r.from, r.fromLeague)}${r.fromLeague ? ` · ${r.fromLeague}` : ''}`
-                      : ''}
+                  <span className="flex items-center gap-1 min-w-0 text-[10px] text-slate-600 mt-0.5">
+                    {r.from && <span className="truncate">{getFullTeamName(r.from, r.fromLeague)}</span>}
+                    {r.from && r.fromLeague && <span className="shrink-0 text-slate-700">·</span>}
+                    {r.fromLeague && (
+                      <span className="flex shrink-0 items-center gap-1">
+                        <LeagueTag league={r.fromLeague} flagClass="w-[12px] h-[9px]" />
+                      </span>
+                    )}
                   </span>
                 </span>
 

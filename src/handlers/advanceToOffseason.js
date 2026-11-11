@@ -8,7 +8,7 @@ export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
   const { player, seasonRecap, setActiveEvent, setPlayer, setScreen, safeEuroLeagues, safeJuniorLeagues, setSeasonEvents } = ctx;
 
-  // A real offseason is a sequence, not a single event. Free agency OPENS it on
+  // A real offseason runs as a sequence of events. Free agency OPENS it on
   // July 1 and training camp CLOSES it in September. This used to be one chain in
   // which every branch returned straight to preseason, and worse, the camp section
   // sat INSIDE the "already has a contract" branch, so a player whose deal expired
@@ -19,10 +19,10 @@ export function advanceToOffseason(ctx) {
   // Four beats, in calendar order. A title is celebrated on its own beat so it
   // can never pre-empt the business of the summer: a Cup winner whose contract
   // has expired gets the parade AND his free agency, not one instead of the other.
-  // The letter gets a beat of its own. It used to mark itself TRAINED, which is
-  // the beat that hands out the training cards, so in any year the coach offered
-  // an A the player was never shown a card at all: the stage was already spent
-  // by the time the machine came back round to it.
+  // The letter gets a beat of its own. It used to mark itself TRAINED, the beat
+  // that hands out the training cards, so in any year the coach offered an A the
+  // player was never shown a card at all: the stage was already spent by the
+  // time the machine came back round to it.
   const FRESH = 0, CELEBRATED = 1, SUMMER_DONE = 2, LETTER = 3, TRAINED = 4, CAMP_DONE = 5;
 
   // Carried on the player so it survives the round trip through the event screen.
@@ -779,7 +779,7 @@ export function advanceToOffseason(ctx) {
   // ==========================================================================
   // CAMP (September): the last thing before the season, for everybody, including
   // the player who signed somewhere new in July. This used to sit inside the
-  // "already has a contract" branch, which is why a free-agency year skipped it.
+  // "already has a contract" branch, so a free-agency year skipped it.
   // ==========================================================================
   // PRE-SEASON (late August): you pick your training before camp opens.
   //
@@ -795,8 +795,8 @@ export function advanceToOffseason(ctx) {
   // runPostSeasonFlow at the end of a year while telling the player the coach
   // wanted to stitch an A on his sweater "this season", which had just ended.
   //
-  // It also ignored the one thing that decides it: whether the room is yours.
-  // A player who was traded, claimed or signed somewhere new in the summer does
+  // It also ignored whether the room is yours, which is what decides it. A
+  // player who was traded, claimed or signed somewhere new in the summer does
   // not walk into a strange dressing room wearing a letter, however good he is,
   // so the club has to be one he actually played a season for.
   if (done < LETTER && !player.isCaptain && !player.isAlternate && !player.storylines?.alternateGiven) {

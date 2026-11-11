@@ -1,10 +1,11 @@
 import { getTeamData, nationalities } from '../data/teams';
-import { careerTrophies, formatMoney, getActiveStat, resolveRole, summariseStints } from '../utils/gameHelpers';
+import { careerTrophies, formatMoney, getActiveStat, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
-import { findRival, groupName, peerUnit, peerValue, posGroup, scoutingBoard } from '../utils/peers';
+import { findRival, groupName, leagueFlag, leagueLabel, peerUnit, peerValue, posGroup, scoutingBoard } from '../utils/peers';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
+import LeagueTag from './LeagueTag';
 
 // The player card.
 //
@@ -57,6 +58,15 @@ const Cell = ({ value, label, tone = 'text-white', hint, children }) => (
 const Heading = ({ children }) => (
   <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1.5 px-0.5">{children}</p>
 );
+
+// The scouting board's one scoring figure: points for a skater, save
+// percentage for a goalie, and a dash for a prospect who has not played,
+// because nought points in nought games is not a fact about him. The unit is
+// named in the column header, so the cell is a bare number.
+const boardStat = (r, goalie) => {
+  if (goalie) return r.sv != null ? r.sv.toFixed(3).replace('0.', '.') : '—';
+  return (r.pts != null && r.gp) ? r.pts : '—';
+};
 
 // The ladder the fan status climbs. These thresholds are getFanTier's, and
 // the point of showing all five is that a player can see the one he is on and
@@ -178,10 +188,16 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   // Before the draft there are no careers to compare, so this panel showed
   // nothing at all for the two or three seasons when the question "who else
   // is in my year" is most on the player's mind. What exists then is the
-  // scouting board, which is the same comparison in the only currency a
-  // seventeen-year-old has: where he is ranked and who is next to him.
+  // scouting board, the same comparison in the only currency a seventeen-year-
+  // old has: where he is ranked and who is next to him.
   const undrafted = !player.draftTeam && !player.rights;
   const board = undrafted ? scoutingBoard(player.peers, player, 3) : null;
+  // Which way he has moved since the last board, which the recap screen has
+  // always shown him and the card never did.
+  const boardMove = board?.myRank && player.prevScoutRank
+    ? player.prevScoutRank - board.myRank
+    : 0;
+  const boardIsGoalie = board?.group === 'G';
 
   const earnings = player.stats?.earnings || 0;
 
@@ -270,9 +286,9 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
                 {/* The club, and where the club is heading.
                     leagueState has given every club a strength that persists
-                    and drifts for years, which is what decides the standings
-                    now, and until this line nothing anywhere told the player
-                    any of it: the window opened and closed around him
+                    and drifts for years, and that is what decides the standings
+                    now. Until this line nothing anywhere told the player any of
+                    it, so the window opened and closed around him
                     invisibly. */}
                 <div className="flex items-baseline gap-2 min-w-0">
                   {/* Grey, like every other label on the card. A blue club
@@ -568,36 +584,101 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               ))}
             </div>
 
-            {/* Measured against somebody, at last.
-                Two named rows with a unit on each, rather than one shouting
-                line of capitals and a bare "549 v 549" that did not say
-                points, games or anything else. */}
-            {board?.myRank && (
+            {/* THE BOARD, DRAWN AS A BOARD.
+                It was two rows in which the same slot meant two different
+                things: "10 of 19" under his own name and "9 SHL" under the
+                name above it, so the small grey text after the bold number was
+                a class size on one line and a league on the other, and the
+                two bold numbers were a rank both times but did not look like a
+                sequence. Neither row said anything at all about why one of
+                them was ninth and the other tenth, which makes a ranking a
+                number to take on faith.
+
+                Every column means one thing on every row now: the place, who,
+                where he plays, and what he did last season, written the same
+                way the free agency comparables write it. The size of the class
+                moves up beside the heading, where it belongs, because it is a
+                fact about the board rather than about him. */}
+            {board?.myRank && board.near?.length > 0 && (
               <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)]">
-                <Heading>Your draft year</Heading>
-                <p className="text-[10px] text-slate-500 leading-snug mb-1.5">
-                  Where the scouts have you among the {myGroup} in your class.
-                </p>
-                <div className="flex items-baseline justify-between gap-2 py-[3px]">
-                  <span className="text-xs text-white font-bold truncate">You</span>
-                  <span className="shrink-0 text-xs number-font">
-                    <span className="text-white font-black">{board.myRank}</span>
-                    <span className="text-[9px] font-bold text-slate-600 ml-1">of {board.total}</span>
+                <div className="flex items-baseline justify-between gap-2">
+                  <Heading>Your draft year</Heading>
+                  <span className="shrink-0 text-[10px] font-bold text-slate-400 tabular-nums">
+                    {ordinal(board.myRank)}<span className="text-slate-600"> of {board.total}</span>
                   </span>
                 </div>
-                {board.ahead && (
-                  <div className="flex items-baseline justify-between gap-2 py-[3px]">
-                    <span className="text-xs text-slate-400 font-medium truncate">{board.ahead.name}</span>
-                    <span className="shrink-0 text-xs number-font text-slate-300">
-                      <span className="font-bold">{board.ahead.rank}</span>
-                      <span className="text-[9px] font-bold text-slate-600 ml-1">{board.ahead.league || ''}</span>
+                <p className="text-[10px] text-slate-500 leading-snug mb-2">
+                  Scouts&rsquo; order of the {myGroup} in your class. Numbers are last season.
+                </p>
+
+                {/* The header names each unit once, so no cell has to carry a
+                    suffix. The draft-class block below works to the same rule.
+                    Note the absence of number-font on the figures: that class
+                    sets text-transform uppercase, so any cell with a word in it
+                    comes out shouting, which is half of why the old pair of rows
+                    looked the way they did. tabular-nums is what was wanted
+                    here, and it lines the digits up into columns. */}
+                <div className="flex items-center gap-2 pb-1 border-b border-[rgba(255,255,255,0.06)]
+                                text-[8.5px] font-black uppercase tracking-[0.12em] text-slate-600">
+                  <span className="w-4 text-right shrink-0">#</span>
+                  <span className="min-w-0 flex-1">Player</span>
+                  <span className="hidden sm:block w-14 shrink-0">League</span>
+                  <span className="w-9 text-right shrink-0">{boardIsGoalie ? 'Sv%' : 'Pts'}</span>
+                  <span className="w-6 text-right shrink-0">GP</span>
+                </div>
+
+                {board.near.map(r => (
+                  <div
+                    key={r.id}
+                    className={`flex items-center gap-2 py-[3.5px] ${
+                      r.me ? '-mx-1 px-1 rounded bg-[rgba(34,231,72,0.08)]' : ''}`}
+                  >
+                    <span className={`w-4 text-right shrink-0 text-[11px] tabular-nums ${
+                      r.me ? 'text-[#22E748] font-black' : 'text-slate-600 font-bold'}`}>
+                      {r.rank}
+                    </span>
+                    <span className={`min-w-0 flex-1 truncate text-xs ${
+                      r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
+                      {r.me ? 'You' : r.name}
+                      {/* Narrow enough to lose the league column and the point
+                          totals stop meaning anything, because fifty in the
+                          SHL is not fifty in the USHL. It rides with the name
+                          instead of disappearing. */}
+                      {r.league && (
+                        <span className="sm:hidden font-medium text-slate-600">
+                          {' · '}
+                          {leagueFlag(r.league) && (
+                            <img src={leagueFlag(r.league)} alt=""
+                                 className="inline-block w-[11px] h-[8px] object-cover rounded-[1px] mr-[3px]" />
+                          )}
+                          {leagueLabel(r.league)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="hidden sm:flex w-14 shrink-0 items-center gap-1 text-[9.5px] font-bold text-slate-500">
+                      <LeagueTag league={r.league} flagClass="w-[13px] h-[9px]" />
+                    </span>
+                    <span className={`w-9 text-right shrink-0 text-[11px] tabular-nums ${
+                      r.me ? 'text-white font-black' : 'text-slate-400 font-bold'}`}>
+                      {boardStat(r, boardIsGoalie)}
+                    </span>
+                    <span className={`w-6 text-right shrink-0 text-[10px] tabular-nums ${
+                      r.me ? 'text-slate-300 font-bold' : 'text-slate-600 font-medium'}`}>
+                      {r.gp || '—'}
                     </span>
                   </div>
-                )}
-                <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                ))}
+
+                <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
                   {board.myRank === 1
                     ? 'Nobody in your year is ranked above you.'
                     : `${board.ahead?.name || 'The man above you'} is the one to pass.`}
+                  {boardMove !== 0 && (
+                    <span className={boardMove > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
+                      {` ${boardMove > 0 ? 'Up' : 'Down'} ${Math.abs(boardMove)} ${
+                        Math.abs(boardMove) === 1 ? 'place' : 'places'} since last winter.`}
+                    </span>
+                  )}
                 </p>
               </div>
             )}

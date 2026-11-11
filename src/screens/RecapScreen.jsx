@@ -4,6 +4,7 @@ import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '.
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
+import LeagueTag from '../components/LeagueTag';
 
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
@@ -263,9 +264,9 @@ export default function RecapScreen() {
                   {(() => {
                      const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
 
-                     // A season split across two leagues, which is what the nine-game
-                     // rule produces: nine games up top, the rest back in junior. A
-                     // trade moves clubs inside one league and is handled below.
+                     // A season split across two leagues, as the nine-game rule
+                     // produces: nine games up top, the rest back in junior. A trade
+                     // moves clubs inside one league and is handled below.
                      const stints = currentHistory?.stints || [];
                      if (stints.length > 1 && stints[0].league !== stints[1].league) {
                         const first = stints[0];
@@ -304,12 +305,12 @@ export default function RecapScreen() {
                     {(seasonRecap?.ppToi || 0) >= 0.2
                       ? <>, <strong className="text-white">{clock(seasonRecap.ppToi)}</strong> of it on the powerplay</>
                       : <> and no powerplay time at all</>}. {
-                    /* The verdict reads off the graded season now, not off the
-                       point total alone. A defenceman who finished under forty
-                       points was told he had "focused heavily on the defensive
-                       side of the puck" whether he had been plus thirty at
-                       twenty-four minutes a night or minus twenty on the third
-                       pair, which is the same sentence for the best defensive
+                    /* The verdict reads off the graded season now rather than
+                       the point total alone. A defenceman who finished under
+                       forty points was told he had "focused heavily on the
+                       defensive side of the puck" whether he had been plus
+                       thirty at twenty-four minutes a night or minus twenty on
+                       the third pair: one sentence covering the best defensive
                        year in the league and the worst. */
                     (seasonRecap?.rating || 5) >= 9.0 ? 'As good a year as any defenceman in the league had.' :
                     (seasonRecap?.rating || 5) >= 8.0
@@ -461,13 +462,12 @@ export default function RecapScreen() {
                   );
                 })()}
 
-                {/* THE SCOUTING BOARD.
-                    The one thing the junior years were missing. Draft night
-                    used to be the first time the player saw any of these
-                    names, which is why the board on it read as thirty
-                    strangers either side of him. He reads the same list every
-                    winter now, with himself on it, so by the time the room
-                    comes round he knows who is going where and why. */}
+                {/* The scouting board.
+                    Draft night used to be the first time the player saw any of
+                    these names, so the board on it read as thirty strangers
+                    either side of him. He reads the same list every winter now,
+                    with himself on it, so by the time the room comes round he
+                    knows who is going where and why. */}
                 {seasonRecap?.scoutBoard?.myRank && (() => {
                   const b = seasonRecap.scoutBoard;
                   const moved = player.prevScoutRank ? player.prevScoutRank - b.myRank : 0;
@@ -498,14 +498,18 @@ export default function RecapScreen() {
                                 ? <img src={r.flag} alt="" className="w-[18px] h-[13px] object-cover rounded-[1px]" />
                                 : <span className="w-[18px] h-[13px] rounded-[1px] bg-[#1a2230]" />}
                             </span>
+                            {/* You, not your own name, the same as every
+                                other board in the game. */}
                             <span className={`min-w-0 flex-1 truncate text-[12.5px] sm:text-[13px] ${
-                              r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>{r.name}</span>
+                              r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>{r.me ? 'You' : r.name}</span>
                             {/* The position is the first thing to go on a
                                 phone. A name truncated to "Con..." is not a
                                 name, and the whole point of this list is that
                                 he comes to know who these people are. */}
                             <span className="hidden sm:block shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-500 w-8 text-right">{r.pos}</span>
-                            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-600 w-11 sm:w-14 text-right truncate">{r.league || ''}</span>
+                            <span className="flex shrink-0 items-center justify-end gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 w-[52px] sm:w-16">
+                              <LeagueTag league={r.league} flagClass="w-[13px] h-[9px]" />
+                            </span>
                             <span className={`shrink-0 text-[11px] font-black number-font w-[52px] sm:w-16 text-right ${
                               r.me ? 'text-[#38bdf8]' : 'text-slate-400'}`}>
                               {r.sv != null ? r.sv.toFixed(3).replace('0.', '.')

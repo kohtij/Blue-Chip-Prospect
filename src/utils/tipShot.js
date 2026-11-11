@@ -40,9 +40,9 @@ export function buildShot({ physicality = 50, hockeyIQ = 50, difficulty = 0, ran
 
   // The beat.
   //
-  // Asking a player to count a flight he has never been shown is not a read,
-  // it is a guess, and that is what made this unreadable: you were told to time
-  // an interval nobody had ever given you. So the point man taps his stick on
+  // A player asked to count a flight he has never been shown can only guess,
+  // and that is what made this unreadable: you were told to time an interval
+  // nobody had ever given you. So the point man taps his stick on
   // the ice while he loads, evenly, and the gap between taps is how long this
   // kind of shot takes to arrive. Keep his tempo through the release and your
   // blade is down when the puck gets there.
@@ -70,7 +70,7 @@ export function buildShot({ physicality = 50, hockeyIQ = 50, difficulty = 0, ran
 }
 
 // Where a release landed. `sinceShot` is measured from the puck leaving the
-// stick, which is the only moment the player is given.
+// stick, the only moment the player is given.
 export function judge(shot, sinceShot) {
   if (sinceShot < shot.flightMs - shot.windowMs) return 'EARLY';
   if (sinceShot > shot.flightMs + shot.windowMs) return 'LATE';

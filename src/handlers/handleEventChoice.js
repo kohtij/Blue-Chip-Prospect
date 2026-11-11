@@ -59,9 +59,9 @@ export function handleEventChoice(ctx, choice) {
     updated.contract = { salary: 850000, years: 1 };
   } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
     // No club is chosen here any more. This used to roll one of two leagues and
-    // one of its teams and simply tell you where you had signed, which is the
-    // last decision of a career made for you. The deal is torn up instead, and
-    // the European market opens below so you pick the place yourself.
+    // one of its teams and simply tell you where you had signed, taking the
+    // last decision of a career out of your hands. The deal is torn up instead,
+    // and the European market opens below so you pick the place yourself.
     updated.contract = null;
   } else if (actionStr === 'SIGN_TWILIGHT_AHL') {
     let pool = getOpponentPool('AHL') || [];

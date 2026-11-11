@@ -42,7 +42,7 @@ const TOP_LADDER = [
   { key: 'G3', kind: 'group', label: 'Group game 3', short: 'G3', options: 9, scouted: 3, tape: 0.6 },
   // The qualification playoff, which is how both the Olympics and the Worlds
   // actually run: the group seeds you into a crossover before the quarters.
-  // It is also the round that makes a medal a run rather than three games.
+  // It also turns a medal into a run of games rather than three of them.
   { key: 'R16', kind: 'knockout', label: 'Qualification playoff', short: 'QUAL', options: 9, scouted: 3, tape: 0.7 },
   { key: 'QF', kind: 'knockout', label: 'Quarter-final', short: 'QF', options: 9, scouted: 3, tape: 0.8 },
   { key: 'SF', kind: 'knockout', label: 'Semi-final', short: 'SF', options: 9, scouted: 3, tape: 0.9 },
@@ -91,12 +91,12 @@ function nationalLetter(player, nation) {
   const hist = player.seasonHistory || [];
   const tournaments = hist.filter(s => s.intlData).length;
 
-  // WHAT A FEDERATION IS ACTUALLY PICKING.
+  // How a federation picks its captain.
   //
   // This was overall rating with three small bonuses bolted on, which meant a
   // twenty-one-year-old in the AHL with a high rating could be handed the C
-  // for Canada. A national captaincy is a career, not a number: how long he
-  // has been coming, what he has won while he was there, whether his own club
+  // for Canada. A national captaincy is handed out on a career rather than a
+  // rating: how long he has been coming, what he has won while he was there, whether his own club
   // trusts him with a letter, how old he is, and whether he is playing at the
   // level the rest of the room plays at.
 
@@ -303,8 +303,8 @@ export function prepareRound(run, player) {
   // round. Without this a player could simply keep picking plays he had never
   // used and walk the whole tournament on fresh ice.
   const wantTape = Math.min(onTape.length, Math.round(round.options * (round.tape ?? 0.4)));
-  // The squad's own play is always on the board; it is the one thing about
-  // this group that does not change from round to round.
+  // The squad's own play is always on the board. It is the only input here that
+  // does not change from round to round.
   const options = shuffle([
     ...onTape.slice(0, wantTape),
     ...fresh.slice(0, round.options - wantTape),
@@ -429,9 +429,9 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
   };
 }
 
-// A game that came down to the last-chance moment did not end in regulation:
-// it was tied, and the one play decided it. Those are overtime results either
-// way, which is what the scoreline should say.
+// A game that came down to the last-chance moment was tied when that play
+// happened, and the play decided it. Those are overtime results either way,
+// and the scoreline should say so.
 function scoreline(clean, survived, wentToOt) {
   if (wentToOt) {
     const gf = 2 + rnd(3);
@@ -473,9 +473,9 @@ export function advanceRun(run, { survived }) {
 
   // Knockout.
   if (!survived) {
-    // A semi-final loser is not finished: he plays for bronze, the way he does
-    // in the real tournament. Handing him the medal for losing, which is what
-    // this used to do, made it the cheapest medal in the game.
+    // A semi-final loser plays for bronze, the way he does in the real
+    // tournament. This used to hand him the medal for losing, which made it the
+    // cheapest medal in the game.
     if (round.key === 'SF') {
       const bronze = {
         key: 'BRONZE', kind: 'knockout', label: 'Bronze medal game', short: 'BRONZE',
@@ -646,7 +646,7 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
     updated.stats = { ...updated.stats, awards: [...(updated.stats?.awards || []), fullAward] };
   }
 
-  // The season's own entry carries the tournament, which is what the career
+  // The season's own entry carries the tournament, and that is what the career
   // table at retirement reads: games, the line, and what it was called.
   //
   // Which entry depends on when the tournament was played. The World
@@ -654,9 +654,9 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
   // straight onto the newest entry. The World Juniors are in December and the
   // Olympics in February, and the season they belong to has not been written
   // yet: those park here and handleTrain attaches them when it closes the
-  // year. Writing those into the newest entry, which is what this did before,
-  // filed them a season early, and a career whose only tournaments were
-  // mid-season ones came to retirement with nothing to show.
+  // year. This used to write them into the newest entry, which filed them a
+  // season early, and a career whose only tournaments were mid-season ones came
+  // to retirement with nothing to show.
   const intlData = {
     tournamentName: `${run.year} ${run.tournamentName}`,
     division: run.division,

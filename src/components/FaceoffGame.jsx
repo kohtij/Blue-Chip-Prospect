@@ -126,7 +126,7 @@ export default function FaceoffGame({ player, onComplete, difficulty = 0 }) {
           <DotSheet />
 
           {/* Two sticks in the dot, mine green, his red. They close on the puck
-              when it lands, which is the only animation the draw needs. */}
+              when it lands, and the draw needs no other animation. */}
           <g style={{ transition: 'transform 90ms linear' }}
              transform={`translate(${live || phase === 'done' ? -4 : -13} 0)`}>
             <path d="M 18 72 L 40 54 L 46 51" stroke="#22E748" strokeWidth="2.6"
@@ -146,9 +146,9 @@ export default function FaceoffGame({ player, onComplete, difficulty = 0 }) {
           <text x="85" y="24.4" textAnchor="middle" fontSize="6" fontWeight="900" fill="#fff"
                 style={{ fontFamily: 'inherit' }}>C</text>
 
-          {/* Where to press. The whole sheet takes the tap, which is what you
-              want on a phone, but nothing on the ice said so and the draw read
-              as something to watch rather than something to do. The ring marks
+          {/* Where to press. The whole sheet takes the tap, which suits a
+              phone, but nothing on the ice said so and the draw read as
+              something to watch rather than something to do. The ring marks
               the spot and carries the state: dashed and grey while the linesman
               holds it, amber on the warning, solid green the instant it lands. */}
           {phase !== 'done' && (

@@ -5,9 +5,10 @@
 // one button that meant "carry on". The portal is the move that actually exists
 // in his world: he puts his name in, and programmes either call or they do not.
 //
-// It is deliberately not a trade. Nobody negotiates on his behalf and no club
-// has to agree to anything, so the risk is not that a GM says no, it is that
-// the phone stays quiet after he has already told his coach he is leaving.
+// It works deliberately unlike a trade. Nobody negotiates on his behalf and no
+// club has to agree to anything, so the risk he runs is the phone staying quiet
+// after he has already told his coach he is leaving, rather than a GM saying
+// no.
 
 import { getOpponentPool } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
@@ -35,8 +36,8 @@ export function handleTransferPortal(ctx, { res }) {
     if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Program' }];
 
     const choices = pool.map(teamObj => {
-      // A programme in the hunt is a better landing spot than one rebuilding,
-      // and the team card shows the player which is which before he commits.
+      // A programme in the hunt is a better landing spot than one rebuilding, so
+      // the team card shows the player which is which before he commits.
       const standing = Math.random() > 0.35
         ? Math.floor(Math.random() * 8) + 1
         : Math.floor(Math.random() * 12) + 9;

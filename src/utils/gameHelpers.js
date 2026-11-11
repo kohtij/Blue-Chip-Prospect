@@ -281,7 +281,7 @@ export const recomputeOvr = (p) => {
   return Math.round((sht * 0.30) + (skt * 0.25) + (iq * 0.25) + (phy * 0.10) + (sta * 0.10));
 };
 
-// What a rating point handed out by a moment is actually worth to you.
+// What a rating point handed out by a moment is worth.
 //
 // Camps, medals, letters, big nights, contract perks: a season is full of
 // things that pay "+1 OVR", and they all used to pay it in full. Four or five
@@ -330,7 +330,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   const awards = [];
   const pts = g + a;
 
-  // A trophy is a contest, not a number.
+  // A trophy has to be won against somebody.
   //
   // Every scoring award here used to be a flat threshold: the Art Ross at 105
   // points, full stop, which a 92 OVR cleared in seventy per cent of seasons
@@ -367,7 +367,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   const goalieMin = junior ? 30 : 38;
 
   if (isGoalie) {
-    // THE VEZINA IS A RACE, NOT A THRESHOLD.
+    // The Vezina is run as a race.
     //
     // Every skater trophy here is won against `bar`, a figure drawn fresh each
     // season and beaten by a classmate often enough to matter. The goalie
@@ -383,24 +383,22 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     // to leave it behind, and over a full starter's workload.
     if (svPct >= lead + 0.016 && games >= goalieMin + 14) awards.push(trophy.mvp);
   } else if (isDefense) {
-    // THE NORRIS IS NOT A SHARE OF THE ART ROSS.
+    // How the Norris is decided.
     //
-    // It used to be exactly that, 61 per cent of whatever won the scoring
-    // title, which made it automatic for any good defenceman and impossible
-    // for a shutdown pair however well they played: 16 per cent of seasons at
-    // 80 OVR, 73 per cent at 88, 92 per cent at 94. It goes instead on the
-    // graded season, which is the same two halves rateSeason judges him on, so
-    // both a ninety-point year and a plus-thirty year at twenty-four minutes a
-    // night can win it.
+    // It used to be 61 per cent of whatever won the scoring title. That made
+    // it automatic for any good defenceman and unreachable for a shutdown pair
+    // however well they played: 16 per cent of seasons at 80 OVR, 73 per cent
+    // at 88, 92 per cent at 94. It now goes on the graded season, the same two
+    // halves rateSeason uses, so a ninety-point year and a plus-thirty year at
+    // twenty-four minutes a night can both win it.
     //
-    // And it is a race, which it was not. The reason given here for leaving it
-    // a fixed threshold was that there is no field of defencemen to race, the
-    // same reason the Vezina had one, and both have a field now. A threshold
-    // puts the entire outcome on the player's own variance, because the thing
-    // he is measured against has none, which is why this curve could not be
-    // made to sit on the Art Ross curve at any value: 9.30 gave 21 per cent of
-    // seasons at 88 OVR and 67 at 94 against a scoring title's 21 and 42, and
-    // the 9.42 that fixed the top end cut the 88 to 11.
+    // It is also decided against a field rather than a fixed bar. An earlier
+    // note here said there was no field of defencemen to race, but the Vezina
+    // was given one and so is this. With a fixed bar all the variance comes
+    // from the player, so the curve could not be matched to the Art Ross at
+    // any threshold: 9.30 gave 21 per cent of seasons at 88 OVR and 67 at 94,
+    // against a scoring title's 21 and 42, and the 9.42 that fixed the top end
+    // cut the 88 down to 11.
     const dGrade = rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, toi });
     if (dBar && dGrade >= dBar.grade) awards.push(trophy.dman);
     // And the MVP, which a defenceman wins roughly once a generation, needs
@@ -446,11 +444,11 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     }
   }
 
-  // Selection for the All-Star Game is not an end-of-season honour, it is a
-  // thing that happens in January and is played on its own screen. Awarding it
-  // from the final rating meant a player could finish the year holding an
-  // "NHL All-Star" trophy for a game that never appeared in his season. The
-  // flag is set when the game is actually played, and cleared at season end.
+  // The All-Star Game happens in January and is played on its own screen, so
+  // selection for it is not an end-of-season honour. Awarding it from the
+  // final rating meant a player could finish the year holding an "NHL
+  // All-Star" trophy for a game that never appeared in his season. The flag is
+  // set when the game is played, and cleared at season end.
   //
   // The First Team is genuinely a post-season vote and stays below on merit.
   if (player.storylines?.allStarSelected && ['NHL', 'AHL'].includes(player.league)) {
@@ -736,15 +734,13 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       const leagueScale = maxGames / 82; // Adjusts the bands if the league plays fewer than 82 games (e.g. NCAA)
       games = Math.floor((minG + Math.random() * (maxG - minG)) * leagueScale);
   } else {
-      // A healthy scratch is the other thing a role decides. The old split
-      // gave anyone under 0.65 between 75 and 95 per cent of the schedule and
-      // everybody else between 90 and 100, so across every role in the game
-      // the difference between a first line and a seventh defenceman was about
-      // four games. A fringe player sits, and sitting is most of what being a
-      // fringe player means.
-      // The top tier keeps exactly the band it always had, so none of this
-      // quietly inflates a first-liner's season; only the lesser roles lose
-      // games, which is the thing that was missing.
+      // Role also decides healthy scratches. The old split gave anyone under
+      // 0.65 between 75 and 95 per cent of the schedule and everybody else
+      // between 90 and 100, so across the whole game a first-liner and a
+      // seventh defenceman differed by about four games. Fringe players sit
+      // far more often than that.
+      // The top tier keeps the band it always had, so none of this inflates a
+      // first-liner's season. Only the lesser roles lose games.
       const floor = roleMulti >= 1.18 ? 0.90 : roleMulti >= 0.98 ? 0.88
                   : roleMulti >= 0.76 ? 0.78 : 0.58;
       const span = roleMulti >= 0.98 ? 0.10 : roleMulti >= 0.76 ? 0.14 : 0.26;
@@ -775,18 +771,18 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const curves = curvesFor(currentLg);
 
   if (p.pos === 'G') {
-      // WHAT A SAVE PERCENTAGE ACTUALLY LOOKS LIKE.
+      // Save percentage calibration.
       //
       // The slope was 0.0004 per attribute point off a 0.880 intercept, which
       // put an 88 OVR starter's median season at .934 and a 96 OVR's at .944,
-      // with the top decile of both clipped flat against the .945 ceiling.
-      // The best save percentage in the history of the NHL is a .937. Every
-      // good goalie in this game was posting a historic season every year,
-      // which is also why his trophies fired the way they did.
+      // with the top decile of both clipped flat against the .945 ceiling. The
+      // best save percentage in NHL history is .937, so every good goalie here
+      // was posting a historic season every year. That also drove how often
+      // their trophies fired.
       //
-      // The curve now runs .897 at a fringe 66 to .924 at a 96, which is the
-      // real spread: a backup, an ordinary starter at .905, an elite one at
-      // .917, and the best in the world at .924 with the odd year past .930.
+      // The curve now runs from .897 at a fringe 66 to .924 at a 96: a backup,
+      // an ordinary starter at .905, an elite one at .917, and the best in the
+      // world at .924 with the odd year past .930.
       const savePctBase = 0.8826 + ((simSht + simSkt + simPhy) - 150) * 0.0003
                         + ((teamStrength - 1) * 0.03)
                         + goalieAgeAdjust(p.age);
@@ -829,10 +825,10 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
           pm = Math.floor((teamStrength - 1) * 50 + ((simSkt + simSht) - 130) * 0.2 + (Math.random() * 10 - 5));
       }
 
-      // Everything that is not luck, in one place. iceFactor rather than
-      // roleMulti, so the season comes out of the minutes he actually played
-      // and the powerplay time he actually got, which is the whole of the
-      // difference between a first line and a fourth.
+      // Everything except luck, in one place. iceFactor rather than roleMulti,
+      // so the season comes out of the minutes he played and the powerplay
+      // time he got. Most of the gap between a first line and a fourth line
+      // comes from those two things.
       const context = games * iceFactor * teamStrength * lgMulti * fatigueMultiplier * ageMulti;
       const gRaw = context * gpg * form.goals;
       const aRaw = context * apg * form.assists;
@@ -867,13 +863,12 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // that was doing to development.
   let rating = rateSeason({ league: currentLg, pos: p.pos, games, g, a, pm, saves, shots, toi: avgToi });
 
-  // Where these games were actually played, which is not necessarily where he
-  // is standing at the end of them: a call-up moves the club and the league
-  // under him. Both have to be captured, not just the league. Keeping only the
-  // league meant the stint was filed as the parent NHL club playing in the
-  // AHL, a pairing that exists nowhere, so the recap read "the rest of the year
-  // in the AHL with PIT" and the deadline screen put an NHL crest over an AHL
-  // label.
+  // Where these games were played, which can differ from where he is standing
+  // at the end of them: a call-up moves the club and the league under him.
+  // Both have to be recorded. Keeping only the league filed the stint as the
+  // parent NHL club playing in the AHL, a pairing that exists nowhere, so the
+  // recap read "the rest of the year in the AHL with PIT" and the deadline
+  // screen put an NHL crest over an AHL label.
   let playedLg = currentLg;
   let playedTeam = currentTeam;
 
@@ -1181,17 +1176,17 @@ export function generatePlayoffDeck(standings, playoffSpots, round, gamesPerMatc
 
   // A series is always a three by three grid of nine cards, and it always holds
   // at least the wins the format asks for: four in a best-of-seven, three in a
-  // best-of-five, two in a best-of-three. That floor is what makes the series
-  // winnable at all.
+  // best-of-five, two in a best-of-three. Without that floor the series could
+  // not be won at all.
   //
-  // How much better than that floor you are given is what your seeding buys. A
-  // nine card grid is coarse, though. A best-of-seven has only two possible
-  // shapes, four wins or five, worth 28% and 73%, with nothing in between, so
-  // handing the extra card to every top-half seed (which is what used to happen)
-  // made the top eight identical and the bottom eight identical, with a cliff
-  // down the middle. Instead the seed sets a target win rate and the extra card
-  // is given with whatever probability hits that target on average, which gives a
-  // smooth ladder from first to last out of a grid that cannot express one.
+  // Seeding buys cards above that floor. A nine card grid is coarse, though. A
+  // best-of-seven has only two possible shapes, four wins or five, worth 28%
+  // and 73%, with nothing in between, so handing the extra card to every
+  // top-half seed (which is what used to happen) made the top eight identical
+  // and the bottom eight identical, with a cliff down the middle. Instead the
+  // seed sets a target win rate and the extra card is given with whatever
+  // probability hits that target on average, giving a smooth ladder from first
+  // to last out of a grid that cannot express one.
   const winsNeeded = Math.ceil(gamesPerMatchup / 2);
   const tighten = Math.max(0, round - 1) * 0.015;
   const target = Math.max(0.28, Math.min(0.70, 0.30 + (seedStrength * 0.38) - tighten));
@@ -1299,8 +1294,8 @@ export const hasProContract = (p) => {
   return (c.salary || 0) > 0 && (c.years || 0) > 0;
 };
 
-// has a junior club to go back to, which is why a European or college prospect
-// goes to the AHL instead and never sees this.
+// has a junior club to go back to, so a European or college prospect goes to
+// the AHL instead and never sees this.
 export const isNineGameCandidate = (p) => {
   if (!p || p.league !== 'NHL') return false;
   if ((p.age ?? 99) > 19) return false;
@@ -1329,7 +1324,7 @@ export const nineGameVerdict = (p, seg, isTop10Pick = false) => {
   const isG = p?.pos === 'G';
   const svp = (seg?.shots || 0) > 0 ? seg.saves / seg.shots : 0.880;
 
-  // Most nineteen-year-olds go back, which is what happens in the real thing.
+  // Most nineteen-year-olds go back, as they do in the real thing.
   let chance = isG ? 0.24 + ((svp - 0.900) * 10) : 0.10 + (pts * 0.14);
   chance += ((p?.ovr || 60) - 70) * 0.028;
   if (isTop10Pick) chance += 0.25;
@@ -1348,7 +1343,7 @@ export const nineGameVerdict = (p, seg, isTop10Pick = false) => {
 // one. The First and Second All-Star Teams are post-season awards, voted once
 // the year is scored, and those stay where they are. The All-Star GAME is an
 // exhibition in late January, picked on how the first half has actually gone and
-// on how many people want to watch you, which is why fan status counts here.
+// on how many people want to watch you, so fan status counts towards it.
 // There is no All-Star Game in an Olympic year, so the caller gates on that.
 export const madeAllStarGame = (p, seg) => {
   if (!seg || !['NHL', 'AHL'].includes(seg.league)) return false;
@@ -1371,8 +1366,8 @@ export const madeAllStarGame = (p, seg) => {
 
 // Nobody becomes an NHL free agent before he has ever been a professional.
 //
-// This is an invariant, not a branch. generateOffers had no eligibility check of
-// any kind: whatever route reached it got NHL contract offers, which is how a
+// That holds always, so it is checked here rather than handled per route.
+// generateOffers had no eligibility check of any kind: whatever route reached it got NHL contract offers, which is how a
 // sixteen-year-old who had just finished his first year of junior could be handed
 // free agency straight off his season recap. A player is only a free agent if he
 // has actually been a pro whose deal has run out, or has exhausted his amateur
@@ -1408,8 +1403,8 @@ export function isNhlFreeAgentEligible(player, juniorLeagues = ['OHL', 'WHL', 'Q
 // the deadline, then the rest), and each segment is stored as a stint. Two places
 // wanted to show "your season so far" and each totted the stints up its own way,
 // so the trade deadline screen reported the games actually played while the
-// dashboard was still showing LAST season's finished line, which is why the two
-// disagreed by a whole year. Both read this now.
+// dashboard still showed last season's finished line. The two disagreed by a
+// whole year. Both read this now.
 //
 // Returns the same shape a seasonHistory entry uses, so it can stand in for one.
 export function summariseStints(stints) {

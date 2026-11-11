@@ -173,8 +173,8 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
         )}
         <Marker at={[shooterX, shooterY]} kind="opp" label="LW" r="4.6" />
 
-        {/* Me. The lean is visible before he commits, which is the cost of
-            cheating: he can see it too. */}
+        {/* Me. The lean is visible before he commits, so cheating costs
+            something: he can see it too. */}
         <g style={{ transition: 'transform 110ms ease-out' }} transform={`translate(${shift * 11} 0)`}>
           <path d="M 44 62 L 56 62 L 58 70 L 42 70 Z"
                 fill={status === 'beaten' ? 'rgba(120,130,145,0.55)' : 'rgba(203,213,225,0.9)'} />
@@ -187,7 +187,7 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
       )}
 
       {plan === 'hold' && (
-        <div className="flex gap-2 p-3 pt-0">
+        <div className="flex gap-2 p-3">
           {['left', 'right'].map(side => (
             <ActionButton
               key={side}

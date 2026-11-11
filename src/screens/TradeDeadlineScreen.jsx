@@ -99,8 +99,8 @@ export default function TradeDeadlineScreen() {
           // component re-renders.
           const seed = `${res.currentTeam}|${res.currentLg}|${player.stats?.seasonsPlayed || 0}|${standings}|${player.age}`;
 
-          // How the year has actually gone, which is what the season note talks
-          // about. A goalie is judged on save percentage, everyone else on points.
+          // How the year has gone, which is what the season note talks about. A
+          // goalie is judged on save percentage, everyone else on points.
           const gp = res.recap?.games || 0;
           let seasonTier = 'steady';
           if (gp >= 5) {
@@ -150,8 +150,8 @@ export default function TradeDeadlineScreen() {
           const isBottomTier = standings > bottomTierFrom;
           const outlookKey = isContender ? 'contender' : isBottomTier ? 'seller' : 'fringe';
           // European clubs sell players and pay transfer fees; they do not deal
-          // draft picks. The seller lines said a lost season "pays in one
-          // currency, and that currency is draft picks" on a Skellefteå card.
+          // draft picks. The old seller lines put "pays in one currency, and that
+          // currency is draft picks" on a Skellefteå card.
           const sellerKey = EURO_LEAGUES.includes(res.currentLg) ? 'sellerEuro' : 'seller';
           const outlookPool = OUTLOOK[isContender ? 'contender' : isBottomTier ? sellerKey : 'fringe'];
 
@@ -196,13 +196,13 @@ export default function TradeDeadlineScreen() {
 
                     let targetTeamObj = destTeam;
                     let targetLg = tradeLg;
-                    // A seller cashing in and a buyer paying a price are not the same
-                    // phone call, and the old copy assumed you were always the asset
+                    // A seller cashing in and a buyer paying a price make different
+                    // phone calls, and the old copy assumed you were always the asset
                     // being sold even when your club was first in the league. It also
                     // read identically whether you were the best player on the roster
-                    // or the contract that made the money balance, which is the one
-                    // thing a traded player cares about. tradeStanding works out which
-                    // of the three you were and the story is drawn to match.
+                    // or the contract that made the money balance, and that is the
+                    // thing a traded player cares about most. tradeStanding works out
+                    // which of the three you were and the story is drawn to match.
                     const assetTier = tradeStanding({
                       elite: isElite,
                       seasonTier,
@@ -215,8 +215,8 @@ export default function TradeDeadlineScreen() {
                       euro: EURO_LEAGUES.includes(tradeLg),
                       // The destination's position used to be bolted on to the end of
                       // the paragraph, after everything else had been said. It belongs
-                      // with the name of the club, which is the sentence a player
-                      // actually listens for.
+                      // in the same sentence as the name of the club, because that is
+                      // the sentence a player listens for.
                       destLine: `You are off to the **${getFullTeamName(destTeam.id, tradeLg)}**, who sit **#${destStandings}** and in a playoff spot.`,
                       seed: `${seed}|trade|${destTeam.id}`
                     });
@@ -267,7 +267,7 @@ export default function TradeDeadlineScreen() {
                     setScreen('event');
                } else if (res.partial) {
                    // Nobody called. The deadline passes and the season carries on
-                   // from here, which is the point: this is March, not June.
+                   // from here, because this is March, not June.
                    handleTrain(null);
                } else {
                    setSeasonRecap(res.recap);
@@ -485,8 +485,8 @@ export default function TradeDeadlineScreen() {
       </button>
 
       {/* The college equivalent of demanding a trade. A player who cannot be
-          traded still has a way out, and it is the one move that actually
-          exists in his world. */}
+          traded still has a way out, and the portal is the one that exists in
+          his world. */}
       {isCollege && (
         <button
           onClick={handleTransferPortal}

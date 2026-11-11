@@ -17,7 +17,7 @@
 //   2. CONTRACT and SEASON lines appear on a buyer's card and a seller's card
 //      alike, so neither pool may assume the club is selling.
 //   3. Only North America trades draft picks. A line about picks on a
-//      Skellefteå card is wrong, which is why the seller outlook splits.
+//      Skellefteå card is wrong, so the seller outlook splits.
 
 const hash = (s) => {
   let h = 2166136261;
@@ -42,45 +42,45 @@ export const EURO_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZ
 
 export const SUBTITLE = {
   contender: [
-    "Twenty-four hours to the deadline, and the phones haven't stopped. Your club is buying.",
-    'One day out. The contenders are all shopping, and your GM is one of them.',
-    "The deadline's tomorrow. Around here the talk is who's coming in, not who's going out.",
-    "A day left. Teams in a playoff spot don't stand pat, and yours is in one.",
-    "Twenty-four hours to go. Somewhere there's a seller waiting for your GM to overpay."
+    'Twenty-four hours to the deadline. The phones in the GM\'s office have not stopped all week.',
+    'One day out, and your club is shopping like everyone else in a playoff spot.',
+    'The deadline is tomorrow. Everything anyone is talking about here is who might be coming in.',
+    'A day left. Your club is in a playoff spot and the staff have been in meetings since Monday.',
+    'Twenty-four hours to go. Somewhere out there a seller is waiting for your GM to call.'
   ],
-  // Out of a playoff place but not buried. A club sitting 21st is not writing
-  // the year off in March, it is deciding whether to believe in itself.
+  // Out of a playoff place but not buried. A club sitting 21st spends March
+  // deciding whether to believe in itself rather than writing the year off.
   fringe: [
-    "Twenty-four hours to the deadline, and nobody here knows which way this club is leaning.",
-    "One day out. Close enough to dream, far enough back that the GM is taking calls either way.",
-    "The deadline's tomorrow and this club still hasn't decided what it is.",
-    "A day left. Win a few and you're buying. Lose a few and you were always selling.",
-    "Twenty-four hours to go. A team this close to the line can go either way by three o'clock."
+    'Twenty-four hours to the deadline, and nobody here knows which way this club is leaning.',
+    'One day out. Close enough to the race to dream about it, far enough back that the GM takes every call.',
+    'The deadline is tomorrow. This club still has not worked out what it is.',
+    'A day left, and the next three results will probably decide it for them.',
+    'Twenty-four hours to go. A team sitting this close to the line can go either way by three o\'clock.'
   ],
   seller: [
-    "Twenty-four hours to the deadline. The season's gone, and anyone can read the standings.",
-    "One day out. Your club is selling, and nobody's pretending otherwise.",
-    "The deadline's tomorrow. Out of the race, the only question left is who goes.",
-    "A day left. The rebuild doesn't start in the summer, it starts tomorrow afternoon.",
-    'Twenty-four hours to go. Contenders have been calling your GM all week, and not to catch up.'
+    'Twenty-four hours to the deadline. The season is gone and the standings have said so for a month.',
+    'One day out. Nobody in the building is calling this a playoff push any more.',
+    'The deadline is tomorrow, and the question in here is who goes.',
+    'A day left. The staff have already started talking about next season.',
+    'Twenty-four hours to go. Contenders have been calling your GM all week.'
   ],
   // College has no deadline, but it does have a door. These point at the
   // decision the screen actually offers rather than insisting nothing happens.
   college: [
-    "Nobody gets traded in college hockey, but the portal's always open.",
-    'No deadline here. No rentals, no GMs on the phone. Just a run at the tournament, and the door.',
-    "The pros spend today on the phones. The only call you have to make is whether you stay.",
-    "College hockey doesn't do deadline day. It does March, and it does second chances somewhere else.",
-    "There's a season to finish. Whether you finish it here is up to you."
+    'There is no trade deadline in college hockey, but the portal is open.',
+    'The pros spend today on the phone. Your season just carries on, unless you decide otherwise.',
+    'Deadline day belongs to the NHL. Here it is a normal Monday with a game on Friday.',
+    'Nothing moves today. The tournament is weeks out and the portal does not open until spring.',
+    'There is a season to finish. Whether you finish it here is up to you.'
   ],
   // The national program picks its players and keeps them. Nobody here is
-  // getting a phone call, which is exactly why the screen should not offer one.
+  // getting a phone call, so the screen should not offer one.
   program: [
-    'Nobody gets traded out of a national program. You were picked, and you stay picked.',
-    "The deadline is somebody else's problem. The program doesn't deal its players.",
-    'No calls are coming today. The only thing that moves you here is the calendar.',
-    'Clubs across the league are buying and selling. The program just keeps developing.',
-    "There's no market for you to be on. There's only the next game."
+    'Nobody gets traded out of a national programme. You are here until the staff say otherwise.',
+    'The deadline belongs to the pros. The programme does not deal its players.',
+    'No calls today. The programme runs on its own schedule.',
+    'Clubs across the league are buying and selling. Here it is a normal training day.',
+    'There is no market for you to be on. The next game is still Friday.'
   ]
 };
 
@@ -89,34 +89,34 @@ export const OUTLOOK = {
   // and cap talk so it reads the same way in Stockholm as it does in Toronto.
   contender: [
     'The club likes this group enough to pay up and make it better.',
-    "They're buying. Somebody is arriving, and somebody is losing their spot.",
-    'A team in a playoff spot is a team worth adding to, and the staff know it.',
-    "The window is open. Nobody wants to be the one who wasted it.",
-    "Good teams get greedy this time of year. This one is no different."
+    'They are buying. Somebody is arriving, and somebody is losing their spot.',
+    'A playoff spot and a GM willing to spend. The staff have made that much clear.',
+    'The window is open and nobody wants to be the one who wasted it.',
+    'Good teams get greedy in March. This one is no different.'
   ],
   // Market-neutral on purpose: this one pool serves North America and Europe,
   // because none of it turns on draft picks.
   fringe: [
-    "Nobody here is committing either way. The club wants to see another week first.",
-    "Too far back to buy, too close to give up. That is the worst place to be in March.",
-    "The room still believes. Whether the front office does is another question.",
-    "A club on the edge adds nothing and sells nothing, and hopes that was the right call.",
-    "Management is waiting. A good week makes them buyers and a bad one empties the room."
+    'Nobody here is committing either way. The club wants another week of results first.',
+    'Too far back to buy, too close to sell. March is uncomfortable from here.',
+    'The room still believes. Whether the front office does is another matter.',
+    'A club on the edge usually does nothing and hopes that was right.',
+    'Management is waiting. A good week makes them buyers.'
   ],
   seller: [
-    "A club this far back isn't buying. It's taking calls.",
-    "The season is written off. All that's left is working out what the roster is worth in picks.",
-    "Nothing to play for means everybody is available, and the GM has stopped pretending otherwise.",
-    'This far out of it, the rest of the year is about next year. Players become assets.',
-    'A lost season pays in one currency, and that currency is draft picks.'
+    'The GM has spent the week taking calls rather than making them.',
+    'The season is written off. What is left is working out what the roster is worth in picks.',
+    'There is nothing to play for, so everybody is available.',
+    'This far out of it, the staff are already planning for next season.',
+    'Whatever comes back this week will be draft picks.'
   ],
   // Same situation, a league that does not deal picks.
   sellerEuro: [
-    "A club this far back isn't adding. It's listening.",
-    "The season is written off. What's left is deciding who is worth keeping for next year.",
-    'Nothing to play for means everybody is available, and the club has stopped pretending otherwise.',
-    'This far out of it, the rest of the year is about next year. Contracts become bargaining chips.',
-    'A lost season gets cleared out early. Somebody always leaves before the summer.'
+    'The club has stopped looking for players and started listening to offers.',
+    'The season is written off. What is left is deciding who is worth keeping.',
+    'With nothing left to play for, the club will hear anyone out.',
+    'This far out of it, the staff are already thinking about next season\'s squad.',
+    'A lost season gets cleared out early. Somebody usually leaves before the summer.'
   ]
 };
 
@@ -124,25 +124,25 @@ export const OUTLOOK = {
 // alike, so none of these may assume which way the club is leaning.
 export const SEASON = {
   strong: [
-    "You've been one of the few things worth watching. That cuts both ways today.",
-    'Put up numbers like these and other teams start asking about you.',
-    "You've played well enough that somebody else has noticed.",
-    'The numbers are good, and good numbers get your name said out loud in March.',
-    "You've given them something worth keeping, which is the same thing that makes you worth trading."
+    'You have been one of the few things worth watching here.',
+    'Put up numbers like these and other clubs start asking about you.',
+    'You have played well enough that somebody else has noticed.',
+    'The numbers are good enough that your name has been in the papers.',
+    'You have given this club something worth keeping.'
   ],
   steady: [
-    'There are still a few games left this season. What happens today decides who you play them for.',
+    'A few games left, and today decides who you play them for.',
     'A solid run so far. Where it goes is up to you.',
-    "Nothing spectacular, nothing to apologise for. There's still a season to play.",
-    "You've done your job. The rest of the year is what gets remembered.",
-    'Steady work and no headlines. That is a player a club keeps, and a player a club can move.'
+    'Nothing spectacular, nothing to apologise for.',
+    'You have done your job this year.',
+    'Steady work, no headlines. The staff have noticed even if nobody else has.'
   ],
   quiet: [
-    "It's been a quiet year. Quiet years are hard to sell and easy to move on from.",
-    "The points haven't come, and today is the day that starts to matter.",
-    "You haven't given anyone much to talk about. Today, that might be a mercy.",
-    "A season to forget so far. There's still time to make it one worth remembering.",
-    'The numbers are thin. Nobody trades for thin numbers, and nobody fights to keep them either.'
+    'It has been a quiet year. The points just have not come.',
+    'The points have not come, and today is when that starts to matter.',
+    'You have not given anyone much to talk about.',
+    'A season to forget so far, with time left to fix it.',
+    'The numbers are thin. Nobody has been asking.'
   ]
 };
 
@@ -153,25 +153,25 @@ export const SEASON = {
 // coaches and how much eligibility is left.
 export const SEASON_AMATEUR = {
   strong: [
-    "You've been one of the best players on this team, and the conference knows it.",
+    'You have been one of the best players on this team and the conference knows it.',
     'Numbers like these are how a name ends up on an NHL scouting list.',
-    "You've played well enough that coaches elsewhere have written your name down.",
-    'The numbers are good, and good numbers in March are how college careers turn into pro ones.',
-    "You've given this programme something to build around."
+    'You have played well enough that coaches elsewhere have written your name down.',
+    'The numbers are good, and March is when the scouts travel.',
+    'You have given this programme something to build around.'
   ],
   steady: [
-    'There are still games left this season. The only question is where you play them.',
+    'There are games left. Where you play them is still open.',
     'A solid run so far. Where it goes is up to you.',
-    "Nothing spectacular, nothing to apologise for. There's still a season to play.",
-    "You've done your job. The rest of the year is what gets remembered.",
-    'Steady work and no headlines. Coaches notice that, even when nobody else does.'
+    'Nothing spectacular, nothing to apologise for.',
+    'You have done your job this season.',
+    'Steady work, no headlines. Coaches notice that.'
   ],
   quiet: [
-    "It's been a quiet year, and a quiet year is a hard thing to build a career on.",
-    "The points haven't come, and eligibility goes quicker than anyone expects.",
-    "You haven't given anyone much to talk about yet. There's still time.",
-    "A season to forget so far. There's still time to make it one worth remembering.",
-    "The numbers are thin, and thin numbers don't get you recruited anywhere else either."
+    'It has been a quiet year, and eligibility does not wait.',
+    'The points have not come. There is a season and a half left to change that.',
+    'You have not given anyone much to talk about yet.',
+    'A season to forget so far, with time left to fix it.',
+    'The numbers are thin. Nobody has been recruiting on them.'
   ]
 };
 
@@ -179,37 +179,37 @@ export const SEASON_AMATEUR = {
 // so "they would rather have the pick" cannot live here: on a contender's card
 // it is simply untrue.
 export const CONTRACT = {
-  // An entry-level deal is not a contract you negotiate or get moved for. It is
-  // cheap, it is short, and the club controls it, so telling a kid in year two
-  // of his ELC that "term on the deal makes you harder to move, and easier to
-  // build around" described somebody else's career entirely.
+  // An entry-level deal is cheap, short, and controlled by the club. It is not
+  // something a player negotiates or gets moved for, so telling a kid in year
+  // two of his ELC that "term on the deal makes you harder to move, and easier
+  // to build around" described somebody else's career entirely.
   elc: [
-    "You're on an entry-level deal. Cheap, controlled, and that makes you easy to say yes to.",
-    "Entry-level money for another year yet. Clubs like a player they do not have to pay properly.",
-    "The number is small and the term was never yours to negotiate. That is the rookie bargain.",
-    "At this number you are the easiest contract on the roster to fit anywhere.",
-    "An entry-level contract is the cheapest thing on this roster, and that cuts both ways today."
+    'You are on an entry-level deal. Cheap, short, and easy for anyone to take on.',
+    'Entry-level money for another year yet.',
+    'The number is small and the term was never yours to negotiate.',
+    'At this number you are the easiest contract on the roster to fit anywhere.',
+    'An entry-level contract is the cheapest thing in the room.'
   ],
   elcExpiring: [
-    "Last year of the entry-level deal. The next one is the one that pays.",
-    "The rookie deal runs out this summer and you become a restricted free agent.",
-    "This is the year you spend playing for your second contract.",
-    "Your deal expires in the summer, but the club keeps your rights. You are not leaving for nothing.",
-    "Final year of the entry-level contract. Everything from here sets the number."
+    'Last year of the entry-level deal. The next one is the one that pays.',
+    'The rookie deal runs out this summer and you become a restricted free agent.',
+    'You are playing for your second contract from here.',
+    'Your deal expires in the summer, but the club keeps your rights.',
+    'Final year of the entry-level contract.'
   ],
   expiring: [
-    'An expiring deal in March is the most tradeable thing in hockey.',
-    "You're out of contract in the summer, and every club in the league knows the date.",
-    "Rentals move at the deadline. That's the whole business of the day.",
-    'Last year of the deal, and the first line on your file right now.',
-    "Nobody lets a player walk for nothing if they can help it."
+    'An expiring deal in March is the easiest thing in hockey to trade.',
+    'You are out of contract in the summer, and every club has the date.',
+    'Rentals move at the deadline. Most of the day is spent on them.',
+    'Last year of the deal. It is the first line on your file right now.',
+    'Nobody lets a player walk for nothing if they can avoid it.'
   ],
   signed: [
-    'Term on the deal makes you harder to move, and easier to build around.',
+    'Term on the deal makes you harder to move.',
     'Anyone trading for you is trading for more than a few months.',
-    "You're not a rental. Whoever wants you has to want you for a while.",
-    "There's time left on the deal, which is the safest place to be today.",
-    'Signed past this season. Clubs make plans around players like you.'
+    'You are signed past this season, so this is not a rental conversation.',
+    'There is time left on the deal.',
+    'Signed past the summer, so the club can plan around you.'
   ]
 };
 
@@ -225,7 +225,7 @@ export const RUMOUR = {
     { label: 'LINKED IN THE RUMOURS', note: 'An expiring deal on a selling club. The calls are being made.' },
     { label: 'ON THE MARKET', note: 'Your name keeps turning up halfway down every report.' },
     { label: 'QUIETLY AVAILABLE', note: "Nobody has said it out loud, but the club is listening." },
-    { label: 'IN THE CONVERSATION', note: "You're not the headline, but you're in the story." },
+    { label: 'IN THE CONVERSATION', note: 'Your agent has taken three calls this week he was not expecting.' },
     { label: 'A NAME BEING FLOATED', note: 'Contenders looking for depth have been told to call about you.' }
   ],
   cool: [
@@ -239,7 +239,7 @@ export const RUMOUR = {
     { label: 'NOBODY IS TALKING', note: 'Nothing in the rumour mill points anywhere near you.' },
     { label: 'NOT A WORD', note: "Your name hasn't come up once all week." },
     { label: 'OFF THE RADAR', note: "Whatever happens today, it's happening to somebody else." },
-    { label: 'STAYING PUT', note: 'No calls, no links, no reason to pack a bag.' },
+    { label: 'STAYING PUT', note: 'No calls and no links. You will not be packing a bag.' },
     { label: 'NOT FOR SALE', note: "Nobody has asked about you, and the club isn't listening anyway." }
   ]
 };
@@ -253,14 +253,14 @@ export const STAKES = {
     { label: 'IN THE HUNT', note: 'Hold this spot and the postseason looks after itself.' },
     { label: 'CONTROL YOUR OWN FATE', note: 'Nobody else has to lose for this to work out.' },
     { label: 'THE RUN IN', note: 'A handful of games between here and the part that counts.' },
-    { label: 'WELL PLACED', note: "Getting there isn't the hard part any more. What you do when you arrive is." }
+    { label: 'WELL PLACED', note: 'Barring a collapse you are in. The draw is what is left to play for.' }
   ],
   outOfRace: [
     { label: 'PLAYING FOR PRIDE', note: "The standings say it's over. The games get played anyway." },
     { label: 'NEEDING HELP', note: 'Winning out might not be enough, and losing once settles it.' },
     { label: 'AN AUDITION', note: 'Scouts keep watching long after a team stops mattering.' },
     { label: 'ON THE OUTSIDE', note: 'Nothing left to chase but your own numbers.' },
-    { label: 'RUNNING OUT OF ROAD', note: 'Every game from here is about next season, not this one.' }
+    { label: 'RUNNING OUT OF ROAD', note: 'Every game from here is being watched with next season in mind.' }
   ]
 };
 
@@ -273,7 +273,7 @@ export const ACTION = {
   program: ['CONTINUE THE SEASON', 'GET BACK TO WORK', 'KEEP PLAYING', 'FINISH THE YEAR']
 };
 
-// BEING TRADED.
+// Being traded.
 //
 // Every trade used to read the same two ways. A seller's deadline said the club
 // "cashed in on your value", a buyer's said "you were what the other side asked
@@ -283,15 +283,15 @@ export const ACTION = {
 //
 // A trade is three facts, and a player learns them in this order: how the GM
 // told him, what the club got for him, and where he is going. Each one is drawn
-// from a pool keyed on how much he was actually worth to that club, so the
-// phone call a franchise player gets is not the phone call a fourth-liner gets.
+// from a pool keyed on how much he was worth to that club, so a franchise
+// player and a fourth-liner get different phone calls.
 //
 // Two things the pools have to respect:
 //
 //   1. European clubs pay fees and do not trade draft picks, so the package
 //      lines split.
-//   2. A buyer is not selling you off, it is spending you. The player is the
-//      price of somebody else, which is a different conversation entirely.
+//   2. A buyer is spending you rather than selling you off. The player is the
+//      price of somebody else, and that is a different conversation.
 
 // What he was worth to the club he is leaving. Not his rating on its own: a
 // 70-rated kid having the best season of his life matters more to a dressing
@@ -314,7 +314,7 @@ const TRADE_CALL = {
     ],
     solid: [
       "Your GM called you into the office and got to it quickly. The season was gone, and your name kept coming up on other people's lists.",
-      "He thanked you for the year first, which is how you knew what was coming second.",
+      "He thanked you for the year before he said anything else, and you knew then.",
       "The call came with twenty minutes left on the clock. A short conversation about a big decision."
     ],
     piece: [
@@ -333,12 +333,12 @@ const TRADE_CALL = {
     solid: [
       "Your GM admitted the deal had been agreed since lunchtime and that he had been avoiding you since. The other side wouldn't sign it off without you in it.",
       "He went through what is coming the other way before he mentioned what is going. You worked it out halfway through.",
-      "The club found the player it has been chasing since Christmas. Finding him meant giving something up, and that something is you."
+      "The club finally got the player it has been chasing since Christmas. Your name was the part of the deal they had to agree to."
     ],
     piece: [
       "The trade needed one more contract to make the money balance, and yours was the one that fit.",
       "Your GM called you in to say the deal was about somebody else entirely, and that you were going with it.",
-      "Nobody asked for you. The money asked for you."
+      "Nobody on the other side asked for you by name. They needed the salary to match and yours did."
     ]
   }
 };
@@ -358,7 +358,7 @@ const TRADE_PACKAGE = {
     piece: [
       'The club got a fourth-round pick, and seemed pleased with it.',
       'A late pick came back. The paperwork was longer than the conversation about it.',
-      'The return was a conditional pick that will probably never condition.'
+      'The return was a conditional pick. The conditions on it are unlikely to be met.'
     ]
   },
   // Clubs here buy and sell players outright. A line about draft picks on a
@@ -389,12 +389,12 @@ const TRADE_PACKAGE = {
     solid: [
       'A top-six forward is arriving, and you are most of what paid for him.',
       'The club brought in the piece it was missing. You and a pick went out to get it.',
-      'Somebody who makes this team better is on a plane. So are you, in the other direction.'
+      'The club brought in a better player than you and sent you the other way to get him.'
     ],
     piece: [
       'You were the salary that made the money work.',
-      'The deal was about a player who is not you. You went in the same envelope.',
-      'Your contract fit a hole in the cap, which is the entire reason this happened.'
+      'The deal was built around somebody else. You went in the same envelope.',
+      'Your contract fit a hole in the cap. That is why the call came.'
     ]
   }
 };
@@ -424,7 +424,7 @@ export const TRADE_TITLE = {
 export const TRADE_FEEDBACK = [
   'You packed your bags and joined your new club.',
   'You were on a flight before the rink had emptied.',
-  'New room, new sweater, same job.',
+  'A new room and a new sweater, and the same job to do in both.',
   'You reported the next morning and nobody made a fuss about it.'
 ];
 
