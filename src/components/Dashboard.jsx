@@ -2,7 +2,7 @@ import { getTeamData, nationalities } from '../data/teams';
 import { careerTrophies, formatMoney, getActiveStat, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
-import { findRival, groupName, leagueFlag, leagueLabel, peerUnit, peerValue, posGroup, scoutingBoard } from '../utils/peers';
+import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerUnit, peerValue, scoutingBoard } from '../utils/peers';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 import LeagueTag from './LeagueTag';
@@ -183,7 +183,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const rival = findRival(player.peers, myCareerValue, player.pos);
   const rivalValue = rival ? peerValue(rival, isGoalie) : 0;
   const compareUnit = peerUnit(isGoalie);
-  const myGroup = groupName(posGroup(player.pos));
+  const myGroup = groupName(compGroup(player.pos));
 
   // Before the draft there are no careers to compare, so this panel showed
   // nothing at all for the two or three seasons when the question "who else

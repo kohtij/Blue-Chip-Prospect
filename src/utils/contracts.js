@@ -16,7 +16,7 @@
 // And there was nobody else in it: no comparable, no name, no number to point
 // at. Without one the player is handed a price and has nothing to argue with.
 
-import { groupName, posGroup } from './peers';
+import { compGroup, groupName, posGroup } from './peers';
 import { defensiveHalf, paceOf } from './production';
 
 // The player's own history writes goals/assists/games; a classmate's season
@@ -175,13 +175,19 @@ const median = (arr) => {
  * measured the same way his are.
  */
 export function comparables(player, peers, year, limit = 4) {
-  const group = posGroup(player.pos);
+  // His exact position, not his half of the roster. An agent walks in with
+  // centres when his man is a centre; the wingers and the other side of the
+  // pairing are somebody else's negotiation. seasonWorth below still prices on
+  // the broad group, because what a defenceman's season is worth does not
+  // depend on which side he plays.
+  const group = compGroup(player.pos);
+  const isGoalie = posGroup(player.pos) === 'G';
   const mine = priceOf(recentForm(player).rate, year, {
     age: player.age, awards: majorCount(player)
   });
 
   const priced = (peers || [])
-    .filter(p => !p.retired && posGroup(p.pos) === group
+    .filter(p => !p.retired && compGroup(p.pos) === group
       && p.season && p.season.league === 'NHL' && gpOf(p.season) >= 20)
     .map(p => ({
       id: p.id,
@@ -190,7 +196,7 @@ export function comparables(player, peers, year, limit = 4) {
       nat: p.nat,
       team: p.team,
       gp: gpOf(p.season),
-      pts: group === 'G' ? null : ptsOf(p.season),
+      pts: isGoalie ? null : ptsOf(p.season),
       sv: p.season.shots ? p.season.saves / p.season.shots : null,
       salary: priceOf(recentForm(p).rate, year, { age: p.age, awards: p.career?.trophies || 0 })
     }))

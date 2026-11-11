@@ -9,7 +9,7 @@ import { getMinigamePool } from './data/minigames';
 import {
   cap, fanGain, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
-import { createDraftClass } from './utils/peers';
+import { createDraftClass, scoutingBoard } from './utils/peers';
 import { recordTitle } from './utils/titles';
 import { withOfferPerks } from './data/offerPerks';
 import { projectDraftPick } from './utils/draftScouting';
@@ -383,7 +383,16 @@ function App() {
   // then drafts in the same tick, before setPlayer has landed.
   const handleDraftDay = (rawCombine = 0, overridePlayer = null) => {
     const who = overridePlayer || player;
-    const { pick: overallPick, round } = projectDraftPick(who, rawCombine);
+    // The combine belongs on the board, not beside it. It used to feed the
+    // draft projection and nothing else, so a prospect could test out of his
+    // skin in June and watch the board he had been reading all winter not move
+    // a place. Carrying it on the player puts it where the room can see it,
+    // and the last board of his draft year is redrawn with it before the pick
+    // is made, so "the final board had you third" is the board he was actually
+    // taken off.
+    const scouted = { ...who, combineRaw: rawCombine };
+    const { pick: overallPick, round } = projectDraftPick(scouted, rawCombine);
+    const finalBoard = scoutingBoard(scouted.peers, scouted, 30);
 
     // Going early is a bigger story than going late.
     const fanBoost = overallPick === 1 ? 25 : overallPick <= 10 ? 20 : overallPick <= 32 ? 15 : overallPick <= 96 ? 8 : 5;
@@ -398,6 +407,8 @@ function App() {
       draftLeague: p.league,
       draftPick: overallPick,
       draftRound: round,
+      combineRaw: rawCombine,
+      scoutRank: finalBoard?.myRank ?? p.scoutRank,
       fanStatus: fanGain(p.fanStatus || 0, fanBoost)
     }));
 
@@ -476,13 +487,34 @@ function App() {
     if (hits === 3) unlockAchievement('press_master');
     if (hits === 0) unlockAchievement('press_disaster');
     
+    // What the room took away from it.
+    //
+    // The recap used to get four words for the whole thing, "Solid, measured
+    // press conference", filed under a generic news heading. Three questions
+    // were asked and answered and none of that reached the page: not how many
+    // landed, not what the room made of it, not what it cost. These say the
+    // count, the reaction and the consequence, in that order.
     let fanDelta, mediaDelta, resultText, ratingDelta, ovrDelta = 0, coachDelta = 0;
-    if (hits === 3) { fanDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; resultText = 'Flawless press conference.'; ratingDelta = 0.3; }
-    else if (hits === 2) { fanDelta = 5; mediaDelta = 5; resultText = 'Solid, measured press conference.'; ratingDelta = 0.1; }
-    else if (hits === 1) { fanDelta = -5; mediaDelta = -5; resultText = 'Mixed reception at the press conference.'; ratingDelta = -0.1; }
-    else { fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10; resultText = 'Complete PR disaster at the press conference.'; ratingDelta = -0.4; }
-    
-    setSeasonEvents(prevEvents => [...prevEvents, { feedback: resultText, effect: { fanStatus: fanDelta, ovr: ovrDelta, money: 0 } }]);
+    if (hits === 3) {
+      fanDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; ratingDelta = 0.3;
+      resultText = 'Three questions, three answers that landed. You read the room every time and gave them the quote they came for, and the write-ups the next morning were about you rather than about anything you had to walk back.';
+    } else if (hits === 2) {
+      fanDelta = 5; mediaDelta = 5; ratingDelta = 0.1;
+      resultText = 'Two of the three landed. One answer went somewhere the room was not expecting and a couple of them led with that, but nothing in it needed correcting and you came out of it fine.';
+    } else if (hits === 1) {
+      fanDelta = -5; mediaDelta = -5; ratingDelta = -0.1;
+      resultText = 'One of the three landed. The other two came out flat and the room stopped writing halfway through, which is its own verdict. Nothing damaging, but nobody left with anything either.';
+    } else {
+      fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10; ratingDelta = -0.4;
+      resultText = 'You misread all three. The clips went round by the evening with your name on them, the coach was asked about it before you had left the building, and you will be answering for this one for a while.';
+    }
+
+    setSeasonEvents(prevEvents => [...prevEvents, {
+      title: '🎙️ The press conference',
+      setup: `Three questions from the beat, and you read ${hits === 0 ? 'none' : hits} of them right.`,
+      feedback: resultText,
+      effect: { fanStatus: fanDelta, ovr: ovrDelta, money: 0 }
+    }]);
     setSeasonRecap(r => r ? { ...r, rating: Math.max(0, Math.min(10, (r.rating || 5) + (ratingDelta || 0))) } : r);
 
     const withOvr = applyOvrDelta(player, ovrDelta);
@@ -612,7 +644,7 @@ function App() {
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
 
-  const handleInteractiveResult = (isWin, reward, successMsg, failMsg) => {
+  const handleInteractiveResult = (isWin, reward, successMsg, failMsg, moment = null) => {
    if (minigameLockedRef.current) return;
    minigameLockedRef.current = true;
 
@@ -683,7 +715,7 @@ function App() {
       const finalMsg = isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.";
       setSeasonEvents(prev => {
         if (prev.length > 0 && prev[prev.length - 1].feedback === finalMsg) return prev;
-        return [...prev, { feedback: finalMsg, effect: { fanStatus: isWin ? 100 : -25, ovr: 0, money: 0 } }];
+        return [...prev, { ...(moment || {}), feedback: finalMsg, effect: { fanStatus: isWin ? 100 : -25, ovr: 0, money: 0 } }];
       });
       setScreen('playoffs');
       return;
@@ -703,7 +735,7 @@ function App() {
         setMemCup(prev => ({ ...prev, status: isWin ? (prev.round === 0 ? 'semi_won' : 'won') : 'lost', lastFeedback: msg }));
         
         setPlayer(updatedPlayer);
-        setSeasonEvents(prevEvents => [...prevEvents, { feedback: msg, effect: { fanStatus: payout.fanStatus || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
+        setSeasonEvents(prevEvents => [...prevEvents, { ...(moment || {}), feedback: msg, effect: { fanStatus: payout.fanStatus || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }]);
         proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
         return; 
     }
@@ -716,7 +748,7 @@ function App() {
     setPlayer(updatedPlayer);
     setSeasonEvents(prev => {
       if (prev.length > 0 && prev[prev.length - 1].feedback === msg) return prev;
-      return [...prev, { feedback: msg, effect: { fanStatus: payout.fanStatus || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }];
+      return [...prev, { ...(moment || {}), feedback: msg, effect: { fanStatus: payout.fanStatus || 0, ovr: payout.ovr || 0, money: payout.money || 0 } }];
     });
     proceedToNextScreen(activeEvent, minigameContext, updatedPlayer);
   };
@@ -1252,7 +1284,18 @@ function App() {
     }
 
     // SIDELINED: the club plays on without the player, decided by a background sim.
+    //
+    // The year has to be closed out before the bracket, not instead of it. This
+    // used to go straight to the playoffs, so the tail of handleTrain never
+    // ran: no season was written to his career, no totals were committed, and
+    // the recap screen rendered whatever seasonRecap was still holding, which
+    // was nothing. A player stretchered off in December came out of the
+    // playoff screen and read that he had finished "#-" in the league with no
+    // goals in no games and had missed the playoffs. handleTrain finishes the
+    // season on the games he did play and routes on through the postseason
+    // itself, carrying the fact that he is not in it.
     if (currentEvent?.playerSidelined) {
+      if (currentPlayer.season) { handleTrain(null, currentPlayer); return; }
       if (pendingPlayoffs) {
         const pp = pendingPlayoffs;
         setPendingPlayoffs(null);
@@ -1340,7 +1383,7 @@ function App() {
       if (pendingPlayoffs) {
         const pp = pendingPlayoffs;
         setPendingPlayoffs(null);
-        checkPlayoffs(pp.lg, pp.team, pp.standings);
+        checkPlayoffs(pp.lg, pp.team, pp.standings, { sidelined: !!pp.sidelined });
       } else if (seasonRecap?.madePlayoffs) {
         checkPlayoffs(currentPlayer.league, currentPlayer.team, seasonRecap.standings);
       } else setScreen('recap');
@@ -1355,7 +1398,7 @@ function App() {
     if (pendingPlayoffs && currentEvent?.madePlayoffs !== false) {
       const pp = pendingPlayoffs;
       setPendingPlayoffs(null);
-      checkPlayoffs(pp.lg, pp.team, pp.standings);
+      checkPlayoffs(pp.lg, pp.team, pp.standings, { sidelined: !!pp.sidelined });
     } else if (madePlayoffsFlag) {
       const targetLg = currentEvent?.isDemotionEvent ? currentEvent.currentLg : currentPlayer.league;
       const targetTeam = currentEvent?.isDemotionEvent ? currentEvent.currentTeam : currentPlayer.team;
@@ -1466,16 +1509,43 @@ function App() {
           </ErrorBoundary>
         </div>
       </div> 
-      <div className="mt-auto text-center border-t border-[rgba(255,255,255,0.05)] pt-6 pb-6 w-full">
-         <a 
+      {/* The footer, and the one way out of the game.
+          This was a boxed button reading "Have Feedback? Reach out to me!",
+          inline on a phone and pinned to the top right corner on anything
+          wider, where it sat over whatever the screen had put there and used a
+          blue the rest of the game does not own. The strip it was declared in
+          stayed behind on desktop as an empty ruled line. It is one quiet line
+          now, in the same place at every width. */}
+      <footer className="mt-auto w-full border-t border-[rgba(255,255,255,0.05)] px-4 pt-5 pb-7">
+        <div className="mx-auto flex max-w-xl flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+          {/* Version and build both come from the git history at build time
+              (see vite.config.js), so neither has to be remembered and the
+              number a player quotes in a bug report points at one commit. */}
+          <span>
+            Blue Chip Prospect
+            {__GAME_VERSION__ && (
+              <span className="ml-2 text-slate-500 tabular-nums" title={__GAME_BUILD__ ? `Build ${__GAME_BUILD__}` : undefined}>
+                v{__GAME_VERSION__}
+              </span>
+            )}
+          </span>
+          <span aria-hidden="true" className="h-3 w-px bg-[rgba(255,255,255,0.1)] max-[359px]:hidden" />
+          <a
             href="https://x.com/ferreirahockey"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block sm:fixed sm:top-4 sm:right-4 z-50 bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] hover:border-[#3b82f6] text-slate-400 hover:text-[#3b82f6] text-[10px] sm:text-xs font-bold uppercase tracking-widest font-sans transition-colors px-3 py-2 rounded-lg shadow-lg"
-         >
-            Have Feedback? Reach out to me!
-         </a>
-      </div>
+            title="Send feedback to @ferreirahockey"
+            className="inline-flex items-center gap-1.5 text-slate-500 transition-colors hover:text-[#22E748]"
+          >
+            Send feedback
+            <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none" stroke="currentColor"
+                 strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 7 L7 3" />
+              <path d="M3.7 3 H7 V6.3" />
+            </svg>
+          </a>
+        </div>
+      </footer>
     </div>
       </AppContext.Provider>
   );

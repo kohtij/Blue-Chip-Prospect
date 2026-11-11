@@ -12,6 +12,12 @@
 // This is a continuous scouting score instead. Everything a scout would actually
 // look at contributes, nothing is a cliff, and the draft slot follows from the
 // score. Two careers that differ slightly are drafted slightly apart.
+//
+// The slot itself now comes from the draft class rather than from the curve
+// below: see projectDraftPick. What survives here is the scouting file, which
+// is still what the combine screen shows him.
+
+import { draftSlotFromBoard } from './peers';
 
 export const PICKS_PER_ROUND = 32;
 export const DRAFT_ROUNDS = 7;
@@ -119,16 +125,40 @@ export function computeScoutingScore(player, rawCombine = 0, applyNoise = true) 
  * the reverse.
  */
 export function projectDraftPick(player, rawCombine = 0, applyNoise = true) {
-  const { score, parts } = computeScoutingScore(player, rawCombine, applyNoise);
+  // The class is the draft.
+  //
+  // This curve and the scouting board the player reads every winter were two
+  // unrelated calculations of the same thing, and they did not agree: the best
+  // centre in a draft class, first of eleven on his own board, came off it
+  // fortieth, and the combine fed this and never touched the board. So a
+  // player watched himself rise all winter and then slide on the night for no
+  // reason anyone had given him.
+  //
+  // draftSlotFromBoard settles it against the class itself: the twenty-eight
+  // classmates hold picks across the first two rounds, the final board decides
+  // the order, and he takes the slot his own score earns. Everything that used
+  // to feed this curve now feeds that board, the combine included.
+  const slot = draftSlotFromBoard(player?.peers, player, {
+    combine: rawCombine, noise: applyNoise
+  });
 
+  if (slot) {
+    const pick = Math.max(1, Math.min(LAST_PICK, slot.pick));
+    return {
+      pick,
+      round: Math.min(DRAFT_ROUNDS, Math.ceil(pick / PICKS_PER_ROUND)),
+      score: slot.score,
+      ahead: slot.ahead,
+      parts: computeScoutingScore(player, rawCombine, false).parts
+    };
+  }
+
+  // No class to be drafted against, which happens only to a save written
+  // before the draft class existed. The old absolute curve still covers it.
+  const { score, parts } = computeScoutingScore(player, rawCombine, applyNoise);
   const t = clamp01(score / 100);
   let pick = Math.round(1 + (LAST_PICK - 1) * Math.pow(1 - t, 2.2));
-
-  // draftBonus is carried on the player in draft slots, positive meaning a club
-  // likes what it sees. The over-ager penalty and the Russian Factor decision both
-  // write it, and nothing ever read it, so neither had any effect at all.
   pick -= (player.draftBonus || 0);
-
   pick = Math.max(1, Math.min(LAST_PICK, pick));
   const round = Math.min(DRAFT_ROUNDS, Math.ceil(pick / PICKS_PER_ROUND));
 

@@ -199,7 +199,7 @@ export const eventDeck = [
     title: 'Family Investment Opportunity', proOnly: true, minAge: 22,
     desc: 'Your brother wants you to invest heavily in his new "revolutionary" tech startup. Your financial advisor strongly advises against it.',
     choices: [
-      { label: 'Fund the Startup ($125k)', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'Against all odds, the company took off! You doubled your investment and your family is thrilled.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be incredibly awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
+      { label: 'Fund the Startup', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'Against all odds, the company took off! You doubled your investment and your family is thrilled.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be incredibly awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
       { label: 'Trust the Advisor (Pass)', subLabel: "Say no and accept the awkward family dinners.", isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
     ]
   },

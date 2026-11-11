@@ -14,7 +14,9 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      globals: globals.browser,
+      // __GAME_VERSION__ and __GAME_BUILD__ are substituted at build time by
+      // vite.config.js, so they exist in the bundle but not in the source.
+      globals: { ...globals.browser, __GAME_VERSION__: 'readonly', __GAME_BUILD__: 'readonly' },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },

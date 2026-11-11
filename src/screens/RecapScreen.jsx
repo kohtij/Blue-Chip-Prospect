@@ -407,27 +407,42 @@ export default function RecapScreen() {
                   const mine = (seasonRecap.g || 0) + (seasonRecap.a || 0);
                   const won = mine >= bar.total;
                   const short = bar.total - mine;
+                  // Every line here names the league. "It took 113 points to
+                  // win the scoring title" never said whose title it was, and
+                  // a player on a call-up had two leagues it could have meant
+                  // and no way of telling which. The bar now carries the
+                  // league it was measured in, so the two cannot disagree.
+                  const lg = bar.league || seasonRecap.league;
+                  const where = leagueWithArticle(lg);
                   return (
-                    <RecapRow accent={won ? '#22E748' : '#64748b'} label={won ? '🥇 You led the league' : '📊 The scoring race'} tint={won}>
-                      {/* "The scoring title went with 129. You finished 75
-                          back on 54." The unnamed branch was written as if a
-                          name would be slotted in front of it and read as
-                          nonsense without one. Both branches are sentences
-                          now. */}
+                    <RecapRow accent={won ? '#22E748' : '#64748b'}
+                              label={won ? `🥇 You led ${formatLeagueName(lg)} in scoring` : `📊 The ${formatLeagueName(lg)} scoring race`}
+                              tint={won}>
                       {won
-                        ? `Nobody in the league put up more than your ${mine} points.`
+                        ? `Nobody in ${where} scored more than your ${mine} points.`
                         : bar.name
-                          ? `${bar.name} won the scoring title with ${bar.total} points. You finished on ${mine}, ${short} back.`
-                          : `It took ${bar.total} points to win the scoring title. You finished on ${mine} points, ${short} short.`}
+                          ? `${bar.name} led ${where} in scoring with ${bar.total} points. You finished the year on ${mine}, ${short} behind him.`
+                          : `It took ${bar.total} points to lead ${where} in scoring this season. You finished on ${mine}, ${short} behind the man who did.`}
                       {/* And the one comparison a prospect actually makes,
                           which the league leader is not: the best of his own
                           year group in his own league. A classmate wins an
                           outright scoring title about one season in twenty,
                           so without this the junior years went by without a
-                          single familiar name in the race. */}
+                          single familiar name in the race.
+
+                          classBest is the best CLASSMATE, and the player is
+                          not in that field, so the line has to be read against
+                          him before it is printed. It was not: a player on 84
+                          points was told that the best of his draft class was
+                          a classmate on 47, which is the opposite of what had
+                          happened. */}
                       {bar.classBest && (
                         <span className="block text-slate-400 mt-1">
-                          {`Best of your draft class here: ${bar.classBest.name}, ${bar.classBest.pts} points.`}
+                          {mine > bar.classBest.pts
+                            ? `Nobody from your draft class in ${formatLeagueName(lg)} outscored you. ${bar.classBest.name} was the next best on ${bar.classBest.pts}.`
+                            : mine === bar.classBest.pts
+                              ? `${bar.classBest.name}, drafted the same year as you, finished level with you on ${bar.classBest.pts} points.`
+                              : `${bar.classBest.name}, drafted the same year as you, was the best of your class in ${formatLeagueName(lg)} on ${bar.classBest.pts} points.`}
                         </span>
                       )}
                     </RecapRow>
@@ -440,6 +455,7 @@ export default function RecapScreen() {
                     not theirs: a goalie was told he was 129 points back. */}
                 {seasonRecap?.classBestAtPos && (() => {
                   const cb = seasonRecap.classBestAtPos;
+                  const lg = formatLeagueName(cb.league || seasonRecap.league);
                   const isG = player.pos === 'G';
                   const mySv = (seasonRecap.shots || 0) > 0 ? (seasonRecap.saves || 0) / seasonRecap.shots : null;
                   const myPts = (seasonRecap.g || 0) + (seasonRecap.a || 0);
@@ -451,13 +467,13 @@ export default function RecapScreen() {
                               tint={ahead}>
                       {isG
                         ? (mySv == null
-                            ? `${cb.name} was the best of your draft class in this league at ${fmt(cb.sv)}.`
+                            ? `${cb.name} was the best goaltender of your draft class in ${lg} at ${fmt(cb.sv)}.`
                             : ahead
-                              ? `Nobody from your draft class in this league stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
-                              : `${cb.name} was the best of your draft class in this league at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
+                              ? `No goaltender from your draft class in ${lg} stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
+                              : `${cb.name} was the best goaltender of your draft class in ${lg} at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
                         : (ahead
-                            ? `No defenceman from your draft class in this league outscored your ${myPts} points. ${cb.name} was next on ${cb.pts}.`
-                            : `${cb.name} was the best defenceman from your draft class in this league with ${cb.pts} points. You finished on ${myPts}.`)}
+                            ? `No defenceman from your draft class in ${lg} outscored your ${myPts} points. ${cb.name} was next on ${cb.pts}.`
+                            : `${cb.name} was the best defenceman of your draft class in ${lg} with ${cb.pts} points. You finished on ${myPts}.`)}
                     </RecapRow>
                   );
                 })()}
@@ -530,10 +546,21 @@ export default function RecapScreen() {
                   </RecapRow>
                 )}
 
+                {/* The moments of the season, each with the thing that set it
+                    up above the thing that happened. A minigame result used to
+                    arrive as one line under "In the news": "Clean win! You
+                    snapped it straight back to your defenseman", with nothing
+                    anywhere saying what had been won, in what situation, or
+                    what it was worth. The moment travels with the result now,
+                    so the row reads as the event it was. */}
                 {seasonEvents.map((ev, i) => {
                   if (!ev || !ev.feedback) return null;
                   return (
-                    <RecapRow key={`event-${i}`} accent="#c084fc" label={ev.title || '📰 In the news'}>
+                    <RecapRow key={`event-${i}`} accent="#c084fc"
+                              label={[ev.title || '📰 In the news', ev.stakes].filter(Boolean).join(' · ')}>
+                      {ev.setup && (
+                        <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed mb-1.5">{ev.setup}</p>
+                      )}
                       <p className="text-slate-300 leading-relaxed">{ev.feedback}</p>
                       <PillRow effect={ev.effect} perks={ev.perks} flaws={ev.flaws} isGoalie={player.pos === 'G'} />
                     </RecapRow>

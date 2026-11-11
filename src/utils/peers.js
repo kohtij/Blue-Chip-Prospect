@@ -56,9 +56,43 @@ const LAST = {
 };
 
 const NATS = ['CAN', 'CAN', 'CAN', 'USA', 'USA', 'SWE', 'FIN', 'RUS', 'CZE', 'SVK', 'SUI', 'GER', 'DEN'];
+
+// How a class of skaters breaks down, before the player's own position is
+// weighted up below. Twice as many centres as anything else, which is roughly
+// how a draft reads.
 const SKATER_POS = ['C', 'C', 'LW', 'RW', 'LD', 'RD'];
 
+// The player's own position, as a share of the skaters in his class.
+//
+// Every comparison in the game is made inside an exact position now, so the
+// natural split left a left winger measuring himself against the four other
+// left wingers in a twenty-eight man class: a board too short to rank, a class
+// table with four lines on it, and one or two contract comparables. Raising
+// his own position to about a third of the skaters puts eight or nine men on
+// his board and leaves the rest of the class looking like a draft. It is the
+// same adjustment the goalie share below already makes, one level down.
+const OWN_WEIGHT = 2.7;
+
+// The fewest of his own kind a class is allowed to contain. Goalies sit lower
+// because the class carries fewer of them to begin with and their own share is
+// raised separately below.
+const OWN_FLOOR = 6;
+const GOALIE_FLOOR = 4;
+
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const drawSkaterPos = (own) => {
+  const w = {};
+  for (const p of SKATER_POS) w[p] = (w[p] || 0) + 1;
+  if (w[own]) w[own] = OWN_WEIGHT;
+  const total = Object.values(w).reduce((s, n) => s + n, 0);
+  let roll = Math.random() * total;
+  for (const [pos, n] of Object.entries(w)) {
+    roll -= n;
+    if (roll <= 0) return pos;
+  }
+  return 'C';
+};
 
 // Peak ability across the class, as a draft class actually looks: one or two
 // who become stars, a handful of regulars, and a long tail who never stick.
@@ -98,7 +132,7 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
       id: `pr${i}`,
       name,
       nat,
-      pos: isGoalie ? 'G' : pick(SKATER_POS),
+      pos: isGoalie ? 'G' : drawSkaterPos(playerPos),
       age: playerAge,
       // Where he ends up, and how quickly he gets there. A late bloomer is
       // nowhere at twenty and a problem at twenty-six.
@@ -127,6 +161,35 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
       career: { gp: 0, g: 0, a: 0, sho: 0, saves: 0, shots: 0, wins: 0, losses: 0, otl: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0 }
     });
   }
+
+  // What each of them is worth today, before a season has been played.
+  //
+  // They were created on 0 and only given a rating by their first simulated
+  // season, so for the whole of the player's first year the board scored every
+  // classmate on his projection alone and the player on both halves of his.
+  // A sixteen-year-old walked into the game ranked first in his draft class,
+  // dropped to fifth the moment the others played a season, and then wondered
+  // why the draft did not match the board he started with.
+  peers.forEach(p => { p.ovr = ovrAt(p); });
+
+  // A floor under the player's own position.
+  //
+  // The draw is a draw, so about one class in twelve came out with five or
+  // fewer of his kind in it however the weights are set: a board he can read
+  // in one glance, a class table of four lines, and no contract comparables at
+  // all. Short classes are topped up from whichever position the draw
+  // over-filled, which costs that position a name nobody counts.
+  const floor = playerPos === 'G' ? GOALIE_FLOOR : OWN_FLOOR;
+  for (let guard = 0; guard < size; guard++) {
+    if (peers.filter(p => p.pos === playerPos).length >= floor) break;
+    const counts = {};
+    for (const p of peers) if (p.pos !== playerPos) counts[p.pos] = (counts[p.pos] || 0) + 1;
+    const fullest = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (!fullest || fullest[1] <= 1) break;
+    const victim = peers.find(p => p.pos === fullest[0]);
+    victim.pos = playerPos;
+  }
+
   // Scouts rank the class by what each player will become, with noise on it,
   // since nobody can see a career coming exactly. Then the order of the room
   // decides who takes whom.
@@ -548,6 +611,11 @@ function playPeerSeason(peer) {
     ovr,
     league,
     team,
+    // Whether this is a new room for him. A peer keeps the same club for years
+    // at a time, so "X is in your room this year" fired every season he was
+    // there and became the only thing the class ever said. It is news when he
+    // walks in, and after that it is furniture.
+    arrivedThisYear: !!team && team !== peer.team,
     justRetired: false,
     wonCupThisYear: false,
     season,
@@ -694,10 +762,10 @@ export function classBestAt(peers, league, pos) {
   if (isG) {
     const best = field.reduce((top, p) =>
       (p.season.saves / p.season.shots) > (top ? top.season.saves / top.season.shots : -1) ? p : top, null);
-    return { name: best.name, sv: best.season.saves / best.season.shots, gp: best.season.gp };
+    return { league, name: best.name, sv: best.season.saves / best.season.shots, gp: best.season.gp };
   }
   const best = field.reduce((top, p) => (p.season.pts > (top?.season.pts ?? -1) ? p : top), null);
-  return { name: best.name, pts: best.season.pts, g: best.season.g, a: best.season.a };
+  return { league, name: best.name, pts: best.season.pts, g: best.season.g, a: best.season.a };
 }
 
 export function scoringBar(peers, league) {
@@ -715,6 +783,11 @@ export function scoringBar(peers, league) {
   const ledGoals = bestG && bestG.season.g > drawnGoals;
 
   return {
+    // Which league this race was run in. The recap used to print the bar with
+    // no league attached to it, so "it took 113 points to win the scoring
+    // title" could have meant the OHL, the AHL or the NHL, and a player on a
+    // call-up had no way of telling which of his two leagues it counted.
+    league,
     total: ledPoints ? best.season.pts : drawn,
     name: ledPoints ? best.name : null,
     goals: ledGoals ? bestG.season.g : drawnGoals,
@@ -803,17 +876,36 @@ export const peerUnit = (isGoalie) => (isGoalie ? 'shutouts' : 'points');
 
 // WHO COUNTS AS A COMPARISON.
 //
-// Everything that ranked the class split it two ways, goalies and everybody
-// else, so a shutdown defenceman was being measured on career points against
-// the best centre in his year and told he was four hundred behind. Three
-// groups, because that is how hockey compares players: the forwards together,
-// the pair together, and the goalie on his own.
+// Two different questions, and they used to share one answer.
+//
+// posGroup is the broad one: forwards, defencemen, goaltenders. It is what
+// decides how a season is produced, because a left and a right defenceman
+// produce the same way, what a position is worth in money, and who a league
+// trophy is contested against. A Norris is every defenceman in the league and
+// an Art Ross every skater, so those fields stay broad.
+//
+// compGroup is the narrow one: the exact position. Who he is ranked against on
+// a board, who comes off the board before him, who his rival is, whose name is
+// on the table in a negotiation. A centre and a left winger are drafted for
+// different jobs and paid on different numbers, and ranking them together put
+// a winger behind five centres for playing the position he plays.
 export const posGroup = (pos) => (pos === 'G' ? 'G' : (pos === 'LD' || pos === 'RD') ? 'D' : 'F');
 
+const GROUP_NAME = {
+  C: ['centre', 'centres'],
+  LW: ['left winger', 'left wingers'],
+  RW: ['right winger', 'right wingers'],
+  LD: ['left-side defenceman', 'left-side defencemen'],
+  RD: ['right-side defenceman', 'right-side defencemen'],
+  G: ['goaltender', 'goaltenders'],
+  F: ['forward', 'forwards'],
+  D: ['defenceman', 'defencemen']
+};
+
+export const compGroup = (pos) => (GROUP_NAME[pos] && pos !== 'F' && pos !== 'D' ? pos : 'C');
+
 export const groupName = (group, plural = true) =>
-  group === 'G' ? (plural ? 'goaltenders' : 'goaltender')
-    : group === 'D' ? (plural ? 'defencemen' : 'defenceman')
-      : (plural ? 'forwards' : 'forward');
+  (GROUP_NAME[group] || GROUP_NAME.F)[plural ? 1 : 0];
 
 /**
  * Where he came off the board among his own kind.
@@ -826,16 +918,16 @@ export const groupName = (group, plural = true) =>
  * many of his own position were taken before him.
  */
 export function positionDraftSlot(peers, pos, playerPick) {
-  const group = posGroup(pos);
-  const picked = (peers || []).filter(p => p.pick && p.pick !== playerPick && posGroup(p.pos) === group);
+  const group = compGroup(pos);
+  const picked = (peers || []).filter(p => p.pick && p.pick !== playerPick && compGroup(p.pos) === group);
   const ahead = picked.filter(p => p.pick < playerPick).length;
   return { slot: ahead + 1, ahead, total: picked.length + 1, group };
 }
 
 export function findRival(peers, playerValue, pos = 'C') {
-  const group = posGroup(pos);
+  const group = compGroup(pos);
   const isGoalie = group === 'G';
-  const live = (peers || []).filter(p => posGroup(p.pos) === group && p.career.seasons > 0);
+  const live = (peers || []).filter(p => compGroup(p.pos) === group && p.career.seasons > 0);
   if (!live.length) return null;
   // The best of the class, unless he is miles clear of you, in which case the
   // interesting comparison is whoever you are actually next to.
@@ -853,10 +945,10 @@ export function findRival(peers, playerValue, pos = 'C') {
  * The class table, best career first, for the retirement screen.
  */
 export function classTable(peers, limit = 10, pos = 'C') {
-  const group = posGroup(pos);
+  const group = compGroup(pos);
   const isGoalie = group === 'G';
   return [...(peers || [])]
-    .filter(p => posGroup(p.pos) === group && p.career.seasons > 0)
+    .filter(p => compGroup(p.pos) === group && p.career.seasons > 0)
     .sort((x, y) => peerValue(y, isGoalie) - peerValue(x, isGoalie))
     .slice(0, limit);
 }
@@ -933,9 +1025,47 @@ const goalieProduction = (season) => {
   return Math.max(-5, Math.min(8, svPart + winPart + shoPart));
 };
 
+// Inverting the peers' own age curve: what a player at this rating and this
+// age is usually on his way to becoming.
+//
+// Capped at 95, which is where drawPeak stops. Uncapped, the inversion is
+// brutal at sixteen and seventeen, where the divisor is around 0.43: a 73
+// overall at eighteen projected to a peak of 101 and a 78 to 112, neither of
+// which exists in this game. Everyone above about 72 therefore scored off the
+// top of the board and the ranking stopped telling him anything.
+// What one week in June is worth against three years of tape, on the board's
+// own scale. The combine's raw score runs -4 to +8 and the class sits one to
+// two board points apart, so this moves a prospect two or three places in a
+// tight year and leaves the top of the board where it was.
+const COMBINE_BOARD_WEIGHT = 0.5;
+
+// Draft day is not the consensus board. Clubs reach, clubs pass, and a man
+// ranked eighth goes fourth or twelfth. One standard deviation is worth about
+// two places in the middle of the class.
+const DRAFT_DAY_NOISE = 1.6;
+
+// How far below the worst man in the class a prospect has to score to land at
+// the very end of the draft.
+const TAIL_SPAN = 18;
+
+// The draft the game runs: seven rounds of thirty-two.
+const LAST_PICK = 224;
+
+// What drawPeak averages across a class, which is what an unknown prospect is
+// regressed toward below.
+const CLASS_MEAN_PEAK = 72;
+
 const projectedPeak = (ovr, age) => {
   const f = 0.35 + 0.65 * Math.min(1, Math.max(0, (age - 17) / 8));
-  return 52 + (ovr - 52) / f;
+  const raw = 52 + (ovr - 52) / f;
+  // And regressed toward what a draft class averages, by how much of him is
+  // still unknown. At eighteen the inversion multiplies every point of his
+  // current rating by 2.3, so one point of overall was worth three times as
+  // much to him as to a classmate and the top of the board saturated: a 74
+  // and a 90 both came out first. A scout seeing a good eighteen-year-old
+  // does not extrapolate him to a Hart winner, he says he might be one.
+  const certainty = 0.45 + 0.55 * Math.min(1, Math.max(0, (age - 16) / 6));
+  return Math.max(52, Math.min(95, CLASS_MEAN_PEAK + (raw - CLASS_MEAN_PEAK) * certainty));
 };
 
 // A fixed scouting lean on the player himself, so the board is not a plain
@@ -951,25 +1081,118 @@ const nameBias = (name) => {
   return (((h >>> 0) % 1000) / 1000 - 0.5) * 4.6;
 };
 
+// What a classmate is worth to a scout this winter. A season in front of them
+// counts: a prospect who has just put up a hundred points is being talked
+// about whatever the projection says.
+//
+// Hoisted out of scoutingBoard because draft night reads the same two numbers.
+// The board a player follows every winter and the order the room actually
+// picks in were two unrelated calculations, which is how he could be the best
+// centre in his class on the board and come off it fortieth.
+const peerBoardScore = (p) => {
+  const produced = p.season && p.pos !== 'G'
+    ? scaleProduction(p.season.pts, p.season.gp, p.season.league)
+    : p.season && p.pos === 'G' && p.season.shots
+      ? goalieProduction(p.season)
+      : 0;
+  return (p.ovr || 0) * 0.55 + (p.peak || 0) * 0.45 + (p.scoutBias || 0) + produced;
+};
+
+// The same two halves for the player: what he is now, and what the scouts
+// think he becomes. draftBonus is the only part of the second he can move, and
+// it is what the combine and every interview question since have been feeding
+// into.
+const playerBoardScore = (player, ownSeason = null, combine = null) => {
+  const last = ownSeason || (player?.seasonHistory || [])[(player?.seasonHistory || []).length - 1] || null;
+  const myGp = last ? (last.gp ?? last.games ?? 0) : 0;
+  const myPts = last ? (last.pts != null ? last.pts : (last.goals || 0) + (last.assists || 0)) : null;
+  const produced = player?.pos === 'G'
+    ? goalieProduction({
+        saves: last?.saves, shots: last?.shots, sho: last?.shutouts ?? last?.sho,
+        wins: last?.wins, losses: last?.losses, otl: last?.otl, gp: myGp
+      })
+    : (myPts != null ? scaleProduction(myPts, myGp, player?.league) : 0);
+
+  // draftBonus is carried in draft slots: the over-ager penalty is thirty a
+  // year and the Russian Factor is fifteen either way. The board is the draft
+  // now, so it has to convert, and a board point is worth about 2.7 picks in
+  // the middle of a class. 0.37 is one pick per slot, which is what the two
+  // callers that write it meant.
+  const combineRaw = combine == null ? (player?.combineRaw || 0) : combine;
+  return projectedPeak(player?.ovr || 0, player?.age || 17) * 0.45
+    + (player?.ovr || 0) * 0.55
+    + (player?.draftBonus || 0) * 0.37
+    + combineRaw * COMBINE_BOARD_WEIGHT
+    + (player?.isGenerational ? 3 : 0)
+    + nameBias(player?.name)
+    + produced;
+};
+
+/**
+ * Where the room takes him, worked out against the class itself.
+ *
+ * The board he reads every winter and the pick he was handed on the night came
+ * from two unrelated calculations. The board ranked him against twenty-eight
+ * classmates; the pick came off a fixed curve that had never heard of them. So
+ * the best centre in a draft class went fortieth, and the combine, which fed
+ * the curve, moved the board not at all.
+ *
+ * The class is the draft now. Its picks are a set of slots spread across the
+ * first two rounds, the final board decides who fills them, and the player
+ * takes the slot his own score earns. A prospect the room has below every one
+ * of them falls out of the class and down the tail, where the old curve still
+ * does the work.
+ *
+ * Returns { pick, ahead, total, score, bar }: his pick, how many classmates
+ * went before him, and the score that put him there.
+ */
+export function draftSlotFromBoard(peers, player, { combine = 0, ownSeason = null, noise = true } = {}) {
+  const field = (peers || []).filter(p => p.pick);
+  if (!field.length) return null;
+
+  // The combine rides inside the board score, so it is passed through rather
+  // than added again: the week he has just had is on the board the room is
+  // reading, which is the whole point of holding one.
+  const myScore = playerBoardScore(player, ownSeason, combine)
+    + (noise ? gaussianNoise() * DRAFT_DAY_NOISE : 0);
+
+  const scores = field.map(p => peerBoardScore(p));
+  const ahead = scores.filter(s => s > myScore).length;
+  const slots = field.map(p => p.pick).sort((a, b) => a - b);
+
+  if (ahead === 0) return { pick: 1, ahead, total: field.length + 1, score: myScore };
+
+  if (ahead < slots.length) {
+    // Between the man in front of him and the man behind him. The class sits
+    // every two or three picks, so there is always a number in the gap.
+    const before = slots[ahead - 1];
+    const after = slots[ahead];
+    const pick = after - before > 1 ? Math.round((before + after) / 2) : before + 1;
+    return { pick, ahead, total: field.length + 1, score: myScore };
+  }
+
+  // Below the whole class. The tail runs from the last classmate's pick out to
+  // the end of the draft, and how far down it he lands is how far short of the
+  // class he scored.
+  const last = slots[slots.length - 1];
+  const worst = Math.min(...scores);
+  const gap = Math.max(0, worst - myScore);
+  const t = Math.min(1, gap / TAIL_SPAN);
+  return {
+    pick: Math.min(LAST_PICK, Math.round(last + 1 + (LAST_PICK - last - 1) * Math.pow(t, 0.75))),
+    ahead, total: field.length + 1, score: myScore
+  };
+}
+
 export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
-  // Ranked inside his own position group. A winger is not competing with the
-  // goalies in his year for the same job, and a board that mixed all three
-  // told him he was eleventh without saying eleventh at what.
-  const group = posGroup(player?.pos || 'C');
-  const live = (peers || []).filter(p => !p.retired && posGroup(p.pos) === group);
+  // Ranked inside his exact position. A left winger is not competing with the
+  // centres in his year for the same job, let alone the goalies, and a board
+  // that mixed them told him he was eleventh without saying eleventh at what.
+  const group = compGroup(player?.pos || 'C');
+  const live = (peers || []).filter(p => !p.retired && compGroup(p.pos) === group);
   if (!live.length) return null;
 
-  // What he is worth to a scout this winter. A season in front of them counts:
-  // a prospect who has just put up a hundred points is being talked about
-  // whatever the projection says.
-  const scoreOf = (p) => {
-    const produced = p.season && p.pos !== 'G'
-      ? scaleProduction(p.season.pts, p.season.gp, p.season.league)
-      : p.season && p.pos === 'G' && p.season.shots
-        ? goalieProduction(p.season)
-        : 0;
-    return (p.ovr || 0) * 0.55 + (p.peak || 0) * 0.45 + (p.scoutBias || 0) + produced;
-  };
+  const scoreOf = peerBoardScore;
 
   const rows = live.map(p => ({
     id: p.id,
@@ -1000,12 +1223,6 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     const myPts = last ? (last.pts != null ? last.pts : (last.goals || 0) + (last.assists || 0)) : null;
     const mySv = last && last.shots ? last.saves / last.shots : null;
     const myGp = last ? (last.gp ?? last.games ?? 0) : 0;
-    const myProduced = player.pos === 'G'
-      ? goalieProduction({
-          saves: last?.saves, shots: last?.shots, sho: last?.shutouts ?? last?.sho,
-          wins: last?.wins, losses: last?.losses, otl: last?.otl, gp: myGp
-        })
-      : (myPts != null ? scaleProduction(myPts, myGp, player.league) : 0);
     rows.push({
       id: 'me',
       name: player.name,
@@ -1022,12 +1239,7 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
       // exactly their scale: what a sixteen-year-old at this rating is usually
       // on his way to becoming. Without it he was graded on what he is today
       // against what they will be, and sat last on every board.
-      score: projectedPeak(player.ovr || 0, player.age || 17) * 0.45
-        + (player.ovr || 0) * 0.55
-        + (player.draftBonus || 0) * 0.22
-        + (player.isGenerational ? 3 : 0)
-        + nameBias(player.name)
-        + myProduced,
+      score: playerBoardScore(player, last),
       me: true
     });
   }
@@ -1041,9 +1253,9 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
     me: mine,
     myRank: mine ? mine.rank : null,
     total: rows.length,
-    // The board was filtered to one position group on the way in, so it has to
-    // say so on the way out. A rank printed without it reads as a place in the
-    // whole class, which is not what was counted.
+    // The board was filtered to one position on the way in, so it has to say so
+    // on the way out. A rank printed without it reads as a place in the whole
+    // class, which is not what was counted.
     group,
     groupLabel: groupName(group),
     // Whoever is one place above him. During a junior season that is the
@@ -1148,12 +1360,61 @@ export function teammatesFrom(peers, teamId) {
 }
 
 /**
+ * How the player knows this classmate, in a few words, or nothing.
+ *
+ * The news used to be a bare name: "Tyler Brightwell won the Cup. You came up
+ * together." A class is twenty-eight men and nobody remembers twenty-eight
+ * names, so the line landed as a stranger doing something somewhere. Every
+ * classmate who appears in the news now arrives with the reason he is worth
+ * hearing about, and the reasons are the ones the player has already been
+ * shown: he is in your room, he went either side of you on draft night, he is
+ * the man your card measures you against, or he was the first of your position
+ * off the board in your year.
+ *
+ * Returns null when the player has no connection to him at all, which is the
+ * signal not to print the line.
+ */
+export function relationTo(player, peer, peers) {
+  if (!peer) return null;
+  if (player?.team && peer.team === player.team) return 'who plays on your team';
+
+  const myPick = player?.draftPick || null;
+  if (myPick && peer.pick) {
+    const d = peer.pick - myPick;
+    if (d === 0) return null;
+    if (Math.abs(d) <= 3) {
+      const n = Math.abs(d);
+      return `taken ${n === 1 ? 'one pick' : `${n} picks`} ${d < 0 ? 'before' : 'after'} you`;
+    }
+  }
+
+  // The first one or two of his own position off the board, which is a name a
+  // prospect hears all through his draft season. Only his own position: the
+  // board he reads every winter is filtered to it, so the second goaltender
+  // taken in a centre's year is not a fact he has ever been shown.
+  if (peer.pick && compGroup(peer.pos) === compGroup(player?.pos || 'C')) {
+    const field = (peers || []).filter(p => p.pick && compGroup(p.pos) === compGroup(peer.pos));
+    const ahead = field.filter(p => p.pick < peer.pick).length + 1;
+    if (ahead <= 2) {
+      return `the ${ahead === 1 ? 'first' : 'second'} ${groupName(compGroup(peer.pos), false)} taken in your year`;
+    }
+  }
+
+  // Everybody else in the class is a name he has never been given a reason to
+  // hold on to, so he does not hear about them at all.
+  return null;
+}
+
+/**
  * One line about the rest of the class, or nothing.
  *
  * Deliberately at most one a year and often none: they are a part of the
  * career, not a running commentary on it. The checks run in order of how much
  * the news is worth hearing, so a retirement beats a milestone and a milestone
  * beats a good season.
+ *
+ * Every line names the man and says how the player knows him, and a classmate
+ * he has no connection to does not make the news at all.
  */
 export function classNews(peers, player) {
   const live = (peers || []).filter(p => p.career.seasons > 0);
@@ -1164,49 +1425,67 @@ export function classNews(peers, player) {
   // it, and then it stops being news and becomes a drumbeat: at the first
   // calibration this fired in sixteen of twenty seasons, including seven
   // consecutive retirement notices.
-  if (Math.random() > 0.42) return null;
+  //
+  // Raised from 0.42 once every line had to be about a classmate the player
+  // can place. That cut the number of seasons with anything to say from 42 per
+  // cent to 17, which is two or three lines in a career; at 0.70 it lands
+  // around 28 per cent, so a fifteen-season career hears from the class four
+  // or five times and every one of them is a name he knows.
+  if (Math.random() > 0.70) return null;
 
   const isGoalie = player?.pos === 'G';
   const myTeam = player?.team;
   const candidates = [];
+
+  const mine = isGoalie ? (player?.stats?.nhl?.shutouts || 0)
+    : (player?.stats?.nhl?.goals || 0) + (player?.stats?.nhl?.assists || 0);
+  const unit = isGoalie ? 'shutouts' : 'points';
+
+  // The man his own card measures him against, every season, by name. Of the
+  // whole class this is the one he is certain to know, so the news prefers him
+  // wherever he fits.
+  const rival = findRival(peers, mine, player?.pos || 'C');
+  const how = (p) => (rival && p.id === rival.id
+    ? 'the man you have been chasing since the draft'
+    : relationTo(player, p, peers));
 
   // Someone hung them up. Only the ones whose careers meant something:
   // everybody in a draft class eventually stops playing, and that is not news.
   const retiring = live.filter(p => p.justRetired)
     .filter(p => p.career.gp > 700 || p.career.titles > 0 || p.career.trophies > 0)
     .sort((a, b) => b.career.gp - a.career.gp)[0];
-  if (retiring) {
+  if (retiring && how(retiring)) {
     const cups = retiring.career.titles || 0;
     candidates.push({
       weight: 4, id: retiring.id, kind: 'retired',
-      line: `${retiring.name} retired this summer after ${retiring.career.seasons} seasons and ${retiring.career.gp} games${
-        cups > 0 ? `, with ${cups === 1 ? 'a cup' : `${cups} cups`} to his name` : ''}. You were drafted together.`
+      line: `${retiring.name}, ${how(retiring)}, retired this summer after ${retiring.career.seasons} seasons and ${retiring.career.gp} games${
+        cups > 0 ? `, with ${cups === 1 ? 'a cup' : `${cups} cups`} to his name` : ''}.`
     });
   }
 
-  // Someone walked into your room, or has been in it a while.
-  const mates = teammatesFrom(peers, myTeam).filter(p => p.career.seasons > 1);
+  // Someone walked into your room. Only the summer he arrives: he keeps the
+  // same club for years and the line was firing every one of them.
+  const mates = teammatesFrom(peers, myTeam)
+    .filter(p => p.career.seasons > 1 && p.arrivedThisYear);
   if (mates.length) {
     const m = mates[Math.floor(Math.random() * mates.length)];
+    const extra = relationTo({ ...player, team: null }, m, peers);
     candidates.push({
       weight: 4, id: m.id, kind: 'teammate',
-      line: `${m.name} is in your room this year. You were drafted the same summer.`
+      line: `${m.name} signed here${extra ? `, ${extra}` : ''}. You were drafted the same summer and now you share a room.`
     });
   }
 
   // Someone passed you.
-  const mine = isGoalie ? (player?.stats?.nhl?.shutouts || 0)
-    : (player?.stats?.nhl?.goals || 0) + (player?.stats?.nhl?.assists || 0);
-  const unit = isGoalie ? 'shutouts' : 'points';
   const ahead = live
-    .filter(p => (p.pos === 'G') === isGoalie && !p.retired)
+    .filter(p => compGroup(p.pos) === compGroup(player?.pos || 'C') && !p.retired)
     .map(p => ({ p, v: peerValue(p, isGoalie) }))
     .filter(e => e.v > mine && e.v - mine < Math.max(12, mine * 0.08))
     .sort((a, b) => a.v - b.v)[0];
-  if (ahead && mine > 0) {
+  if (ahead && mine > 0 && how(ahead.p)) {
     candidates.push({
       weight: 3, id: ahead.p.id, kind: 'passed',
-      line: `${ahead.p.name} went past you this season. He is on ${ahead.v} career ${unit}, you are on ${mine}.`
+      line: `${ahead.p.name}, ${how(ahead.p)}, went past you this season. He is on ${ahead.v} career ${unit} to your ${mine}.`
     });
   }
 
@@ -1214,11 +1493,18 @@ export function classNews(peers, player) {
   // somewhere every year: under strict priority this one item crowded out
   // everything else, and a classmate sat in the player's own dressing room
   // for seven straight seasons without ever being mentioned.
-  const champ = live.find(p => p.wonCupThisYear);
+  //
+  // Only a classmate he can place. A cup is won by somebody every June and
+  // naming whichever of the twenty-eight it happened to be made this the one
+  // line in the recap that was about a stranger.
+  // Never one of his own teammates: a classmate in his room lifting it means
+  // he lifted it, and the recap has its own line for that.
+  const champ = live.filter(p => p.wonCupThisYear && p.team !== myTeam)
+    .map(p => ({ p, how: how(p) })).find(e => e.how);
   if (champ) {
     candidates.push({
-      weight: 2, id: champ.id, kind: 'cup',
-      line: `${champ.name} won the Cup. You came up together.`
+      weight: 2, id: champ.p.id, kind: 'cup',
+      line: `${champ.p.name}, ${champ.how}, won the Cup this year.`
     });
   }
 
@@ -1244,12 +1530,15 @@ export function classPressQuestion(peers, player) {
   if (!live.length) return null;
 
   const isGoalie = player?.pos === 'G';
+  const group = compGroup(player?.pos || 'C');
   const mine = isGoalie ? (player?.stats?.nhl?.shutouts || 0)
     : (player?.stats?.nhl?.goals || 0) + (player?.stats?.nhl?.assists || 0);
 
-  // The one just ahead of you is the one they want to ask about.
+  // The one just ahead of you is the one they want to ask about, and he plays
+  // where you play: a centre two hundred points up the list is not the man a
+  // reporter puts to a left winger.
   const ahead = live
-    .filter(p => (p.pos === 'G') === isGoalie)
+    .filter(p => compGroup(p.pos) === group)
     .map(p => ({ p, v: peerValue(p, isGoalie) }))
     .filter(e => e.v > mine)
     .sort((a, b) => a.v - b.v)[0];

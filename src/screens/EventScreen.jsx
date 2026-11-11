@@ -336,7 +336,7 @@ export default function EventScreen() {
           };
 
           // PLAIN ROW, everything that isn't a club offer keeps the full-width look.
-          const renderPlainRow = ({ key, displayChoice, shortBy }) => (
+          const renderPlainRow = ({ key, displayChoice, shortBy, cost }) => (
             <button
               key={key}
               disabled={isProcessing || shortBy > 0}
@@ -362,6 +362,15 @@ export default function EventScreen() {
                      </span>
                    ) : (
                      <>
+                       {/* What it costs, as a pill rather than a number smuggled
+                           into the label. The family investment was still
+                           carrying its price in its own text, "Fund the Startup
+                           ($125k)", which is the thing the money pill on the
+                           premium cards exists to stop: a figure written into a
+                           button cannot be compared against the choice beside
+                           it. Only shown when he can afford it, because the
+                           shortfall pill above says it louder when he cannot. */}
+                       {cost > 0 && <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#F59E0B]/30 whitespace-nowrap">{formatMoney(cost)}{displayChoice.isRisky ? ' at risk' : ' cost'}</span>}
                        {!isRivalryNight && displayChoice.isDevBoost && <span className="bg-[#22E748]/10 text-[#22E748] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#22E748]/30">+DEV BOOST</span>}
                        {displayChoice.isRisky && <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>}
                      </>

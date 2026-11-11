@@ -8,10 +8,16 @@ import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
 import { buildRun } from '../utils/intlRun';
 
-export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings) {
+export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings, opts = {}) {
   const { player, playoffs, setActiveEvent, setActivePress, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
 
-    setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings } : null);
+    // Whether he is watching this postseason from the press box. A man whose
+    // season ended in December still has a club in the playoffs, and the run
+    // has to be simulated without him rather than skipped: the bracket is the
+    // only thing that tells him how the year he missed finished.
+    const sidelined = !!opts.sidelined;
+
+    setPendingPlayoffs(madePlayoffs ? { lg: currentLg, team: currentTeam, standings, sidelined } : null);
 
     // ==========================================
     // STORYLINE 1: THE MEDIA NEMESIS
@@ -668,13 +674,13 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });
            setScreen('event');
         } else {
-           if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings);
+           if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings, { sidelined });
            else setScreen('recap');
         }
     }
     return;
     }
 
-    if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings);
+    if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings, { sidelined });
     else setScreen('recap');
 }

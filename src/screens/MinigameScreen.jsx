@@ -27,7 +27,13 @@ export default function MinigameScreen() {
   // is what makes a final bite for all of them at once.
   const stakes = getStakes(minigameContext, player.intlRound, player.intlOppTier);
 
-  const done = (win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg);
+  // The moment travels with the result. Without it the season recap showed the
+  // outcome line on its own under a generic "In the news" heading, so "Clean
+  // win! You snapped it straight back to your defenseman" arrived with nothing
+  // saying what had been won, where, or what it was worth.
+  const done = (win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg, {
+    title: mg?.title, setup: mg?.desc, stakes: stakes.label
+  });
   const common = { player, difficulty: stakes.difficulty, onComplete: done };
 
   return (

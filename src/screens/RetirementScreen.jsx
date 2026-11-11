@@ -1,7 +1,7 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { careerTrophies, formatMoney } from '../utils/gameHelpers';
-import { classTable, groupName, peerUnit, peerValue, posGroup } from '../utils/peers';
+import { classTable, compGroup, groupName, peerUnit, peerValue } from '../utils/peers';
 import { getAwardImage } from '../data/awards';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
@@ -1000,11 +1000,11 @@ export default function RetirementScreen() {
                   YOUR DRAFT CLASS
                 </h3>
                 {/* Which players, and on what. The table used to rank the
-                    whole year group on one number without saying whose
-                    number it was, so a defenceman was placed ninth behind
-                    eight centres. */}
+                    whole year group on one number without saying whose number
+                    it was, so a winger was placed ninth behind eight centres
+                    for playing the position he plays. */}
                 <p className="text-[10px] text-slate-500 mb-3 ml-2">
-                  The {groupName(posGroup(player.pos))} of your year, by NHL career {unit}.
+                  The {groupName(compGroup(player.pos))} of your year, by NHL career {unit}.
                 </p>
                 {/* A header, because the purple number had nothing anywhere
                     on the screen telling anyone what it was. */}

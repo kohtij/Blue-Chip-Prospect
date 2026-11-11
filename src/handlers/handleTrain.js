@@ -246,6 +246,27 @@ export function handleTrain(ctx, t) {
     setPendingSeasonResult(partialResult(stints));
   };
 
+  // The season stops here, with whatever has been played already.
+  //
+  // A devastating injury in December used to park the year at stage one and
+  // jump straight to the playoff bracket, which meant the tail of this
+  // function never ran: no history entry was written, the season totals were
+  // never committed, and the recap screen was handed whatever seasonRecap
+  // happened to still be holding. The player read "#- in the NHL", nought
+  // goals in nought games at 0:00 a night, and "missed the playoffs" over a
+  // bracket he had just watched his club lose a series in.
+  //
+  // It parks at stage three with the year marked over instead, so the next
+  // call falls through to the tail and finishes the season properly, on the
+  // forty-odd games he actually played.
+  const endSeasonNow = (stints) => {
+    setPlayer(prev => ({
+      ...prev, trial: null, debut: null,
+      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true }
+    }));
+    setPendingSeasonResult(partialResult(stints));
+  };
+
   // Sends the player to a tournament and parks the season until he is back.
   const goToTournament = (stints, nextStage, context, isWJC, isOlympicYear) => {
     const run = buildRun({
@@ -330,7 +351,7 @@ export function handleTrain(ctx, t) {
     // MID-SEASON EVENTS: December
     // Devastating Injury (moved from post-season)
     if (!player.storylines?.injury && player.pos !== 'G' && player.league !== 'NCAA' && player.age > 18 && Math.random() < 0.04) {
-      advanceTo(stints, 1);
+      endSeasonNow(stints);
       setPlayer(p => ({ ...p, storylines: {
         ...p.storylines,
         injury: 1,
@@ -495,7 +516,11 @@ export function handleTrain(ctx, t) {
     // than drawing a new one.
     {
       ...(priorStints.length ? { priorStints, lockPlacement: true } : {}),
-      ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {})
+      ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {}),
+      // A season marked over has no run-in to play: he is in a brace watching
+      // it from the press box. The stints already on the board are the whole
+      // of his year, and everything below still runs on them.
+      ...(season?.over ? { forceGames: 0 } : {})
     }
   );
   if (!result) return;
@@ -599,7 +624,7 @@ export function handleTrain(ctx, t) {
   }
 
   if (currentLg === 'NCAA') {
-     runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap?.standings || 16);
+     runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap?.standings || 16, { sidelined: !!season?.over });
   } else {
      setPendingSeasonResult(result);
 
@@ -761,7 +786,7 @@ export function handleTrain(ctx, t) {
          // The break and the deadline are both long past by now, so the end of the
          // year goes to the post-season rather than back to either of them.
          setSeasonRecap(recap);
-         runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap.standings || 16);
+         runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap.standings || 16, { sidelined: !!season?.over });
      }
   }
 }
