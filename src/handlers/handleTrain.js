@@ -553,6 +553,21 @@ export function handleTrain(ctx, t) {
       losses: recap.losses || 0,
       otl: recap.otl || 0,
       plusMinus: recap.pm,
+      // The season's shot blocking, under the same name the career totals use,
+      // so the card can read one key whether the year is finished or in
+      // progress.
+      blocks: recap.blk || 0,
+      // A forward's own three, under the names the career totals use, so the
+      // card reads one key whether the year is finished or in progress.
+      sog: recap.sog || 0,
+      fot: recap.fot || 0,
+      fow: recap.fow || 0,
+      pim: recap.pim || 0,
+      // Whether this year ended before it was supposed to, because somebody
+      // got hurt. The season object knew and the history never recorded it, so
+      // a career looked back on a thirteen-game year with no explanation in
+      // it. Next season's Masterton reads this.
+      injuryEnded: !!season?.over || !!player.storylines?.injury,
       // A tournament played inside the season finishes months before this entry
       // exists: the World Juniors in December, the Olympics in February. The run
       // parks its line on the player and the season picks it up here. It used to
@@ -611,6 +626,11 @@ export function handleTrain(ctx, t) {
      const draftTeamName = player.draftTeam ? player.draftTeam : "The team that drafted you";
      customWaiverEvent = `${draftTeamName} felt you needed more time to develop physically. They have officially assigned you back to the CHL team that holds your junior rights.`;
   }
+
+  // The nights a career is remembered by, carried onto the recap so the screen
+  // can say them. Worked out in the simulator, which is the one place holding
+  // the career totals from both before and after the year.
+  recap.milestones = updatedPlayer.seasonMilestones || [];
 
   if (isDemoted || isWaiverClaim || customWaiverEvent === 'DEVELOPMENT' || customWaiverEvent) {
      setSeasonRecap({

@@ -2,7 +2,8 @@ import { getTeamData, nationalities } from '../data/teams';
 import { careerTrophies, formatMoney, getActiveStat, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
-import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerUnit, peerValue, scoutingBoard } from '../utils/peers';
+import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
+import { isDefence } from '../utils/production';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 import LeagueTag from './LeagueTag';
@@ -104,6 +105,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const nextYear = currentYear + 1;
 
   const isGoalie = player.pos === 'G';
+  const isDman = isDefence(player.pos);
   const teamObj = getTeamData(player.team, player.league);
   const teamBg = player.ovr >= 90 ? '#F59E0B' : (teamObj?.bg || '#101410');
 
@@ -146,6 +148,20 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const cG = player.stats?.[activeBucket]?.goals || 0;
   const cA = player.stats?.[activeBucket]?.assists || 0;
   const cPts = cG + cA;
+  const cBLK = player.stats?.[activeBucket]?.blocks || 0;
+  // A forward's career rates. Shooting percentage is the mirror of the save
+  // percentage a goalie has always had, and the faceoff percentage is the one
+  // number on a stat sheet that belongs to centres and to nobody else.
+  const cSOG = player.stats?.[activeBucket]?.sog || 0;
+  const cFOT = player.stats?.[activeBucket]?.fot || 0;
+  const cFOW = player.stats?.[activeBucket]?.fow || 0;
+  // The sign lives in the label, not in the value. Six cells across a phone
+  // leave about fifty pixels of room and a five-character number at this size
+  // needs sixty-eight, so "54.7%" was pushing itself out of its own box. The
+  // goalie's save percentage has read ".912" under an SV% label since the card
+  // was written, which is the same answer.
+  const cShPct = cSOG > 0 ? ((cG / cSOG) * 100).toFixed(1) : '--';
+  const cFOPct = cFOT > 0 ? ((cFOW / cFOT) * 100).toFixed(1) : '--';
   const cShots = player.stats?.[activeBucket]?.shots || 0;
   const cSaves = player.stats?.[activeBucket]?.saves || 0;
   const cSHO = player.stats?.[activeBucket]?.shutouts || 0;
@@ -179,10 +195,12 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   // The one from your draft class whose career is the measuring stick.
   // Goalies used to get nothing here, because every peer function filtered
   // them out. They are ranked on shutouts rather than points.
-  const myCareerValue = isGoalie ? cSHO : cPts;
+  // Counting the half of the job the scoresheet does not: a defenceman is
+  // ranked against his classmates on his points and his goal difference.
+  const myCareerValue = playerCareerValue(player);
   const rival = findRival(player.peers, myCareerValue, player.pos);
-  const rivalValue = rival ? peerValue(rival, isGoalie) : 0;
-  const compareUnit = peerUnit(isGoalie);
+  const rivalValue = rival ? peerValue(rival, player.pos) : 0;
+  const compareUnit = peerUnit(player.pos);
   const myGroup = groupName(compGroup(player.pos));
 
   // Before the draft there are no careers to compare, so this panel showed
@@ -298,6 +316,20 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 truncate">
                     {getFullTeamName(player.team, player.league)}
                   </p>
+                  {/* WHICH LEAGUE HE IS ACTUALLY IN.
+                      The card named his club and never his league, so a player
+                      sent down read "San Jose Barracuda" and nothing else: the
+                      biggest thing that can happen to a season was legible only
+                      if you already knew which clubs were farm clubs. The chip
+                      is grey in the top league he could be in and amber below
+                      it, so a demotion is visible from across the room and a
+                      recall is visible the same way. */}
+                  <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-1.5 py-[2px] rounded border ${
+                    ['AHL', 'ECHL'].includes(player.league)
+                      ? 'text-[#F59E0B] border-[rgba(245,158,11,0.45)] bg-[rgba(245,158,11,0.10)]'
+                      : 'text-slate-400 border-[rgba(255,255,255,0.12)]'}`}>
+                    {player.league}
+                  </span>
                   {outlook && (
                     <span className={`shrink-0 text-[8px] font-black uppercase tracking-widest ${outlook.tone}`}>
                       {outlook.label}
@@ -389,7 +421,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               "GP" became "Games" to match the career strip below, which was
               labelling the identical quantity differently forty pixels
               away. */}
-          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : 6}>
+          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 5 : 6}>
             {isGoalie ? (
               <>
                 <Cell value={ls.games || 0} label="Games" />
@@ -399,14 +431,49 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       value={ls.games > 0 ? ((ls.shots - ls.saves) / ls.games).toFixed(2) : '0.00'} />
                 <Cell tone="text-sky-400" value={ls.shutouts || 0} label="SHO" />
               </>
+            ) : isDman ? (
+              /* A defenceman's own five.
+                 A goalie has had a strip built for the way he is judged since
+                 the card was written, and a defenceman was reading the
+                 forwards': goals, assists, points, and the two numbers his job
+                 is actually made of tacked on at the end. These are five
+                 counting stats a reader can check against a real stat sheet.
+                 There was a sixth cell here with a mark out of ten on it, and
+                 a grade the game works out for itself is not a stat: it tells
+                 him what to think of his season instead of telling him what
+                 happened in it. The engine still computes it, where it decides
+                 the awards and where his career lands. He reads the numbers. */
+              <>
+                <Cell value={ls.games || 0} label="Games" />
+                <Cell tone="text-[#22E748]" value={ls.goals || 0} label="Goals" />
+                <Cell value={ls.assists || 0} label="Assists" />
+                <Cell tone="text-[#c084fc]" value={ls.blocks || 0} label="Blocks" />
+                <Cell tone="text-sky-400" value={ls.avgToi ? toi : '--'} label="TOI" />
+              </>
             ) : (
+              /* A forward's six, and a centre's six is not a winger's.
+                 This was the strip every position read before the goalie and
+                 then the defenceman were given their own, and the two cells at
+                 the end were the weakest on the card: a plus-minus, which is
+                 four other men's work, and the minutes, which say what the
+                 coach thinks rather than what he did. Shots and the percentage
+                 he finished them at are his, and they are what tells a sniper
+                 from a distributor on a page where both of them had thirty
+                 goals. A centre trades the shot volume for the draws, because
+                 nobody else on the ice takes one. */
               <>
                 <Cell value={ls.games || 0} label="Games" />
                 <Cell tone="text-[#22E748]" value={ls.goals || 0} label="Goals" />
                 <Cell value={ls.assists || 0} label="Assists" />
                 <Cell value={(ls.goals || 0) + (ls.assists || 0)} label="Points" />
-                <Cell value={ls.plusMinus > 0 ? `+${ls.plusMinus}` : (ls.plusMinus || 0)} label="+/-" />
-                <Cell tone="text-sky-400" value={ls.avgToi ? toi : '--'} label="TOI" />
+                {player.pos === 'C' ? (
+                  <Cell tone="text-[#c084fc]" label="FO%"
+                        value={ls.fot > 0 ? ((ls.fow / ls.fot) * 100).toFixed(1) : '--'} />
+                ) : (
+                  <Cell tone="text-sky-400" value={ls.sog || 0} label="SOG" />
+                )}
+                <Cell tone="text-[#F59E0B]" label="S%"
+                      value={ls.sog > 0 ? (((ls.goals || 0) / ls.sog) * 100).toFixed(1) : '--'} />
               </>
             )}
           </Strip>
@@ -578,7 +645,23 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 // A goalie's career was five numbers without the one he is
                 // actually remembered by. Games goes: the record contains it.
                 ? [[cRecord, 'W-L-OTL', 'text-white'], [cSV, 'SV%', 'text-white'], [cGAA, 'GAA', 'text-white'], [cSHO, 'SHO', 'text-[#22E748]']]
-                : [[cGP, 'Games', 'text-white'], [cG, 'Goals', 'text-white'], [cA, 'Assists', 'text-white'], [cPts, 'Points', 'text-[#22E748]']]
+                : isDman
+                  // A goalie's career line has been his own since the card was
+                  // written. A defenceman's was the forwards', so nine hundred
+                  // games of blocking shots and holding a plus had nowhere to
+                  // appear.
+                  ? [[cGP, 'Games', 'text-white'], [cG, 'Goals', 'text-white'],
+                     [cA, 'Assists', 'text-white'], [cBLK, 'Blocks', 'text-[#c084fc]']]
+                  // A forward's career, with the rate he is actually known
+                  // by in it. Assists come off because points minus goals is
+                  // the one cell a reader can do in his head, and the slot is
+                  // worth more to the number that cannot be derived from the
+                  // other four.
+                  : player.pos === 'C'
+                    ? [[cGP, 'Games', 'text-white'], [cG, 'Goals', 'text-white'],
+                       [cPts, 'Points', 'text-[#22E748]'], [cFOPct, 'FO%', 'text-[#c084fc]']]
+                    : [[cGP, 'Games', 'text-white'], [cG, 'Goals', 'text-white'],
+                       [cPts, 'Points', 'text-[#22E748]'], [cShPct, 'S%', 'text-[#F59E0B]']]
               ).concat([[trophies, 'Trophies', 'text-[#F59E0B]']]).map(([v, l, tone]) => (
                 <Cell key={l} value={v} label={l} tone={tone} />
               ))}
@@ -698,8 +781,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   Career {compareUnit}, against the best of the {myGroup} in your year.
                 </p>
                 {[
-                  { who: 'You', val: myCareerValue, mine: true },
-                  { who: rival.name, val: rivalValue, mine: false }
+                  { who: 'You', val: myCareerValue, line: playerStatLine(player), mine: true },
+                  { who: rival.name, val: rivalValue, line: peerStatLine(rival, player.pos), mine: false }
                 ].sort((x, y) => y.val - x.val).map((row, i) => (
                   <div key={row.who}
                        className={`flex items-center justify-between gap-3 py-1.5 ${
@@ -708,6 +791,13 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       <p className={`text-xs truncate ${row.mine ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
                         {row.who}
                       </p>
+                      {/* A defenceman's number is two numbers added together,
+                          so the two have to be legible underneath it. Without
+                          this the card showed him a 592 and no way of telling
+                          which half of his game it came from. */}
+                      {isDman && (
+                        <p className="text-[10px] text-slate-600 leading-tight mt-0.5 ">{row.line}</p>
+                      )}
                       {!row.mine && (rival.career.titles > 0 || rival.retired) && (
                         <p className="text-[10px] leading-tight mt-0.5">
                           {rival.career.titles > 0 && (
@@ -729,8 +819,19 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
                   {myCareerValue === rivalValue
                     ? 'Dead level with him.'
-                    : `${Math.abs(myCareerValue - rivalValue)} ${compareUnit} ${
-                        myCareerValue > rivalValue ? 'clear of him' : 'behind him'}.`}
+                    : isDman
+                      // "120 points and plus-minus clear of him" is not a
+                      // sentence. For a defenceman the two halves are reported
+                      // as the two things they are.
+                      ? (() => {
+                          const pts = cPts - ((rival.career.g || 0) + (rival.career.a || 0));
+                          const blk = cBLK - (rival.career.blk || 0);
+                          const half = (n, unit) => n === 0 ? `level on ${unit}`
+                            : `${Math.abs(n)} ${unit} ${n > 0 ? 'up' : 'down'}`;
+                          return `${half(pts, 'points')}, ${half(blk, 'blocks')}.`;
+                        })()
+                      : `${Math.abs(myCareerValue - rivalValue)} ${compareUnit} ${
+                          myCareerValue > rivalValue ? 'clear of him' : 'behind him'}.`}
                 </p>
               </div>
             )}

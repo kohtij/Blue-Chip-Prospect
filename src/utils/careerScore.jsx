@@ -1,3 +1,24 @@
+import { forwardCareerGrade, rateSeason } from './production';
+
+/**
+ * Minutes a night across an NHL career.
+ *
+ * Banked as a running total from now on, but a career saved before that was
+ * being kept has none, so it is rebuilt from the seasons themselves. Failing
+ * both, null, and the grade falls back to the middle of the ice-time range
+ * rather than to zero, which would read every old defenceman as buried.
+ */
+const nhlCareerToi = (player) => {
+  const banked = player.stats?.nhl?.toiGames || 0;
+  const gp = player.stats?.nhl?.games || 0;
+  if (banked > 0 && gp > 0) return banked / gp;
+
+  const nhlYears = (player.seasonHistory || []).filter(s => s.league === 'NHL' && (s.games || 0) > 0);
+  const mins = nhlYears.reduce((n, s) => n + (s.avgToi || 0) * s.games, 0);
+  const games = nhlYears.reduce((n, s) => n + s.games, 0);
+  return games > 0 && mins > 0 ? mins / games : null;
+};
+
 export function computeCareerScore(player) {
   let score = 0;
   const breakdown = [];
@@ -100,15 +121,51 @@ export function computeCareerScore(player) {
   const nhl = player.stats?.nhl || {};
   const nhlPts = (nhl.goals || 0) + (nhl.assists || 0);
   const nhlGp = nhl.games || 0;
-  const ppg = nhlGp >= 100 ? nhlPts / nhlGp : 0;
   const svPct = (nhl.shots || 0) > 0 ? (nhl.saves || 0) / nhl.shots : 0;
 
-  if (!isGoalieScore && nhlGp >= 100) {
-    const bar = isDefenceScore ? [0.45, 0.60, 0.75, 0.90] : [0.70, 0.85, 1.00, 1.20];
-    if (ppg >= bar[3]) addPoints(600, `${ppg.toFixed(2)} points per game`);
-    else if (ppg >= bar[2]) addPoints(400, `${ppg.toFixed(2)} points per game`);
-    else if (ppg >= bar[1]) addPoints(200, `${ppg.toFixed(2)} points per game`);
-    else if (ppg >= bar[0]) addPoints(75, `${ppg.toFixed(2)} points per game`);
+  // A DEFENCE CAREER IS NOT A THIN FORWARD CAREER.
+  //
+  // The rate test above was points per game for every skater, with a softer
+  // bar for a defenceman, which marks him generously at the wrong job rather
+  // than fairly at his own. Measured on it, a nine-hundred-game shutdown
+  // number one at 0.30 a game and plus a hundred and eighty cleared no bar at
+  // all, took no rate points, and could not reach either of the top two tiers
+  // however long he played: the Hall of Fame gate asked him for 0.48 a game.
+  //
+  // He is graded on the career the way a season is graded, through rateSeason
+  // itself, so the two halves are weighted the way they are everywhere else.
+  // On that scale an ordinary number four comes out 4.8, a solid top pair 5.8,
+  // that shutdown number one 6.7, a two-way number one 7.2 and a Makar 8.8.
+  const careerToi = nhlCareerToi(player);
+  const dGrade = (isDefenceScore && nhlGp >= 100)
+    ? rateSeason({
+        league: 'NHL', pos: player.pos, games: nhlGp,
+        g: nhl.goals || 0, a: nhl.assists || 0, pm: nhl.plusMinus || 0,
+        blk: nhl.blocks || null, toi: careerToi
+      })
+    : 0;
+
+  // The forward equivalent, for the same reason: see forwardCareerGrade.
+  const fGrade = (!isDefenceScore && !isGoalieScore && nhlGp >= 100)
+    ? forwardCareerGrade({
+        games: nhlGp, goals: nhl.goals || 0, points: nhlPts, sog: nhl.sog || 0,
+        pm: nhl.plusMinus || 0, blk: nhl.blocks ?? null, toi: careerToi,
+        fot: nhl.fot || 0, fow: nhl.fow || 0
+      })
+    : 0;
+
+  if (isDefenceScore && nhlGp >= 100) {
+    const reason = `${dGrade.toFixed(1)} two-way career grade`;
+    if (dGrade >= 7.9) addPoints(600, reason);
+    else if (dGrade >= 7.2) addPoints(400, reason);
+    else if (dGrade >= 6.2) addPoints(200, reason);
+    else if (dGrade >= 5.4) addPoints(75, reason);
+  } else if (!isGoalieScore && nhlGp >= 100) {
+    const reason = `${fGrade.toFixed(1)} career grade`;
+    if (fGrade >= 7.9) addPoints(600, reason);
+    else if (fGrade >= 7.2) addPoints(400, reason);
+    else if (fGrade >= 6.2) addPoints(200, reason);
+    else if (fGrade >= 5.4) addPoints(75, reason);
   } else if (isGoalieScore && nhlGp >= 100) {
     if (svPct >= 0.925) addPoints(600, `${svPct.toFixed(3).replace('0.', '.')} career save percentage`);
     else if (svPct >= 0.918) addPoints(400, `${svPct.toFixed(3).replace('0.', '.')} career save percentage`);
@@ -129,8 +186,16 @@ export function computeCareerScore(player) {
   // a net. A player who piled up a huge total without ever being that is a
   // Franchise Cornerstone, which is not an insult.
   const enoughNhl = nhlGp >= 400;
-  const iconRate = isGoalieScore ? svPct >= 0.925 : ppg >= (isDefenceScore ? 0.65 : 1.00);
-  const fameRate = isGoalieScore ? svPct >= 0.915 : ppg >= (isDefenceScore ? 0.48 : 0.75);
+  // Measured across eleven hundred games of each archetype, on the three-part
+  // defensive half: an ordinary number four comes out 4.8 and a solid top pair
+  // 5.7, so neither gate is cheap; a pure shutdown number one lands 6.2 to 6.5
+  // and a two-way number one 7.0, which is what the Hall of Fame gate is for;
+  // the top gate wants an elite offensive defenceman at 7.4 or a Makar at 8.1.
+  // A forward is gated on the same two numbers as a defenceman now, because
+  // both are marked out of ten on the same scale. It was points per game, so
+  // a four-hundred-goal power forward could not reach either gate.
+  const iconRate = isGoalieScore ? svPct >= 0.925 : isDefenceScore ? dGrade >= 7.3 : fGrade >= 7.3;
+  const fameRate = isGoalieScore ? svPct >= 0.915 : isDefenceScore ? dGrade >= 6.1 : fGrade >= 6.1;
 
   let tier = "Minor Leaguer";
   let color = "text-slate-400";

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getRole } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
+import { isDefence } from '../utils/production';
 
 export default function ArbitrationScreen() {
   const { arbState, player, setActiveEvent, setArbState, setScreen } = useAppContext();
@@ -10,7 +11,19 @@ export default function ArbitrationScreen() {
   const mood = arbState.mood ?? 50;
   const moodModifier = (mood - 50) * 0.006; 
 
-  const statSum = player.pos === 'G' ? (player.skating + player.hockeyIQ) : (player.shooting + player.hockeyIQ);
+  // The two attributes the case is argued on.
+  //
+  // A goalie got his own pair and everybody else was put on shooting, so a
+  // shutdown defenceman walked into the hearing and argued his own value on
+  // the one attribute his overall rating weights least. These are the two that
+  // recomputeOvr leans on for each position: a defenceman is a body and a
+  // brain, a forward is a shot and a brain, a goalie is his positioning and
+  // his read.
+  const statSum = player.pos === 'G'
+    ? (player.skating + player.hockeyIQ)
+    : isDefence(player.pos)
+      ? (player.physicality + player.hockeyIQ)
+      : (player.shooting + player.hockeyIQ);
   const baseImpactChance = statSum > 165 ? 0.90 : statSum > 145 ? 0.65 : 0.35;
   const impactChance = Math.max(0.1, Math.min(0.95, baseImpactChance + moodModifier));
 

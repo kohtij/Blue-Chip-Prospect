@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
+import { isDefence } from '../utils/production';
 import { LEAGUE_CONFIG, getOpponentPool, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTradeRequest';
 import { handleTransferPortal as _handleTransferPortal } from '../handlers/handleTransferPortal';
@@ -129,14 +130,40 @@ export default function TradeDeadlineScreen() {
                 { label: 'GP', value: res.recap?.games || 0 },
                 { label: 'W-L-OTL', value: `${res.recap?.wins || 0}-${res.recap?.losses || 0}-${res.recap?.otl || 0}`, lead: true },
                 { label: 'SV%', value: ((res.recap?.saves || 0) / Math.max(1, res.recap?.shots || 0)).toFixed(3).replace('0.', '.') },
+                { label: 'GAA', value: (res.recap?.games || 0) > 0
+                    ? (((res.recap?.shots || 0) - (res.recap?.saves || 0)) / res.recap.games).toFixed(2)
+                    : '--' },
                 { label: 'SO', value: res.recap?.sho || 0 }
               ]
-            : [
-                { label: 'GP', value: res.recap?.games || 0 },
-                { label: 'G', value: res.recap?.g || 0 },
-                { label: 'A', value: res.recap?.a || 0 },
-                { label: 'PTS', value: (res.recap?.g || 0) + (res.recap?.a || 0), lead: true }
-              ];
+            // THE SKATER LINE WAS FOUR COLUMNS FOR THREE POSITIONS.
+            //
+            // A goalie has had his own tiles here for a while and every skater
+            // read the same four, so a defenceman's blocked shots and a
+            // centre's draws, which are now the numbers his position is
+            // actually judged by, were missing from the one screen that asks
+            // what he is worth. Points stays the lead everywhere, because
+            // that is still what a deadline conversation opens with.
+            : isDefence(player.pos)
+              ? [
+                  { label: 'GP', value: res.recap?.games || 0 },
+                  { label: 'PTS', value: (res.recap?.g || 0) + (res.recap?.a || 0), lead: true },
+                  { label: 'BLK', value: res.recap?.blk || 0 },
+                  { label: 'TOI', value: res.recap?.avgToi
+                      ? `${Math.floor(res.recap.avgToi)}:${Math.round((res.recap.avgToi % 1) * 60).toString().padStart(2, '0')}`
+                      : '--' }
+                ]
+              : [
+                  { label: 'GP', value: res.recap?.games || 0 },
+                  { label: 'G', value: res.recap?.g || 0 },
+                  { label: 'PTS', value: (res.recap?.g || 0) + (res.recap?.a || 0), lead: true },
+                  player.pos === 'C'
+                    ? { label: 'FO%', value: (res.recap?.fot || 0) > 0
+                        ? (((res.recap?.fow || 0) / res.recap.fot) * 100).toFixed(1)
+                        : '--' }
+                    : { label: 'S%', value: (res.recap?.sog || 0) > 0
+                        ? (((res.recap?.g || 0) / res.recap.sog) * 100).toFixed(1)
+                        : '--' }
+                ];
 
           const rumour = pickFlavor(RUMOUR[rumourTier], seed, 'rumour');
 

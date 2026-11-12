@@ -81,6 +81,17 @@ export default function PreseasonScreen() {
                } else if (move.reason === '9_GAME_RULE') {
                    title = 'RETURNED TO JUNIORS';
                    desc = `After training camp, the front office determined you need one more year of seasoning. You have been returned to the ${getFullTeamName(move.team, move.lg)}.`;
+               } else if (move.reason === 'JUNIOR_ASSIGNMENT') {
+                   // Not a demotion. He signed, he came to camp, and the club
+                   // decided he plays another year where he already is. That is
+                   // the most common thing that happens to a signed draftee and
+                   // the game had no way of saying it.
+                   title = 'BACK TO JUNIOR FOR A YEAR';
+                   desc = `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You are back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.`;
+                   type = 'ASSIGNMENT';
+               } else if (move.reason === 'CAMP_ASSIGNMENT') {
+                   title = 'ASSIGNED TO THE AHL';
+                   desc = `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${getFullTeamName(move.team, 'AHL')} to start the year, which is where they put the ones they are not finished with.`;
                } else if (move.reason === 'ECHL_REASSIGNMENT') {
                    title = 'SENT TO THE COAST';
                    desc = `You have been reassigned from the AHL to the ${getFullTeamName(move.team, 'ECHL')} (ECHL). It's time to put your head down and grind your way back up the depth chart.`;
@@ -114,10 +125,23 @@ export default function PreseasonScreen() {
   return (
           <div className="game-panel mt-2 relative z-20">
             {rosterMoveNotice ? (
-              <div className="p-6 sm:p-10 border-t-2 border-t-slate-500 bg-gradient-to-br from-[#0f1115] to-[#050608] relative overflow-hidden flex flex-col justify-center items-center text-center shadow-[0_0_40px_rgba(100,116,139,0.15)] min-h-[400px]">
+              /* A DEMOTION SHOULD NOT BE THE SAME COLOUR AS EVERYTHING ELSE.
+                 Every move but a promotion came out in the same neutral grey,
+                 so being sent to the American League looked exactly like being
+                 told which junior club to report to. Three tones now: green up,
+                 amber down, slate for an assignment that is neither. */
+              <div className={`p-6 sm:p-10 border-t-2 bg-gradient-to-br from-[#0f1115] to-[#050608] relative overflow-hidden flex flex-col justify-center items-center text-center min-h-[400px] ${
+                rosterMoveNotice.type === 'PROMOTION'
+                  ? 'border-t-[#22E748] shadow-[0_0_40px_rgba(34,231,72,0.18)]'
+                  : rosterMoveNotice.type === 'DEMOTION'
+                    ? 'border-t-[#F59E0B] shadow-[0_0_40px_rgba(245,158,11,0.18)]'
+                    : 'border-t-slate-500 shadow-[0_0_40px_rgba(100,116,139,0.15)]'}`}>
                  <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale absolute inset-0 pointer-events-none"></div>
                  <div className="relative z-10 w-full max-w-xl mx-auto flex flex-col items-center">
-                   <h2 className={`text-4xl sm:text-5xl font-black sports-font mb-4 uppercase ${rosterMoveNotice.type === 'PROMOTION' ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                   <h2 className={`text-4xl sm:text-5xl font-black sports-font mb-4 uppercase ${
+                     rosterMoveNotice.type === 'PROMOTION' ? 'text-[#22E748]'
+                       : rosterMoveNotice.type === 'DEMOTION' ? 'text-[#F59E0B]'
+                       : 'text-slate-300'}`}>
                       {rosterMoveNotice.title}
                    </h2>
                    <p className="text-lg sm:text-xl text-slate-400 mb-10">
@@ -127,7 +151,9 @@ export default function PreseasonScreen() {
                       onClick={handleAcknowledgeMove}
                       className="bg-[#101410] hover:bg-[#1a2230] text-slate-300 hover:text-white font-black sports-font tracking-widest text-xl px-12 py-5 rounded-xl border border-slate-700 hover:border-slate-500 shadow-lg transition-all w-full cursor-pointer active:scale-95 uppercase"
                    >
-                      {rosterMoveNotice.type === 'PROMOTION' ? 'HIT THE ICE' : 'HEAD DOWN AND WORK'}
+                      {rosterMoveNotice.type === 'PROMOTION' ? 'HIT THE ICE'
+                        : rosterMoveNotice.type === 'ASSIGNMENT' ? 'GO AND DOMINATE IT'
+                        : 'HEAD DOWN AND WORK'}
                    </button>
                  </div>
               </div>

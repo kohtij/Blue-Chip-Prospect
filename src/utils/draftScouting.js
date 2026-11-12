@@ -18,6 +18,7 @@
 // is still what the combine screen shows him.
 
 import { draftSlotFromBoard } from './peers';
+import { D_WEIGHT, defensiveHalf, isDefence } from './production';
 
 export const PICKS_PER_ROUND = 32;
 export const DRAFT_ROUNDS = 7;
@@ -65,6 +66,26 @@ function productionScore(player) {
 
   const ppg = ((s.goals || 0) + (s.assists || 0)) / games;
   const elite = ELITE_PPG[player.pos] || 1.3;
+
+  if (isDefence(player.pos)) {
+    // The scouting file says the same thing the board does.
+    //
+    // This was points per game against a lower bar, which is not a defenceman
+    // scouted on defence, it is a defenceman scouted as a forward and marked
+    // generously for it. A shutdown pair scored next to nothing on the one
+    // part of the file that is about what he did on the ice. The goal
+    // difference he was on the ice for and the minutes he was trusted with
+    // were both being banked every junior season and read by nothing.
+    //
+    // Weighted as rateSeason weights the two halves of his year, so the file,
+    // the board and the season grade cannot tell him three different stories.
+    const toi = (s.toiGames || 0) > 0 ? s.toiGames / games : null;
+    const off = clamp01(ppg / elite);
+    const def = clamp01((defensiveHalf((s.plusMinus || 0) / games, toi) + 1) / 2);
+    const w = D_WEIGHT.off + D_WEIGHT.def;
+    return ((off * D_WEIGHT.off + def * D_WEIGHT.def) / w) * MAX_PRODUCTION;
+  }
+
   return clamp01(ppg / elite) * MAX_PRODUCTION;
 }
 

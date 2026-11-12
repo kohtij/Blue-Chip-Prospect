@@ -4,7 +4,7 @@ import {
   swissTeams, delTeams, khlTeams, nationalities
 } from '../data/teams';
 import { draftOrder } from './leagueState';
-import { ageFactor, curvesFor, drawLeagueBest, drawLeagueBestDman, drawLeagueBestSv, gaussianNoise, goalieAgeAdjust, paceOf, rateSeason, seasonForm, soften } from './production';
+import { ageFactor, BLOCK_WORTH, curvesFor, D_TOI_REF, D_WEIGHT, defensiveHalf, drawLeagueBest, drawLeagueBestDman, drawLeagueBestSv, faceoffs, gaussianNoise, goalieAgeAdjust, isDefence, paceOf, POS_PACE, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
 
 // The rest of your draft class.
 //
@@ -158,7 +158,10 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
       // Where he was playing when he was taken.
       ...draftRoute(nat),
       season: null,
-      career: { gp: 0, g: 0, a: 0, sho: 0, saves: 0, shots: 0, wins: 0, losses: 0, otl: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0 }
+      // pm and toiGames are the defenceman's half of a career. They were
+      // simulated every season and banked nowhere, so every comparison in the
+      // game fell back to his points.
+      career: { gp: 0, g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, toiGames: 0, sho: 0, saves: 0, shots: 0, wins: 0, losses: 0, otl: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0 }
     });
   }
 
@@ -599,12 +602,43 @@ function playPeerSeason(peer) {
   // attributes.
   const pmPer82 = isGoalie ? 0
     : Math.round((scaleOvr - 74) * (posGroup(peer.pos) === 'D' ? 0.95 : 0.70) + gaussianNoise() * 7);
+  const toi = isGoalie ? 60 : Math.max(8, Math.min(26,
+    (posGroup(peer.pos) === 'D' ? 15.0 : 12.0) + (scaleOvr - 70) * 0.30));
+
+  // And his shot blocking, on the same scale the player's is simulated on:
+  // how much he is on the ice and how willing he is, with no team term in it
+  // anywhere. Without this a classmate had no defensive number that was his
+  // own, so the moment plus-minus came off the boards there was nothing left
+  // to compare two defencemen on but their points.
+  const blk = isGoalie ? 0 : Math.round(
+    games * (posGroup(peer.pos) === 'D' ? 1.55 : 0.52)
+      * Math.max(0.35, 1 + (scaleOvr - 74) / 130)
+      * (toi / D_TOI_REF)
+      * (0.9 + Math.random() * 0.2));
+
+  // And his shots and his draws, on the same scales the player's are built
+  // on. Without these a classmate has no forward number of his own either, so
+  // a comparison between two wingers could only ever be two point totals and a
+  // centre's faceoff work had nobody to be measured against.
+  const sog = isGoalie ? 0 : shotsOnGoal({
+    pos: peer.pos, games, goals: g,
+    shooting: Math.max(40, Math.min(95, 55 + (scaleOvr - 70) * 0.9)),
+    iceFactor: toi / (posGroup(peer.pos) === 'D' ? D_TOI_REF : 17),
+    archetype: '', jitter: 0.9 + Math.random() * 0.2
+  });
+  const draws = faceoffs({
+    pos: peer.pos, games,
+    hockeyIQ: Math.max(40, Math.min(95, 55 + (scaleOvr - 70) * 0.95)),
+    physicality: Math.max(40, Math.min(95, 55 + (scaleOvr - 74) * 0.6)),
+    iceFactor: toi / 17, jitter: 0.92 + Math.random() * 0.16
+  });
+
   const season = {
     league, team, gp: isGoalie ? Math.round(games * 0.62) : games,
-    g, a, pts: g + a, sho, saves, shots, wins, losses, otl,
+    g, a, pts: g + a, sho, saves, shots, wins, losses, otl, blk,
+    sog, fot: draws.taken, fow: draws.won,
     pm: isGoalie ? 0 : Math.round(pmPer82 * (games / 82)),
-    avgToi: isGoalie ? 60 : Math.max(8, Math.min(26,
-      (posGroup(peer.pos) === 'D' ? 15.0 : 12.0) + (scaleOvr - 70) * 0.30))
+    avgToi: toi
   };
   return {
     ...peer,
@@ -623,6 +657,12 @@ function playPeerSeason(peer) {
       gp: peer.career.gp + season.gp,
       g: peer.career.g + g,
       a: peer.career.a + a,
+      pm: (peer.career.pm || 0) + (season.pm || 0),
+      blk: (peer.career.blk || 0) + (season.blk || 0),
+      sog: (peer.career.sog || 0) + (season.sog || 0),
+      fot: (peer.career.fot || 0) + (season.fot || 0),
+      fow: (peer.career.fow || 0) + (season.fow || 0),
+      toiGames: (peer.career.toiGames || 0) + (season.avgToi || 0) * (season.gp || 0),
       sho: (peer.career.sho || 0) + sho,
       saves: (peer.career.saves || 0) + saves,
       shots: (peer.career.shots || 0) + shots,
@@ -764,8 +804,26 @@ export function classBestAt(peers, league, pos) {
       (p.season.saves / p.season.shots) > (top ? top.season.saves / top.season.shots : -1) ? p : top, null);
     return { league, name: best.name, sv: best.season.saves / best.season.shots, gp: best.season.gp };
   }
-  const best = field.reduce((top, p) => (p.season.pts > (top?.season.pts ?? -1) ? p : top), null);
-  return { league, name: best.name, pts: best.season.pts, g: best.season.g, a: best.season.a };
+  // A defenceman's year, graded the way his own season is graded: the points,
+  // the goal difference he was on the ice for and the minutes he was trusted
+  // with, weighted as rateSeason weights them. This used to take the highest
+  // scoring defenceman in the class and call him the best one, which is the
+  // error the season grade itself had before defensiveHalf was written. The
+  // best defensive season in a draft class is now allowed to win it.
+  const graded = field.map(p => ({
+    p,
+    rating: rateSeason({
+      league, pos: p.pos, games: p.season.gp, g: p.season.g, a: p.season.a,
+      pm: p.season.pm, blk: p.season.blk, toi: p.season.avgToi
+    })
+  })).sort((x, y) => y.rating - x.rating);
+
+  const best = graded[0];
+  return {
+    league, name: best.p.name, pts: best.p.season.pts, g: best.p.season.g, a: best.p.season.a,
+    blk: best.p.season.blk || 0, toi: best.p.season.avgToi || null,
+    rating: best.rating
+  };
 }
 
 export function scoringBar(peers, league) {
@@ -850,7 +908,7 @@ export function dmanBar(peers, league) {
   const best = field.reduce((top, p) => {
     const grade = rateSeason({
       league, pos: p.pos, games: p.season.gp,
-      g: p.season.g, a: p.season.a, pm: p.season.pm, toi: p.season.avgToi
+      g: p.season.g, a: p.season.a, pm: p.season.pm, blk: p.season.blk, toi: p.season.avgToi
     });
     return grade > (top ? top.grade : -1) ? { name: p.name, grade } : top;
   }, null);
@@ -869,10 +927,77 @@ export function dmanBar(peers, league) {
 // What a career is measured by, which is points for a skater and shutouts for
 // a goalie. One function so the dashboard and the retirement screen rank the
 // class the same way.
-export const peerValue = (peer, isGoalie) =>
-  isGoalie ? (peer.career.sho || 0) : (peer.career.g + peer.career.a);
+// WHAT A CAREER IS WORTH, BY POSITION.
+//
+// A goalie was ranked on shutouts and everybody else on points, so a
+// defenceman's career came down to his scoresheet: a man who had played nine
+// hundred games at twenty-three minutes a night sat below every offensive
+// defenceman in his year and told himself he had fallen short.
+//
+// The second half of his number is his shot blocking, not his plus-minus.
+// Plus-minus records what the five men on the ice did, so two defencemen who
+// played identically on different clubs finish a long way apart on it, and
+// ranking a career on it ranks the teams he happened to play for. A blocked
+// shot is his, nobody else's, and it is counted every game he plays. See
+// BLOCK_WORTH for the exchange rate.
+export const peerValue = (peer, pos) => {
+  if (compGroup(pos) === 'G') return peer.career.sho || 0;
+  const pts = (peer.career.g || 0) + (peer.career.a || 0);
+  return isDefence(pos) ? Math.round(pts + (peer.career.blk || 0) * BLOCK_WORTH) : pts;
+};
 
-export const peerUnit = (isGoalie) => (isGoalie ? 'shutouts' : 'points');
+export const peerUnit = (pos) =>
+  compGroup(pos) === 'G' ? 'shutouts'
+    : isDefence(pos) ? 'points and blocks'
+    : compGroup(pos) === 'C' ? 'points and draws'
+    : 'goals and points';
+
+/**
+ * The same career as a clause, for a sentence that compares two men.
+ *
+ * "He is on 412 career points" is the wrong sentence about a defenceman even
+ * when the number is right, because it leaves out the half of his game that
+ * decided the ranking it came from.
+ */
+export const peerStatLine = (peer, pos) => {
+  if (compGroup(pos) === 'G') return `${peer.career.sho || 0} shutouts`;
+  const c = peer.career || {};
+  const pts = (c.g || 0) + (c.a || 0);
+  if (isDefence(pos)) return `${pts} points and ${c.blk || 0} blocks`;
+  // A FORWARD WAS A POINT TOTAL AND NOTHING ELSE.
+  //
+  // Every comparison in the game, the free agency comparables, the class
+  // table and the rival block, said "he is on 412 career points" about all
+  // three forward positions, so a sniper and a distributor with the same
+  // total were literally the same sentence. A centre is quoted on his draws
+  // because they are his alone, and a winger on his goals, because the split
+  // between the two is the thing the point total hides.
+  if (compGroup(pos) === 'C') {
+    const fo = (c.fot || 0) > 0 ? `, ${(((c.fow || 0) / c.fot) * 100).toFixed(1)}% on the draw` : '';
+    return `${pts} points${fo}`;
+  }
+  return `${c.g || 0} goals in ${pts} points`;
+};
+
+/** The player's own, in the same shape, so the two halves of a sentence match. */
+export const playerStatLine = (player) => {
+  const nhl = player?.stats?.nhl || {};
+  if (player?.pos === 'G') return `${nhl.shutouts || 0} shutouts`;
+  const pts = (nhl.goals || 0) + (nhl.assists || 0);
+  if (isDefence(player?.pos)) return `${pts} points and ${nhl.blocks || 0} blocks`;
+  if (player?.pos === 'C') {
+    const fo = (nhl.fot || 0) > 0 ? `, ${(((nhl.fow || 0) / nhl.fot) * 100).toFixed(1)}% on the draw` : '';
+    return `${pts} points${fo}`;
+  }
+  return `${nhl.goals || 0} goals in ${pts} points`;
+};
+
+export const playerCareerValue = (player) => {
+  const nhl = player?.stats?.nhl || {};
+  if (player?.pos === 'G') return nhl.shutouts || 0;
+  const pts = (nhl.goals || 0) + (nhl.assists || 0);
+  return isDefence(player?.pos) ? Math.round(pts + (nhl.blocks || 0) * BLOCK_WORTH) : pts;
+};
 
 // WHO COUNTS AS A COMPARISON.
 //
@@ -926,17 +1051,16 @@ export function positionDraftSlot(peers, pos, playerPick) {
 
 export function findRival(peers, playerValue, pos = 'C') {
   const group = compGroup(pos);
-  const isGoalie = group === 'G';
   const live = (peers || []).filter(p => compGroup(p.pos) === group && p.career.seasons > 0);
   if (!live.length) return null;
   // The best of the class, unless he is miles clear of you, in which case the
   // interesting comparison is whoever you are actually next to.
-  const byCareer = [...live].sort((x, y) => peerValue(y, isGoalie) - peerValue(x, isGoalie));
+  const byCareer = [...live].sort((x, y) => peerValue(y, pos) - peerValue(x, pos));
   const top = byCareer[0];
-  if (!playerValue || peerValue(top, isGoalie) <= playerValue * 1.6) return top;
+  if (!playerValue || peerValue(top, pos) <= playerValue * 1.6) return top;
   return byCareer.reduce((closest, p) => {
-    const d = Math.abs(peerValue(p, isGoalie) - playerValue);
-    const cd = Math.abs(peerValue(closest, isGoalie) - playerValue);
+    const d = Math.abs(peerValue(p, pos) - playerValue);
+    const cd = Math.abs(peerValue(closest, pos) - playerValue);
     return d < cd ? p : closest;
   }, byCareer[0]);
 }
@@ -946,10 +1070,9 @@ export function findRival(peers, playerValue, pos = 'C') {
  */
 export function classTable(peers, limit = 10, pos = 'C') {
   const group = compGroup(pos);
-  const isGoalie = group === 'G';
   return [...(peers || [])]
     .filter(p => compGroup(p.pos) === group && p.career.seasons > 0)
-    .sort((x, y) => peerValue(y, isGoalie) - peerValue(x, isGoalie))
+    .sort((x, y) => peerValue(y, pos) - peerValue(x, pos))
     .slice(0, limit);
 }
 
@@ -993,6 +1116,29 @@ const scaleProduction = (pts, gp, league) => {
   if (!gp) return 0;
   const star = paceOf(league).star || 1;
   return Math.min(8, ((pts || 0) / gp / star) * 6);
+};
+
+// How a scout reads a defenceman's season.
+//
+// Points, and nothing else. Every skater went through the line above, so the
+// half of a defenceman's season that the engine simulates in detail, the goal
+// difference he was on the ice for and the minutes the staff trusted him with,
+// counted for nothing on any board. A shutdown pair was scouted, ranked and
+// drafted on its scoresheet, which is the same error the season grade had
+// before defensiveHalf was written: the grade was fixed and the board was not.
+//
+// The offensive half is the same number a forward gets, against the same
+// league star rate, so a defenceman and a centre with identical points still
+// score identically on it and the two positions stay comparable on one board.
+// The defensive half rides alongside it, weighted the way rateSeason weights
+// the two.
+const defenceProduction = (season) => {
+  if (!season || !season.gp) return 0;
+  const pace = paceOf(season.league);
+  const star = (pace.star || 1) * POS_PACE.star;
+  const off = Math.min(8, ((season.pts || 0) / season.gp / star) * 6);
+  const def = Math.min(8, Math.max(0, (defensiveHalf((season.pm || 0) / season.gp, season.avgToi) + 1) / 2) * 8);
+  return (off * D_WEIGHT.off + def * D_WEIGHT.def) / (D_WEIGHT.off + D_WEIGHT.def);
 };
 
 // How a scout reads a goaltender's season.
@@ -1090,11 +1236,13 @@ const nameBias = (name) => {
 // picks in were two unrelated calculations, which is how he could be the best
 // centre in his class on the board and come off it fortieth.
 const peerBoardScore = (p) => {
-  const produced = p.season && p.pos !== 'G'
-    ? scaleProduction(p.season.pts, p.season.gp, p.season.league)
-    : p.season && p.pos === 'G' && p.season.shots
-      ? goalieProduction(p.season)
-      : 0;
+  const produced = p.season && isDefence(p.pos)
+    ? defenceProduction(p.season)
+    : p.season && p.pos !== 'G'
+      ? scaleProduction(p.season.pts, p.season.gp, p.season.league)
+      : p.season && p.pos === 'G' && p.season.shots
+        ? goalieProduction(p.season)
+        : 0;
   return (p.ovr || 0) * 0.55 + (p.peak || 0) * 0.45 + (p.scoutBias || 0) + produced;
 };
 
@@ -1111,7 +1259,13 @@ const playerBoardScore = (player, ownSeason = null, combine = null) => {
         saves: last?.saves, shots: last?.shots, sho: last?.shutouts ?? last?.sho,
         wins: last?.wins, losses: last?.losses, otl: last?.otl, gp: myGp
       })
-    : (myPts != null ? scaleProduction(myPts, myGp, player?.league) : 0);
+    : isDefence(player?.pos)
+      ? defenceProduction({
+          pts: myPts, gp: myGp, league: last?.league || player?.league,
+          pm: last?.pm ?? last?.plusMinus, blk: last?.blk ?? last?.blocks,
+          avgToi: last?.avgToi
+        })
+      : (myPts != null ? scaleProduction(myPts, myGp, player?.league) : 0);
 
   // draftBonus is carried in draft slots: the over-ager penalty is thirty a
   // year and the Russian Factor is fifteen either way. The board is the draft
@@ -1433,13 +1587,13 @@ export function classNews(peers, player) {
   // or five times and every one of them is a name he knows.
   if (Math.random() > 0.70) return null;
 
-  const isGoalie = player?.pos === 'G';
   const myTeam = player?.team;
   const candidates = [];
 
-  const mine = isGoalie ? (player?.stats?.nhl?.shutouts || 0)
-    : (player?.stats?.nhl?.goals || 0) + (player?.stats?.nhl?.assists || 0);
-  const unit = isGoalie ? 'shutouts' : 'points';
+  // The same unit on both sides of every comparison below: shutouts for a
+  // goalie, points plus plus-minus for a defenceman, points for a forward.
+  const mine = playerCareerValue(player);
+  const myLine = playerStatLine(player);
 
   // The man his own card measures him against, every season, by name. Of the
   // whole class this is the one he is certain to know, so the news prefers him
@@ -1479,13 +1633,13 @@ export function classNews(peers, player) {
   // Someone passed you.
   const ahead = live
     .filter(p => compGroup(p.pos) === compGroup(player?.pos || 'C') && !p.retired)
-    .map(p => ({ p, v: peerValue(p, isGoalie) }))
+    .map(p => ({ p, v: peerValue(p, player?.pos || 'C') }))
     .filter(e => e.v > mine && e.v - mine < Math.max(12, mine * 0.08))
     .sort((a, b) => a.v - b.v)[0];
   if (ahead && mine > 0 && how(ahead.p)) {
     candidates.push({
       weight: 3, id: ahead.p.id, kind: 'passed',
-      line: `${ahead.p.name}, ${how(ahead.p)}, went past you this season. He is on ${ahead.v} career ${unit} to your ${mine}.`
+      line: `${ahead.p.name}, ${how(ahead.p)}, went past you this season. He is on ${peerStatLine(ahead.p, player?.pos || 'C')} for his career, you are on ${myLine}.`
     });
   }
 
@@ -1529,17 +1683,15 @@ export function classPressQuestion(peers, player) {
   const live = (peers || []).filter(p => p.career.seasons > 1 && !p.retired);
   if (!live.length) return null;
 
-  const isGoalie = player?.pos === 'G';
   const group = compGroup(player?.pos || 'C');
-  const mine = isGoalie ? (player?.stats?.nhl?.shutouts || 0)
-    : (player?.stats?.nhl?.goals || 0) + (player?.stats?.nhl?.assists || 0);
+  const mine = playerCareerValue(player);
 
   // The one just ahead of you is the one they want to ask about, and he plays
   // where you play: a centre two hundred points up the list is not the man a
   // reporter puts to a left winger.
   const ahead = live
     .filter(p => compGroup(p.pos) === group)
-    .map(p => ({ p, v: peerValue(p, isGoalie) }))
+    .map(p => ({ p, v: peerValue(p, player?.pos || 'C') }))
     .filter(e => e.v > mine)
     .sort((a, b) => a.v - b.v)[0];
   if (!ahead || mine <= 0) return null;

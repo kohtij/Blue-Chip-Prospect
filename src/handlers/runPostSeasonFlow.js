@@ -6,6 +6,7 @@ import { eventDeck } from '../data/economy';
 import { getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
 import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
+import { isDefence } from '../utils/production';
 import { buildRun } from '../utils/intlRun';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings, opts = {}) {
@@ -453,57 +454,90 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     if (rivalObj && Math.random() < 0.35) {
       const rivalName = getFullTeamName(rivalObj.id, currentLg);
       const isGoalie = player.pos === 'G';
+      const isDman = isDefence(player.pos);
+
+      // Rivalry night split two ways, goalie or not, so every one of these
+      // lines was written for a forward and handed to a defenceman: he was
+      // told to fly down the wing on his first shift, to toe-drag their
+      // defender, and to relentlessly chirp their defence, which is the half
+      // of the other team he spends the night playing against. say() picks the
+      // line for the position; where the forward's line is true of a
+      // defenceman too, the middle slot is left null and he gets it.
+      // A fourth slot, for a centre.
+      //
+      // This had three branches and the game has five field positions, so one
+      // forward line was doing for a centre, a left winger and a right winger
+      // alike: the man taking every draw against their best centre was told he
+      // had flown down the wing. A centre's night is a different night, so
+      // where the sentence changes he gets his own; where it does not, he
+      // falls through to the forward line the way he always did.
+      const isCentre = player.pos === 'C';
+      const say = (g, d, f, c = null) =>
+        isGoalie ? g
+          : isDman && d != null ? d
+          : isCentre && c != null ? c
+          : f;
 
       const fullChoicesPool = [
         {
-          label: isGoalie ? 'Guarantee a Shutout' : 'Run Your Mouth to the Press',
+          label: say('Guarantee a Shutout', null, 'Run Your Mouth to the Press'),
           subLabel: '⚡ High Risk • Massive Fan Status boost or public embarrassment',
           isRisky: true,
           successChance: 0.45,
-          successFeedback: isGoalie
-            ? 'You stood on your head and posted a dominant shutout! The arena went ballistic and your jersey sales spiked overnight.'
-            : 'You backed up every word on the ice with a multi-point performance! The arena went ballistic and your jersey sales spiked overnight.',
+          successFeedback: say(
+            'You stood on your head and posted a dominant shutout! The arena went ballistic and your jersey sales spiked overnight.',
+            'You backed up every word by shutting their top line out for sixty minutes. The arena went ballistic and your jersey sales spiked overnight.',
+            'You backed up every word on the ice with a multi-point performance! The arena went ballistic and your jersey sales spiked overnight.'),
           successEffect: { fanStatus: 35, ovr: 1, money: 15000 },
-          failFeedback: isGoalie
-            ? 'You had a nightmare start, letting in 4 goals on 12 shots. Rival fans mocked you endlessly on social media.'
-            : 'You got shut down completely and got mocked endlessly by rival fans on social media.',
+          failFeedback: say(
+            'You had a nightmare start, letting in 4 goals on 12 shots. Rival fans mocked you endlessly on social media.',
+            'Their top line scored twice with you on the ice and rival fans mocked you endlessly on social media.',
+            'You got shut down completely and got mocked endlessly by rival fans on social media.'),
           failEffect: { fanStatus: -25, ovr: 0, money: 0 }
         },
         {
           label: 'Lead by Example',
           subLabel: '🛡️ Safe • Steady team effort with reliable Fan approval',
           isRisky: false,
-          feedback: isGoalie
-            ? 'You played a calm, laser-focused game between the pipes, anchoring your squad to a gritty rivalry win.'
-            : 'You played a disciplined, hard-nosed game and led your squad to a gritty rivalry win.',
+          feedback: say(
+            'You played a calm, laser-focused game between the pipes, anchoring your squad to a gritty rivalry win.',
+            'You played a hard, simple game on the back end, killed everything that came your way, and led your squad to a gritty rivalry win.',
+            'You played a disciplined, hard-nosed game and led your squad to a gritty rivalry win.'),
           effect: { fanStatus: 15, ovr: 1, money: 0 }
         },
         {
-          label: isGoalie ? 'Aggressive Crease Control' : 'Set the Physical Tone',
+          label: say('Aggressive Crease Control', null, 'Set the Physical Tone'),
           subLabel: '💥 Moderate Risk • High intensity performance',
           isRisky: true,
           successChance: 0.65,
-          successFeedback: isGoalie
-            ? 'You aggressively challenged shooters and made flash-of-the-glove saves that completely rattled their top line!'
-            : 'Your crushing hits early in the 1st period rattled their top line and energized the home crowd!',
+          successFeedback: say(
+            'You aggressively challenged shooters and made flash-of-the-glove saves that completely rattled their top line!',
+            null,
+            'Your crushing hits early in the 1st period rattled their top line and energized the home crowd!'),
           successEffect: { fanStatus: 20, ovr: 1, money: 0 },
-          failFeedback: isGoalie
-            ? 'You over-committed out of the net, getting caught out of position for a costly easy goal.'
-            : 'You took an undisciplined double-minor penalty in the 3rd period that led to the game-winning goal.',
+          failFeedback: say(
+            'You over-committed out of the net, getting caught out of position for a costly easy goal.',
+            null,
+            'You took an undisciplined double-minor penalty in the 3rd period that led to the game-winning goal.'),
           failEffect: { fanStatus: -15, ovr: -1, money: 0 }
         },
         {
-          label: isGoalie ? 'Stare Down Their Top Sniper' : 'Target Their Star Player',
+          label: say('Stare Down Their Top Sniper', 'Shadow Their Top Line All Night',
+            'Target Their Star Player', 'Take Every Draw Against Their Best Centre'),
           subLabel: '🎯 Target Focus • Neutralize their biggest threat',
           isRisky: true,
           successChance: 0.55,
-          successFeedback: isGoalie
-            ? `You completely robbed their star player on a breakaway! They were frustrated for the rest of the night.`
-            : `You shadowed their top star all night, shutting them down completely and drawing key penalties.`,
+          successFeedback: say(
+            `You completely robbed their star player on a breakaway! They were frustrated for the rest of the night.`,
+            `You drew the matchup against their best line and they finished the night without a shot on goal between them.`,
+            `You shadowed their top star all night, shutting them down completely and drawing key penalties.`,
+            `You took every draw against him and won most of them. His line spent the night starting in their own end.`),
           successEffect: { fanStatus: 25, ovr: 1, money: 0 },
-          failFeedback: isGoalie
-            ? `Their star beat you clean top-shelf twice in the 1st period.`
-            : `Their star player danced past you for a highlight-reel goal while you got caught out of position.`,
+          failFeedback: say(
+            `Their star beat you clean top-shelf twice in the 1st period.`,
+            `Their star went wide on you twice and finished both. The coach shortened your night after the second.`,
+            `Their star player danced past you for a highlight-reel goal while you got caught out of position.`,
+            `He beat you clean on the draw all night, and two of those possessions ended up behind your goalie.`),
           failEffect: { fanStatus: -15, ovr: 0, money: 0 }
         },
         {
@@ -514,7 +548,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           effect: { fanStatus: 10, ovr: 1, money: 0 }
         },
         {
-          label: isGoalie ? 'Slash Anyone Entering Your Crease' : 'Agitate Their Bench Between Whistles',
+          label: say('Slash Anyone Entering Your Crease', null, 'Agitate Their Bench Between Whistles'),
           subLabel: '😈 Mind Games • Get under their skin',
           isRisky: true,
           successChance: 0.60,
@@ -538,35 +572,39 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           effect: { fanStatus: 5, ovr: 2, money: 0 }
         },
         {
-          label: isGoalie ? 'Flashy Glove Saves' : 'Attempt a Highlight-Reel Move',
+          label: say('Flashy Glove Saves', 'Jump Into the Rush and Pinch Hard', 'Attempt a Highlight-Reel Move'),
           subLabel: '✨ Showmanship • Go for the viral highlight',
           isRisky: true,
           successChance: 0.50,
-          successFeedback: isGoalie
-            ? `You pulled off a wind-mill glove save that became the #1 play on SportsCenter!`
-            : `You pulled off a nasty toe-drag around their defender and sniped it home! SportsCenter #1 play!`,
+          successFeedback: say(
+            `You pulled off a wind-mill glove save that became the #1 play on SportsCenter!`,
+            `You jumped the rush from your own blue line, walked the far-side defender and buried it. SportsCenter #1 play!`,
+            `You pulled off a nasty toe-drag around their defender and sniped it home! SportsCenter #1 play!`),
           successEffect: { fanStatus: 30, ovr: 0, money: 10000 },
-          failFeedback: isGoalie
-            ? `You tried to showboat on a routine shot and fumbled it into your own net. Ouch.`
-            : `You coughed up the puck trying to pull off a move and caused a breakaway goal against.`,
+          failFeedback: say(
+            `You tried to showboat on a routine shot and fumbled it into your own net. Ouch.`,
+            `You pinched with nobody behind you and they went up the ice two-on-none. That one is on the tape forever.`,
+            `You coughed up the puck trying to pull off a move and caused a breakaway goal against.`),
           failEffect: { fanStatus: -20, ovr: 0, money: 0 }
         },
         {
-          label: isGoalie ? 'Aggressively Play the Puck Behind Net' : 'Pledge to Block Every Shot',
+          label: say('Aggressively Play the Puck Behind Net', null, 'Pledge to Block Every Shot'),
           subLabel: '🛡️ Ultimate Sacrifice • Put your body on the line',
           isRisky: true,
           successChance: 0.60,
-          successFeedback: isGoalie
-            ? `Your crisp passes out of the zone launched three fast-break opportunities!`
-            : `You threw yourself in front of three rocket slapshots in the 3rd period to seal the win!`,
+          successFeedback: say(
+            `Your crisp passes out of the zone launched three fast-break opportunities!`,
+            null,
+            `You threw yourself in front of three rocket slapshots in the 3rd period to seal the win!`),
           successEffect: { fanStatus: 25, ovr: 1, money: 0 },
-          failFeedback: isGoalie
-            ? `You misread the bounce off the glass, leaving a wide-open net for an embarrassing goal.`
-            : `You blocked a shot, but limped off the ice in pain and missed crucial shifts late in the game.`,
+          failFeedback: say(
+            `You misread the bounce off the glass, leaving a wide-open net for an embarrassing goal.`,
+            null,
+            `You blocked a shot, but limped off the ice in pain and missed crucial shifts late in the game.`),
           failEffect: { fanStatus: -10, ovr: -1, money: 0 }
         },
         {
-          label: isGoalie ? 'Get Involved in a Line Scrum' : 'Drop the Gloves Early',
+          label: say('Get Involved in a Line Scrum', null, 'Drop the Gloves Early'),
           subLabel: '👊 Heavy Enforcer • Old-school rivalry brawl',
           isRisky: true,
           successChance: 0.55,
@@ -583,21 +621,26 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           effect: { fanStatus: 10, ovr: 1, money: 0 }
         },
         {
-          label: isGoalie ? 'Aggressive Poke-Checks' : 'Fly Down the Wing First Shift',
+          label: say('Aggressive Poke-Checks', 'Step Up at the Line First Shift',
+            'Fly Down the Wing First Shift', 'Win the Opening Draw Clean'),
           subLabel: '⚡ High Energy • Speed and quickness',
           isRisky: true,
           successChance: 0.65,
-          successFeedback: isGoalie
-            ? `You poked the puck away cleanly on two separate breakaway attempts!`
-            : `You blew past their defenseman on shift one and buried a wrist shot!`,
+          successFeedback: say(
+            `You poked the puck away cleanly on two separate breakaway attempts!`,
+            `You stepped up at the line on shift one, ended the rush with a clean hip check and sent it back the other way!`,
+            `You blew past their defenseman on shift one and buried a wrist shot!`,
+            `You won the opening draw back clean and your side had the puck in their end before anyone had touched it twice.`),
           successEffect: { fanStatus: 20, ovr: 1, money: 0 },
-          failFeedback: isGoalie
-            ? `You missed the poke-check and got deked out of your skates.`
-            : `You got hit hard along the boards on your first shift and lost your momentum.`,
+          failFeedback: say(
+            `You missed the poke-check and got deked out of your skates.`,
+            `You guessed wrong at the line, they went by you with speed, and it was in the net eight seconds into your night.`,
+            `You got hit hard along the boards on your first shift and lost your momentum.`,
+            `You got thrown out of the circle on the opening draw and watched your winger lose the puck taking it for you.`),
           failEffect: { fanStatus: -10, ovr: 0, money: 0 }
         },
         {
-          label: isGoalie ? 'Relentlessly Chirp Their Forwards' : 'Relentlessly Chirp Their Defense',
+          label: say('Relentlessly Chirp Their Forwards', 'Relentlessly Chirp Their Forwards', 'Relentlessly Chirp Their Defense'),
           subLabel: '🗣️ Psychological Warfare • Disrupt their heads',
           isRisky: true,
           successChance: 0.50,
@@ -614,17 +657,19 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           effect: { fanStatus: 15, ovr: 1, money: 0 }
         },
         {
-          label: isGoalie ? 'Stack the Pads in Traffic' : 'Demand Double-Shifts Late',
+          label: say('Stack the Pads in Traffic', null, 'Demand Double-Shifts Late'),
           subLabel: '👑 Hero Ball • Take control of the game',
           isRisky: true,
           successChance: 0.50,
-          successFeedback: isGoalie
-            ? `You threw back to the 90s with a desperate pad-stack save that sealed the win!`
-            : `You played 28 minutes, carried the team on your back, and scored the game-winner!`,
+          successFeedback: say(
+            `You threw back to the 90s with a desperate pad-stack save that sealed the win!`,
+            `You played 31 minutes, never came off for the last five, and they did not get a puck past you.`,
+            `You played 28 minutes, carried the team on your back, and scored the game-winner!`),
           successEffect: { fanStatus: 35, ovr: 1, money: 15000 },
-          failFeedback: isGoalie
-            ? `Stacking the pads left the top half of the net wide open. High shot, easy goal.`
-            : `You got completely gassed in the 3rd period and turned the puck over for the game-winner against.`,
+          failFeedback: say(
+            `Stacking the pads left the top half of the net wide open. High shot, easy goal.`,
+            null,
+            `You got completely gassed in the 3rd period and turned the puck over for the game-winner against.`),
           failEffect: { fanStatus: -20, ovr: -1, money: 0 }
         }
       ];

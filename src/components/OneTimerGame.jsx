@@ -17,12 +17,27 @@ import { Stage, Hud, Verdict } from './minigame/Shell';
 // own stick. That is the difference between this and the deflection, where the
 // puck is coming through traffic you have your back to and the lane is hidden.
 
-const FROM = [DOT_X - 3, BOT_DOT];      // the far faceoff dot
-const TO = [DOT_X - 3, TOP_DOT];        // my dot, across the seam
-const SPAN = TO[1] - FROM[1];
+// WHICH SIDE HE PLAYS.
+//
+// The two wings were the same player everywhere in this game: the same
+// formula, the same attributes, the same screens, the same jersey with a
+// different letter on the position. There is no stat in hockey that belongs
+// to a left winger and not a right winger, so inventing one would be worse
+// than leaving it alone. What is real is the ice: a winger takes this pass
+// standing on his own side, and the feed crosses the slot the other way.
+//
+// Looking down on the offensive zone with the net to the right, his left is
+// the top of the screen, so a left winger receives on the top dot and a right
+// winger on the bottom one. The same is true of the two defence positions.
+const RIGHT_SIDE = (pos) => pos === 'RW' || pos === 'RD';
 
 export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
   const shooting = getActiveStat(player, 'shooting');
+  const onRight = RIGHT_SIDE(player.pos);
+  const myDot = onRight ? BOT_DOT : TOP_DOT;
+  const FROM = [DOT_X - 3, onRight ? TOP_DOT : BOT_DOT]; // the far dot, across the seam
+  const TO = [DOT_X - 3, myDot];                         // my dot, on my own wing
+  const SPAN = TO[1] - FROM[1];
 
   const [status, setStatus] = useState('waiting');   // waiting, live, won, lost
   const [pct, setPct] = useState(0);
@@ -88,7 +103,9 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
       hud={
         <Hud
           left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-            Cross-seam feed
+            {player.pos === 'LW' || player.pos === 'RW'
+              ? `Cross-seam feed, ${onRight ? 'right' : 'left'} wing`
+              : 'Cross-seam feed'}
           </span>}
           right={
             <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] ${
@@ -134,8 +151,11 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
         {/* The man feeding it, and me waiting on my dot. */}
         <Marker at={FROM} kind="mate" label="C" r="4.1" />
         <Marker at={TO} kind="me" label="YOU" r="4.4" />
-        {/* My stick, out in the seam where the puck has to be. */}
-        <path d={`M ${TO[0] - 1.5} ${TO[1] + 3} L ${FROM[0] - 3.4} ${y(76)}`}
+        {/* My stick, out in the seam where the puck has to be. It reaches
+            toward the man feeding it, which is up the ice on one wing and
+            down it on the other, so the offset follows the side he plays
+            rather than being written in. */}
+        <path d={`M ${TO[0] - 1.5} ${TO[1] + (onRight ? -3 : 3)} L ${FROM[0] - 3.4} ${y(76)}`}
               stroke="rgba(203,213,225,0.85)" strokeWidth="1" strokeLinecap="round" />
 
         {/* The shot, once it is away. */}

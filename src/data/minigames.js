@@ -103,18 +103,55 @@ export const interactiveMinigames = [
     successMsg: "What a rocket! You blasted the one-timer top shelf.",
     failMsg: "You fanned on the shot and the puck trickled into the corner."
   },
+  // ONE ROSTER SPOT, THREE DIFFERENT AUDITIONS.
+  //
+  // This was a single event called TRAINING CAMP BATTLE, tagged for every
+  // position in the game and built on the faceoff mechanic, so a goalie
+  // fighting for the starting net was sent out to take a draw against a
+  // centre, under a title that told him nothing about what he was doing or
+  // why. A camp battle is real and worth keeping; what a man does to win one
+  // depends entirely on what he plays.
+  //
+  // Same stakes and the same reward in all three. The title says what is being
+  // decided and the mechanic is one he would actually be judged on.
   {
     id: 'camp_battle',
-    title: 'TRAINING CAMP BATTLE',
+    title: 'CAMP BATTLE: THE LAST FORWARD SPOT',
     desc: 'One roster spot left, a veteran in front of you, and the staff watching.',
     read: 'It comes down to a loose puck and whose stick gets there first. Go early and the whistle goes against you.',
     stat: 'hockeyIQ',
     accent: 'emerald',
-    gameType: 'faceoff', 
-    pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], 
+    gameType: 'faceoff',
+    pos: ['C', 'LW', 'RW'],
     reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
     successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
     failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
+  },
+  {
+    id: 'camp_battle_d',
+    title: 'CAMP BATTLE: THE LAST PAIRING',
+    desc: 'One pairing left to fill, a veteran ahead of you, and the staff watching.',
+    read: 'They will run you at the gap until you blink. Get in the lane and wear it.',
+    stat: 'physicality',
+    accent: 'emerald',
+    gameType: 'block',
+    pos: ['LD', 'RD'],
+    reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
+    successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
+    failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
+  },
+  {
+    id: 'camp_battle_g',
+    title: 'CAMP BATTLE: THE STARTING NET',
+    desc: 'Two goalies, one net, and a staff that has to pick before opening night.',
+    read: 'Scrimmage after scrimmage, and every puck they put on you is part of the decision.',
+    stat: 'hockeyIQ',
+    accent: 'emerald',
+    gameType: 'crease',
+    pos: ['G'],
+    reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
+    successMsg: "You won the net out of camp and the staff told the room so.",
+    failMsg: "You let in too many in the scrimmages. The veteran starts opening night."
   },
   {
     id: 'breakout',

@@ -4,6 +4,8 @@ import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '.
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
+import { rateSeason } from '../utils/production';
+import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
 
 // Leagues that don't count toward a player's pro season number.
@@ -301,10 +303,11 @@ export default function RecapScreen() {
                     'Struggled to find consistency this year.'
                   }</li>
                 ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> in {seasonRecap?.games || 0} games, logging a <strong className="text-white">{seasonRecap?.pm > 0 ? `+${seasonRecap.pm}` : (seasonRecap?.pm || 0)}</strong> rating while averaging <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong>
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> and <strong className="text-white">{seasonRecap?.blk || 0} blocked shots</strong> in {seasonRecap?.games || 0} games, averaging <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong>
                     {(seasonRecap?.ppToi || 0) >= 0.2
                       ? <>, <strong className="text-white">{clock(seasonRecap.ppToi)}</strong> of it on the powerplay</>
-                      : <> and no powerplay time at all</>}. {
+                      : <> and no powerplay time at all</>}
+. {
                     /* The verdict reads off the graded season now rather than
                        the point total alone. A defenceman who finished under
                        forty points was told he had "focused heavily on the
@@ -318,18 +321,48 @@ export default function RecapScreen() {
                           ? 'You carried the puck out of your own end all season.'
                           : 'You shut down the other team’s best line all season.') :
                     (seasonRecap?.rating || 5) >= 6.5 ? 'A dependable pair, every night.' :
-                    (seasonRecap?.pm || 0) < -10 ? 'Caught out far too often.' :
+                    (seasonRecap?.rating || 5) <= 4.0 ? 'Caught out far too often.' :
                     'A quiet year in a sheltered role.'
                   }</li>
-                ) : (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{seasonRecap?.g || 0} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{Math.floor(seasonRecap?.avgToi || 0)}:{Math.round(((seasonRecap?.avgToi || 0) % 1) * 60).toString().padStart(2, '0')} TOI</strong> a night. {
-                    ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 100 ? 'A legendary century-mark campaign.' :
-                    (seasonRecap?.g >= 50) ? 'An elite goal-scoring year.' :
-                    ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :
-                    ((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 40 ? 'A solid middle-six contribution.' :
+                ) : (() => {
+                  /* A FORWARD'S YEAR, WITH THE PART OF IT THAT IS HIS.
+                     This was goals, assists, points and the minutes, which is
+                     the line every position used to read before the goalie and
+                     the defenceman were given their own. How often he shot and
+                     how often it went in is the thing that separates two men
+                     who both finished on thirty, and a centre's draws are the
+                     one number on a stat sheet that nobody else has. */
+                  const sog = seasonRecap?.sog || 0;
+                  const gls = seasonRecap?.g || 0;
+                  const shPct = sog > 0 ? (gls / sog) * 100 : null;
+                  const fot = seasonRecap?.fot || 0;
+                  const foPct = fot > 0 ? ((seasonRecap?.fow || 0) / fot) * 100 : null;
+                  return (
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{gls} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{gls + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong> a night
+                    {shPct != null
+                      ? <>, off <strong className="text-white">{sog} shots</strong> at <strong className="text-white">{shPct.toFixed(1)}%</strong></>
+                      : null}
+                    {foPct != null
+                      ? <>, and won <strong className="text-white">{foPct.toFixed(1)}%</strong> of <strong className="text-white">{fot}</strong> draws</>
+                      : null}
+. {
+                    (gls + (seasonRecap?.a || 0)) >= 100 ? 'A legendary century-mark campaign.' :
+                    (gls >= 50) ? 'An elite goal-scoring year.' :
+                    (gls + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :
+                    (gls + (seasonRecap?.a || 0)) >= 40 ? 'A solid middle-six contribution.' :
                     'Struggled to consistently generate offense.'
-                  }</li>
-                )}
+                  }{shPct != null && shPct >= 16 && gls >= 20
+                      ? ' Almost nothing he put on net stayed out of it.'
+                      : shPct != null && shPct <= 7.0 && sog >= 150
+                        ? ' He shot it plenty. Very little of it went in.'
+                        : ''}
+                    {foPct != null && foPct >= 57
+                      ? ' The staff sent him out for every draw that mattered.'
+                      : foPct != null && foPct <= 46
+                        ? ' He lost the circle most nights, and his line started in his own end because of it.'
+                        : ''}</li>
+                  );
+                })()}
 
                 {madePlayoffsForNarrative ? (
                   <>
@@ -459,8 +492,26 @@ export default function RecapScreen() {
                   const isG = player.pos === 'G';
                   const mySv = (seasonRecap.shots || 0) > 0 ? (seasonRecap.saves || 0) / seasonRecap.shots : null;
                   const myPts = (seasonRecap.g || 0) + (seasonRecap.a || 0);
-                  const ahead = isG ? (mySv != null && mySv >= cb.sv) : myPts >= cb.pts;
                   const fmt = (v) => v.toFixed(3).replace('0.', '.');
+
+                  // A defenceman's year against his classmates', graded rather
+                  // than counted. This row used to hand him the highest scoring
+                  // defenceman in the class and call him the best one, so a
+                  // plus-thirty season at twenty-four minutes a night was
+                  // reported as second best to a man who had been on the ice
+                  // for forty goals against and outscored him by six points.
+                  const myGames = seasonRecap.games || 0;
+                  const myGrade = !isG && myGames > 0
+                    ? rateSeason({
+                        league: cb.league || seasonRecap.league, pos: player.pos, games: myGames,
+                        g: seasonRecap.g || 0, a: seasonRecap.a || 0,
+                        pm: seasonRecap.pm || 0, blk: seasonRecap.blk, toi: seasonRecap.avgToi
+                      })
+                    : null;
+                  const ahead = isG
+                    ? (mySv != null && mySv >= cb.sv)
+                    : (myGrade != null && cb.rating != null ? myGrade >= cb.rating : myPts >= cb.pts);
+
                   return (
                     <RecapRow accent={ahead ? '#22E748' : '#64748b'}
                               label={isG ? '🥅 Your draft class in net' : '🛡️ Your draft class on the blue line'}
@@ -472,8 +523,8 @@ export default function RecapScreen() {
                               ? `No goaltender from your draft class in ${lg} stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
                               : `${cb.name} was the best goaltender of your draft class in ${lg} at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
                         : (ahead
-                            ? `No defenceman from your draft class in ${lg} outscored your ${myPts} points. ${cb.name} was next on ${cb.pts}.`
-                            : `${cb.name} was the best defenceman of your draft class in ${lg} with ${cb.pts} points. You finished on ${myPts}.`)}
+                            ? `No defenceman from your draft class in ${lg} had a better year than yours: ${myPts} points and ${seasonRecap.blk || 0} blocks. ${cb.name} was next, on ${cb.pts} and ${cb.blk || 0}.`
+                            : `${cb.name} was the best defenceman of your draft class in ${lg}: ${cb.pts} points and ${cb.blk || 0} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}. You finished on ${myPts} and ${seasonRecap.blk || 0}.`)}
                     </RecapRow>
                   );
                 })()}
@@ -543,6 +594,42 @@ export default function RecapScreen() {
                 {seasonRecap?.classNews && (
                   <RecapRow accent="#c084fc" label="🏒 Your draft class">
                     {seasonRecap.classNews.line}
+                  </RecapRow>
+                )}
+
+                {/* RECORDS.
+                    Above the milestones, because a hundredth goal is a lovely
+                    night and a club record is the wall of the building. */}
+                {(seasonRecap.recordsBroken || []).filter(r => r.report).length > 0 && (
+                  <RecapRow accent="#F59E0B" label="📖 The record book">
+                    <ul className="space-y-1.5">
+                      {seasonRecap.recordsBroken.filter(r => r.report).map((r, i) => (
+                        <li key={`rec-${i}`} className="text-slate-300 leading-relaxed">
+                          <span className={`inline-block mr-2 align-middle text-[9px] font-black uppercase tracking-widest px-1.5 py-[2px] rounded border ${
+                            r.scope === 'league'
+                              ? 'text-[#F59E0B] border-[rgba(245,158,11,0.45)] bg-[rgba(245,158,11,0.10)]'
+                              : 'text-slate-400 border-[rgba(255,255,255,0.14)]'}`}>
+                            {r.scope === 'league' ? r.league : 'Club'}
+                          </span>
+                          {recordLine(r, getFullTeamName(r.club, r.league))}
+                        </li>
+                      ))}
+                    </ul>
+                  </RecapRow>
+                )}
+
+                {/* MILESTONES.
+                    The hundredth goal, the thousandth game, the first one of
+                    all. A career could pass every one of these without the
+                    game saying a word, and they are the nights the play stops
+                    and somebody fishes the puck out for you. */}
+                {(seasonRecap.milestones || []).length > 0 && (
+                  <RecapRow accent="#F59E0B" label="🏅 Milestones">
+                    <ul className="space-y-1">
+                      {seasonRecap.milestones.map((m, i) => (
+                        <li key={`ms-${i}`} className="text-slate-300 leading-relaxed">{m}</li>
+                      ))}
+                    </ul>
                   </RecapRow>
                 )}
 

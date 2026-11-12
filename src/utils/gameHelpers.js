@@ -4,8 +4,9 @@ import {
 } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
-import { ageFactor, curvesFor, gaussianNoise, goalieAgeAdjust, iceTime, paceOf, rateSeason, seasonForm, soften } from './production';
+import { ageFactor, curvesFor, D_TOI_REF, drawComebackBar, drawCommunityBar, drawRoomBar, faceoffs, forwardDefence, gaussianNoise, goalieAgeAdjust, iceTime, isDefence, paceOf, penaltyMinutes, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
 import { advanceLeagueState, teamStrengthOf } from './leagueState';
+import { advanceRecords, claimRecords } from './records';
 import { advancePeers, classBestAt, classNews, dmanBar, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
@@ -96,12 +97,20 @@ export const formatMoney = (amount) => {
 const CONTRACT_TIERS = [
   [['Two-Way Deal', 'Two-Way Contract', 'AHL Start'], 0.50],
   [['Core', 'Sniper', 'Playmaker', 'Offensive', 'Starter'], 1.25],
-  [['Middle', 'Top 4', 'Two-Way'], 0.90],
-  [['Grinder', 'Depth', 'Bottom', 'Shutdown'], 0.60],
+  // Shutdown moved up here from the depth tier below. A shutdown defenceman
+  // is a top-four player who is paid to defend, and pricing him at 0.60 put
+  // the man the Selke and the blocked-shot model were built around on the
+  // third pair playing nine minutes a night.
+  [['Middle', 'Top 4', 'Two-Way', 'Shutdown'], 0.90],
+  [['Grinder', 'Depth', 'Bottom'], 0.60],
   [['Backup'], 0.40]
 ];
 
-export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = 'NHL', coachTrust = 50 }) => {
+// About one line of movement, which is what a coach does in a season.
+const ROLE_STEP = 0.22;
+
+export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = 'NHL',
+                              coachTrust = 50, lastRoleMulti = null, sameLeague = true }) => {
   const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(league);
 
   // 1. What he signed for.
@@ -129,17 +138,54 @@ export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = '
   // in the summer. Demotion runs further than promotion, because a coach will
   // sit a man who is struggling sooner than he will hand a job to one who is
   // not yet trusted with it.
-  const pull = Math.min(0.80, Math.max(0.15, 0.45 + ((coachTrust - 50) / 50) * 0.35));
-  const wanted = (deserved - signed) * pull;
-  const multi = signed + Math.max(-0.30, Math.min(0.22, wanted));
+  // TRUST WAS PULLING THE WRONG WAY ON A DEMOTION.
+  //
+  // One pull was used for both directions, so a coach who believed in a player
+  // moved him faster toward wherever the ability table said he belonged, down
+  // as well as up. Measured: the same 74 OVR centre on a top-six deal came out
+  // at 1.02 with a trusting coach and 1.12 with a doubting one, because his
+  // deal was better than his ability and trust dragged him toward it harder.
+  //
+  // Two pulls. Trust earns a promotion and it also buys patience, which is
+  // what trust is for: the coach who rates him leaves him up there a while
+  // longer. Demotion still runs further than promotion, because a coach sits a
+  // struggling man sooner than he hands a job to an unproven one.
+  const t = (coachTrust - 50) / 50;
+  const wanted = deserved - signed;
+  const pull = wanted >= 0
+    ? Math.min(0.80, Math.max(0.15, 0.45 + t * 0.35))   // trust promotes him
+    : Math.min(0.80, Math.max(0.15, 0.45 - t * 0.35));  // and protects him
+  const moved = wanted * pull;
+
+  let multi = signed + Math.max(-0.30, Math.min(0.22, moved));
+
+  // AND HIS MINUTES CANNOT HALVE OVER ONE SUMMER.
+  //
+  // Everything above reads this season's contract and this season's coach, so
+  // nothing connected a year to the one before it: a new deal with different
+  // words on it moved a man two lines in a single July. Real hockey demotes a
+  // first-liner to the second line, and then to the third the year after.
+  //
+  // lastRoleMulti is where he actually finished last season. Inside the same
+  // league he moves about a line from it at most. A league change is exempt,
+  // because being sent to the AHL is a cliff and is supposed to feel like one.
+  if (lastRoleMulti != null && sameLeague) {
+    multi = Math.max(lastRoleMulti - ROLE_STEP, Math.min(lastRoleMulti + ROLE_STEP, multi));
+  }
 
   // The name for where that lands him.
   const isDef = pos === 'LD' || pos === 'RD';
   let label;
+  // Boundaries moved down to meet the interpolated minutes.
+  //
+  // They were set against the old staircase, where 0.98 was the exact edge of
+  // the top-four tier. Now that the space between anchors is a slope, a man at
+  // 0.89 is playing a shade under fifteen even-strength minutes, which is a
+  // second-line shift, and the card was calling him third-line depth.
   if (pos === 'G') label = multi >= 0.95 ? 'Starter' : multi >= 0.6 ? 'Tandem' : 'Backup';
-  else if (multi >= 1.18) label = isDef ? '1st Pair Core' : '1st Line Core';
-  else if (multi >= 0.98) label = isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
-  else if (multi >= 0.76) label = isDef ? '3rd Pair Depth' : '3rd Line Depth';
+  else if (multi >= 1.12) label = isDef ? '1st Pair Core' : '1st Line Core';
+  else if (multi >= 0.87) label = isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
+  else if (multi >= 0.68) label = isDef ? '3rd Pair Depth' : '3rd Line Depth';
   else label = isDef ? '7th D Fringe' : '4th Line Fringe';
 
   return { multi, label, signed, deserved };
@@ -326,7 +372,7 @@ export const applyOvrDelta = (player, delta) => {
   };
 };
 
-function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, dBar = null, pm = 0, toi = null }) {
+function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, dBar = null, pm = 0, blk = null, toi = null, fot = 0, fow = 0, pim = 0 }) {
   const awards = [];
   const pts = g + a;
 
@@ -399,7 +445,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     // any threshold: 9.30 gave 21 per cent of seasons at 88 OVR and 67 at 94,
     // against a scoring title's 21 and 42, and the 9.42 that fixed the top end
     // cut the 88 down to 11.
-    const dGrade = rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, toi });
+    const dGrade = rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, blk, toi });
     if (dBar && dGrade >= dBar.grade) awards.push(trophy.dman);
     // And the MVP, which a defenceman wins roughly once a generation, needs
     // the season to be both the best defensive year in the league and a
@@ -416,6 +462,118 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     if (wonGoals) awards.push(trophy.goals);
   }
 
+  // ==========================================================================
+  // THE SEVEN THAT WERE MISSING
+  //
+  // The game handed out six trophies: an MVP, a scoring title, a goals title,
+  // a best defenceman, a best goalie and a rookie. Five of those are won by
+  // outscoring people, which meant a shutdown centre, a captain who held a
+  // room together and a man who came back from a year that ended in October
+  // had nothing they could ever win. Every one below is decided on something
+  // the game already simulates and nothing new had to be invented for them,
+  // which is the test of whether an award belongs in a game at all.
+  //
+  // Each is guarded on its own key, because most leagues do not give them out
+  // and inventing a Liiga sportsmanship trophy would be worse than silence.
+  // ==========================================================================
+  const rel = player.relationships || {};
+  const teammates = rel.teammates ?? 50;
+  const media = rel.media ?? 50;
+  const wearsALetter = !!player.isCaptain || !!player.alternateGiven;
+  const fullish = games >= (junior ? 50 : 55);
+
+  // THE PLAYERS' AWARD.
+  //
+  // The Hart is the writers and this is the room, so it cannot simply be the
+  // Hart under another name. The bar for the season is a shade under the MVP's
+  // and the second half of it is whether his teammates would actually vote for
+  // him, which is a thing the game has tracked all along and never used for
+  // anything but dressing-room events. A great player the room has no time for
+  // wins the Hart and loses this, and that is the whole point of there being
+  // two of them.
+  if (trophy.players && fullish && teammates >= 68) {
+    const outstanding = isGoalie
+      ? svPct >= (gBar ? gBar.sv : pace.svStar) + 0.006
+      : isDefense
+        ? rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, blk, toi }) >= 9.70
+        : pts >= field.total * 0.98;
+    if (outstanding) awards.push(trophy.players);
+  }
+
+  // THE BEST DEFENSIVE FORWARD.
+  //
+  // A forward's defending was simulated and then thrown away: he blocked
+  // shots, he was on the ice for goals either way, he took draws if he was a
+  // centre, and not one of those could ever win him anything. defensiveHalf is
+  // the same function that grades a defenceman, fed a forward's numbers, with
+  // the draws added for a centre because winning them is most of what a
+  // defensive centre is for. He still has to be a hockey player: the award has
+  // never gone to somebody who could not also play.
+  if (trophy.defensiveFwd && !isGoalie && !isDefense && fullish) {
+    const twoWay = forwardDefence({
+      pmPerGame: (pm || 0) / games, toi,
+      blkPerGame: blk == null ? null : blk / games,
+      foPct: fot > 0 ? fow / fot : null
+    });
+    // He still has to be a hockey player. The award has never gone to
+    // somebody who could not also play, and without this a fourth-line centre
+    // who wins his draws would take it off a sixty-point two-way forward.
+    if (twoWay >= 0.70 && pts >= field.total * 0.45) awards.push(trophy.defensiveFwd);
+  }
+
+  // SKILL WITHOUT THE PENALTY BOX.
+  //
+  // Penalty minutes were added for this award and it is the only thing in the
+  // game that reads them, which also gives the Playmaker archetype something
+  // it wins and the Power Forward something he gives up.
+  if (trophy.sportsman && !isGoalie && fullish
+      && pts >= field.total * 0.68 && pim / games <= 0.33) {
+    awards.push(trophy.sportsman);
+  }
+
+  // THE GOALIE ON THE SIDE THAT CONCEDED FEWEST.
+  //
+  // A team award in real life, so it goes on where the club finished as much
+  // as on how he played, and it is the one trophy here a good goalie on a bad
+  // team cannot win however well he plays. That is the honest shape of it.
+  if (trophy.teamGoalie && isGoalie && games >= goalieMin
+      && standings <= 2 && svPct >= pace.svStar - 0.006) {
+    awards.push(trophy.teamGoalie);
+  }
+
+  // COMING BACK.
+  //
+  // Awarded on what happened last season rather than this one: a year that
+  // ended early, followed by a full one. The game already parks a shortened
+  // season in the history when an injury finishes it, so this needed nothing
+  // except somebody to read it.
+  if (trophy.perseverance) {
+    const prior = (player.seasonHistory || []).filter(s => (s.games || 0) > 0);
+    const lastYear = prior[prior.length - 1];
+    const cutShort = !!lastYear && !!lastYear.injuryEnded && (lastYear.games || 0) <= 40;
+    // Coming back is the condition, playing well is the case, and somebody
+    // else in the league came back too.
+    if (cutShort && games >= (junior ? 48 : 62) && rating >= drawComebackBar()) {
+      awards.push(trophy.perseverance);
+    }
+  }
+
+  // LEADERSHIP, TWICE, FOR TWO DIFFERENT THINGS.
+  //
+  // One is what he does away from the rink, which this game measures as what
+  // the city thinks of him: the charity nights, the hospital visits, the
+  // events he could have skipped for a training session and did not. The other
+  // is the room and the result, which is the captain of a side that finished
+  // near the top with the players behind him.
+  if (trophy.community && wearsALetter && fullish
+      && media >= 65 && (player.fanStatus || 0) >= drawCommunityBar()) {
+    awards.push(trophy.community);
+  }
+  if (trophy.leadership && player.isCaptain && fullish
+      && standings <= 8 && teammates >= drawRoomBar()) {
+    awards.push(trophy.leadership);
+  }
+
   // A rookie is a sixteen-year-old in junior and a first-year professional
   // everywhere else.
   const isRookie = junior ? player.age === 16 : proSeasons === 1;
@@ -430,7 +588,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     const rookiePace = isGoalie
       ? (svPct >= (gBar ? gBar.sv : pace.svStar) - 0.020 && games >= goalieMin)
       : isDefense
-        ? rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, toi }) >= 7.50
+        ? rateSeason({ league: player.league, pos: player.pos, games, g, a, pm, blk, toi }) >= 7.50
         : pts >= field.total * 0.60;
     if (rookiePace) awards.push(trophy.rookie);
   }
@@ -559,16 +717,57 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
 
       if (p.ovr < demoteThresh || needsAHLDevelopment) {
         if (currentLg === 'NHL') {
-          if (isUnder20 && hasCHLHistory && Math.random() > 0.5) {
-             // Prospect stays in the NHL past 9 games!
-          } else if (isUnder20 && hasCHLHistory) {
-             const lastCHL = (p.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
-             currentTeam = lastCHL || p.chlRights || 'UNK';
-             if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
-             else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
-             else currentLg = 'OHL';
-             isDemoted = true;
-             waiverEvent = '9_GAME_RULE';
+          if (isUnder20 && hasCHLHistory) {
+             // WHERE A SIGNED DRAFTEE ACTUALLY SPENDS HIS FIRST YEAR.
+             //
+             // This was a coin flip: half of them stayed in the NHL all season
+             // and half played nine games and went back to junior. Nothing
+             // else could happen, which made the nine-game return the single
+             // most common outcome in the game and gave a signed prospect no
+             // chance at all of going to the American league, which is where
+             // a club most often puts one.
+             //
+             // In order of how often it really happens to a signed first
+             // rounder: he goes back to junior from the start, he is assigned
+             // to the AHL out of September camp, he holds a place in the NHL,
+             // and last and least often he plays his nine and is sent back.
+             // Going back to junior is an assignment and not a demotion, so
+             // it does not set the demotion flag; the nine-game return is,
+             // because he was up and then he was not.
+             const pick = p.draftPick || 64;
+             // A high pick gets a longer look, so his weights lean toward the
+             // two outcomes that keep him in the building.
+             const high = pick <= 15;
+             const roll = Math.random();
+             const wJunior = high ? 0.38 : 0.52;
+             const wAhl    = high ? 0.27 : 0.22;
+             const wNhl    = high ? 0.23 : 0.13;
+             // whatever is left is the nine-game return: 0.12 high, 0.13 late
+
+             const toLastCHL = () => {
+               const lastCHL = (p.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
+               currentTeam = lastCHL || p.chlRights || 'UNK';
+               if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
+               else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
+               else currentLg = 'OHL';
+             };
+
+             if (roll < wJunior) {
+               toLastCHL();
+               waiverEvent = 'JUNIOR_ASSIGNMENT';
+             } else if (roll < wJunior + wAhl) {
+               const parentNhlTeam = nhlTeams.find(t => t.id === currentTeam);
+               if (parentNhlTeam && parentNhlTeam.ahlId) currentTeam = parentNhlTeam.ahlId;
+               currentLg = 'AHL';
+               isDemoted = true;
+               waiverEvent = 'CAMP_ASSIGNMENT';
+             } else if (roll < wJunior + wAhl + wNhl) {
+               // He holds his place. Nothing moves.
+             } else {
+               toLastCHL();
+               isDemoted = true;
+               waiverEvent = '9_GAME_RULE';
+             }
           } else {
              const parentNhlTeam = nhlTeams.find(t => t.id === currentTeam);
              if (parentNhlTeam && parentNhlTeam.ahlId) currentTeam = parentNhlTeam.ahlId;
@@ -622,6 +821,16 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   let simPhy = getActiveStat(p, 'physicality') + (trainingEffect.physicality || 0);
   let simIq = getActiveStat(p, 'hockeyIQ') + (trainingEffect.hockeyIQ || 0);
 
+  // His actual ability, kept before the league bonus is applied below.
+  //
+  // The bonus exists so that a 60 OVR sixteen-year-old scores like a junior
+  // star rather than like a fourth-line NHL winger, which is right for how
+  // many goals he gets. It is wrong for a rate: shooting percentage and
+  // faceoff percentage are the same skill wherever he plays, so feeding the
+  // inflated number into them would have a junior centre winning sixty-two per
+  // cent of his draws and then losing the ability the week he turned pro.
+  const rawSht = simSht, rawPhy = simPhy, rawIq = simIq;
+
   if (isJuniorLg || isNCAA) { simSht += 25; simSkt += 25; simIq += 25; simPhy += 25; }
   else if (currentLg === 'AHL') { simSht += 15; simSkt += 15; simIq += 15; simPhy += 15; }
   else if (isEuroLg) { simSht += 10; simSkt += 10; simIq += 10; simPhy += 10; }
@@ -631,7 +840,11 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // card and the engine cannot disagree about what line he is on.
   const roleResolved = resolveRole({
     contractRole: p.contract?.role || '',
-    ovr: p.ovr, pos: p.pos, league: currentLg, coachTrust
+    ovr: p.ovr, pos: p.pos, league: currentLg, coachTrust,
+    // Where he finished last season, and whether this is the same league. Both
+    // are what stop his minutes halving over one summer: see resolveRole.
+    lastRoleMulti: p.lastRoleMulti ?? null,
+    sameLeague: !p.league || p.league === currentLg
   });
   let roleMulti = roleResolved.multi;
 
@@ -708,7 +921,32 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       }
   }
 
-  let standings = Math.max(1, Math.min(teamCount, Math.round(teamCount - (finalTeamFactor * teamCount) + 1)));
+  // FIRST PLACE WAS NOT REACHABLE.
+  //
+  // finalTeamFactor is clamped to 0.95 a few lines above, and this read
+  // teamCount - factor * teamCount + 1, so the best a thirty-two team league
+  // could finish was 32 - 30.4 + 1, which rounds to third. Every save ever
+  // played has had an unwinnable Presidents' Trophy, because the one line that
+  // awards it tests for standings === 1.
+  //
+  // Scaling against the clamp instead: the best team a season can produce
+  // finishes first, the worst finishes last, and the middle is unchanged.
+  // A table has a top, and a league of thirty-two could not reach it.
+  //
+  // finalTeamFactor is clamped to 0.95 just above, and this read
+  // teamCount - factor * teamCount + 1, so the best a thirty-two team league
+  // could finish was 32 - 30.4 + 1, which rounds to third. Every save ever
+  // played has had an unwinnable Presidents' Trophy, because the one line that
+  // awards it tests standings === 1.
+  //
+  // Mapping the clamped range onto the whole table fixes the arithmetic, and
+  // then the noise fixes the other half of it: a strong club plus a strong
+  // player pins to the clamp, so without it the best team in the league would
+  // win the regular season every single year. Under two places of swing leaves
+  // the middle of the table where it was and makes the top of it a race.
+  const seedPct = Math.min(1, Math.max(0, (finalTeamFactor - 0.05) / 0.90));
+  let standings = Math.max(1, Math.min(teamCount,
+    Math.round(teamCount - seedPct * (teamCount - 1) + gaussianNoise() * 1.8)));
   if (isEuroLg) standings = teamCount + 1; 
   const madePlayoffs = !isEuroLg && standings <= playoffSpots;
 
@@ -837,6 +1075,52 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       a = Math.floor(soften(aRaw, curves.assists.soft, curves.assists.hard));
   }
 
+  // BLOCKED SHOTS.
+  //
+  // The one defensive counting stat the game was missing. A goalie finishes a
+  // season with six numbers of his own and a defenceman had points, a
+  // plus-minus and his minutes, so there was nothing on his page that was only
+  // ever his: no way to say he had thrown himself in front of two hundred
+  // pucks, which is a season's work and the thing his own room values him for.
+  //
+  // It follows the three things that decide it: how much he is on the ice, how
+  // willing he is, and how well he reads where the shot is going. An ordinary
+  // NHL defenceman is around 1.5 a game and the league leaders are near 3.0,
+  // so a top-pair shot blocker finishes a full season in the low two hundreds.
+  // Forwards block too, at about a third of the rate.
+  let blk = 0;
+  if (p.pos !== 'G' && games > 0) {
+    const base = isDefence(p.pos) ? 1.55 : 0.52;
+    const willing = 1 + ((simPhy + simIq) - 130) / 260;
+    const minutes = (avgToi || D_TOI_REF) / D_TOI_REF;
+    blk = Math.max(0, Math.round(games * base * Math.max(0.35, willing) * minutes
+      * (0.88 + Math.random() * 0.24)));
+  }
+
+  // SHOTS, DRAWS AND THE BOX.
+  //
+  // The three numbers that make a forward a forward rather than a skater who
+  // is not a defenceman. See production.js for what each is built out of.
+  //
+  // Each gets its own season-to-season swing, because a shooting percentage
+  // that never moved would be an attribute with a decimal point on it rather
+  // than a thing that happened. Real finishing drifts by three or four points
+  // a year on the same player, and every hockey season turns on somebody's
+  // doing.
+  const sog = shotsOnGoal({
+    pos: p.pos, games, goals: g, shooting: rawSht, iceFactor,
+    archetype: p.archetype, jitter: 0.87 + Math.random() * 0.26
+  });
+  const draws = faceoffs({
+    pos: p.pos, games, hockeyIQ: rawIq, physicality: rawPhy, iceFactor,
+    edge: p.faceoffEdge || 0, jitter: 0.90 + Math.random() * 0.20
+  });
+  const fot = draws.taken, fow = draws.won;
+  const pim = penaltyMinutes({
+    pos: p.pos, games, physicality: rawPhy, archetype: p.archetype,
+    jitter: 0.82 + Math.random() * 0.36
+  });
+
   // A GOALIE'S RECORD.
   //
   // The game tracked save percentage, goals against and shutouts, and no
@@ -861,7 +1145,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // Graded against the league he played in, not against a single scale shared
   // by the NHL and the OHL. See rateSeason in utils/production.js for what
   // that was doing to development.
-  let rating = rateSeason({ league: currentLg, pos: p.pos, games, g, a, pm, saves, shots, toi: avgToi });
+  let rating = rateSeason({ league: currentLg, pos: p.pos, games, g, a, pm, blk, saves, shots, toi: avgToi });
 
   // Where these games were played, which can differ from where he is standing
   // at the end of them: a call-up moves the club and the league under him.
@@ -895,7 +1179,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     return {
       segment: {
         team: playedTeam, league: playedLg, games,
-        g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating, standings,
+        g, a, pm, blk, sog, fot, fow, pim, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating, standings,
         // Carried so the next segment inherits the same club, rather than
         // re-rolling how good the team is at every checkpoint of the year.
         // The base, not this segment's jittered value, so drift does not compound.
@@ -905,14 +1189,31 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   }
 
   // Every stint of this season, earlier ones first, this one last.
-  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating };
+  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, blk, sog, fot, fow, pim, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating };
   // Consecutive stints at the same club are one spell, not two: a prospect kept
   // past his nine games played 71 games for that team, not "9 and then 62".
   const stints = [...(options.priorStints || []), thisStint].reduce((acc, s) => {
     const last = acc[acc.length - 1];
     if (last && last.team === s.team && last.league === s.league) {
+      // Minutes are a rate, so the merged spell carries the weighted average
+      // of the two. It used to keep the first segment's figure and throw the
+      // second away, which meant a defenceman promoted to the top pair at
+      // Christmas finished the year reporting the fourteen minutes a night he
+      // had been playing in October.
+      const gA = last.games || 0, gB = s.games || 0;
+      if (gA + gB > 0) {
+        last.avgToi = ((last.avgToi || 0) * gA + (s.avgToi || 0) * gB) / (gA + gB);
+        last.ppToi = ((last.ppToi || 0) * gA + (s.ppToi || 0) * gB) / (gA + gB);
+      }
       last.games += (s.games || 0); last.g += (s.g || 0); last.a += (s.a || 0);
       last.pm += (s.pm || 0); last.saves += (s.saves || 0);
+      // blk was missing here, so a player who stayed at the same club through
+      // two segments of a season lost every shot he blocked in the second one.
+      last.blk = (last.blk || 0) + (s.blk || 0);
+      last.sog = (last.sog || 0) + (s.sog || 0);
+      last.fot = (last.fot || 0) + (s.fot || 0);
+      last.fow = (last.fow || 0) + (s.fow || 0);
+      last.pim = (last.pim || 0) + (s.pim || 0);
       last.shots += (s.shots || 0); last.sho += (s.sho || 0);
       last.wins = (last.wins || 0) + (s.wins || 0);
       last.losses = (last.losses || 0) + (s.losses || 0);
@@ -924,10 +1225,12 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
 
   const seasonTotal = stints.reduce((acc, s) => ({
     games: acc.games + (s.games || 0), g: acc.g + (s.g || 0), a: acc.a + (s.a || 0),
-    pm: acc.pm + (s.pm || 0), saves: acc.saves + (s.saves || 0),
+    pm: acc.pm + (s.pm || 0), blk: acc.blk + (s.blk || 0), saves: acc.saves + (s.saves || 0),
+    sog: acc.sog + (s.sog || 0), fot: acc.fot + (s.fot || 0), fow: acc.fow + (s.fow || 0),
+    pim: acc.pim + (s.pim || 0),
     shots: acc.shots + (s.shots || 0), sho: acc.sho + (s.sho || 0),
     wins: acc.wins + (s.wins || 0), losses: acc.losses + (s.losses || 0), otl: acc.otl + (s.otl || 0)
-  }), { games: 0, g: 0, a: 0, pm: 0, saves: 0, shots: 0, sho: 0, wins: 0, losses: 0, otl: 0 });
+  }), { games: 0, g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, pim: 0, saves: 0, shots: 0, sho: 0, wins: 0, losses: 0, otl: 0 });
 
   // Trophies are a judgement on a season, not on whichever slice of it this
   // call happened to simulate. The year is played in segments now (the World
@@ -945,8 +1248,22 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     // A defenceman's trophy is decided on these two as much as on his points,
     // so the league half has to carry them the way it carries the goals.
     pm: acc.pm + (s.pm || 0),
+    blk: acc.blk + (s.blk || 0),
+    // And a forward's are decided on these: the Richard on his goals, the
+    // Byng on what he did without sitting in the box, the Selke on the work
+    // that never reaches the scoresheet.
+    sog: acc.sog + (s.sog || 0),
+    fot: acc.fot + (s.fot || 0),
+    fow: acc.fow + (s.fow || 0),
+    pim: acc.pim + (s.pim || 0),
+    // A goalie's record in this league, for the record book: wins and
+    // shutouts were totalled for the season as a whole and never per league,
+    // so a goalie who split a year between the NHL and the American League
+    // had no league figure for either of them.
+    wins: acc.wins + (s.wins || 0),
+    sho: acc.sho + (s.sho || 0),
     toiGames: acc.toiGames + ((s.avgToi || 0) * (s.games || 0))
-  }), { games: 0, g: 0, a: 0, saves: 0, shots: 0, pm: 0, toiGames: 0 });
+  }), { games: 0, g: 0, a: 0, saves: 0, shots: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, pim: 0, wins: 0, sho: 0, toiGames: 0 });
 
   // The rest of the draft class plays its season here, at the end of yours,
   // because the scoring title cannot be settled until everyone has finished.
@@ -966,6 +1283,11 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     saves: leagueYear.saves, shots: leagueYear.shots,
     games: leagueYear.games, standings, bar, gBar, dBar,
     pm: leagueYear.pm,
+    // A defenceman's trophies are decided on the same three parts his season
+    // is graded on, so the league half has to carry his blocking too.
+    blk: leagueYear.blk,
+    // And a forward's, for the Selke and the Byng.
+    fot: leagueYear.fot, fow: leagueYear.fow, pim: leagueYear.pim,
     toi: leagueYear.games > 0 ? leagueYear.toiGames / leagueYear.games : avgToi
   });
 
@@ -975,6 +1297,28 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     p.leagueState,
     stints.map(st => st.team).filter(Boolean)
   );
+
+  // THE RECORD BOOK.
+  //
+  // His season is handed to the book first, so anything he took this year is
+  // his before the rest of the league has its go at it, and then the league
+  // has its season. The club he plays for is held out of that second part:
+  // a club record falling to a team-mate in the same summer he was chasing it
+  // would be absurd and would read as the game cheating him.
+  //
+  // Run off leagueYear rather than the recap, so a player traded in March is
+  // judged on his season in that league and not on the nine games he played
+  // for the club he left in October. A club record uses the club he finished
+  // with, which is the only club a single-club record can belong to.
+  const recordSeasonYear = 2026 + (p.stats?.seasonsPlayed || 0);
+  const recordClaim = (leagueYear.games || 0) > 0
+    ? claimRecords(p.recordBook, {
+        league: playedLg, club: currentTeam, year: recordSeasonYear,
+        name: p.name, pos: p.pos,
+        recap: leagueYear
+      })
+    : { book: p.recordBook || {}, broken: [] };
+  const nextRecordBook = advanceRecords(recordClaim.book);
 
   const coachItem = shopItems.find(i => i.id === 'coach');
   // A player who has never bought anything has no inventory array at all, and
@@ -1041,21 +1385,49 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       assists: (p.stats[b]?.assists || 0), plusMinus: (p.stats[b]?.plusMinus || 0),
       shots: (p.stats[b]?.shots || 0), saves: (p.stats[b]?.saves || 0),
       shutouts: (p.stats[b]?.shutouts || 0),
-      wins: (p.stats[b]?.wins || 0), losses: (p.stats[b]?.losses || 0), otl: (p.stats[b]?.otl || 0)
+      wins: (p.stats[b]?.wins || 0), losses: (p.stats[b]?.losses || 0), otl: (p.stats[b]?.otl || 0),
+      // Minutes, as a running total rather than an average, so dividing by
+      // games gives a career average at any point. Plus-minus was being banked
+      // here and the minutes beside it were thrown away every season, which
+      // left half of a defenceman's game unrecorded: the draft could only
+      // scout him on his points, and nothing could grade a junior career
+      // defensively because the ice time no longer existed anywhere.
+      toiGames: (p.stats[b]?.toiGames || 0),
+      blocks: (p.stats[b]?.blocks || 0),
+      // A forward's three. sog gives a career shooting percentage, the draws
+      // give a career faceoff percentage, and pim is the one of the three that
+      // counts against him.
+      sog: (p.stats[b]?.sog || 0),
+      fot: (p.stats[b]?.fot || 0),
+      fow: (p.stats[b]?.fow || 0),
+      pim: (p.stats[b]?.pim || 0)
     };
     mergedBuckets[b] = {
       games: base.games + (s.games || 0), goals: base.goals + (s.g || 0),
       assists: base.assists + (s.a || 0), plusMinus: base.plusMinus + (s.pm || 0),
       shots: base.shots + (s.shots || 0), saves: base.saves + (s.saves || 0),
       shutouts: base.shutouts + (s.sho || 0),
+      toiGames: base.toiGames + (s.avgToi || 0) * (s.games || 0),
+      blocks: base.blocks + (s.blk || 0),
+      sog: base.sog + (s.sog || 0),
+      fot: base.fot + (s.fot || 0),
+      fow: base.fow + (s.fow || 0),
+      pim: base.pim + (s.pim || 0),
       wins: base.wins + (s.wins || 0), losses: base.losses + (s.losses || 0), otl: base.otl + (s.otl || 0)
     };
   }
 
   const updatedPlayer = {
     ...p,
+    // Banked so next season can be held within a line of this one.
+    lastRoleMulti: roleMulti,
+    // What this season passed on the way through. Worked out here because
+    // this is the one place that holds the career totals from both before and
+    // after the year: see careerMilestones.
+    seasonMilestones: careerMilestones(p.stats?.nhl || {}, mergedBuckets.nhl || p.stats?.nhl || {}, p.pos),
     peers: nextPeers,
     leagueState: nextLeagueState,
+    recordBook: nextRecordBook,
     team: currentTeam,
     league: currentLg,
     currentAsg: rating >= 8.5 ? playedLg : null,
@@ -1116,7 +1488,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
 
   // The recap is the whole season: the totals add every stint, and stints keeps
   // the breakdown so the screen can say nine games here and fifty there.
-  const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm,
+  const recap = { g: seasonTotal.g, a: seasonTotal.a, pm: seasonTotal.pm, blk: seasonTotal.blk,
+    sog: seasonTotal.sog, fot: seasonTotal.fot, fow: seasonTotal.fow, pim: seasonTotal.pim,
+    recordsBroken: recordClaim.broken,
     saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
     wins: seasonTotal.wins, losses: seasonTotal.losses, otl: seasonTotal.otl,
     games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi, ppToi,
@@ -1430,12 +1804,18 @@ export function summariseStints(stints) {
     otl: acc.otl + (s.otl || 0),
     // Ice time is an average, so it has to be weighted by the games in each stint.
     toiGames: acc.toiGames + ((s.avgToi || 0) * (s.games || 0)),
+    blocks: acc.blocks + (s.blk || 0),
+    sog: acc.sog + (s.sog || 0),
+    fot: acc.fot + (s.fot || 0),
+    fow: acc.fow + (s.fow || 0),
+    pim: acc.pim + (s.pim || 0),
     ppGames: acc.ppGames + ((s.ppToi || 0) * (s.games || 0))
-  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, wins: 0, losses: 0, otl: 0, toiGames: 0, ppGames: 0 });
+  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, wins: 0, losses: 0, otl: 0, toiGames: 0, ppGames: 0, blocks: 0, sog: 0, fot: 0, fow: 0, pim: 0 });
 
   const last = stints[stints.length - 1];
   return {
     games: tot.games, goals: tot.goals, assists: tot.assists, plusMinus: tot.plusMinus,
+    blocks: tot.blocks, sog: tot.sog, fot: tot.fot, fow: tot.fow, pim: tot.pim,
     saves: tot.saves, shots: tot.shots, shutouts: tot.shutouts,
     wins: tot.wins, losses: tot.losses, otl: tot.otl,
     avgToi: tot.games > 0 ? tot.toiGames / tot.games : 0,
@@ -1443,4 +1823,64 @@ export function summariseStints(stints) {
     team: last?.team, league: last?.league, standings: last?.standings,
     inProgress: true
   };
+}
+
+// MILESTONES.
+//
+// The game had none. A career could pass its hundredth goal, its thousandth
+// point and its thousandth game without a single line anywhere saying so, and
+// those are the nights a career is actually remembered by: the ones where the
+// play stops, they fish the puck out and hand it to you.
+//
+// Worked out by comparing the career total before the season with the total
+// after it, so nothing has to be tracked game by game and nothing can fire
+// twice. Only the top league counts, because a hundred goals in the American
+// League is not the number anybody means.
+const GOAL_MARKS   = [1, 50, 100, 200, 300, 400, 500, 600, 700, 800];
+const POINT_MARKS  = [100, 250, 500, 750, 1000, 1250, 1500, 1750, 2000];
+const GAME_MARKS   = [1, 100, 250, 500, 750, 1000, 1250, 1500];
+const ASSIST_MARKS = [250, 500, 750, 1000, 1250];
+const WIN_MARKS    = [1, 50, 100, 200, 300, 400, 500, 600];
+const SHO_MARKS    = [1, 10, 25, 50, 75, 100];
+
+const crossed = (marks, before, after) => marks.filter(m => before < m && after >= m);
+
+/**
+ * What this season passed on the way through. Returns the lines in the order
+ * they would have happened, biggest last, so the row ends on the best of them.
+ */
+export function careerMilestones(before = {}, after = {}, pos = 'C') {
+  const out = [];
+  const n = (v) => v || 0;
+
+  for (const m of crossed(GAME_MARKS, n(before.games), n(after.games))) {
+    out.push(m === 1
+      ? 'You played your first NHL game.'
+      : `You played your ${m.toLocaleString()}th NHL game.`);
+  }
+
+  if (pos === 'G') {
+    for (const m of crossed(WIN_MARKS, n(before.wins), n(after.wins))) {
+      out.push(m === 1 ? 'You won your first NHL game.' : `You won your ${m}th NHL game.`);
+    }
+    for (const m of crossed(SHO_MARKS, n(before.shutouts), n(after.shutouts))) {
+      out.push(m === 1 ? 'You recorded your first NHL shutout.' : `You recorded your ${m}th NHL shutout.`);
+    }
+    return out;
+  }
+
+  for (const m of crossed(GOAL_MARKS, n(before.goals), n(after.goals))) {
+    out.push(m === 1
+      ? 'You scored your first NHL goal. They got the puck back for you.'
+      : `You scored your ${m}th NHL goal.`);
+  }
+  for (const m of crossed(ASSIST_MARKS, n(before.assists), n(after.assists))) {
+    out.push(`You recorded your ${m.toLocaleString()}th NHL assist.`);
+  }
+  const ptsBefore = n(before.goals) + n(before.assists);
+  const ptsAfter = n(after.goals) + n(after.assists);
+  for (const m of crossed(POINT_MARKS, ptsBefore, ptsAfter)) {
+    out.push(`You reached ${m.toLocaleString()} career NHL points.`);
+  }
+  return out;
 }

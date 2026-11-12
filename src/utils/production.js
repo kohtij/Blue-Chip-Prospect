@@ -211,6 +211,130 @@ const PACE_EURO = { par: 0.42, star: 0.88, svPar: 0.908, svStar: 0.919 };
 export const paceOf = (league) => PACE[league] || PACE_EURO;
 
 export const isDefence = (pos) => pos === 'LD' || pos === 'RD';
+export const isWing = (pos) => pos === 'LW' || pos === 'RW';
+
+// A FORWARD HAD NO NUMBER OF HIS OWN.
+//
+// A goalie finished a year with saves, shots, a save percentage, a goals
+// average and shutouts. A defenceman now has blocks and his minutes. A forward
+// had goals, assists and points, which is the quantity every other position
+// was being measured against rather than a stat belonging to him, and the four
+// forward archetypes were therefore invisible: a Sniper and a Playmaker who
+// both finished on thirty goals were the same player on the page.
+//
+// Shots on goal is the one that fixes it, because it is the mirror of the save
+// percentage the goalie has had since the beginning. Two men score thirty and
+// one of them needed a hundred and forty shots to do it.
+//
+// Per game, before role and ice time. A winger shoots more than his centre:
+// he is the one being set up, which is the whole of the difference between the
+// two jobs and the only honest place to put it.
+const SOG_BASE = { W: 1.95, C: 1.70, D: 1.80 };
+const SOG_PER_SHOOTING = 0.012;   // an 85 shooting fires about a third more than a 55
+// What each archetype does to shot volume.
+//
+// The first draft of this cut the playmaker's volume hard, on the reasoning
+// that a playmaker does not shoot. Measured, that inverted the thing the stat
+// exists to show: dividing his goals into a small shot total gave him a better
+// finishing percentage than the sniper. Real hockey agrees with the measurement
+// and not with the reasoning. An elite distributor fires about as often as
+// anyone else on the first line and finishes at a normal rate; what makes him a
+// distributor is that two thirds of his points are assists. So the sniper's
+// edge is volume, and a defenceman who never shoots is the one real case of a
+// skater declining the shot.
+const SOG_ARCH = {
+  Sniper: 1.18, 'Power Forward': 1.06, Playmaker: 0.97,
+  Shutdown: 0.70, 'Puck-Mover': 1.15
+};
+// The believable band for goals over shots. A sim that put a forward outside it
+// would be reporting a percentage no scoresheet has ever carried, so the shot
+// total gets nudged instead of the goal total: the goals are the season, the
+// shots are the explanation.
+const SHOOT_PCT_BAND = { F: [0.040, 0.250], D: [0.015, 0.120] };
+
+/**
+ * Shots on goal for a season, and with them a shooting percentage.
+ *
+ * Volume is simulated rather than derived from the goals, because deriving it
+ * would invert the thing it is meant to show: a playmaker who scores less
+ * would come out having shot more. Finishing is then goals over shots, which
+ * is the number that separates the two.
+ */
+export function shotsOnGoal({ pos, games, goals, shooting, iceFactor = 1, archetype = '', jitter = 1 }) {
+  if (pos === 'G' || !games) return 0;
+  const base = isDefence(pos) ? SOG_BASE.D : isWing(pos) ? SOG_BASE.W : SOG_BASE.C;
+  const arch = Object.keys(SOG_ARCH).find(k => (archetype || '').includes(k));
+  const perGame = base
+    * (1 + ((shooting || 55) - 55) * SOG_PER_SHOOTING)
+    * Math.max(0.4, iceFactor)
+    * (arch ? SOG_ARCH[arch] : 1)
+    * jitter;
+
+  let sog = Math.max(0, Math.round(games * Math.max(0.25, perGame)));
+  const [lo, hi] = isDefence(pos) ? SHOOT_PCT_BAND.D : SHOOT_PCT_BAND.F;
+  if (goals > 0) {
+    sog = Math.max(sog, Math.ceil(goals / hi));  // nobody finishes at forty per cent
+    sog = Math.min(sog, Math.floor(goals / lo)); // and nobody shoots two hundred times for four goals
+  }
+  return Math.max(sog, goals);
+}
+
+// THE DRAW.
+//
+// The only number on a real stat sheet that belongs to one position and to
+// nobody else, and the centre did not have it. He had a faceoff minigame that
+// handed out an OVR point and then forgot the result, which is a centre's
+// defining skill modelled as a lottery ticket.
+//
+// A first-line centre takes about nineteen draws a night and a fourth-liner
+// about nine, so the volume follows his role. Winning them follows how he
+// reads the drop and how strong he is on his stick.
+const FO_PER_GAME = 16.0;
+const FO_BASE_PCT = 0.470;
+const FO_PER_IQ = 0.0022;
+const FO_PER_PHY = 0.0014;
+const FO_BAND = [0.380, 0.620];
+// What one win in the faceoff minigame is worth, permanently. Six of them over
+// a career move him from an ordinary centre to one the staff send out for the
+// draws that matter, which is what repeatedly winning a dedicated minigame
+// ought to buy.
+export const FO_EDGE_PER_WIN = 0.006;
+export const FO_EDGE_CAP = 6;
+
+/** Draws taken and won. Centres only: nobody else takes a meaningful number. */
+export function faceoffs({ pos, games, hockeyIQ, physicality, iceFactor = 1, edge = 0, jitter = 1 }) {
+  if (pos !== 'C' || !games) return { taken: 0, won: 0 };
+  const taken = Math.max(0, Math.round(games * FO_PER_GAME * Math.max(0.45, iceFactor) * jitter));
+  const pct = Math.max(FO_BAND[0], Math.min(FO_BAND[1],
+    FO_BASE_PCT
+    + ((hockeyIQ || 55) - 55) * FO_PER_IQ
+    + ((physicality || 55) - 55) * FO_PER_PHY
+    + Math.min(FO_EDGE_CAP, edge || 0) * FO_EDGE_PER_WIN
+    + (jitter - 1) * 0.12));
+  return { taken, won: Math.round(taken * pct) };
+}
+
+// PENALTY MINUTES.
+//
+// Needed because the Lady Byng is an award for a player who does damage without
+// spending any time in the box, and the game had no way of knowing who those
+// players were. It also gives the Power Forward archetype a cost, which it has
+// never had.
+const PIM_BASE = { F: 0.50, D: 0.72, G: 0.04 };
+const PIM_PER_PHY = 0.016;
+const PIM_ARCH = { 'Power Forward': 1.45, Shutdown: 1.30, Playmaker: 0.50, Sniper: 0.78 };
+
+/** Minutes in the box across a season. */
+export function penaltyMinutes({ pos, games, physicality, archetype = '', jitter = 1 }) {
+  if (!games) return 0;
+  const base = pos === 'G' ? PIM_BASE.G : isDefence(pos) ? PIM_BASE.D : PIM_BASE.F;
+  const arch = Object.keys(PIM_ARCH).find(k => (archetype || '').includes(k));
+  const perGame = base
+    * Math.max(0.35, 1 + ((physicality || 55) - 55) * PIM_PER_PHY)
+    * (arch ? PIM_ARCH[arch] : 1)
+    * jitter;
+  return Math.max(0, Math.round(games * perGame));
+}
 
 // A DEFENCEMAN IS NOT A FORWARD WHO SCORES LESS.
 //
@@ -228,16 +352,48 @@ export const isDefence = (pos) => pos === 'LD' || pos === 'RD';
 // game: fitted to the engine's own output rather than to real hockey, because
 // the defencemen here score more relative to the forwards than they do in life
 // and a grade keyed to reality would have punished all of them for it.
-const POS_PACE = { par: 0.70, star: 1.00 };
+export const POS_PACE = { par: 0.70, star: 1.00 };
 
 // The two halves of the grade, and the points the defensive half is drawn
 // between. Fitted over five hundred seasons per archetype against a target
 // curve: an ordinary regular at 5, a top-pair season at 9, a seventh
 // defenceman under 4.
-const D_WEIGHT = { off: 1.9, def: 2.2 };
-const D_SHIELD_PAR = 0.40;  // plus-minus per game that maxes the defensive half
+export const D_WEIGHT = { off: 1.9, def: 2.2 };
+const D_SHIELD_PAR = 0.40;  // plus-minus per game that maxes the shield term
+export const D_TOI_REF = 20.5; // an ordinary defenceman's night, for scaling per-minute rates
+
+// What a blocked shot is worth against a point, for ranking one defence career
+// against another.
+//
+// A good defence season is around forty-five points and a hundred and sixty
+// blocks, so a quarter puts the two halves of the job on the same footing: the
+// forty points of offence and the forty points-equivalent of getting in the
+// way come out level, and a career is the sum of both rather than whichever
+// one the scoresheet happens to record.
+export const BLOCK_WORTH = 0.25;
 const D_TOI_MID = 20.5;     // minutes at which a defenceman is neither trusted nor buried
 const D_TOI_SPAN = 4.5;
+
+// Blocking, as a rate per twenty minutes rather than per game.
+//
+// Per game it would be most of the way to a second ice-time term, because a
+// man who plays twenty-six minutes blocks more than a man who plays fourteen
+// whatever either of them is like. Per twenty minutes it is the part that is
+// him: how willing he is to wear one and how well he reads where the puck is
+// going. An ordinary defenceman is about 1.55 and the willing ones are near 2.
+const D_BLOCK_PAR = 1.55;
+const D_BLOCK_SPAN = 0.45;
+
+// What the three parts of the defensive half are worth against each other.
+//
+// Plus-minus used to be 62 per cent of it, and it is the one number here that
+// is not really his: the engine gives a defenceman twenty goals of swing for
+// the club he happens to play for against forty-three for how good he is, so
+// a third of what it reports is the four men on the ice with him. It still
+// counts, because it is the only part of this that records what actually
+// happened rather than what he did, but it is now the smallest of the three
+// rather than the largest.
+const D_DEF_PARTS = { block: 0.38, minutes: 0.35, shield: 0.27 };
 
 /**
  * The half of a defenceman's season that never reaches the scoresheet.
@@ -250,17 +406,44 @@ const D_TOI_SPAN = 4.5;
  *
  * Roughly -1 for a liability, +1 for the best defensive year in the league.
  */
-export function defensiveHalf(pmPerGame, toi) {
-  const shield = Math.max(-1, Math.min(1, (pmPerGame || 0) / D_SHIELD_PAR));
-  const minutes = Math.max(-1, Math.min(1, ((toi ?? D_TOI_MID) - D_TOI_MID) / D_TOI_SPAN));
-  return shield * 0.62 + minutes * 0.38;
+/**
+ * The defensive half as a mark out of ten, for a screen rather than a formula.
+ *
+ * defensiveHalf runs -1 to +1, which is right for feeding a rating and useless
+ * to read. This is the same number on the scale the rest of the game shows a
+ * player: five is an ordinary NHL defenceman, eight and a half is a season the
+ * league notices, and the engine has been computing it for every defence
+ * season without ever putting it in front of him.
+ */
+export const defenceGrade = (pmPerGame, toi, blkPerGame = null) =>
+  Number((5 + defensiveHalf(pmPerGame, toi, blkPerGame) * 3.5).toFixed(1));
+
+export function defensiveHalf(pmPerGame, toi, blkPerGame = null) {
+  const mins = toi ?? D_TOI_MID;
+  const clamp = (n) => Math.max(-1, Math.min(1, n));
+
+  const shield = clamp((pmPerGame || 0) / D_SHIELD_PAR);
+  const minutes = clamp((mins - D_TOI_MID) / D_TOI_SPAN);
+
+  // A career written before blocked shots were kept has none of them, and so
+  // does a peer from an old save. Rather than grade those men as if they had
+  // blocked nothing, the blocking share is handed back to the other two.
+  if (blkPerGame == null) {
+    const rest = D_DEF_PARTS.minutes + D_DEF_PARTS.shield;
+    return shield * (D_DEF_PARTS.shield / rest) + minutes * (D_DEF_PARTS.minutes / rest);
+  }
+
+  const per20 = (blkPerGame || 0) * (D_TOI_REF / Math.max(8, mins));
+  const blocking = clamp((per20 - D_BLOCK_PAR) / D_BLOCK_SPAN);
+
+  return blocking * D_DEF_PARTS.block + minutes * D_DEF_PARTS.minutes + shield * D_DEF_PARTS.shield;
 }
 
 /**
  * A season graded against the league it was played in, on the same 1 to 10
  * scale the rest of the game already uses.
  */
-export function rateSeason({ league, pos, games, g, a, pm, saves, shots, toi }) {
+export function rateSeason({ league, pos, games, g, a, pm, blk, saves, shots, toi }) {
   if (!games) return 5.0;
   const pace = paceOf(league);
 
@@ -281,7 +464,8 @@ export function rateSeason({ league, pos, games, g, a, pm, saves, shots, toi }) 
     const par = pace.par * POS_PACE.par;
     const star = pace.star * POS_PACE.star;
     const off = (ppg - par) / (star - par);
-    const r = 5 + off * D_WEIGHT.off + defensiveHalf(pmPerGame, toi) * D_WEIGHT.def;
+    const r = 5 + off * D_WEIGHT.off
+      + defensiveHalf(pmPerGame, toi, blk == null ? null : blk / games) * D_WEIGHT.def;
     return Math.min(10, Math.max(1, Number(r.toFixed(1))));
   }
 
@@ -303,13 +487,6 @@ export function rateSeason({ league, pos, games, g, a, pm, saves, shots, toi }) 
 // These are the minutes each tier really plays. Even strength and powerplay are
 // kept apart because a powerplay point comes at better than twice the
 // even-strength rate, and top-unit time is most of a first-liner's edge.
-const ROLE_ICE = [
-  [1.18, 17.6, 3.0],  // 1st line, 1st pair
-  [0.98, 15.8, 1.7],  // 2nd line, top four
-  [0.76, 13.2, 0.5],  // 3rd line, 3rd pair
-  [0.00, 9.4, 0.0]    // 4th line, 7th D
-];
-
 // A defenceman plays more of the game than a forward in the same tier: a
 // first-pair defenceman is out for twenty-three minutes where a first-line
 // centre is out for eighteen.
@@ -333,9 +510,49 @@ const ICE_REF = {
  * is the production multiplier, normalised so a first-tier player sits at the
  * 1.27 the old role multiplier gave him.
  */
+// THE CLIFF BETWEEN TWO LINES.
+//
+// ROLE_ICE was looked up with a find on the floor, which makes ice time a
+// staircase: a role multiplier of 0.77 bought 13.2 even-strength minutes and
+// half a minute on the powerplay, and 0.75 bought 9.4 and nothing at all. Two
+// hundredths of a point of role, and twenty-nine per cent of a man's minutes.
+//
+// Production is linear in those minutes, so that cliff was the amplifier
+// behind every absurd year-on-year swing in the game. A player who signed a
+// bottom-six deal after a top-six one crossed two of these edges at once and
+// came out with a fifth of his points, from the same ability at the same age.
+//
+// Interpolating between the anchors instead. The anchors themselves are
+// unchanged, so a clean first-liner, top-four, third-liner or fourth-liner
+// gets exactly what he always got; what changes is that the space between them
+// is now a slope rather than a drop.
+const ICE_ANCHORS = [
+  [1.18, 17.6, 3.0],
+  [0.98, 15.8, 1.7],
+  [0.76, 13.2, 0.5],
+  [0.45, 9.4, 0.0],
+  [0.20, 7.8, 0.0]
+];
+
+const anchoredIce = (roleMulti) => {
+  const m = roleMulti;
+  if (m >= ICE_ANCHORS[0][0]) return [ICE_ANCHORS[0][1], ICE_ANCHORS[0][2]];
+  const last = ICE_ANCHORS[ICE_ANCHORS.length - 1];
+  if (m <= last[0]) return [last[1], last[2]];
+  for (let i = 0; i < ICE_ANCHORS.length - 1; i++) {
+    const [hi, hiEven, hiPp] = ICE_ANCHORS[i];
+    const [lo, loEven, loPp] = ICE_ANCHORS[i + 1];
+    if (m <= hi && m >= lo) {
+      const t = (m - lo) / (hi - lo);
+      return [loEven + (hiEven - loEven) * t, loPp + (hiPp - loPp) * t];
+    }
+  }
+  return [last[1], last[2]];
+};
+
 export function iceTime({ roleMulti, pos, coachTrust = 50, stamina = 50 }) {
   const group = isDefence(pos) ? 'D' : 'F';
-  const tier = ROLE_ICE.find(([floor]) => roleMulti >= floor) || ROLE_ICE[ROLE_ICE.length - 1];
+  const [tierEven, tierPp] = anchoredIce(roleMulti);
   const shift = group === 'D' ? D_SHIFT : 1;
 
   // Trust earns third-period shifts and a place on a unit, stamina earns the
@@ -343,10 +560,17 @@ export function iceTime({ roleMulti, pos, coachTrust = 50, stamina = 50 }) {
   const trustMod = ((coachTrust - 50) / 50) * 1.9;
   const staminaMod = ((stamina - 50) / 50) * 1.4;
 
-  const even = Math.max(6.0, Math.min(26.0, tier[1] * shift + trustMod + staminaMod));
+  // "Both move him inside his tier, never out of it" is what the comment above
+  // has always said and what the code did not do: the modifiers were added to
+  // the anchor and clamped only at twenty-six minutes, so a trusted, fit
+  // first-liner came out at 19.6 even and 22.7 all in, which is more than the
+  // best centre in the world plays. Capped a shade above the top anchor, which
+  // leaves the modifiers doing their real work in the roles below it.
+  const evenCap = ICE_ANCHORS[0][1] * shift + 0.9;
+  const even = Math.max(6.0, Math.min(evenCap, tierEven * shift + trustMod + staminaMod));
   // A coach who does not trust him does not put him out a man up. That goes
   // first, and it costs the most.
-  const pp = tier[2] * Math.max(0.35, Math.min(1.25, 0.55 + (coachTrust / 100) * 0.9));
+  const pp = tierPp * Math.max(0.35, Math.min(1.25, 0.55 + (coachTrust / 100) * 0.9));
   const weighted = even + pp * PP_WEIGHT;
 
   // Capped at the 1.27 a first-tier player had before, so this change can only
@@ -408,4 +632,113 @@ export function drawLeagueBestSv(league) {
  */
 export function drawLeagueBestDman() {
   return 9.61 + gaussian() * 0.69;
+}
+
+// ============================================================================
+// A FORWARD'S DEFENSIVE GAME, AND THE AWARDS THAT HAVE NO SCORESHEET
+// ============================================================================
+
+// Forward reference points, measured off the engine rather than guessed.
+//
+// The first version of the Selke fed a forward's numbers into defensiveHalf,
+// which is the defenceman's function, and every forward in the game came out
+// negative: it marks twenty-point-five minutes and 1.55 blocks per twenty as
+// par, and a forward plays seventeen and blocks a third as often, so the award
+// was unwinnable by construction. These are a forward's own pars.
+const F_BLOCK_PAR = 0.56;   // blocks per twenty minutes, an ordinary forward
+const F_BLOCK_SPAN = 0.09;
+const F_SHIELD_PAR = 0.16;  // plus-minus per game at the top of the range
+const F_DRAW_PAR = 0.530;   // faceoff share an ordinary centre wins
+const F_DRAW_SPAN = 0.11;
+
+// Ice time is deliberately absent.
+//
+// For a defenceman the minutes are the coaching staff's verdict on his
+// defending, which is why defensiveHalf leans on them. For a forward they are
+// a verdict on his scoring: this engine gives its first line 22.8 minutes and
+// its checking line 19.5 whatever either of them does without the puck.
+// Measured with minutes in, a pure sniper outranked a shutdown winger on the
+// defensive measure, which would have handed him the Selke.
+const F_DEF_PARTS_C = { block: 0.33, shield: 0.27, draws: 0.40 };
+// A winger is weighted harder toward blocking than a centre is.
+//
+// With the two split evenly, a sniper on a good team was reaching the Selke on
+// his plus-minus alone, which is the one part of this that is not really his.
+// A winger with no draws to win has to show the work somewhere, and getting in
+// front of pucks is the only place left where it shows.
+const F_DEF_PARTS_W = { block: 0.72, shield: 0.28 };
+
+/**
+ * The part of a forward's season that the scoresheet does not record.
+ *
+ * Roughly -1 for a passenger and +1 for the best defensive forward in the
+ * league. A centre is measured on the draws as much as on anything else,
+ * because winning them is most of what a defensive centre is for; a winger has
+ * no draws to take, so his two remaining parts carry the whole weight.
+ */
+export function forwardDefence({ pmPerGame = 0, toi = null, blkPerGame = null, foPct = null }) {
+  const clamp = (n) => Math.max(-1, Math.min(1, n));
+  const per20 = blkPerGame == null ? null
+    : blkPerGame * (D_TOI_REF / Math.max(8, toi ?? 17));
+  const blocking = per20 == null ? 0 : clamp((per20 - F_BLOCK_PAR) / F_BLOCK_SPAN);
+  const shield = clamp((pmPerGame || 0) / F_SHIELD_PAR);
+
+  if (foPct == null) {
+    return blocking * F_DEF_PARTS_W.block + shield * F_DEF_PARTS_W.shield;
+  }
+  const draws = clamp((foPct - F_DRAW_PAR) / F_DRAW_SPAN);
+  return blocking * F_DEF_PARTS_C.block
+    + shield * F_DEF_PARTS_C.shield
+    + draws * F_DEF_PARTS_C.draws;
+}
+
+// WHAT THE BEST CASE IN THE LEAGUE LOOKED LIKE THIS YEAR.
+//
+// Three of the new trophies have no number to race against. The scoring title
+// has drawLeagueBest, the Vezina has drawLeagueBestSv and the Norris has
+// dmanBar, so each of those is won against a field that moves; the Masterton,
+// the Clancy and the Messier were written as plain conditions and every one of
+// them came out at a hundred per cent the moment a player met them, which is
+// not an award, it is a checkbox. These are the same device: the best case
+// somebody else in the league made this season, drawn fresh each year.
+export const drawComebackBar = () => 7.4 + gaussian() * 0.8;    // a season rating
+export const drawCommunityBar = () => 980 + gaussian() * 300;   // standing in the city
+export const drawRoomBar = () => 88 + gaussian() * 7;           // what his room thinks
+
+// A FORWARD CAREER IS NOT A POINTS-PER-GAME NUMBER.
+//
+// Every forward career was scored on one figure, points per game, with the
+// Hall of Fame gate at 0.75 and the top tier at 1.00. That reads a
+// distributor correctly and nobody else. A power forward with twelve hundred
+// games, four hundred goals and three Cups at 0.72 a game cleared no gate at
+// all, took the smallest rate award available and finished behind a smaller
+// playmaker who had piled up secondary assists, because the one number the
+// game looked at could not see that he scored two thirds of his own points.
+//
+// Four parts, with the scoring still the biggest of them by a distance,
+// because it should be. Marked out of ten on the same scale as the defence
+// grade, so the tier gates can be one set of numbers for both.
+const F_PPG_PAR = 0.62, F_PPG_SPAN = 0.42;   // an ordinary top-nine forward, and an elite one
+const F_GPG_PAR = 0.26, F_GPG_SPAN = 0.16;
+const F_SHP_PAR = 0.105, F_SHP_SPAN = 0.045;
+const F_CAREER_PARTS = { points: 0.58, goals: 0.16, finishing: 0.10, twoWay: 0.16 };
+
+export function forwardCareerGrade({ games, goals, points, sog = 0, pm = 0, blk = null,
+                                     toi = null, fot = 0, fow = 0 }) {
+  if (!games) return 0;
+  const clamp = (n) => Math.max(-1, Math.min(1, n));
+  const scoring = clamp((points / games - F_PPG_PAR) / F_PPG_SPAN);
+  const finishing_v = clamp((goals / games - F_GPG_PAR) / F_GPG_SPAN);
+  const pct = sog > 0 ? goals / sog : F_SHP_PAR;
+  const converting = clamp((pct - F_SHP_PAR) / F_SHP_SPAN);
+  const twoWay = forwardDefence({
+    pmPerGame: pm / games, toi,
+    blkPerGame: blk == null ? null : blk / games,
+    foPct: fot > 0 ? fow / fot : null
+  });
+  const mix = scoring * F_CAREER_PARTS.points
+    + finishing_v * F_CAREER_PARTS.goals
+    + converting * F_CAREER_PARTS.finishing
+    + twoWay * F_CAREER_PARTS.twoWay;
+  return Number((5 + mix * 3.6).toFixed(2));
 }

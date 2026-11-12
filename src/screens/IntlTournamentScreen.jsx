@@ -12,6 +12,7 @@ import { useAppContext } from '../AppContext';
 import { getPlaybook, PICK_PROMPT, viewFor } from '../data/intlPlaybook';
 import { getMinigamePool } from '../data/minigames';
 import { getStakes } from '../utils/stakes';
+import { isDefence } from '../utils/production';
 import {
   prepareRound, resolvePick, advanceRun, commitRun, PTS_TO_ADVANCE
 } from '../utils/intlRun';
@@ -290,9 +291,21 @@ export default function IntlTournamentScreen() {
                 {done.stats.games} GP
               </span>
               {player.pos === 'G' ? (
+                /* A save percentage says how he played and a goals average
+                   says what it cost, and a short tournament is decided on the
+                   second one: three goals against across five games wins a
+                   gold medal and .915 does not tell you that happened. */
                 <span className="px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-slate-300">
                   {done.stats.shots ? (done.stats.saves / done.stats.shots).toFixed(3).replace('0.', '.') : '.000'} SV%
+                  {done.stats.games > 0 && ` · ${(((done.stats.shots || 0) - (done.stats.saves || 0)) / done.stats.games).toFixed(2)} GAA`}
                   {done.stats.sho > 0 && ` · ${done.stats.sho} SO`}
+                </span>
+              ) : isDefence(player.pos) ? (
+                /* A goalie's tournament was reported in his own numbers and a
+                   defenceman's in a forward's. The run simulates his plus-minus
+                   game by game and it was never shown to him anywhere. */
+                <span className="px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-slate-300">
+                  {done.stats.g + done.stats.a} PTS · {done.stats.blk || 0} BLK
                 </span>
               ) : (
                 <span className="px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-slate-300">
@@ -417,6 +430,11 @@ export default function IntlTournamentScreen() {
                   {player.pos === 'G' ? (
                     <span className="px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] text-slate-300">
                       {outcome.entry.line.saves}/{outcome.entry.line.shots} SAVES
+                      {' · '}{Math.max(0, (outcome.entry.line.shots || 0) - (outcome.entry.line.saves || 0))} GA
+                    </span>
+                  ) : isDefence(player.pos) ? (
+                    <span className="px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] text-slate-300">
+                      {outcome.entry.line.g}G {outcome.entry.line.a}A · {outcome.entry.line.blk || 0} BLK
                     </span>
                   ) : (
                     <span className="px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] text-slate-300">

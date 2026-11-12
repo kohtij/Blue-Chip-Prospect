@@ -32,7 +32,9 @@ export default function MinigameScreen() {
   // win! You snapped it straight back to your defenseman" arrived with nothing
   // saying what had been won, where, or what it was worth.
   const done = (win) => handleInteractiveResult(win, mg.reward, mg.successMsg, mg.failMsg, {
-    title: mg?.title, setup: mg?.desc, stakes: stakes.label
+    // gameId rides along so a result can mean something specific to the event
+    // that produced it, rather than only paying out the generic reward block.
+    gameId: mg?.id, title: mg?.title, setup: mg?.desc, stakes: stakes.label
   });
   const common = { player, difficulty: stakes.difficulty, onComplete: done };
 

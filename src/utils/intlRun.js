@@ -271,7 +271,7 @@ export function buildRun({ player, safeNationalities, context, division, year })
     // last-chance moment, but only the first time: after that they have you.
     escapeUsed: false,
     road: [],
-    stats: { games: 0, g: 0, a: 0, pm: 0, saves: 0, shots: 0, sho: 0 },
+    stats: { games: 0, g: 0, a: 0, pm: 0, blk: 0, saves: 0, shots: 0, sho: 0 },
     // Filled in when the run ends.
     finish: null
   };
@@ -360,7 +360,7 @@ function produce(player, isClean, oppTier) {
     const basePct = isClean ? 0.925 : 0.868;
     const pct = Math.max(0.78, Math.min(0.99, basePct + (ovr - 75) * 0.0014 + (Math.random() - 0.5) * 0.035));
     const saves = Math.round(shots * pct);
-    return { shots, saves, sho: isClean && shots - saves === 0 ? 1 : 0, g: 0, a: 0, pm: 0 };
+    return { shots, saves, sho: isClean && shots - saves === 0 ? 1 : 0, g: 0, a: 0, pm: 0, blk: 0 };
   }
 
   const isD = pos === 'LD' || pos === 'RD';
@@ -369,7 +369,12 @@ function produce(player, isClean, oppTier) {
   const roll = (rate) => (Math.random() < rate ? 1 : 0) + (Math.random() < rate * 0.25 ? 1 : 0);
   return {
     g: roll(gRate), a: roll(aRate),
-    pm: (isClean ? 1 : -1) * rnd(3), saves: 0, shots: 0, sho: 0
+    pm: (isClean ? 1 : -1) * rnd(3),
+    // Shot blocking, so a defenceman's tournament is reported in the same
+    // numbers his season is. A short tournament is a handful of games, so this
+    // is a game's worth at a time rather than a season's.
+    blk: isD ? 1 + rnd(3) : rnd(2),
+    saves: 0, shots: 0, sho: 0
   };
 }
 
@@ -388,6 +393,7 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
     g: run.stats.g + line.g,
     a: run.stats.a + line.a,
     pm: run.stats.pm + line.pm,
+    blk: (run.stats.blk || 0) + (line.blk || 0),
     saves: run.stats.saves + line.saves,
     shots: run.stats.shots + line.shots,
     sho: run.stats.sho + line.sho
@@ -661,7 +667,7 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
     tournamentName: `${run.year} ${run.tournamentName}`,
     division: run.division,
     gamesPlayed: s.games,
-    stats: { g: s.g, a: s.a, pm: s.pm, saves: s.saves, shots: s.shots, sho: s.sho },
+    stats: { g: s.g, a: s.a, pm: s.pm, blk: s.blk || 0, saves: s.saves, shots: s.shots, sho: s.sho },
     finish: headline,
     // Kept so the retirement screen can say he wore it, which it could not
     // before: the letter lived only on the run and died with the tournament.

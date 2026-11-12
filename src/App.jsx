@@ -6,6 +6,8 @@ import {
 } from './data/teams';
 import { skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool } from './data/minigames';
+import { awardsFor } from './data/leagueAwards';
+import { FO_EDGE_CAP } from './utils/production';
 import {
   cap, fanGain, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
@@ -158,6 +160,13 @@ function App() {
     if (awardsList.includes('Art Ross Trophy')) unlockAchievement('art_ross');
     if (awardsList.includes('Maurice Richard Trophy')) unlockAchievement('richard');
     if (awardsList.includes('Conn Smythe Trophy')) unlockAchievement('conn_smythe');
+    if (awardsList.includes('Ted Lindsay Award')) unlockAchievement('ted_lindsay');
+    if (awardsList.some(x => String(x).includes('Selke'))) unlockAchievement('selke');
+    if (awardsList.includes('Lady Byng Memorial Trophy')) unlockAchievement('lady_byng');
+    if (awardsList.includes('William M. Jennings Trophy')) unlockAchievement('jennings');
+    if (awardsList.includes('Bill Masterton Memorial Trophy')) unlockAchievement('masterton');
+    if (awardsList.includes('King Clancy Memorial Trophy')) unlockAchievement('clancy');
+    if (awardsList.includes('Mark Messier Leadership Award')) unlockAchievement('messier');
     if (seasonRecap.g >= 50) unlockAchievement('fifty_goal_season');
     if ((seasonRecap.g || 0) + (seasonRecap.a || 0) >= 100) unlockAchievement('hundred_pt_season');
     if (seasonRecap.sho >= 8) unlockAchievement('shutout_king');
@@ -671,7 +680,19 @@ function App() {
         coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (payout.rel?.coach || 0))),
         teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (payout.rel?.teammates || 0))),
         media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (payout.rel?.media || 0)))
-      }
+      },
+      // WINNING A DRAW USED TO BE WORTH NOTHING AFTER THE SCREEN CLOSED.
+      //
+      // The faceoff minigame paid an OVR point and a word from the coach, the
+      // same as every other minigame, and then the result was gone. A centre's
+      // defining skill was the one thing in the game you could practise and
+      // never get better at, because there was no faceoff number for it to
+      // move. There is one now, so it moves it: a sixth of a percentage point
+      // on his draws each time, permanently, up to the cap in production.js.
+      faceoffEdge: Math.min(
+        FO_EDGE_CAP,
+        (withOvr.faceoffEdge || 0) + (isWin && moment?.gameId === 'faceoff_draw' ? 1 : 0)
+      )
     };
     
     // NEW FINALS LOGIC
@@ -1001,8 +1022,28 @@ function App() {
     const poLoss = myPoMatches.find(x => x.status === 'lost') || null;
     const beatRival = myPoMatches.find(x => x.status === 'won' && rivalPoId && x.oppId === rivalPoId) || null;
 
+    // THE PLAYOFF MVP, WHICH THE GAME NAMED AND NEVER GAVE OUT.
+    //
+    // The Conn Smythe had a trophy image, an achievement, a line in the
+    // career-score weighting and a mention in the superstar check. It was in
+    // five places and awarded in none of them, so the achievement could not be
+    // unlocked by playing the game.
+    //
+    // It goes to the best player on the side that won, which is what the run
+    // itself says: a skater better than a point a game through four rounds, or
+    // a goalie who stole it. Run off the postseason alone, because that is the
+    // whole idea of the award. Worked out here rather than inside the state
+    // updates below so the recap screen and the achievement both see it.
+    const poTrophy = awardsFor(playoffs.currentLg).playoffMvp;
+    const poPpg = playoffGames > 0 ? (pG + pA) / playoffGames : 0;
+    const poSv = pShots > 0 ? pSaves / pShots : 0;
+    const smytheEarned = !!(isCupWon && poTrophy && playoffGames >= 12 && (
+      player.pos === 'G' ? (poSv >= 0.928 || pSho >= 3) : poPpg >= 1.05
+    ));
+
     setSeasonRecap(r => ({
        ...(r || {}),
+       awards: Array.from(new Set([...((r || {}).awards || []), ...(smytheEarned ? [poTrophy] : [])])),
        playoffWins: totalWins, playoffGames, playoffG: pG, playoffA: pA, playoffSaves: pSaves,
        playoffShots: pShots, playoffSho: pSho, titleWon: isCupWon ? 1 : 0, confTitleWon: playoffs.confTitleWon || false,
        confName: playoffs.playerConf === 'East' ? 'Eastern Conference' : 'Western Conference',
@@ -1034,6 +1075,11 @@ function App() {
         const cupInCareer = (p.stats?.awards || []).some(a => String(a).includes(cupName) && String(a).startsWith(currentYearString));
         const alreadyAwarded = isCupWon && (cupInSeason || cupInCareer);
 
+        const smytheLabel = `${currentYearString} ${poTrophy}`;
+        const smytheNew = smytheEarned
+          && !histAwards.some(x => String(x).includes(poTrophy))
+          && !(p.stats?.awards || []).some(x => String(x).includes(poTrophy) && String(x).startsWith(currentYearString));
+
         if (lastIdx >= 0) {
             newHistory[lastIdx] = { 
                 ...newHistory[lastIdx], 
@@ -1052,9 +1098,11 @@ function App() {
                 isAlternate: p.isAlternate,
                 // Deduped on the way out, which also cleans up any season that
                 // already collected two cups before this was fixed.
-                awards: Array.from(new Set(
-                  isCupWon && !alreadyAwarded ? [...histAwards, cupLabel] : histAwards
-                ))
+                awards: Array.from(new Set([
+                  ...histAwards,
+                  ...(isCupWon && !alreadyAwarded ? [cupLabel] : []),
+                  ...(smytheNew ? [smytheLabel] : [])
+                ]))
             };
         }
         
@@ -1072,9 +1120,11 @@ function App() {
            stats: {
               ...p.stats, 
               titles: isCupWon && !alreadyAwarded ? (p.stats.titles || 0) + 1 : (p.stats.titles || 0),
-              awards: Array.from(new Set(
-                 isCupWon && !alreadyAwarded ? [...(p.stats.awards || []), cupLabel] : (p.stats.awards || [])
-              )),
+              awards: Array.from(new Set([
+                 ...(p.stats.awards || []),
+                 ...(isCupWon && !alreadyAwarded ? [cupLabel] : []),
+                 ...(smytheNew ? [smytheLabel] : [])
+              ])),
               careerHighGoals: Math.max(currentHigh, seasonGoals), 
               [poBucket]: {
                  games: (p.stats[poBucket]?.games || 0) + playoffGames, goals: (p.stats[poBucket]?.goals || 0) + pG,

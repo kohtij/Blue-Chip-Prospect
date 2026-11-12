@@ -10,9 +10,13 @@ export const makeInitialPlayer = () => ({
   shooting: 55, skating: 55, physicality: 55, hockeyIQ: 55, stamina: 55,
   team: null, league: null, contract: { salary: 0, years: 0 },
   stats: {
-    chl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-    ahl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
-    nhl: { goals: 0, assists: 0, games: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0 },
+    // toiGames is minutes banked as a running total, so dividing by games
+    // gives a career average at any point. A career written before it existed
+    // has none, and everything that reads it falls back to the last season's
+    // minutes rather than to nothing.
+    chl: { goals: 0, assists: 0, games: 0, plusMinus: 0, blocks: 0, saves: 0, shots: 0, shutouts: 0, toiGames: 0 },
+    ahl: { goals: 0, assists: 0, games: 0, plusMinus: 0, blocks: 0, saves: 0, shots: 0, shutouts: 0, toiGames: 0 },
+    nhl: { goals: 0, assists: 0, games: 0, plusMinus: 0, blocks: 0, saves: 0, shots: 0, shutouts: 0, toiGames: 0 },
     titles: 0, earnings: 0, value: 50000, seasonsPlayed: 0, memCupBoost: 0, awards: []
   },
   seasonHistory: [],
@@ -169,6 +173,13 @@ export const MASTER_ACHIEVEMENTS = [
   { id: 'art_ross', name: 'Scoring Champion', desc: 'Win the Art Ross Trophy for leading the league in points', icon: '🏒' },
   { id: 'richard', name: 'Rocket Richard', desc: 'Win the Maurice Richard Trophy for leading the league in goals', icon: '🚀' },
   { id: 'conn_smythe', name: 'Playoff MVP', desc: 'Win the Conn Smythe Trophy as Playoff MVP', icon: '🔥' },
+  { id: 'ted_lindsay', name: "Players' Choice", desc: 'Win the Ted Lindsay Award, voted by the players themselves', icon: '🤝' },
+  { id: 'selke', name: 'Two-Way Forward', desc: 'Win the Frank J. Selke Trophy as the best defensive forward', icon: '🧤' },
+  { id: 'lady_byng', name: 'Gentleman', desc: 'Win the Lady Byng Memorial Trophy for skill and sportsmanship', icon: '🎩' },
+  { id: 'jennings', name: 'Fewest Against', desc: 'Win the William M. Jennings Trophy', icon: '🚪' },
+  { id: 'masterton', name: 'All The Way Back', desc: 'Win the Bill Masterton Memorial Trophy after a season cut short', icon: '🩹' },
+  { id: 'clancy', name: 'Off The Ice', desc: 'Win the King Clancy Memorial Trophy for leadership and community service', icon: '🫱' },
+  { id: 'messier', name: 'The Captain', desc: 'Win the Mark Messier Leadership Award', icon: '🧭' },
 
   // MILESTONES & PERFORMANCE
   { id: 'first_nhl_goal', name: 'First of Many', desc: 'Record your first official NHL point or win', icon: '🚨' },
@@ -279,7 +290,8 @@ export const getJournalistsForLeague = (league) => {
 // Small pill for the retirement screen, one per award type, showing the
 // award name, its trophy image, and how many times it was won.
 export const getAwardPill = (name, count) => {
-  const gold = ['Stanley Cup', 'Hart', 'Vezina', 'Norris', 'Art Ross', 'Richard', 'Conn Smythe', 'Calder'];
+  const gold = ['Stanley Cup', 'Hart', 'Vezina', 'Norris', 'Art Ross', 'Richard', 'Conn Smythe', 'Calder',
+    'Ted Lindsay', 'Selke'];
   const isGold = gold.some(g => name.includes(g));
   const cls = isGold
     ? 'bg-[#F59E0B]/15 border-[#F59E0B]/40 text-[#F59E0B]'
