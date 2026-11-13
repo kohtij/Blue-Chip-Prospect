@@ -566,9 +566,12 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           </div>
           )}
 
-          {/* WHERE YOU STAND WITH EVERYONE */}
+          {/* WHERE YOU STAND WITH EVERYONE.
+              Headed "Fan status" while it only held the fan ladder. It now
+              holds the room, the coach and the media as well, so the heading
+              names the whole panel and the fans are its first part. */}
           <div>
-            <Heading>Fan status</Heading>
+            <Heading>Where you stand</Heading>
             <div className="bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 shadow-lg flex flex-col gap-3">
               {/* THE LADDER.
                   Two things were wrong with the last version. It was headed

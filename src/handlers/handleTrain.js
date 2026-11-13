@@ -482,7 +482,11 @@ export function handleTrain(ctx, t) {
           }
         ],
         isDemotionEvent: false,
-        madePlayoffs: false
+        madePlayoffs: false,
+        // Without this the answer fell through to "no recap yet, so open the
+        // preseason", which in a first season meant choosing an archetype
+        // again, and in any later one sent him to last year's recap.
+        isMidSeasonEvent: true
       });
       ctx.setScreen('event');
       return;
@@ -523,7 +527,8 @@ export function handleTrain(ctx, t) {
                 { label: 'Pledge to play a 200-foot defensive game', subLabel: 'Commit to a team-first, defensively responsible role.', isRisky: false, feedback: 'He likes that, and he tells you so.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 30 } } },
                 { label: 'Demand the offense runs through you', subLabel: 'Push for the green light to be the focal point of the attack.', isRisky: true, successChance: (player.ovr >= 85 ? 0.7 : 0.3), successFeedback: 'He likes the confidence and gives you the green light.', successEffect: { fanStatus: 15, ovr: 1, rel: { coach: 20 } }, failFeedback: 'He hates your ego. You start the second half in his doghouse.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -30 } } }
             ],
-            madePlayoffs: false
+            madePlayoffs: false,
+            isMidSeasonEvent: true
         });
         ctx.setScreen('event');
         return;
@@ -560,7 +565,8 @@ export function handleTrain(ctx, t) {
                   action: 'DECLINE_EXTENSION'
                 }
             ],
-            madePlayoffs: false
+            madePlayoffs: false,
+            isMidSeasonEvent: true
         });
         ctx.setScreen('event');
         return;

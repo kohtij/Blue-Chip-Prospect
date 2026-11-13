@@ -181,7 +181,17 @@ function App() {
   // every single time. A change of screen, or a new event on the event screen
   // (which is reused from one event to the next), puts the view back at the
   // top before anything else is read.
+  //
+  // Desktop only. On a phone the jump reads as the page being dragged up under
+  // your thumb, and a phone screen is short enough that it was never needed.
+  // A mouse and a hover state is the test, rather than a width, so a narrow
+  // desktop window still gets it and a large tablet does not.
   useEffect(() => {
+    const isDesktop = () => {
+      try { return window.matchMedia('(hover: hover) and (pointer: fine)').matches; }
+      catch { return false; }
+    };
+    if (!isDesktop()) return;
     try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
     catch { window.scrollTo(0, 0); }
   }, [screen, activeEvent]);
@@ -1474,6 +1484,12 @@ function App() {
       } else setScreen('recap');
       return;
     }
+
+    // A year still being played goes back to being played. Any event raised
+    // inside the season that forgot to say so landed on the line below, and
+    // with no recap yet that meant the preseason screen: in a first season the
+    // archetype pick a second time.
+    if (currentPlayer?.season) { handleTrain(null, currentPlayer); return; }
 
     if (!seasonRecap && !pendingPlayoffs) { openPreseason(currentPlayer); return; }
 
