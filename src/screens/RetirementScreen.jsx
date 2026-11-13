@@ -1,9 +1,10 @@
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { careerTrophies, formatMoney } from '../utils/gameHelpers';
+import { careerTrophies, formatMoney, NO_ARTICLE_LEAGUES, withTeamArticle } from '../utils/gameHelpers';
 import { classTable, compGroup, groupName, peerUnit, peerValue, playerCareerValue } from '../utils/peers';
 import { isDefence } from '../utils/production';
 import { formatRecord, RECORD_LABEL, recordsHeld } from '../utils/records';
+import { closest } from '../utils/roster';
 import { getAwardImage } from '../data/awards';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
@@ -473,6 +474,7 @@ export default function RetirementScreen() {
 
     // Everything in the book still carrying his name.
     const heldRecords = recordsHeld(player.recordBook);
+  const mostWith = closest(player.rooms);
 
     let primaryTeam = player.team;
     let primaryLeague = player.league; // NEW: Track the league of your most played team!
@@ -754,6 +756,34 @@ export default function RetirementScreen() {
             )}
           </div>
 
+          {/* THE MAN HE PLAYED THE MOST ALONGSIDE.
+              The single most touching number in hockey and the game could not
+              produce it, because until the room existed there was nobody to
+              have played alongside. Shown only when there is a real one. */}
+          {!!mostWith && (
+            <div className="game-panel p-4 sm:p-6 bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] text-left">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-3 font-sans border-b border-[rgba(255,255,255,0.065)] pb-3">
+                THE ONE HE PLAYED WITH MOST
+              </h3>
+              {/* The club is named in the league of the room it came from. It
+                  used to be read in the league he retired in, so an NHL club's
+                  id came out as its AHL farm team, a club he never played for.
+                  North American clubs take "on the", European ones "at". */}
+              {(() => {
+                const lg = mostWith.league || player.league;
+                const club = getFullTeamName(mostWith.teamId, lg) || mostWith.teamId;
+                const where = NO_ARTICLE_LEAGUES.includes(lg) ? `at ${club}` : `on ${withTeamArticle(club, lg)}`;
+                return (
+                  <p className="text-slate-300 leading-relaxed">
+                    <span className="font-black text-white">{mostWith.name}</span>
+                    {' '}played <span className="number-font text-white">{mostWith.gp}</span> games beside you {where}
+                    {mostWith.years > 1 ? `, over ${mostWith.years} seasons.` : '.'}
+                  </p>
+                );
+              })()}
+            </div>
+          )}
+
           {/* WHAT HIS NAME IS STILL ON.
               Only what he still holds. A record he set and then lost to
               somebody else is not his, and listing it would be the career
@@ -814,7 +844,8 @@ export default function RetirementScreen() {
                           <th className="px-1.5 sm:px-2 py-1.5 text-center border-l border-[rgba(255,255,255,0.065)]"
                               colSpan={isGoalie
                                 ? 5                                    /* GP, record, SV%, GAA, SO */
-                                : 6 + (player.pos === 'C' ? 1 : 0)}>   /* GP, G, A, Pts, one of BLK or S%, +/-, and a centre's FO% */
+                                : 6 + (player.pos === 'C' ? 1 : 0)     /* GP, G, A, Pts, one of BLK or S%, +/-, and a centre's FO% */
+                              }>
                             Regular Season
                           </th>
                           <th className="px-1.5 sm:px-2 py-1.5 text-center border-l border-[rgba(255,255,255,0.065)]" colSpan={4}>

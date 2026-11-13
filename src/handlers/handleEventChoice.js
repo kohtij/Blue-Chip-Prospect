@@ -108,6 +108,13 @@ export function handleEventChoice(ctx, choice) {
         updated.league = choice.actionData?.lg || player.league;
         updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
         
+        // The new club's place in the table, which the rest of the season
+        // starts from. An AHL assignment is quoted with the parent club's
+        // place, which says nothing about the farm team, so it is left out.
+        const destStanding = choice.actionData?.teamStandings;
+        if (updated.season && typeof destStanding === 'number' && updated.league !== 'AHL') {
+           updated.season = { ...updated.season, anchor: { team: teamId, standing: destStanding } };
+        }
         if (updated.seasonHistory && updated.seasonHistory.length > 0) {
            const currentSeason = updated.seasonHistory[updated.seasonHistory.length - 1];
            currentSeason.tradedTo = teamId;

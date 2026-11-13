@@ -106,10 +106,6 @@ export default function RecapScreen() {
           const titles = getPlayoffTitles(player.league);
           let narrative;
           let narrativeTitle;
-          let displayRating = (seasonRecap?.rating || 5).toFixed(1);
-          
-          if (seasonRecap?.titleWon === 1) displayRating = "10.0";
-          else if (parseFloat(displayRating) > 9.5) displayRating = "9.5";
 
           const madePlayoffsForNarrative = seasonRecap?.madePlayoffs || false;
           const pw = seasonRecap?.playoffWins || 0;
@@ -250,13 +246,6 @@ export default function RecapScreen() {
                   <h1 className="text-3xl sm:text-4xl font-black text-white italic uppercase text-left sports-font tracking-tighter m-0">
                     {narrativeTitle}
                   </h1>
-                  <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-2 border ${parseFloat(displayRating) >= 8.0 ? 'bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#F59E0B]' : 'bg-[#101410] border-[rgba(255,255,255,0.065)] text-slate-300'}`}>
-                    <div className="flex flex-col text-right justify-center mt-0.5">
-                      <span className="text-[8px] sm:text-[9px] font-bold tracking-widest uppercase font-sans leading-none mb-[2px]">SEASON</span>
-                      <span className="text-[8px] sm:text-[9px] font-bold tracking-widest uppercase font-sans leading-none">RATING</span>
-                    </div>
-                    <span className="text-2xl sm:text-3xl font-black sports-font leading-none">{displayRating}</span>
-                  </div>
                 </div>
                 <p className="text-base sm:text-lg text-slate-400 font-sans italic text-left m-0">"{narrative}"</p>
               </div>
@@ -628,6 +617,15 @@ export default function RecapScreen() {
                     </RecapRow>
                   );
                 })()}
+
+                {/* WHAT THE YEAR COST HIM.
+                    Above the draft class, because a season spent watching is
+                    the first thing a player would tell you about it. */}
+                {seasonRecap?.injury && (
+                  <RecapRow accent="#ef4444" label="🏥 The treatment room">
+                    {seasonRecap.injury}
+                  </RecapRow>
+                )}
 
                 {/* The rest of your draft class, when there is anything to
                     say. Most summers there is not. */}

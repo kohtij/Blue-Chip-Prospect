@@ -2,8 +2,13 @@ import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, 
 import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
 import { getFullTeamName } from '../utils/appHelpers';
-import { getOpponentPool } from '../data/teams';
+import { getOpponentPool, LEAGUE_CONFIG } from '../data/teams';
+import { rollInjury, injuryLine } from '../utils/injuries';
+import { coachOpening, ensureClub, playerArchetype, recordSeason, roomFor, roomTrust } from '../utils/roster';
+import { teamStrengthOf } from '../utils/leagueState';
+import { teammatesFrom } from '../utils/peers';
 import { runPostSeasonFlow } from './runPostSeasonFlow';
+import { waiverExempt } from '../utils/waivers';
 
 // --- THE LEADERSHIP GROUP, MID-SEASON ---------------------------------------
 // Camp, in advanceToOffseason, is the normal way a letter gets handed out, and
@@ -89,11 +94,64 @@ export function handleTrain(ctx, t) {
 
   setHasDemandedTrade(false);
 
-  // NEW: Check if the player is currently nursing a nagging injury or suspension
+  // WHAT HIS BODY COSTS HIM THIS YEAR.
+  //
+  // This used to be two flat numbers: fifteen games if a nagging-injury flag
+  // was set and sixty if the devastating storyline had fired. Nothing else
+  // ever happened to him, so a career could run fifteen seasons and miss no
+  // games at all. See utils/injuries.js: most seasons now have something in
+  // them, most of those somethings are small, and a body that has been through
+  // it before breaks more easily and heals slower.
   let gamesMissed = 0;
-  if (player.storylines?.naggingInjury) gamesMissed += 15; // Missed 15 games
-  if (player.storylines?.injury === 1) gamesMissed += 60; // Missed almost the whole season from the ACL tear!
+  if (player.storylines?.injury === 1) gamesMissed += 60; // the season-ending one keeps its own script
   if (player.storylines?.suspended) gamesMissed += 5;
+
+  // Last year's injury, if it was the sort that lingers.
+  const lingering = player.storylines?.lingering || null;
+  if (lingering) gamesMissed += Math.min(18, Math.round((lingering.games || 10) * 0.4));
+
+  // And this year's, unless the storyline has already ended his season.
+  //
+  // Rolled once per season and then carried on the season object, because
+  // handleTrain is re-entered several times a year (the deadline, an event, the
+  // run-in) and a fresh roll on each pass would both compound the games lost
+  // and file an injury that never actually happened.
+  const thisYearInjury = player.season
+    ? (player.season.injury || null)
+    : ((player.storylines?.injury === 1)
+        ? null
+        : rollInjury(player, { games: LEAGUE_CONFIG?.[player.league]?.games || 82 }));
+  if (thisYearInjury && !player.season) gamesMissed += thisYearInjury.games;
+
+  // THE ROOM HE WALKS INTO.
+  //
+  // Built the first time he plays for a club and untouched after that, so
+  // leaving at twenty-four and coming back at thirty-one finds it changed in
+  // the ways a decade changes a dressing room. Classmates already on the club
+  // are folded in rather than duplicated, so a man he came up with is the same
+  // man. See utils/roster.js.
+  //
+  // The sim reads it off the player the same way it already reads leagueState,
+  // which is why it has to be on the object handed to simulateSeason rather
+  // than merely scheduled with setPlayer.
+  const club = ensureClub(player, {
+    teamId: player.team,
+    league: player.league,
+    strength: teamStrengthOf(player.leagueState, player.team),
+    classmates: teammatesFrom(player.peers, player.team)
+  });
+  if (club?.fresh) {
+    // A club he has just joined comes with a coach who has an opinion of him
+    // already, formed out of whether he is the sort of player that coach wants.
+    // A defensive man does not trust a sniper on day one and a sniper does not
+    // flourish for him, which happens to real careers constantly.
+    const opening = coachOpening(club.coaches[player.team], playerArchetype(player));
+    setPlayer(p => ({
+      ...p, rooms: club.rooms, coaches: club.coaches,
+      relationships: { ...(p.relationships || {}), coach: opening }
+    }));
+  }
+  const withRoom = club ? { ...player, rooms: club.rooms, coaches: club.coaches } : player;
 
   // --- THE NINE-GAME TRIAL -----------------------------------------------
   // An eighteen or nineteen year old on an entry-level deal gets nine NHL games
@@ -108,7 +166,7 @@ export function handleTrain(ctx, t) {
   const alreadyMidSeason = !!player.season;
 
   if (!trial && !alreadyMidSeason && isNineGameCandidate(player)) {
-    const seg = simulateSeason(player, t?.effect, 0,
+    const seg = simulateSeason(withRoom, t?.effect, 0,
       { forceGames: 9, lockPlacement: true, segmentOnly: true })?.segment;
 
     if (seg) {
@@ -176,7 +234,7 @@ export function handleTrain(ctx, t) {
   const debut = player.debut || null;
   if (!debut && !trial && !alreadyMidSeason
       && player.league === 'NHL' && (player.stats?.nhl?.games || 0) === 0) {
-    const seg = simulateSeason(player, t?.effect, 0,
+    const seg = simulateSeason(withRoom, t?.effect, 0,
       { forceGames: 1, lockPlacement: true, segmentOnly: true })?.segment;
 
     if (seg) {
@@ -254,7 +312,7 @@ export function handleTrain(ctx, t) {
   };
 
   const advanceTo = (stints, nextStage) => {
-    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: nextStage } }));
+    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: nextStage, injury: thisYearInjury } }));
     setPendingSeasonResult(partialResult(stints));
   };
 
@@ -274,7 +332,7 @@ export function handleTrain(ctx, t) {
   const endSeasonNow = (stints) => {
     setPlayer(prev => ({
       ...prev, trial: null, debut: null,
-      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true }
+      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury }
     }));
     setPendingSeasonResult(partialResult(stints));
   };
@@ -305,6 +363,11 @@ export function handleTrain(ctx, t) {
   // standings the deadline screen showed had no bearing on where the season
   // actually finished.
   let seasonTeamFactor = carried.find(s => typeof s.teamFactor === 'number')?.teamFactor;
+  // Whose strength that is. It belongs to one club, and a player who changes
+  // clubs mid-year does not take his old team's record with him.
+  let factorTeam = carried.find(s => typeof s.teamFactor === 'number')?.team || null;
+  const clubFactor = (team) => (typeof seasonTeamFactor === 'number' && (!factorTeam || factorTeam === team))
+    ? { teamFactor: seasonTeamFactor } : {};
   // WHERE HE IS RIGHT NOW.
   //
   // Every segment of the year was simulated against the player as he was in
@@ -314,16 +377,17 @@ export function handleTrain(ctx, t) {
   // placement again from the NHL. The first he knew of the move was a line of
   // AHL games in the recap months later. The club moves under him now, as it
   // happens, and the segment after it starts from where he actually is.
-  let livePlayer = player;
+  let livePlayer = withRoom;
   const playNext = (fraction) => {
     const seg = simulateSeason(livePlayer, effect, baseMissed + played, {
       gamesFraction: fraction, segmentOnly: true,
-      ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {}),
+      ...clubFactor(livePlayer.team),
       ...(locked ? { lockPlacement: true } : {})
     })?.segment;
     if (seg && seg.games > 0) {
-      if (typeof seasonTeamFactor !== 'number' && typeof seg.teamFactor === 'number') {
+      if (typeof seg.teamFactor === 'number' && (typeof seasonTeamFactor !== 'number' || (factorTeam && factorTeam !== seg.team))) {
         seasonTeamFactor = seg.teamFactor;
+        factorTeam = seg.team;
       }
       if (seg.team && (seg.team !== livePlayer.team || seg.league !== livePlayer.league)) {
         livePlayer = { ...livePlayer, team: seg.team, league: seg.league };
@@ -391,9 +455,10 @@ export function handleTrain(ctx, t) {
     }
 
     // Nagging Injury (moved from post-season)
-    if (player.league !== 'NCAA' && Math.random() < 0.05 && !player.storylines?.naggingInjury) {
+    if (player.league !== 'NCAA' && Math.random() < 0.05 && !player.storylines?.lingering) {
       advanceTo(stints, 1);
-      setPlayer(p => ({ ...p, storylines: { ...p.storylines, naggingInjury: true } }));
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines,
+        lingering: { key: 'nag', label: 'nagging injury', games: 14, lingers: true } } }));
       ctx.setActiveEvent({
         title: '🤕 THE NAGGING INJURY',
         desc: `You took a nasty slash to the wrist and the team doctor says it's a hairline fracture. You can sit out for 4 weeks to let it heal, or shoot up with painkillers and play through it to help the team keep pace in the standings.`,
@@ -517,7 +582,7 @@ export function handleTrain(ctx, t) {
   const priorStints = carried;
   const playedGames = priorStints.reduce((n, s) => n + (s.games || 0), 0);
   const result = simulateSeason(
-    player,
+    withRoom,
     effect,
     baseMissed + playedGames,
     // lockPlacement: the deadline has just settled where this player is for the
@@ -528,7 +593,11 @@ export function handleTrain(ctx, t) {
     // than drawing a new one.
     {
       ...(priorStints.length ? { priorStints, lockPlacement: true } : {}),
-      ...(typeof seasonTeamFactor === 'number' ? { teamFactor: seasonTeamFactor } : {}),
+      // A deadline trade fixed where the new club stands; otherwise the club
+      // he has been with all year carries on from where it was.
+      ...((season?.anchor && season.anchor.team === withRoom.team)
+        ? { standingAnchor: season.anchor.standing }
+        : clubFactor(withRoom.team)),
       // A season marked over has no run-in to play: he is in a brace watching
       // it from the press box. The stints already on the board are the whole
       // of his year, and everything below still runs on them.
@@ -538,6 +607,15 @@ export function handleTrain(ctx, t) {
   if (!result) return;
 
   const { updatedPlayer, recap, statChanges, isDemoted, currentLg, currentTeam } = result;
+  // Where the year finished, which is not always where he is going next: a big
+  // spring in the AHL can earn an NHL start for next season. The season, its
+  // playoffs and the room he shared it with all belong to the club he finished
+  // it with. The history used to take next year's club, so an AHL season
+  // ending in a promotion was filed as an NHL one and vanished from the career
+  // table.
+  const lastStint = (recap.stints || [])[(recap.stints || []).length - 1];
+  const playedTeam = result.playedTeam || lastStint?.team || currentTeam;
+  const playedLg = result.playedLg || lastStint?.league || currentLg;
 
   // 2. Award Achievements
   if (updatedPlayer.league === 'NHL' && recap.games > 0) unlockAchievement('first_nhl_goal');
@@ -552,8 +630,8 @@ export function handleTrain(ctx, t) {
   // 3. Commit State and Push to History
   const historyEntry = {
       year: 2026 + ((player.stats?.seasonsPlayed || 0)),
-      team: currentTeam,
-      league: currentLg,
+      team: playedTeam,
+      league: playedLg,
       games: recap.games,
       goals: recap.g,
       assists: recap.a,
@@ -611,14 +689,51 @@ export function handleTrain(ctx, t) {
 
   updatedPlayer.seasonHistory = [...(player.seasonHistory || []), historyEntry];
 
-  // Also clear nagging injury status so it doesn't carry over forever
-  if (updatedPlayer.storylines?.naggingInjury || updatedPlayer.storylines?.suspended) {
-      updatedPlayer.storylines = {
-          ...updatedPlayer.storylines,
-          naggingInjury: false,
-          suspended: false
-      };
+  // WHAT THE YEAR DID TO HIM, FILED.
+  //
+  // The history is the part that was missing. Nothing accumulated, so a
+  // thirty-three-year-old who had been through three of these was exactly as
+  // durable as one who had never been hurt. Every one he has had now makes the
+  // next likelier and slower to come back from, and a shoulder or a back can
+  // follow him into the next season rather than being gone by September.
+  if (thisYearInjury) {
+      updatedPlayer.injuryHistory = [...(player.injuryHistory || []), thisYearInjury];
   }
+  updatedPlayer.storylines = {
+      ...updatedPlayer.storylines,
+      naggingInjury: false,
+      suspended: false,
+      // Last year's lingering trouble is behind him; this year's may not be.
+      lingering: thisYearInjury?.lingers ? thisYearInjury : null
+  };
+  // WHAT THE SEASON DID TO THE ROOM.
+  //
+  // Games shared accrue, which is the whole basis of the retirement line about
+  // the man he played the most alongside, and trust moves on how the year
+  // went. For a goaltender it moves on the one thing that genuinely divides a
+  // dressing room: there is one net, and the split of starts decides who is in
+  // it. See recordSeason in utils/roster.js.
+  const playedForClub = playedTeam;
+  const roomNow = roomFor(updatedPlayer.rooms || club?.rooms, playedForClub);
+  if (roomNow) {
+      const updatedRoom = recordSeason(roomNow, {
+          pos: updatedPlayer.pos,
+          games: recap.games || 0,
+          scheduleGames: LEAGUE_CONFIG?.[updatedPlayer.league]?.games || 82,
+          won: (recap.standings || 32) <= 8,
+          titleWon: !!recap.titleWon
+      });
+      updatedPlayer.rooms = { ...(updatedPlayer.rooms || club?.rooms || {}), [playedForClub]: updatedRoom };
+      // The single number every existing screen reads stays, as the average of
+      // what the room actually thinks, so nothing that depended on it breaks.
+      const avg = roomTrust(updatedRoom);
+      if (avg != null) {
+          updatedPlayer.relationships = { ...(updatedPlayer.relationships || {}), teammates: avg };
+      }
+  }
+
+  if (thisYearInjury) recap.injury = injuryLine(thisYearInjury);
+  else if (lingering) recap.injury = `The ${lingering.label} that ended last season was still there in October, and it cost you the start of this one.`;
 
   // The season is finished, so the trial is spent.
   setPlayer({
@@ -668,7 +783,7 @@ export function handleTrain(ctx, t) {
   }
 
   if (currentLg === 'NCAA') {
-     runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap?.standings || 16, { sidelined: !!season?.over });
+     runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, playedLg, playedTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap?.standings || 16, { sidelined: !!season?.over });
   } else {
      setPendingSeasonResult(result);
 
@@ -688,8 +803,7 @@ export function handleTrain(ctx, t) {
      // 🌟 MILESTONE INTERCEPTOR (NEW)
      const oldNhlGames = player.stats?.nhl?.games || 0;
      const newNhlGames = updatedPlayer.stats?.nhl?.games || 0;
-     const proSeasons = player.stats?.seasonsPlayed || 0;
-     const isWaiverExempt = (player.contract?.salary === 925000) || (player.age < 25 && proSeasons < 3);
+     const isWaiverExempt = waiverExempt(player);
 
      let moveTitle = null;
      let moveDesc = null;
@@ -765,9 +879,7 @@ export function handleTrain(ctx, t) {
          // Waiver exemption is real and the game already knows who has it: a
          // player on an entry-level deal is sent down, not waived, and telling
          // him he cleared waivers on his ELC is wrong twice over.
-         const proSeasons = player.stats?.seasonsPlayed || 0;
-         const exempt = (player.contract?.salary === 925000)
-             || (player.age < 25 && proSeasons < 3);
+         const exempt = waiverExempt(player);
          moveTitle = '🔁 DOWN AND BACK';
          moveDesc = exempt
              ? `It was not a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they do not need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up, which is its own kind of comment.`
@@ -775,7 +887,14 @@ export function handleTrain(ctx, t) {
      } else if (wasAHLtoNHL) {
          const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
          moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW' : '📈 CALLED UP';
-         moveDesc = isFirst
+         // Earned over the whole year rather than in one phone call: he
+         // finishes the season with the farm club and starts the next one up.
+         const forNextYear = recap.waiverEvent === 'EARNED_PROMOTION';
+         moveDesc = forNextYear
+             ? (isFirst
+                 ? `The GM came down to see you after the last regular-season game. You will finish the year here, playoffs and all, and when camp opens in September you will be in the NHL dressing room. Everybody you have ever played with is already texting you.`
+                 : `The parent club has seen enough. You finish the year with the farm team, and next season starts with you back in the NHL.`)
+             : isFirst
              ? `The call came at eight in the morning. Pack a bag, be at the airport by noon, you are in the lineup tomorrow night. Everybody you have ever played with is already texting you, and your mother is crying down the phone.`
              : `You have been recalled. You know the drill this time, and you know how quickly it goes the other way again.`;
          // This is the single biggest night in most of these careers and it used
@@ -787,7 +906,7 @@ export function handleTrain(ctx, t) {
                    label: 'Call everyone who got you here',
                    subLabel: 'Your parents, the billet family, the junior coach who kept playing you.',
                    isRisky: false,
-                   feedback: 'You spent the whole flight on the phone. Half of them could not speak. Neither could you, really.',
+                   feedback: 'You spent the whole night on the phone. Half of them could not speak. Neither could you, really.',
                    effect: { fanStatus: 40, ovr: 0, rel: { teammates: 10 } },
                    action: 'ROUTE_SEASON_END'
                  },
@@ -838,7 +957,7 @@ export function handleTrain(ctx, t) {
          // The break and the deadline are both long past by now, so the end of the
          // year goes to the post-season rather than back to either of them.
          setSeasonRecap(recap);
-         runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, currentLg, currentTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap.standings || 16, { sidelined: !!season?.over });
+         runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, playedLg, playedTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap.standings || 16, { sidelined: !!season?.over });
      }
   }
 }

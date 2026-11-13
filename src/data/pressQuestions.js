@@ -49,8 +49,14 @@ const fitsLeague = (scope, tag) => !scope || scope.includes(tag);
 export const PRESS_QUESTIONS = [
   // ───────────────────────────── ANY LEAGUE, ANY POSITION ─────────────────
   {
+    // Everyone has a night where they come up big, so this was marked for
+    // everyone. Every answer under it is about scoring one: the lane opening,
+    // the linemates, finishing it, having the goalie beat before it left the
+    // stick. A goaltender was being handed those to say out loud, which left
+    // him telling the room he had beaten the goalie. Same question, split in
+    // two, because the question was never the problem.
     q: "You came up big tonight. What was going through your mind on that play?",
-    forPos: 'all', tag: 'positive',
+    forPos: 'skater', tag: 'positive',
     answers: {
       professional: [
         "I was just trying to make the right read and let the puck do the work.",
@@ -71,6 +77,32 @@ export const PRESS_QUESTIONS = [
         "Honestly, I saw it opening up before it happened. It's the standard I set.",
         "That's why I'm out there in those situations. I expect to make those plays.",
         "I knew I had the goalie beat before it even left my stick."
+      ]
+    }
+  },
+  {
+    q: "You came up big tonight. What was going through your mind on that play?",
+    forPos: 'goalie', tag: 'positive',
+    answers: {
+      professional: [
+        "Tracked it the whole way. You hold your depth and let it hit you.",
+        "Nothing special in it. Read the release, get square, trust the position.",
+        "Stay patient and stay big. The puck finds you if you are in the right place."
+      ],
+      passionate: [
+        "I heard the building when it stuck in the glove. That is the reason you play.",
+        "You feel the bench come up off the boards behind you. That is what I am out there for.",
+        "That one was not going in. Not tonight, not in this building."
+      ],
+      humble: [
+        "The guys boxed out and I saw it the whole way. Easy save from where I was standing.",
+        "I got a piece of it. Half of that is luck and anyone in that room will tell you so.",
+        "They cleared the front of the net all night. I only had to be there."
+      ],
+      cocky: [
+        "I had it the second he picked his head up. He told me where he was going.",
+        "That is the save I am paid to make. It should not be a story.",
+        "He got one look all night and I took it off him."
       ]
     }
   },

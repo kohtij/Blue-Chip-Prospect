@@ -135,14 +135,14 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
           </g>
         )}
 
-        {/* The screen: two bodies planted in front of the mouth. That is what
-            you are looking through. */}
-        <g>
-          <rect x="30" y={MOUTH.yBot - 4} width="17" height="24" rx="5"
-                fill="rgba(200,44,44,0.82)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" />
-          <rect x="52" y={MOUTH.yBot - 1} width="16" height="22" rx="5"
-                fill="rgba(56,120,220,0.8)" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" />
-        </g>
+        {/* The screen: two bodies planted in front of the mouth, which is what
+            you are looking through. They were two plain rounded boxes, one red
+            and one blue, and nobody could tell they were meant to be people.
+            Drawn as players now, helmet and shoulders, and labelled: their
+            forward parked on your doorstep and your own defenceman wrestling
+            with him. */}
+        <Body cx={38.5} top={MOUTH.yBot - 7} w={17} fill="rgba(200,44,44,0.9)" num="17" tag="THEIRS" />
+        <Body cx={60} top={MOUTH.yBot - 4} w={16} fill="rgba(56,120,220,0.9)" num="4" tag="YOUR D" />
       </Surface>
 
       {phase === 'hidden' && <Callout text="Can't see it" y="22%" />}
@@ -165,5 +165,25 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
         ))}
       </div>
     </Stage>
+  );
+}
+
+// A skater seen from the net: helmet, shoulders, a sweater with a number on it.
+function Body({ cx, top, w, fill, num, tag }) {
+  const half = w / 2;
+  const head = 3.1;
+  const sh = top + head * 2 + 0.6;
+  const torso = `M ${cx - half} ${sh + 3.5} Q ${cx - half} ${sh} ${cx - half + 3.5} ${sh}`
+    + ` L ${cx + half - 3.5} ${sh} Q ${cx + half} ${sh} ${cx + half} ${sh + 3.5}`
+    + ` L ${cx + half - 1.2} ${sh + 22} L ${cx - half + 1.2} ${sh + 22} Z`;
+  return (
+    <g>
+      <path d={torso} fill={fill} stroke="rgba(0,0,0,0.55)" strokeWidth="0.7" />
+      <circle cx={cx} cy={top + head} r={head} fill="#1c2128" stroke="rgba(0,0,0,0.6)" strokeWidth="0.6" />
+      <text x={cx} y={sh + 7.4} textAnchor="middle" fontSize="5.6" fontWeight="900"
+            fill="rgba(255,255,255,0.92)" style={{ fontFamily: 'inherit' }}>{num}</text>
+      <text x={cx} y={sh + 11.6} textAnchor="middle" fontSize="2.5" fontWeight="900"
+            letterSpacing="0.3" fill="rgba(255,255,255,0.8)" style={{ fontFamily: 'inherit' }}>{tag}</text>
+    </g>
   );
 }

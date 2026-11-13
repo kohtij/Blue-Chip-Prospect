@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../utils/appHelpers';
 import { cap, recomputeOvr } from '../utils/gameHelpers';
@@ -64,56 +64,71 @@ export default function PreseasonScreen() {
       return [shuffled[0], shuffled[1], data.elite];
   });
 
-  useEffect(() => {
-    if (checkEarlyDemotion && !hasChecked.current) {
-        const move = checkEarlyDemotion();
-        hasChecked.current = true; 
-        
-        if (move) {
-           setTimeout(() => {
-               let title = 'SENT DOWN';
-               let desc = `The front office has assigned you to the ${getFullTeamName(move.team, 'AHL')} (AHL) to start the season.`;
-               let type = 'DEMOTION';
-
-               if (move.reason === 'CLAIMED') {
-                   title = 'CLAIMED OFF WAIVERS';
-                   desc = `Your GM attempted to send you down, but you were claimed off waivers! You are now playing for the ${getFullTeamName(move.team, 'NHL')}.`;
-               } else if (move.reason === '9_GAME_RULE') {
-                   title = 'RETURNED TO JUNIORS';
-                   desc = `After training camp, the front office determined you need one more year of seasoning. You have been returned to the ${getFullTeamName(move.team, move.lg)}.`;
-               } else if (move.reason === 'JUNIOR_ASSIGNMENT') {
-                   // Not a demotion. He signed, he came to camp, and the club
-                   // decided he plays another year where he already is. That is
-                   // the most common thing that happens to a signed draftee and
-                   // the game had no way of saying it.
-                   title = 'BACK TO JUNIOR FOR A YEAR';
-                   desc = `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You are back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.`;
-                   type = 'ASSIGNMENT';
-               } else if (move.reason === 'CAMP_ASSIGNMENT') {
-                   title = 'ASSIGNED TO THE AHL';
-                   desc = `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${getFullTeamName(move.team, 'AHL')} to start the year, which is where they put the ones they are not finished with.`;
-               } else if (move.reason === 'ECHL_REASSIGNMENT') {
-                   title = 'SENT TO THE COAST';
-                   desc = `You have been reassigned from the AHL to the ${getFullTeamName(move.team, 'ECHL')} (ECHL). It's time to put your head down and grind your way back up the depth chart.`;
-               } else if (move.reason === 'PROMOTION') { 
-                   title = 'MADE THE ROSTER';
-                   desc = `You had an incredible camp and forced the coach's hand. You are starting the season on the ${getFullTeamName(move.team, move.lg)} roster!`;
-                   type = 'PROMOTION';
-               }
-
-               setRosterMoveNotice({ ...move, title, desc, type });
-
-               setPlayer(p => {
-                   const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), move.team]));
-                   return { ...p, team: move.team, league: move.lg, teamsPlayedFor: newTeams };
-               });
-           }, 0);
-        }
+  // THE CUTS COME AFTER CAMP.
+  //
+  // This used to run the moment the screen mounted, then wait a tick to say
+  // so, so the camp cards painted and were replaced a split second later by
+  // the news that he had been sent down, before he had trained at all. The cut
+  // is made now when he leaves camp, on the player camp has just made, and the
+  // rest of the year waits behind it until he has read it.
+  const noticeFor = (move) => {
+    const ahl = () => getFullTeamName(move.team, 'AHL');
+    switch (move.reason) {
+      case 'CLAIMED':
+        return { title: 'CLAIMED OFF WAIVERS', type: 'DEMOTION',
+          desc: `Your GM put you on waivers to send you down, and another club put in a claim before the deadline. You play for the ${getFullTeamName(move.team, 'NHL')} now.` };
+      case 'WAIVERS':
+        return { title: 'CLEARED WAIVERS', type: 'DEMOTION',
+          desc: `Camp broke and your name went on the waiver wire. Nobody claimed you in the twenty-four hours, so you report to the ${ahl()} to start the year.` };
+      case 'DEVELOPMENT':
+        return { title: 'SENT TO THE AHL', type: 'DEMOTION',
+          desc: `The club would rather you played big minutes than sat in the press box. You start the year with the ${ahl()}. You are still waiver-exempt, so no other club got the chance to claim you.` };
+      case '9_GAME_RULE':
+        return { title: 'RETURNED TO JUNIORS', type: 'DEMOTION',
+          desc: `After training camp, the front office decided you need one more year of seasoning. You have been returned to the ${getFullTeamName(move.team, move.lg)}.` };
+      case 'JUNIOR_ASSIGNMENT':
+        // Not a demotion. He signed, he came to camp, and the club decided he
+        // plays another year where he already is.
+        return { title: 'BACK TO JUNIOR FOR A YEAR', type: 'ASSIGNMENT',
+          desc: `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You are back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.` };
+      case 'CAMP_ASSIGNMENT':
+        return { title: 'ASSIGNED TO THE AHL', type: 'DEMOTION',
+          desc: `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${ahl()} to start the year, which is where they put the ones they are not finished with.` };
+      case 'ECHL_REASSIGNMENT':
+        return { title: 'SENT TO THE COAST', type: 'DEMOTION',
+          desc: `You have been reassigned from the AHL to the ${getFullTeamName(move.team, 'ECHL')} (ECHL). It's time to put your head down and grind your way back up the depth chart.` };
+      case 'PROMOTION':
+        return { title: 'MADE THE ROSTER', type: 'PROMOTION',
+          desc: `You had an incredible camp and forced the coach's hand. You are starting the season on the ${getFullTeamName(move.team, move.lg)} roster!` };
+      default:
+        return { title: 'SENT DOWN', type: 'DEMOTION',
+          desc: `The front office has assigned you to the ${ahl()} (AHL) to start the season.` };
     }
-  }, [checkEarlyDemotion, setPlayer]);
+  };
+
+  // What happens once camp is over: the offseason picks up where it left off,
+  // or the very first season of a career starts.
+  const carryOn = (who) => {
+    if (who.offseason) advanceToOffseason(who);
+    else handleTrain({ effect: {} }, who);
+  };
+
+  const leaveCamp = (who) => {
+    const move = (checkEarlyDemotion && !hasChecked.current) ? checkEarlyDemotion(who) : null;
+    hasChecked.current = true;
+    if (!move) { carryOn(who); return; }
+    const moved = {
+      ...who, team: move.team, league: move.lg,
+      teamsPlayedFor: Array.from(new Set([...(who.teamsPlayedFor || []), move.team]))
+    };
+    setPlayer(moved);
+    setRosterMoveNotice({ ...move, ...noticeFor(move), next: moved });
+  };
 
   const handleAcknowledgeMove = () => {
+    const next = rosterMoveNotice?.next;
     setRosterMoveNotice(null);
+    if (next) carryOn(next);
   };
 
   const isArchetypeChoice = currentYear === 2026;
@@ -221,8 +236,8 @@ export default function PreseasonScreen() {
                             // the camp battle fires now that the training is banked.
                             // The very first pre-season of a career has no offseason
                             // behind it, so that one starts the season directly.
-                            if (applied.offseason) advanceToOffseason(applied);
-                            else handleTrain({ ...t, effect: {} }, applied);
+                            // Either way the cuts are made first. See leaveCamp.
+                            leaveCamp(applied);
                         }}
                         className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[12rem] sm:min-h-[16rem] text-left relative z-30 ${isArchetypeChoice ? 'hover:border-[#c084fc] shadow-[0_0_15px_rgba(192,132,252,0.1)]' : t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
                       >

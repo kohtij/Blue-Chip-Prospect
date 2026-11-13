@@ -179,6 +179,33 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
       playerMatchIdx = Math.floor(Math.random() * firstRoundMatchups);
     }
 
+    // ONE BOARD FOR THE WHOLE TOURNAMENT.
+    //
+    // Every other league plays series, and a series gets its own grid because
+    // a grid is a series: you turn cards over until somebody has four. The
+    // NCAA is single elimination from the regional semifinal to the national
+    // championship, so a grid per round meant four separate sixteen-card
+    // boards, each dealt fresh, pressed once and then flipped over whole.
+    // Sixty-four cards to decide four games, and no reason to remember any of
+    // them.
+    //
+    // It is one board now. Sixteen scores dealt when the regional starts, and
+    // each round is a single press on the same sixteen. The square he presses
+    // turns over and nothing else does. Win, and the bracket moves on under
+    // him while the board stays exactly where it was, one square down. Four
+    // presses to a national title, and the twelve he never touched stay face
+    // down unless a press comes back a loss, which is the only thing that
+    // turns the rest of them over.
+    //
+    // The scores are fixed at the deal, so the tournament has one difficulty
+    // rather than a fresh roll each round: the title game comes out of the
+    // same deal as the opener. That is the price of the board being a place
+    // he works across rather than four unrelated grids.
+    const allSingle = rounds.length > 0 && rounds.every(r => (r.gamesPerMatchup || 7) === 1);
+    const board = (allSingle && !sidelined)
+      ? { deck: getDeckForRound(1), revealed: [], speechUsed: false }
+      : null;
+
     const bracket = [];
     for (let r = 0; r < totalRounds; r++) {
       const numMatchups = rounds[r].teams / 2;
@@ -212,8 +239,9 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
             wins1: 0,
             wins2: 0,
             status: 'playing',
-            // A sidelined player plays no minigames, so no deck is dealt.
-            deck: isPlayer && !sidelined ? getDeckForRound(1) : null,
+            // A sidelined player plays no minigames, so no deck is dealt, and
+            // neither does a tournament that has a board of its own.
+            deck: (isPlayer && !sidelined && !board) ? getDeckForRound(1) : null,
             revealed: [],
             divisionLabel: getDivLabel(m, numMatchups)
           });
@@ -284,7 +312,8 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
       spots,
       playerConf,
       hasConfs,
-      roundsConfig: rounds
+      roundsConfig: rounds,
+      board
     });
     setScreen('playoffs');
 }

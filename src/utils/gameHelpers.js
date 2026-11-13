@@ -5,8 +5,10 @@ import {
 import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
 import { ageFactor, curvesFor, D_TOI_REF, drawComebackBar, drawCommunityBar, drawRoomBar, faceoffs, forwardDefence, gaussianNoise, goalieAgeAdjust, iceTime, isDefence, paceOf, penaltyMinutes, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
+import { depthAhead, lineEffect, roomFor } from './roster';
 import { advanceLeagueState, teamStrengthOf } from './leagueState';
 import { advanceRecords, claimRecords } from './records';
+import { waiverExempt } from './waivers';
 import { advancePeers, classBestAt, classNews, dmanBar, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
@@ -110,7 +112,8 @@ const CONTRACT_TIERS = [
 const ROLE_STEP = 0.22;
 
 export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = 'NHL',
-                              coachTrust = 50, lastRoleMulti = null, sameLeague = true }) => {
+                              coachTrust = 50, lastRoleMulti = null, sameLeague = true,
+                              depth = 0 }) => {
   const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(league);
 
   // 1. What he signed for.
@@ -150,14 +153,37 @@ export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = '
   // what trust is for: the coach who rates him leaves him up there a while
   // longer. Demotion still runs further than promotion, because a coach sits a
   // struggling man sooner than he hands a job to an unproven one.
+  // 4. And the men already doing the job.
+  //
+  // Nothing here knew who else was in the room, so a seventy-two rated centre
+  // behind an eighty-five and an eighty was given the same minutes as one who
+  // was the best centre his club had. Hockey does not work that way: there are
+  // three lines, somebody is on the third of them, and no amount of coach
+  // trust creates a second top-six slot. Each man ahead of him costs him most
+  // of a line, and the squeeze is capped so a bad week at the bottom of a deep
+  // club does not bury him in the press box forever.
+  const blocked = Math.max(0, depth || 0);
+  // A goaltender is a different case and a much harder one. There are three
+  // forward lines and somebody is on the third of them, but there is one net.
+  // A better goalie on the same club is not a man taking minutes off him, it
+  // is a man who has his job, and the gap between a starter and the fellow
+  // behind him is most of a career.
+  const squeeze = pos === 'G'
+    ? Math.min(0.80, blocked * 0.46)
+    : Math.min(0.42, blocked * 0.17);
+
   const t = (coachTrust - 50) / 50;
-  const wanted = deserved - signed;
+  const wanted = (deserved - squeeze) - signed;
   const pull = wanted >= 0
     ? Math.min(0.80, Math.max(0.15, 0.45 + t * 0.35))   // trust promotes him
     : Math.min(0.80, Math.max(0.15, 0.45 - t * 0.35));  // and protects him
   const moved = wanted * pull;
 
   let multi = signed + Math.max(-0.30, Math.min(0.22, moved));
+  // A queue in front of him caps what the contract alone can buy: a depth
+  // deal does not become top-line minutes because the paperwork says so when
+  // two better men are playing those minutes.
+  if (blocked > 0) multi = Math.min(multi, Math.max(pos === 'G' ? 0.30 : 0.42, 1.34 - squeeze));
 
   // AND HIS MINUTES CANNOT HALVE OVER ONE SUMMER.
   //
@@ -774,17 +800,19 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
              currentLg = 'AHL';
              isDemoted = true;
              
-             const proSeasons = p.stats?.seasonsPlayed || 0;
-             const isRFA = p.age < 27 && proSeasons < 7;
-             const isELC = p.contract?.salary === 925000 || (isRFA && proSeasons < 3);
-             
-             if (!isELC && !isRFA && Math.random() < 0.3) {
+             // One waiver rule for the whole game: see utils/waivers.js. This
+             // one used to protect anyone under twenty-seven, which kept
+             // veterans off the wire, and then sent the rest down as
+             // "development" without waiving them.
+             if (waiverExempt(p)) {
+                 waiverEvent = 'DEVELOPMENT';
+             } else if (Math.random() < 0.3) {
                  const pool = (nhlTeams || []).filter(t => t.id !== p.team);
                  currentTeam = pool[Math.floor(Math.random() * pool.length)].id;
                  currentLg = 'NHL';
                  waiverEvent = 'CLAIMED';
              } else {
-                 waiverEvent = needsAHLDevelopment ? 'DEVELOPMENT' : 'WAIVERS';
+                 waiverEvent = 'WAIVERS';
              }
           }
         }
@@ -838,9 +866,21 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // Where he starts the year, where he deserves to be, and where he ends up.
   // All three come out of resolveRole, which the dashboard calls too so the
   // card and the engine cannot disagree about what line he is on.
+  // THE ROOM.
+  //
+  // Who else is at his position on this club, and who plays beside him. Both
+  // come off the club's own room, which persists on the save and ages every
+  // summer. See utils/roster.js. A career with no room (an old save, a league
+  // the player is only passing through) gets the neutral answers and plays
+  // exactly as it always did.
+  const room = roomFor(p.rooms, currentTeam);
+  const blockedAhead = room ? depthAhead(room, p.pos, p.ovr) : 0;
+  const line = lineEffect(room, p.pos);
+
   const roleResolved = resolveRole({
     contractRole: p.contract?.role || '',
     ovr: p.ovr, pos: p.pos, league: currentLg, coachTrust,
+    depth: blockedAhead,
     // Where he finished last season, and whether this is the same league. Both
     // are what stop his minutes halving over one summer: see resolveRole.
     lastRoleMulti: p.lastRoleMulti ?? null,
@@ -879,9 +919,6 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // the club's own persisted strength, which drifts a little each summer.
   // See utils/leagueState.js.
   const clubBase = teamStrengthOf(p.leagueState, currentTeam);
-  const randomTeamFactor = typeof options.teamFactor === 'number'
-    ? Math.min(0.98, Math.max(0.02, options.teamFactor + (Math.random() - 0.5) * 0.20))
-    : Math.min(0.97, Math.max(0.03, clubBase + gaussianNoise() * 0.06));
   let playerImpact = p.pos === 'G' ? (p.ovr - 70) / 60 : (p.ovr - 70) / 80;
 
   const salary = p.contract?.salary || 0;
@@ -890,6 +927,27 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       if (salary >= 11500000) playerImpact -= 0.15; 
   }
   if (p.isGenerational) playerImpact += 0.20;
+
+  // WHERE THE CLUB ALREADY STANDS.
+  //
+  // A deadline trade names the new club's place in the table, and the rest of
+  // the year has to start from it. The run-in used to carry the old club's
+  // strength across, so a player traded to the team in first finished the
+  // year with them in thirteenth, out of the playoffs, because the club he had
+  // left was bad. standingAnchor is that place, turned back into the strength
+  // that would produce it with him in the lineup.
+  //
+  // The swing on an inherited strength is small as well. A club that is first
+  // after sixty games does not finish thirteenth, so the last stretch moves it
+  // a place or two at most rather than redrawing the season.
+  const anchored = typeof options.standingAnchor === 'number' && teamCount > 1
+    ? 0.05 + ((teamCount - Math.min(teamCount, Math.max(1, options.standingAnchor))) / (teamCount - 1)) * 0.90 - playerImpact
+    : null;
+  const randomTeamFactor = anchored !== null
+    ? Math.min(0.98, Math.max(0.02, anchored + (Math.random() - 0.5) * 0.06))
+    : typeof options.teamFactor === 'number'
+      ? Math.min(0.98, Math.max(0.02, options.teamFactor + (Math.random() - 0.5) * 0.08))
+      : Math.min(0.97, Math.max(0.03, clubBase + gaussianNoise() * 0.06));
 
   const finalTeamFactor = Math.min(0.95, Math.max(0.05, randomTeamFactor + playerImpact));
   const teamStrength = 0.65 + (finalTeamFactor * 0.55); 
@@ -952,23 +1010,24 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
 
   let games;
   if (p.pos === 'G') {
-      let minG, maxG;
-      if (cRole.includes('Backup')) {
-          minG = 15; maxG = 30; // Backup
-      } else if (p.ovr >= 85) {
-          minG = 55; maxG = 68; // Workhorse ace
-      } else if (p.ovr >= 78) {
-          minG = 50; maxG = 62; // Established starter
-      } else if (p.ovr >= 72) {
-          minG = 35; maxG = 50; // 1B / Tandem
-      } else {
-          // Sub-70 OVR, but ensure minor league starters still get decent ice time
-          if (currentLg !== 'NHL' && roleMulti >= 1.0) {
-              minG = 35; maxG = 50; 
-          } else {
-              minG = 15; maxG = 30;
-          }
-      }
+      // A GOALTENDER'S SEASON IS HOW OFTEN HE GETS THE NET.
+      //
+      // These bands used to be chosen from his rating and the word "Backup" in
+      // his contract, so nothing about the club he played for could touch
+      // them. The other goaltender in the room was invisible: an eighty-rated
+      // man behind a better one still played sixty games, and the one
+      // relationship in hockey where two people are directly competing for the
+      // same job had no effect on either of their seasons.
+      //
+      // The bands come off roleMulti now, which already blends his contract,
+      // his ability, his coach's trust and, since the room exists, the man
+      // ahead of him. The thresholds are the same ones resolveRole uses for
+      // the Starter / Tandem / Backup label, so the card and the schedule
+      // cannot say different things.
+      const [minG, maxG] = roleMulti >= 1.15 ? [54, 67]
+                         : roleMulti >= 0.95 ? [47, 60]
+                         : roleMulti >= 0.60 ? [29, 46]
+                         : [12, 26];
       const leagueScale = maxGames / 82; // Adjusts the bands if the league plays fewer than 82 games (e.g. NCAA)
       games = Math.floor((minG + Math.random() * (maxG - minG)) * leagueScale);
   } else {
@@ -1021,8 +1080,14 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       // The curve now runs from .897 at a fringe 66 to .924 at a 96: a backup,
       // an ordinary starter at .905, an elite one at .917, and the best in the
       // world at .924 with the odd year past .930.
+      // The two defencemen who play the most in front of him, on top of the
+      // club term. A goaltender has no line to score with, so what the room
+      // gives him is the quality of the chances he faces, and the difference
+      // between a shutdown pair and a sieve in front of the same man is worth
+      // about three points of save percentage across the range.
       const savePctBase = 0.8826 + ((simSht + simSkt + simPhy) - 150) * 0.0003
                         + ((teamStrength - 1) * 0.03)
+                        + ((line.support - 1) * 0.22)
                         + goalieAgeAdjust(p.age);
       // A goalie's year still swings on a normal curve rather than inside a
       // flat band, so a career year and a bad one are both on the table for
@@ -1067,9 +1132,15 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       // so the season comes out of the minutes he played and the powerplay
       // time he got. Most of the gap between a first line and a fourth line
       // comes from those two things.
-      const context = games * iceFactor * teamStrength * lgMulti * fatigueMultiplier * ageMulti;
-      const gRaw = context * gpg * form.goals;
-      const aRaw = context * apg * form.assists;
+      // The club strength term stays, because the quality of a whole roster is
+      // real, but the men on his own line now carry a share of it: three years
+      // beside one player and then a trade in February is the most
+      // recognisable shape in hockey and the engine could not express it.
+      // The tilt is the part worth having. A sniper on his wing turns his
+      // passes into assists; a playmaker beside him turns his shots into goals.
+      const context = games * iceFactor * teamStrength * line.offence * lgMulti * fatigueMultiplier * ageMulti;
+      const gRaw = context * gpg * form.goals * line.goalTilt;
+      const aRaw = context * apg * form.assists * line.assistTilt;
 
       g = Math.floor(soften(gRaw, curves.goals.soft, curves.goals.hard));
       a = Math.floor(soften(aRaw, curves.assists.soft, curves.assists.hard));
@@ -1163,9 +1234,10 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       const parentNhlTeam = nhlTeams.find(t => t.ahlId === currentAhlTeam.id);
       if (parentNhlTeam) currentTeam = parentNhlTeam.id;
     }
-    waiverEvent = 'After tearing up the AHL in the first half of the season, you were called up to the NHL!';
-    g = Math.floor(g * 0.7);
-    a = Math.floor(a * 0.7);
+    // A promotion for next season, earned by this one. The games above were
+    // all played in the AHL, so they stay whole and stay filed there; they
+    // used to lose thirty per cent on the way to an NHL label they never wore.
+    waiverEvent = 'EARNED_PROMOTION';
   }
 
   const tempPlayer = { ...player, league: playedLg };
@@ -1507,7 +1579,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     scoutBoard,
     teamFactor: typeof options.teamFactor === 'number' ? options.teamFactor : randomTeamFactor };
 
-  return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam };
+  return { updatedPlayer, recap, statChanges: st, isDemoted, madePlayoffs, currentLg, currentTeam, playedLg, playedTeam };
 }
 
 // Exact odds of taking a series from a nine card grid holding `wins` win cards,
@@ -1601,7 +1673,7 @@ export const formatLeagueName = (league) => {
   return league;
 };
 
-const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+export const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
 
 export const leagueWithArticle = (league) => {
   const formatted = formatLeagueName(league);

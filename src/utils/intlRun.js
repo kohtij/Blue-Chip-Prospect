@@ -357,10 +357,28 @@ function produce(player, isClean, oppTier) {
 
   if (pos === 'G') {
     const shots = 22 + rnd(16);
+    const blank = { g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0 };
+
+    // A SHUTOUT IS DRAWN, NOT WAITED FOR.
+    //
+    // It used to be whatever fell out of the save percentage: sho was set when
+    // the rounded save total happened to equal the shot total. Stopping every
+    // one of thirty-odd shots needs a .986 and the band is capped at .99
+    // before rounding, so across ten thousand simulated tournament games it
+    // never once happened. The screen has a shutout column that could not be
+    // filled in and the record book has an international shutout nobody could
+    // ever set.
+    const shutoutOdds = isClean
+      ? Math.max(0.02, Math.min(0.20, (0.05 + (ovr - 75) * 0.005) * tierPull))
+      : 0;
+    if (Math.random() < shutoutOdds) return { shots, saves: shots, sho: 1, ...blank };
+
     const basePct = isClean ? 0.925 : 0.868;
-    const pct = Math.max(0.78, Math.min(0.99, basePct + (ovr - 75) * 0.0014 + (Math.random() - 0.5) * 0.035));
-    const saves = Math.round(shots * pct);
-    return { shots, saves, sho: isClean && shots - saves === 0 ? 1 : 0, g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0 };
+    const pct = Math.max(0.78, Math.min(0.985, basePct + (ovr - 75) * 0.0014 + (Math.random() - 0.5) * 0.035));
+    // One short of perfect at worst, so the only clean sheets are the drawn
+    // ones and a 1-0 win is never printed over a line that let nothing in.
+    const saves = Math.min(shots - 1, Math.round(shots * pct));
+    return { shots, saves, sho: 0, ...blank };
   }
 
   const isD = pos === 'LD' || pos === 'RD';
@@ -403,6 +421,28 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
   const survived = clean || rescued === true;
 
   const line = produce(player, clean, round.opponent?.tier);
+
+  // A GOALTENDER'S SCORELINE IS HIS OWN STAT LINE.
+  //
+  // These were two unrelated rolls. produce() drew his shots and his saves,
+  // scoreline() drew a result, and nothing ever introduced them, so he could
+  // win a game 3-1 and read "20/22 SAVES · 2 GA" underneath it. Which is to
+  // say the screen told him he had let in two goals in a game the other side
+  // scored one.
+  //
+  // His save total decides it now: the goals he let in ARE the other team's
+  // score. Done this way round rather than the other so a better goaltender
+  // still saves more pucks; deriving his saves from a drawn scoreline would
+  // have made every goalie in the tournament identical.
+  //
+  // One guard. A loss needs a goal in it, and an elite goalie on a bad night
+  // can round up to a shutout, which would leave him beaten 0-0.
+  if (player.pos === 'G' && !survived && line.shots - line.saves === 0) {
+    line.saves = Math.max(0, line.saves - 1);
+    line.sho = 0;
+  }
+  const goalsAgainst = player.pos === 'G' ? line.shots - line.saves : null;
+
   const stats = {
     games: run.stats.games + 1,
     g: run.stats.g + line.g,
@@ -421,7 +461,7 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
   // group is a bad night, not an exit, and the points table is what decides
   // whether the tournament carries on.
   const pts = round.kind === 'group' ? (clean ? 3 : 1) : 0;
-  const score = scoreline(clean, survived, rescued !== null);
+  const score = scoreline(clean, survived, rescued !== null, goalsAgainst);
 
   const entry = {
     key: round.key,
@@ -456,7 +496,14 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
 // A game that came down to the last-chance moment was tied when that play
 // happened, and the play decided it. Those are overtime results either way,
 // and the scoreline should say so.
-function scoreline(clean, survived, wentToOt) {
+function scoreline(clean, survived, wentToOt, goalsAgainst = null) {
+  // With a goaltender in net the other team's score is not a free choice: it
+  // is what he let in. Only our own end of it is drawn.
+  if (goalsAgainst != null) {
+    const ga = Math.max(0, goalsAgainst);
+    if (wentToOt) return survived ? `${ga + 1}-${ga} OT` : `${Math.max(0, ga - 1)}-${ga} OT`;
+    return survived ? `${ga + 1 + rnd(2)}-${ga}` : `${Math.max(0, ga - 1 - rnd(2))}-${ga}`;
+  }
   if (wentToOt) {
     const gf = 2 + rnd(3);
     return survived ? `${gf}-${gf - 1} OT` : `${gf - 1}-${gf} OT`;

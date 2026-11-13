@@ -4,6 +4,8 @@ import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
 import { recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle } from '../utils/gameHelpers';
 import { capFor } from '../utils/contracts';
+import { COACH_SYSTEMS, coachOpening, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
+import { teamStrengthOf } from '../utils/leagueState';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -36,7 +38,31 @@ export function advanceToOffseason(ctx) {
     wonMemCup: seasonRecap?.memCupStatus === 'won'
   };
   const done = off.stage;
-  const enterStage = (n) => setPlayer(p => ({ ...p, offseason: { ...off, stage: n } }));
+
+  // ONCE-A-SUMMER WORK, MARKED AS DONE.
+  //
+  // The stage only moves when a beat finishes, and several beats return early
+  // to show an event and then come back in. Anything gated on "the stage is
+  // still FRESH" therefore ran again on every one of those returns. That is
+  // how the new coach's meeting vanished from the recap: the event put its
+  // result in the season's events, the summer came back in still at FRESH, and
+  // the first thing FRESH does is empty the season's events. The same return
+  // aged every room twice, rolled every coach's job twice, and handed out the
+  // staying-with-your-club relationship bonus once per beat instead of once.
+  //
+  // Each of those is marked on the offseason when it has run, and the mark
+  // travels with every stage change so a later beat cannot forget it.
+  const marks = { ...(off.marks || {}) };
+  const mark = (k) => {
+    marks[k] = true;
+    setPlayer(p => {
+      const cur = p.offseason || off;
+      return { ...p, offseason: { ...cur, marks: { ...(cur.marks || {}), [k]: true } } };
+    });
+  };
+  const enterStage = (n) => setPlayer(p => ({
+    ...p, offseason: { ...off, ...(p.offseason || {}), marks: { ...((p.offseason || off).marks || {}), ...marks }, stage: n }
+  }));
 
   // Park the offseason on the player the moment the summer opens, before any
   // beat has run.
@@ -57,10 +83,11 @@ export function advanceToOffseason(ctx) {
   let updatedContract = player.contract ? { ...player.contract } : null;
   let isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
 
-  if (done === FRESH) setSeasonEvents([]);
+  const opening = done === FRESH && !marks.opened;
+  if (opening) setSeasonEvents([]);
 
   // B1: Longevity Tick - Building chemistry by staying with the same org
-  if (done === FRESH && player.seasonHistory && player.seasonHistory.length > 0) {
+  if (opening && player.seasonHistory && player.seasonHistory.length > 0) {
       const lastSeason = player.seasonHistory[player.seasonHistory.length - 1];
       // If we finished last season on the exact same team we are starting this offseason with
       if (lastSeason.team === player.team) {
@@ -74,6 +101,8 @@ export function advanceToOffseason(ctx) {
           }));
       }
   }
+
+  if (opening) mark('opened');
 
   // The final is over. A title is celebrated before anything else happens.
   // 0. CHAMPIONSHIP CELEBRATION
@@ -149,6 +178,34 @@ export function advanceToOffseason(ctx) {
       enterStage(CELEBRATED);
       ctx.setScreen('event');
       return;
+  }
+
+  // THE OTHER GOALTENDER.
+  //
+  // Two goalies on one club are the closest pair in the room and the only pair
+  // whose interests are directly opposed: there is one net. recordSeason moves
+  // his partner's trust against the split of starts every year, and this is
+  // where it surfaces, once it has gone far enough to be a thing rather than a
+  // mood. Nothing else in a dressing room works like this, which is why it is
+  // the only relationship that gets its own event.
+  if (player.pos === 'G' && !player.storylines?.netRift) {
+    const myRoom = roomFor(player.rooms, player.team);
+    const partner = goaliePartner(myRoom);
+    if (partner && (partner.trust ?? 50) <= 28 && (partner.years || 0) >= 2) {
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, netRift: true } }));
+      setActiveEvent({
+        title: '🥅 THE MAN AT THE OTHER END',
+        desc: `You have taken the net off ${partner.name} for ${partner.years === 2 ? 'two years' : `${partner.years} years`} now, and he has spent them in a ball cap at the end of the bench. Goalies are supposed to be the closest two men in a room and you have not had a real conversation since training camp. His agent has been briefing reporters about a club that would actually play him.`,
+        choices: [
+          { label: 'Go and talk to him', subLabel: 'Say the thing nobody in the room wants to say out loud.', isRisky: false, feedback: 'You drove to his place in July and the two of you had it out over three hours. Nothing about the depth chart changed. Everything about the room did.', effect: { fanStatus: 0, ovr: 0, rel: { teammates: 18 } } },
+          { label: 'Let him have the net for a stretch', subLabel: 'Tell the coach to run him for a month and take the games back after.', isRisky: true, successChance: 0.5, successFeedback: 'He played six weeks, went 11-4, and signed his extension in March. He has told anyone who will listen whose idea it was.', successEffect: { fanStatus: 10, ovr: 0, rel: { teammates: 25, coach: -8 } }, failFeedback: 'He played six weeks and the coach liked what he saw rather more than you intended. You spent February earning your own net back.', failEffect: { fanStatus: -10, ovr: 0, rel: { coach: -12 } } },
+          { label: 'It is a job', subLabel: 'He knew what it was when he signed. Say nothing.', isRisky: false, feedback: 'You said nothing. He was traded in November and did not shake your hand on the way out.', effect: { fanStatus: 0, ovr: 1, rel: { teammates: -20 } } }
+        ],
+        isOffseasonEvent: true
+      });
+      setScreen('event');
+      return;
+    }
   }
 
   // THE REHABILITATION.
@@ -263,6 +320,64 @@ export function advanceToOffseason(ctx) {
   // contract application all sit inside this block, so coming back for camp can
   // never age the player twice or slide his contract twice.
   if (done < SUMMER_DONE) {
+
+  // THE SUMMER, AT EVERY CLUB HE KNOWS.
+  //
+  // Rooms age: a year on everybody, the worn-out ones gone, a replacement in
+  // for whoever left, and the captaincy passed on if the captain was one of
+  // them. Coaches survive the summer or do not, and a new one does not inherit
+  // the old one's opinion, which is the entire reason a firing matters. A
+  // player can spend two years being the wrong sort of player for the man
+  // behind the bench and then watch that man replaced by somebody who likes
+  // what he is. See utils/roster.js.
+  if (!marks.clubs) {
+  const summer = summerAtClubs(player, {
+    strengthOf: (id) => teamStrengthOf(player.leagueState, id),
+    barrenYears,
+    fanPressure: isTheGuy && barrenYears >= 3
+  });
+  const myFiring = summer.fired.find(f => f.mine) || null;
+  mark('clubs');
+  // Who left his room and who passed him in it, for the recap.
+  if (summer.news?.length) setSeasonEvents(prev => [...prev, ...summer.news]);
+  setPlayer(p => {
+    const next = { ...p, rooms: summer.rooms, coaches: summer.coaches };
+    if (myFiring) {
+      // A new voice, and a new opinion of him formed from scratch. The system
+      // he plays decides most of where it starts.
+      next.relationships = {
+        ...(p.relationships || {}),
+        coach: coachOpening(summer.coaches[p.team], playerArchetype(p))
+      };
+    }
+    return next;
+  });
+
+  if (myFiring) {
+    const incoming = summer.coaches[player.team];
+    const sys = COACH_SYSTEMS[incoming?.system]?.label || 'Balanced';
+    const mine = playerArchetype(player);
+    const fits = incoming && COACH_SYSTEMS[incoming.system]?.likes.includes(mine);
+    const clashes = incoming && COACH_SYSTEMS[incoming.system]?.dislikes.includes(mine);
+    setActiveEvent({
+      title: '📋 A NEW VOICE BEHIND THE BENCH',
+      desc: `${myFiring.out} was let go on the first Monday of the summer. ${myFiring.in} has the job, and he arrives talking about a ${sys.toLowerCase()} game. `
+        + (fits
+            ? 'Everything he said in that first press conference described the way you already play.'
+            : clashes
+              ? 'Everything he said in that first press conference described a player who is not you.'
+              : 'Nobody in the room knows yet what that means for them.'),
+      choices: [
+        { label: 'Go and see him', subLabel: 'Get in front of the new man before camp and find out where you stand.', isRisky: false, feedback: 'You went to the rink in July and sat in his office for an hour. Whatever else happens, he knows your name and what you want.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 10 } } },
+        { label: 'Wait for camp like everybody else', subLabel: 'Let the work do the talking in September.', isRisky: false, feedback: 'You stayed away all summer and turned up in September with everyone else.', effect: { fanStatus: 0, ovr: 1 } }
+      ],
+      isOffseasonEvent: true
+    });
+    setScreen('event');
+    return;
+  }
+  }
+
   // VETERAN CAREER CROSSROADS
     if (player.age >= 37 || (player.age >= 34 && player.ovr < 76)) {
        const choices = [

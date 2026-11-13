@@ -21,6 +21,23 @@ export default function PlayoffsScreen() {
   const isSingleGame = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex) === 1;
   const titles = getPlayoffTitles(player.league);
 
+  // THE TOURNAMENT BOARD.
+  //
+  // In a single-elimination league the sixteen squares are dealt once and every
+  // round is one press on the same board, so the deck and the reveals come off
+  // the tournament rather than off the round. See the note in checkPlayoffs.
+  const board = playoffs.board || null;
+  const deck = (board ? board.deck : activeMatch?.deck) || [];
+  const revealedIdx = (board ? board.revealed : activeMatch?.revealed) || [];
+  const speechUsed = board ? board.speechUsed : activeMatch?.speechUsed;
+  // The rest of the board turns over on an exit and on nothing else. Winning
+  // the championship leaves the twelve he never pressed face down, which is
+  // the point: he gets to the end without ever finding out what he walked past.
+  const revealAll = board
+    ? playoffs.overallStatus === 'eliminated'
+    : ['won', 'lost'].includes(activeMatch?.status);
+  const pressesLeft = board ? playoffs.bracket.length - playoffs.activeRoundIndex : null;
+
 
   const isTbdTeam = (team) => {
     if (!team) return true;
@@ -359,10 +376,10 @@ export default function PlayoffsScreen() {
                   </p>
                 )}
                 <div className={isSingleGame ? 'grid grid-cols-4 gap-1.5 sm:gap-2' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
-                  {(activeMatch.deck || []).map((item, cIndex) => {
-                    const isRevealed = (activeMatch.revealed || []).includes(cIndex);
+                  {deck.map((item, cIndex) => {
+                    const isRevealed = revealedIdx.includes(cIndex);
                     const isOver = ['won', 'lost'].includes(activeMatch.status);
-                    const showForcefully = isOver && !isRevealed;
+                    const showForcefully = revealAll && !isRevealed;
                     const isWinCard = item && (item.isWin || item.win);
                     const isRigged = item && item.rigged && !isRevealed;
                     const cardLabel = isSingleGame && item && item.score1 != null
@@ -404,13 +421,23 @@ export default function PlayoffsScreen() {
                       {(() => {
                         const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
                         const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
+                        if (board) {
+                          // The same board all tournament, so the line says
+                          // where he is on it rather than what a series is.
+                          const left = deck.length - revealedIdx.length;
+                          return (
+                            <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">
+                              {`One press, one game. ${left} square${left === 1 ? '' : 's'} left, ${pressesLeft} win${pressesLeft === 1 ? '' : 's'} from the title.`}
+                            </p>
+                          );
+                        }
                         return (
                           <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">{`Select a card to play the next game (${formatText})`}</p>
                         );
                       })()}
 
                       {/* CAPTAINCY ACTION */}
-                      {player.storylines?.lockerRoom === 2 && !activeMatch.speechUsed && (
+                      {player.storylines?.lockerRoom === 2 && !speechUsed && (
                         <div className="w-full mt-1">
                             <button 
                               onClick={() => {
@@ -418,6 +445,22 @@ export default function PlayoffsScreen() {
                                   ...p, relationships: { ...p.relationships, coach: Math.max(0, p.relationships.coach - 10) }
                                 }));
                                 
+                                // On a tournament board the rig is spent once
+                                // for the whole run and the starred square sits
+                                // there until he decides to cash it, which is a
+                                // better perk than one guaranteed win per round
+                                // would be on a four-press tournament.
+                                if (board) {
+                                  const newDeck = [...board.deck];
+                                  let targetIdx = newDeck.findIndex((c, i) => !revealedIdx.includes(i) && !c.isWin && !c.win);
+                                  if (targetIdx === -1) targetIdx = newDeck.findIndex((c, i) => !revealedIdx.includes(i));
+                                  if (targetIdx !== -1) {
+                                    newDeck[targetIdx] = { ...newDeck[targetIdx], isWin: true, win: true, rigged: true };
+                                  }
+                                  setPlayoffs({ ...playoffs, board: { ...board, deck: newDeck, speechUsed: true } });
+                                  return;
+                                }
+
                                 const updatedBracket = playoffs.bracket.map((r, ri) => {
                                     if (ri === playoffs.activeRoundIndex) {
                                         return r.map((m, mi) => {
@@ -450,7 +493,7 @@ export default function PlayoffsScreen() {
                         </div>
                       )}
                       
-                      {activeMatch.speechUsed && (
+                      {speechUsed && (
                           <div className="w-full mt-1 border border-[#F59E0B]/30 bg-[#F59E0B]/10 py-2 rounded-xl">
                             <p className="text-[#F59E0B] font-black uppercase tracking-widest text-[10px] sm:text-xs animate-pulse">
                                 📢 SPEECH DELIVERED! CLICK THE GLOWING CARD!

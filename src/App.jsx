@@ -63,6 +63,7 @@ import { handleGridClick as _handleGridClick } from './handlers/handleGridClick'
 import { generateOffers as _generateOffers } from './handlers/generateOffers';
 import { handleEventChoice as _handleEventChoice } from './handlers/handleEventChoice';
 import { checkPlayoffs as _checkPlayoffs } from './handlers/checkPlayoffs';
+import { waiverExempt, proSeasonsOf } from './utils/waivers';
 
 function App() {
   const [screen, setScreen] = useState('creation');
@@ -171,6 +172,19 @@ function App() {
     if ((seasonRecap.g || 0) + (seasonRecap.a || 0) >= 100) unlockAchievement('hundred_pt_season');
     if (seasonRecap.sho >= 8) unlockAchievement('shutout_king');
   }, [screen, seasonRecap, unlockAchievement]);
+
+  // EVERY NEW SCREEN OPENS AT THE TOP.
+  //
+  // The button that moves the game on sits at the bottom of a long page, so on
+  // a browser the next screen opened wherever the last one had been scrolled
+  // to: halfway down, past its own heading, and the player scrolled back up
+  // every single time. A change of screen, or a new event on the event screen
+  // (which is reused from one event to the next), puts the view back at the
+  // top before anything else is read.
+  useEffect(() => {
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
+    catch { window.scrollTo(0, 0); }
+  }, [screen, activeEvent]);
 
   useEffect(() => {
     if (player.fanStatus >= 1000) unlockAchievement('franchise_legend');
@@ -507,18 +521,18 @@ function App() {
     // were asked and answered and none of that reached the page: not how many
     // landed, not what the room made of it, not what it cost. These say the
     // count, the reaction and the consequence, in that order.
-    let fanDelta, mediaDelta, resultText, ratingDelta, ovrDelta = 0, coachDelta = 0;
+    let fanDelta, mediaDelta, resultText, ovrDelta = 0, coachDelta = 0;
     if (hits === 3) {
-      fanDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5; ratingDelta = 0.3;
+      fanDelta = 15; ovrDelta = 1; mediaDelta = 15; coachDelta = 5;
       resultText = 'Three questions, three answers that landed. You read the room every time and gave them the quote they came for, and the write-ups the next morning were about you rather than about anything you had to walk back.';
     } else if (hits === 2) {
-      fanDelta = 5; mediaDelta = 5; ratingDelta = 0.1;
+      fanDelta = 5; mediaDelta = 5;
       resultText = 'Two of the three landed. One answer went somewhere the room was not expecting and a couple of them led with that, but nothing in it needed correcting and you came out of it fine.';
     } else if (hits === 1) {
-      fanDelta = -5; mediaDelta = -5; ratingDelta = -0.1;
+      fanDelta = -5; mediaDelta = -5;
       resultText = 'One of the three landed. The other two came out flat and the room stopped writing halfway through, which is its own verdict. Nothing damaging, but nobody left with anything either.';
     } else {
-      fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10; ratingDelta = -0.4;
+      fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10;
       resultText = 'You misread all three. The clips went round by the evening with your name on them, the coach was asked about it before you had left the building, and you will be answering for this one for a while.';
     }
 
@@ -528,7 +542,6 @@ function App() {
       feedback: resultText,
       effect: { fanStatus: fanDelta, ovr: ovrDelta, money: 0 }
     }]);
-    setSeasonRecap(r => r ? { ...r, rating: Math.max(0, Math.min(10, (r.rating || 5) + (ratingDelta || 0))) } : r);
 
     const withOvr = applyOvrDelta(player, ovrDelta);
     const updatedPlayer = { 
@@ -870,7 +883,7 @@ function App() {
     setSeasonRecap(res.recap);
     // Carried on the result because this is the one route into the post-season
     // that goes through a screen first, and the injury flag has to survive it.
-    runPostSeasonFlow(who.age, who.ovr, res.currentLg, res.currentTeam, res.madePlayoffs,
+    runPostSeasonFlow(who.age, who.ovr, res.playedLg || res.currentLg, res.playedTeam || res.currentTeam, res.madePlayoffs,
       2026 + (who.stats?.seasonsPlayed || 0), res.recap.standings || 16, { sidelined: !!res.sidelined });
   };
   ctx.finishSeason = finishSeason;
@@ -879,7 +892,10 @@ function App() {
   // was never actually on ctx, so that call always fell through to its fallback.
   ctx.handleTrain = handleTrain;
   ctx.handleDraftDay = handleDraftDay;
-  const checkEarlyDemotion = () => {
+  // Takes the player as he leaves camp, so the cut is made on the camp he has
+  // just had and not on the one before it.
+  const checkEarlyDemotion = (who = player) => {
+    const player = who;
     const isUnder20 = player.age < 20;
     const isTop10Pick = seasonRecap?.draftPick <= 10;
     
@@ -895,7 +911,7 @@ function App() {
     const wonRecentTitle = lastSeason?.titleWon === true || (lastSeason?.awards || []).some(a => a.includes('Cup') || a.includes('Championship'));
     if (wonRecentTitle) return null;
 
-    const proSeasons = player.stats?.seasonsPlayed || 0;
+    const proSeasons = proSeasonsOf(player);
     const needsAHLDevelopment = player.league === 'NHL' && player.ovr < 78 && player.age < 24 && proSeasons < 3 && Math.random() < (isTop10Pick ? 0.25 : 0.85);
     
     const echlDemoteThresh = player.pos === 'G' ? 65 : 59;
@@ -928,17 +944,10 @@ function App() {
          const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
          const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
 
-         // WAIVER EXEMPTION
-         // A young player can be sent to the AHL freely. He only has to clear
-         // waivers once he has enough professional mileage behind him, which in
-         // the real rule is a sliding scale of years and games from the age he
-         // signed. Three pro seasons or 160 NHL games is a fair stand-in. The old
-         // code sent even first-year players through "WAIVERS", which cannot
-         // happen, and gave everyone who did go through a flat 30% claim rate.
-         const nhlGamesPlayed = player.stats?.nhl?.games || 0;
-         const isWaiverExempt = proSeasons < 3 && nhlGamesPlayed < 160;
-
-         if (isWaiverExempt) {
+         // WAIVER EXEMPTION. See utils/waivers.js. This used to count every
+         // season he had ever played, junior included, so a player in the first
+         // year of his entry-level deal could be put on waivers and claimed.
+         if (waiverExempt(player)) {
              return { team: ahlTeamId, lg: 'AHL', reason: 'DEVELOPMENT' };
          }
 
@@ -962,7 +971,9 @@ function App() {
              const pool = (nhlTeams || []).filter(t => t.id !== player.team);
              return { team: pool[Math.floor(Math.random() * pool.length)].id, lg: 'NHL', reason: 'CLAIMED' };
          }
-         return { team: ahlTeamId, lg: 'AHL', reason: needsAHLDevelopment ? 'DEVELOPMENT' : 'WAIVERS' };
+         // He is not exempt, so he went on the wire whatever the reason for
+         // sending him down. Calling it development skipped the waivers.
+         return { team: ahlTeamId, lg: 'AHL', reason: 'WAIVERS' };
       }
     }
     return null;

@@ -320,7 +320,7 @@ const TRADE_CALL = {
     piece: [
       "Your GM called you in, glanced at a sheet of paper, and told you you had been moved.",
       "It took two minutes. You were a line in somebody else's deal and the office made no attempt to pretend otherwise.",
-      "He got the name of your new club right and yours very slightly wrong."
+      "He knew the name of the club you were going to. He wasn't quite sure of yours."
     ]
   },
   // The club is buying, and the player is part of what it is paying with.

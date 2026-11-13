@@ -27,7 +27,7 @@ export const interactiveMinigames = [
   },
   {
     id: 'rapid_crease',
-    title: 'RAPID FIRE CREASE',
+    title: 'RAPID FIRE SHOOTOUT',
     desc: 'They have you under siege and the shots are coming from everywhere.',
     read: 'Five saves and the barrage is over. Three past you and it is not. Get a piece of everything.',
     stat: 'physicality',

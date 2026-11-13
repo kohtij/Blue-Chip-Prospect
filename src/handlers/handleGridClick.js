@@ -13,14 +13,25 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
 
     const match = currentRound[mIndex];
     if (!match.isPlayerSeries || match.status !== 'playing') return;
-    if (match.revealed && match.revealed.includes(cIndex)) return;
-    if (!match.deck || !match.deck[cIndex]) return;
+
+    // THE TOURNAMENT BOARD.
+    //
+    // A single-elimination league plays every round off one set of sixteen
+    // squares dealt at the start, so the deck and the list of what has been
+    // turned over live on the tournament rather than on the round. See the
+    // note in checkPlayoffs. Everything else keeps its own per-series grid.
+    const board = playoffs.board || null;
+    const deck = board ? board.deck : match.deck;
+    const revealed = board ? board.revealed : match.revealed;
+
+    if (revealed && revealed.includes(cIndex)) return;
+    if (!deck || !deck[cIndex]) return;
 
     // Wins needed depends on the format: 4 for best-of-7, 3 for best-of-5, 1 for single-elim.
     const winsNeeded = getWinsNeeded(playoffs.currentLg, rIndex);
     const isFrozenFour = getGamesPerMatchup(playoffs.currentLg, rIndex) === 1;
 
-    const card = match.deck[cIndex];
+    const card = deck[cIndex];
     const isWin = card.isWin || card.win;
     const newWins = isWin ? match.wins1 + 1 : match.wins1;
     const newLosses = !isWin ? match.wins2 + 1 : match.wins2;
@@ -52,6 +63,10 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
       ? (card.score1 != null
           ? { score1: card.score1, score2: card.score2, ot: card.ot }
           : singleGameScore(matchStatus === 'won'))
+      : null;
+
+    const newBoard = board
+      ? { ...board, revealed: [...(board.revealed || []), cIndex] }
       : null;
 
     const newMatch = {
@@ -138,11 +153,10 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
             if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
 
             const nextGpm = getGamesPerMatchup(playoffs.currentLg, nextRoundIdx);
-            // One game is still one game, but it is dealt as a 4x4 grid (16
-            // cards) rather than a single card, so only the one the player
-            // clicks ever decides it.
+            // On a tournament board there is nothing to deal: the next round
+            // is another press on the same sixteen squares.
             const nextDeckSize = nextGpm === 1 ? 16 : nextGpm + 2;
-            const nextDeck = isPlayerMatch
+            const nextDeck = (isPlayerMatch && !board)
               ? (generatePlayoffDeck
                   ? generatePlayoffDeck(playoffs.standings || 1, playoffs.spots, nextRoundIdx + 1, nextGpm)
                   : Array(nextDeckSize).fill(null).map(() => {
@@ -189,7 +203,8 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
       bracket: newBracket,
       activeRoundIndex: nextActiveIndex,
       overallStatus,
-      confTitleWon: playoffs.confTitleWon || confTitleWonThisRound
+      confTitleWon: playoffs.confTitleWon || confTitleWonThisRound,
+      ...(newBoard ? { board: newBoard } : {})
     });
     if (playerUpdates) setPlayer(playerUpdates);
 }

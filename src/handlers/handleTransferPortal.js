@@ -20,13 +20,12 @@ const landingChance = (ovr) => Math.min(0.90, Math.max(0.40, 0.40 + ((ovr - 58) 
 
 export function handleTransferPortal(ctx, { res }) {
   const {
-    hasDemandedTrade, setHasDemandedTrade, unlockAchievement,
+    hasDemandedTrade, setHasDemandedTrade,
     player, setActiveEvent, setScreen,
   } = ctx;
 
   if (hasDemandedTrade) return;
   setHasDemandedTrade(true);
-  unlockAchievement('portal_entered');
 
   const landed = Math.random() < landingChance(player.ovr);
 
@@ -71,7 +70,6 @@ export function handleTransferPortal(ctx, { res }) {
     });
     setScreen('event');
   } else {
-    unlockAchievement('portal_cold');
     setActiveEvent({
       title: 'NOBODY CALLED',
       desc: 'You put your name in the portal and waited. What came back were programmes a level below where you already are, and none of them could offer you more than you have. Your coach has known your name was in there since the first morning.',

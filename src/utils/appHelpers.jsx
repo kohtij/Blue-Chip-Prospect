@@ -206,8 +206,6 @@ export const MASTER_ACHIEVEMENTS = [
   { id: 'betrayal', name: 'Judas', desc: 'Sign directly with your team\'s arch-rival in Free Agency', icon: '🗡️' },
   { id: 'trade_demanded', name: 'I Want Out', desc: 'Demand a trade at the trade deadline', icon: '🚪' },
   { id: 'trade_rejected', name: 'Locked Down', desc: 'Have your GM reject your mid-season trade demand', icon: '🔒' },
-  { id: 'portal_entered', name: 'In The Portal', desc: 'Enter the transfer portal during a college season', icon: '🌀' },
-  { id: 'portal_cold', name: 'Nobody Called', desc: 'Enter the transfer portal and have no programme come for you', icon: '📵' },
   { id: 'press_master', name: 'PR Masterclass', desc: 'Get a perfect 3/3 score in a Press Conference', icon: '🎤' },
   { id: 'press_disaster', name: 'PR Disaster', desc: 'Score 0/3 in a disastrous Press Conference', icon: '🤡' },
   { id: 'demoted', name: 'Sent Down', desc: 'Get demoted to the minors or junior hockey', icon: '📉' },

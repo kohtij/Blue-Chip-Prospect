@@ -4,6 +4,7 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
 import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
 import { isDefence } from '../utils/production';
+import { COACH_SYSTEMS, depthAhead, goaliePartner, lineFor, roomFor } from '../utils/roster';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 import LeagueTag from './LeagueTag';
@@ -189,7 +190,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const role = resolveRole({
     contractRole: player.contract?.role || '',
     ovr: player.ovr, pos: player.pos, league: player.league,
-    coachTrust: player.relationships?.coach ?? 50
+    coachTrust: player.relationships?.coach ?? 50,
+    // The men already doing his job, so the card and the engine cannot say
+    // different things about what line he is on.
+    depth: depthAhead(roomFor(player.rooms, player.team), player.pos, player.ovr)
   });
 
   // The one from your draft class whose career is the measuring stick.
@@ -260,6 +264,40 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
     });
     setScreen('event');
   };
+
+  // WHO IS IN THE ROOM WITH HIM.
+  //
+  // Four names at most, chosen by what they are to him rather than by rating:
+  // the men he plays with, the one directly in front of him on the depth
+  // chart, and the captain. A goaltender's first name is always the other
+  // goaltender, because that is the relationship his season turns on.
+  const myRoom = roomFor(player.rooms, player.team);
+  const coachHere = (player.coaches || {})[player.team] || null;
+  const roomMen = (() => {
+    if (!myRoom) return [];
+    const out = [];
+    const seen = new Set();
+    const add = (m, tag, tagTone) => {
+      if (!m || seen.has(m.id)) return;
+      seen.add(m.id);
+      out.push({ ...m, tag, tagTone });
+    };
+    // Said in words. The tags were NET, LINE, AHEAD and CAPT, which read as
+    // codes: NET could have been anything, and nobody knew why one name had a
+    // (C) after it.
+    const isG = player.pos === 'G';
+    const isDman = player.pos === 'LD' || player.pos === 'RD';
+    if (isG) add(goaliePartner(myRoom), 'The other goalie', 'text-[#F59E0B]');
+    lineFor(myRoom, player.pos).forEach(m => add(m,
+      isG ? 'Plays in front of you' : isDman ? 'Your defence partner' : 'Your linemate',
+      'text-[#22E748]'));
+    const rival = myRoom.men
+      .filter(m => m.pos === player.pos && m.ovr > (player.ovr || 0))
+      .sort((a, b) => a.ovr - b.ovr)[0];
+    add(rival, isG ? 'Ahead of you for the net' : 'Ahead of you on the depth chart', 'text-[#ef4444]');
+    add(myRoom.men.find(m => m.captain && m.pos !== 'G'), 'Captain', 'text-slate-400');
+    return out.slice(0, 4);
+  })();
 
   const rels = [
     // Called "Front office" here and "Coach Trust" on the playoffs screen,
@@ -616,6 +654,48 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   long label of its own. Same three bars, side by side. */}
               <div className="pt-2.5 border-t border-[rgba(255,255,255,0.06)]">
               <Heading>In the room</Heading>
+
+              {/* THE MEN, NOT THE NUMBER.
+                  "In the room" was three bars and nobody in it. The club he
+                  turns up to every day now has names, and these are the four
+                  that matter to him: who he plays with, who wants his job, and
+                  who wears the letter. The bar underneath each is what that man
+                  thinks of him. See utils/roster.js. */}
+              {!!roomMen.length && (
+                <div className="mb-3 space-y-1.5">
+                  <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-600">
+                    <span className="min-w-0 flex-1" />
+                    <span className="shrink-0 w-7 text-right">Pos</span>
+                    <span className="shrink-0 w-6 text-right">Ovr</span>
+                    <span className="shrink-0 w-12 text-right">His view</span>
+                  </div>
+                  {roomMen.map(m => (
+                    <div key={m.id} className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] text-slate-300 font-medium leading-tight">{m.name}</span>
+                        <span className={`block truncate text-[9px] font-bold leading-tight ${m.tagTone}`}>
+                          {m.tag}{m.captain && m.pos !== 'G' && m.tag !== 'Captain' ? ' · Captain' : ''}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-600 w-7 text-right">{m.pos}</span>
+                      <span className="shrink-0 number-font text-[10px] text-slate-400 w-6 text-right">{m.ovr}</span>
+                      <span className="shrink-0 w-12"><Bar pct={m.trust ?? 50} color={(m.trust ?? 50) >= 60 ? '#22E748' : (m.trust ?? 50) >= 40 ? '#F59E0B' : '#ef4444'} /></span>
+                    </div>
+                  ))}
+                  {!!coachHere && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] text-slate-300 font-medium leading-tight">{coachHere.name}</span>
+                        <span className="block truncate text-[9px] font-bold leading-tight text-sky-400">Head coach</span>
+                      </span>
+                      <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-600 text-right">
+                        {COACH_SYSTEMS[coachHere.system]?.label || ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-2.5">
                 {rels.map(r => {
                   const v = player.relationships?.[r.key] ?? 50;
