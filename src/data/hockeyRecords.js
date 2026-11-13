@@ -8,20 +8,21 @@
 // with plausible-looking numbers would make the whole file untrustworthy,
 // because nobody reading it could tell which half was real.
 //
-// Sources: the 2023-24 OHL Media Guide and the 2022-23 WHL Guide and Record
-// Book, both of which carry a records page for every club in the league; the
-// AHL Hall of Fame record book; the ECHL's own record book; the Hershey Bears
-// media guide; Wikipedia per-club record pages and hockey-reference franchise
-// single-season leaders for the NHL; EliteProspects all-time single-season
-// leaderboards; and club or league announcements for anything set recently.
+// Sources: three official league guides, each carrying a records page for
+// every club in its league, which is how a hundred and five club books got
+// here instead of a handful: the 2026-27 AHL Guide and Record Book, the
+// 2023-24 OHL Media Guide and the 2022-23 WHL Guide and Record Book. Then the
+// ECHL's own record book, the AHL Hall of Fame record book, Wikipedia per-club
+// record pages and hockey-reference franchise single-season leaders for the
+// NHL, EliteProspects all-time single-season leaderboards, and club or league
+// announcements for anything set recently.
 //
 // What is still missing, and why:
-//   - The QMJHL's clubs. The league's media guides are published as PDFs that
-//     cannot be read from here, and its records site cannot be walked club by
-//     club, so eighteen books are absent rather than half-sourced.
-//   - Thirty of the AHL's clubs. The AHL publishes no league-wide guide, so
-//     every club is its own hunt through its own media guide, and a third of
-//     the league has existed for under a decade and has no book worth the name.
+//   - The QMJHL's eighteen clubs. The league's records site keeps all of it,
+//     by franchise and by season, but it is behind a bot check and its pages
+//     are addressed by codes that have to be clicked rather than typed, so it
+//     needs a browser.
+//   - Bridgeport. See the note on the AHL clubs below.
 //   - The European leagues, the USHL, the BCHL and the Nordic junior tiers.
 //     Nothing published for them could be checked.
 //
@@ -143,16 +144,52 @@ export const WHL_CLUB_RECORDS = {
   WEN: { points: [106, 'Jarret Stoll', '2000-01'], goals: [50, 'Nigel Dawes', '2004-05'], assists: [69, 'Sam Reinhart', '2013-14'], shutouts: [8, 'Jeff Glass', '2004-05'] },
 };
 
+/**
+ * The AHL's thirty-two, from the league's own 2026-27 Guide and Record Book.
+ *
+ * Every club in the league prints the same five records on its directory page,
+ * which is why this arrived whole rather than club by club. Franchise history
+ * carries through a relocation, so Hartford's book still holds Jason
+ * LaBarbera's thirteen shutouts from 2003-04 and Rochester's holds Gerry
+ * Cheevers' forty-eight wins from 1964-65, both of which are AHL records as
+ * well as club ones.
+ *
+ * Bridgeport is the one club with nothing. The Islanders moved to Hamilton for
+ * 2026-27 and the record pages moved with them, and the Hammers have not played
+ * a game yet, so there is no page to read.
+ */
 export const AHL_CLUB_RECORDS = {
-  // From the Bears' own media guide. Ninety-odd years of it, and Red Sullivan's
-  // eighty-nine assists is the AHL league record as well as Hershey's.
-  HER: { points: [124, 'Tim Tookey', '1986-87'], goals: [60, 'Alexandre Giroux', '2008-09'], assists: [89, 'George Sullivan', '1953-54'], wins: [38, 'Gordon Henry', '1950-51'], shutouts: [7, 'Nick Damore', '1944-45'] },
-  // Goaltending only. The Amerks guide's season-by-season tables are readable
-  // and its records pages are not, so this is what could be confirmed:
-  // Cheevers' forty-eight is the AHL league record too, which is as good a
-  // cross-check as a number gets. The skater records are left out rather than
-  // guessed at.
-  ROC: { wins: [48, 'Gerry Cheevers', '1964-65'], shutouts: [8, 'Ryan Miller', '2004-05'] },
+  ABB: { points: [69, 'Sheldon Rempal', '2021-22'], goals: [35, 'Sheldon Dries', '2021-22'], assists: [49, 'Christian Wolanin', '2022-23'], wins: [26, 'Arturs Silovs', '2022-23'], shutouts: [4, 'Arturs Silovs', '2022-23'] },
+  BAK: { points: [80, 'Seth Griffith', '2021-22'], goals: [30, 'Seth Griffith', '2021-22'], assists: [51, 'Tyler Benson', '2018-19'], wins: [27, 'Shane Starrett', '2018-19'], shutouts: [5, 'Stuart Skinner', '2021-22'] },
+  BEL: { points: [68, 'Arthur Kaliyev', '2025-26'], goals: [40, 'Arthur Kaliyev', '2025-26'], assists: [40, 'Drake Batherson', '2018-19'], wins: [21, 'Marcus Hogberg', '2018-19'], shutouts: [4, 'Leevi Merilainen', '2024-25'] },
+  CGY_AHL: { points: [76, 'Matthew Phillips', '2022-23'], goals: [36, 'Matthew Phillips', '2022-23'], assists: [45, 'Dryden Hunt', '2025-26'], wins: [42, 'Dustin Wolf', '2022-23'], shutouts: [7, 'Dustin Wolf', '2022-23'] },
+  CHI_AHL: { points: [122, 'Darren Haydar', '2006-07'], goals: [55, 'Brett Sterling', '2006-07'], assists: [81, 'Darren Haydar', '2006-07'], wins: [38, 'Kari Lehtonen', '2004-05'], shutouts: [7, 'Jake Allen', '2013-14'] },
+  CLE: { points: [71, 'Trey Fix-Wolansky', '2022-23'], goals: [33, 'Zac Dalpe', '2018-19'], assists: [50, 'T.J. Hensick', '2009-10'], wins: [30, 'Jet Greaves', '2023-24'], shutouts: [8, 'Tyler Weiman', '2008-09'] },
+  CLT: { points: [74, 'Zach Boychuk', '2013-14'], goals: [36, 'Zach Boychuk', '2013-14'], assists: [47, 'Andrew Poturalski', '2018-19'], wins: [34, 'Alex Nedeljkovic', '2018-19'], shutouts: [6, 'Justin Peters', '2012-13'] },
+  COL_AHL: { points: [75, 'Kiefer Sherwood', '2021-22'], goals: [35, 'Kiefer Sherwood', '2021-22'], assists: [55, 'Jordan Gross', '2021-22'], wins: [27, 'Pavel Francouz', '2018-19'], shutouts: [3, 'Pavel Francouz', '2018-19'] },
+  CV: { points: [67, 'Max McCormick', '2022-23'], goals: [32, 'Max McCormick', '2023-24'], assists: [48, 'Kole Lind', '2023-24'], wins: [26, 'Joey Daccord', '2022-23'], shutouts: [4, 'Chris Driedger', '2023-24'] },
+  GR: { points: [96, 'Jiri Hudler', '2005-06'], goals: [56, 'Donald MacLean', '2005-06'], assists: [60, 'Jiri Hudler', '2005-06'], wins: [34, 'Joey MacDonald', '2004-05'], shutouts: [6, 'Marc Lamothe', '2002-03'] },
+  HER: { points: [124, 'Tim Tookey', '1986-87'], goals: [60, 'Alexandre Giroux', '2008-09'], assists: [89, 'George "Red" Sullivan', '1953-54'], wins: [38, 'Gord Henry', '1950-51'], shutouts: [7, 'Alfie Moore', '1938-39'] },
+  HFD: { points: [101, 'Derek Armstrong', '2000-01'], goals: [50, 'Brad Smyth', '2000-01'], assists: [69, 'Derek Armstrong', '2000-01'], wins: [34, 'Jason LaBarbera', '2003-04'], shutouts: [13, 'Jason LaBarbera', '2003-04'] },
+  HSK: { points: [64, 'Gage Quinney', '2022-23'], goals: [30, 'Raphael Lavoie', '2025-26'], assists: [42, 'Tanner Laczynski', '2025-26'], wins: [24, 'Carl Lindbom', '2025-26'], shutouts: [3, 'Carl Lindbom', '2024-25'] },
+  IA: { points: [70, 'Sam Anas', '2019-20'], goals: [39, 'Gerry Mayhew', '2019-20'], assists: [51, 'Cal O\'Reilly', '2018-19'], wins: [25, 'Kaapo Kahkonen', '2019-20'], shutouts: [7, 'Kaapo Kahkonen', '2019-20'] },
+  LAV: { points: [71, 'Chris Terry', '2017-18'], goals: [32, 'Chris Terry', '2017-18'], assists: [48, 'Matt Taormina', '2017-18'], wins: [24, 'Jakub Dobes', '2023-24'], shutouts: [4, 'Cayden Primeau', '2019-20'] },
+  LVP: { points: [105, 'Peter White', '1996-97'], goals: [47, 'Mike Maneluk', '1999-00'], assists: [78, 'Peter White', '1997-98'], wins: [33, 'Antero Niittymaki', '2004-05'], shutouts: [7, 'Antero Niittymaki', '2003-04'] },
+  MB: { points: [86, 'Jason Krog', '2008-09'], goals: [37, 'Jesse Schultz', '2005-06'], assists: [66, 'Peter Sarno', '2004-05'], wins: [35, 'Cory Schneider', '2009-10'], shutouts: [6, 'Wade Flaherty', '2005-06'] },
+  MIL: { points: [92, 'Darren Haydar', '2005-06'], goals: [35, 'Darren Haydar', '2005-06'], assists: [63, 'Cal O\'Reilly', '2007-08'], wins: [36, 'Brian Finley', '2004-05'], shutouts: [7, 'Brian Finley', '2004-05'] },
+  ONT: { points: [98, 'T.J. Tynan', '2021-22'], goals: [43, 'Samuel Fagemo', '2023-24'], assists: [84, 'T.J. Tynan', '2021-22'], wins: [42, 'Peter Budaj', '2015-16'], shutouts: [9, 'Peter Budaj', '2015-16'] },
+  PRO: { points: [102, 'Randy Robitaille', '1998-99'], goals: [41, 'Tim Sweeney', '1992-93'], assists: [74, 'Randy Robitaille', '1998-99'], wins: [37, 'John Grahame', '1998-99'], shutouts: [9, 'Tim Thomas', '2003-04'] },
+  RFD: { points: [88, 'Martin St. Pierre', '2007-08'], goals: [35, 'Troy Brouwer', '2007-08'], assists: [67, 'Martin St. Pierre', '2007-08'], wins: [29, 'Corey Crawford', '2007-08'], shutouts: [5, 'Michael Leighton', '2014-15'] },
+  ROC: { points: [119, 'Geordie Robertson', '1982-83'], goals: [61, 'Paul Gardner', '1985-86'], assists: [73, 'Geordie Robertson', '1982-83'], wins: [48, 'Gerry Cheevers', '1964-65'], shutouts: [8, 'Ryan Miller', '2004-05'] },
+  SD: { points: [64, 'Andrew Agozzino', '2023-24'], goals: [32, 'Sam Carrick', '2018-19'], assists: [45, 'Brandon Montour', '2015-16'], wins: [24, 'Kevin Boyle', '2018-19'], shutouts: [3, 'Reto Berra', '2017-18'] },
+  SJS_AHL: { points: [73, 'Andrew Poturalski', '2024-25'], goals: [30, 'Andrew Poturalski', '2024-25'], assists: [43, 'Andrew Poturalski', '2024-25'], wins: [30, 'Troy Grosenick', '2016-17'], shutouts: [10, 'Troy Grosenick', '2016-17'] },
+  SPR: { points: [71, 'Adam Gaudette', '2023-24'], goals: [44, 'Adam Gaudette', '2023-24'], assists: [44, 'Sam Anas', '2021-22'], wins: [27, 'Joel Hofer', '2022-23'], shutouts: [5, 'Joel Hofer', '2022-23'] },
+  SYR: { points: [84, 'Alex Barre-Boulet', '2022-23'], goals: [40, 'Lonny Bohonos', '1995-96'], assists: [60, 'Alex Barre-Boulet', '2022-23'], wins: [30, 'Corey Hirsch', '1997-98'], shutouts: [9, 'Jean-Francois Labbe', '2001-02'] },
+  TEX: { points: [88, 'Travis Morin', '2013-14'], goals: [39, 'Matej Blumel', '2024-25'], assists: [56, 'Travis Morin', '2013-14'], wins: [28, 'Richard Bachman', '2010-11'], shutouts: [6, 'Richard Bachman', '2010-11'] },
+  TOR_AHL: { points: [79, 'Tim Stapleton', '2008-09'], goals: [36, 'John Pohl', '2005-06'], assists: [57, 'Jeremy Bracco', '2018-19'], wins: [31, 'Garret Sparks', '2017-18'], shutouts: [6, 'Garret Sparks', '2017-18'] },
+  TUC: { points: [85, 'Michael Carcone', '2022-23'], goals: [31, 'Michael Carcone', '2022-23'], assists: [54, 'Michael Carcone', '2022-23'], wins: [31, 'Matthew Villalta', '2023-24'], shutouts: [5, 'Adin Hill', '2017-18'] },
+  UTI: { points: [67, 'Reid Boucher', '2019-20'], goals: [34, 'Reid Boucher', '2019-20'], assists: [51, 'Cal O\'Reilly', '2014-15'], wins: [25, 'Thatcher Demko', '2017-18'], shutouts: [5, 'Joacim Eriksson', '2013-14'] },
+  WBS: { points: [82, 'Janne Pesonen', '2008-09'], goals: [34, 'Chris Minard', '2008-09'], assists: [50, 'Janne Pesonen', '2008-09'], wins: [35, 'Brad Thiessen', '2010-11'], shutouts: [12, 'Matt Murray', '2014-15'] },
 };
 
 /** Which club book belongs to which league. A league absent here has none. */

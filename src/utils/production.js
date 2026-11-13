@@ -210,6 +210,52 @@ const PACE_EURO = { par: 0.42, star: 0.88, svPar: 0.908, svStar: 0.919 };
 
 export const paceOf = (league) => PACE[league] || PACE_EURO;
 
+// NHL EQUIVALENCY.
+//
+// PACE above says how much scoring a league produces. That is the right number
+// for grading a season inside its own league and the wrong one for comparing
+// two prospects in different leagues, which is what a draft board does. The
+// OHL's star bar is 1.55 and the German DNL's is 1.62, so on pace alone a
+// point a game in Germany was worth slightly more than a point a game in the
+// OHL. Scouts do not think that and neither should the board.
+//
+// These are translation factors: multiply a player's points by his league's
+// factor and you have what those points are worth in NHL points. Taken from
+// hockeystats.com/methodology/nhle, which derives them from players who played
+// in two leagues in the SAME season, so what they measure is the step up in
+// difficulty rather than a prospect getting better between one year and the
+// next. That is why the junior numbers look low against the figures usually
+// quoted: the familiar OHL 0.30 is measured across years and has a teenager's
+// development folded into it. The men's leagues here land where the published
+// figures have always had them, which is the check that the scale is sound.
+//
+// Only the ratios matter. The board divides by NHLE_STAR below, so the whole
+// table could be multiplied by anything and no prospect would move.
+const NHLE = {
+  NHL: 1.000, KHL: 0.772, CZECH: 0.583, SHL: 0.566, SWISS: 0.459, LIIGA: 0.441,
+  AHL: 0.389, DEL: 0.352, SLOVAK: 0.295, NCAA: 0.194, ECHL: 0.147,
+  OHL: 0.144, USHL: 0.143, MHL: 0.143, WHL: 0.141, QMJHL: 0.113,
+  // The under-20 leagues, where the gap the old board could not see is widest:
+  // Sweden's J20 is worth nearly four times Germany's DNL per point.
+  J20: 0.091, U20: 0.083, CZE20: 0.074, SUI20: 0.049, SVK20: 0.044, DNL: 0.024
+};
+
+// A league the table has never heard of is read as a European senior league,
+// the same fallback PACE uses, and priced between Finland and Germany.
+const NHLE_EURO = 0.40;
+
+export const nhleOf = (league) => (league && NHLE[league] != null ? NHLE[league] : NHLE_EURO);
+
+// What a season has to be worth in NHL points per game to count as a star one
+// on a scouting board. Set at a star OHL year, 1.55 points a game at 0.144, so
+// that the best major-junior prospects score what they scored before this
+// existed and the class is not re-based around the change. Everyone else moves
+// relative to them, which is the whole point.
+export const NHLE_STAR = 1.55 * NHLE.OHL;
+
+/** A season's scoring as NHL-equivalent points per game. */
+export const nhlePerGame = (pts, gp, league) => (!gp ? 0 : ((pts || 0) / gp) * nhleOf(league));
+
 export const isDefence = (pos) => pos === 'LD' || pos === 'RD';
 export const isWing = (pos) => pos === 'LW' || pos === 'RW';
 

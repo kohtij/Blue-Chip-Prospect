@@ -4,7 +4,7 @@ import {
   swissTeams, delTeams, khlTeams, nationalities
 } from '../data/teams';
 import { draftOrder } from './leagueState';
-import { ageFactor, BLOCK_WORTH, curvesFor, D_TOI_REF, D_WEIGHT, defensiveHalf, drawLeagueBest, drawLeagueBestDman, drawLeagueBestSv, faceoffs, gaussianNoise, goalieAgeAdjust, isDefence, paceOf, POS_PACE, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
+import { ageFactor, BLOCK_WORTH, curvesFor, D_TOI_REF, D_WEIGHT, defensiveHalf, drawLeagueBest, drawLeagueBestDman, drawLeagueBestSv, faceoffs, gaussianNoise, goalieAgeAdjust, isDefence, NHLE_STAR, nhlePerGame, paceOf, POS_PACE, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
 
 // The rest of your draft class.
 //
@@ -1108,14 +1108,24 @@ export function classTable(peers, limit = 10, pos = 'C') {
 // The peers' age curve, run backwards: given what a prospect is now and how
 // old he is, what is he on his way to being. Kept next to ovrAt so the two
 // cannot drift apart.
-// A season read against the league it was played in. Scouts do not put a
-// thirty-six point U20 winger below a ninety-seven point OHL winger because
-// the numbers say so, they divide both by what a star season looks like where
-// each of them plays. Raw points had the U20 man two places higher.
+// A season read against the league it was played in.
+//
+// This used to divide by what a star season looks like where he plays, which
+// corrects for how much scoring a league produces and not at all for how hard
+// it is to score there. Those are different numbers and the gap between them
+// is enormous at the bottom of the table: the German DNL's star bar is higher
+// than the OHL's, so a point a game in German junior was scoring fractionally
+// MORE than a point a game in the OHL, when a point in the OHL is worth six of
+// them. Being the best player in a weak league was the cheapest way onto the
+// front page of the board.
+//
+// It is NHL equivalency now. Points are translated into what they would be
+// worth in the NHL and measured against a star year on that same scale, so two
+// prospects in two leagues are being compared on one number that means the
+// same thing in both.
 const scaleProduction = (pts, gp, league) => {
   if (!gp) return 0;
-  const star = paceOf(league).star || 1;
-  return Math.min(8, ((pts || 0) / gp / star) * 6);
+  return Math.min(8, (nhlePerGame(pts, gp, league) / NHLE_STAR) * 6);
 };
 
 // How a scout reads a defenceman's season.
@@ -1127,16 +1137,16 @@ const scaleProduction = (pts, gp, league) => {
 // drafted on its scoresheet, which is the same error the season grade had
 // before defensiveHalf was written: the grade was fixed and the board was not.
 //
-// The offensive half is the same number a forward gets, against the same
-// league star rate, so a defenceman and a centre with identical points still
+// The offensive half is the same number a forward gets, on the same NHL
+// equivalency scale, so a defenceman and a centre with identical points still
 // score identically on it and the two positions stay comparable on one board.
+// POS_PACE still lifts the bar, because a defenceman is not expected to score
+// what a forward scores and should not be marked as though he were.
 // The defensive half rides alongside it, weighted the way rateSeason weights
 // the two.
 const defenceProduction = (season) => {
   if (!season || !season.gp) return 0;
-  const pace = paceOf(season.league);
-  const star = (pace.star || 1) * POS_PACE.star;
-  const off = Math.min(8, ((season.pts || 0) / season.gp / star) * 6);
+  const off = Math.min(8, (nhlePerGame(season.pts, season.gp, season.league) / (NHLE_STAR * POS_PACE.star)) * 6);
   const def = Math.min(8, Math.max(0, (defensiveHalf((season.pm || 0) / season.gp, season.avgToi) + 1) / 2) * 8);
   return (off * D_WEIGHT.off + def * D_WEIGHT.def) / (D_WEIGHT.off + D_WEIGHT.def);
 };
@@ -1149,6 +1159,17 @@ const defenceProduction = (season) => {
 // whether he shuts teams out, and whether he stops the puck. They are weighted
 // in that order of how much they move a draft board, and the record counts for
 // nothing without the games to make it mean something.
+//
+// The save percentage bar is deliberately flat at .905 and not his own
+// league's par, which was tried and reverted. Scoring him against his league's
+// par is league-relative, which is precisely the thing NHL equivalency was
+// brought in to stop doing to the skaters: measured that way a .905 in German
+// junior, where par is .887, scored +2.70 and the same .905 in the NHL scored
+// +0.15, so the weaker the league the easier the board was to impress. A flat
+// bar is crude, but save percentages run lower in weaker leagues, so a goalie
+// there clears it less often, and the discount at least points the right way.
+// Doing better needs a quality weight for goaltending that nothing here has a
+// source for, and NHL equivalency cannot supply it: it translates points.
 const goalieProduction = (season) => {
   if (!season) return 0;
   const gp = season.gp || 0;

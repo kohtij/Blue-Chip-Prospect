@@ -18,7 +18,7 @@
 // is still what the combine screen shows him.
 
 import { draftSlotFromBoard } from './peers';
-import { D_WEIGHT, defensiveHalf, isDefence } from './production';
+import { D_WEIGHT, defensiveHalf, isDefence, NHLE_STAR, nhleOf, POS_PACE } from './production';
 
 export const PICKS_PER_ROUND = 32;
 export const DRAFT_ROUNDS = 7;
@@ -48,8 +48,39 @@ const COMBINE_MIN_RAW = -4;
 // Scouting is not precise. Two clubs rank the same player differently.
 const SCOUT_NOISE = 5;
 
+// THE FILE AND THE BOARD NOW AGREE.
+//
+// This read one pooled bucket of junior stats with no league attached to it.
+// App.jsx tips the OHL, the WHL, the QMJHL, the USHL, Sweden's J20, Finland's
+// U20, the NCAA, the SHL and Liiga into the same pile, and the bar below was a
+// flat 1.5 points a game whatever was in it. So a prospect who spent two years
+// in the SHL, where half a point a game is a strong eighteen-year-old season,
+// scored almost nothing on the one line of his file that is about what he did
+// on the ice, while the board that actually drafts him gave him full credit.
+// He could read that he was the best centre in his class and that his
+// production was a third of what it should be, in the same week.
+//
+// It walks his season history instead, translating each year through the same
+// NHL equivalency the board uses and weighting by games. The pooled bucket is
+// still the fallback for a career that has no history to walk.
+const ELITE_NHLE = NHLE_STAR;
+
 // Points per game a scout would call a top prospect's season, by position.
+// Only the fallback now, for a prospect with no season history to walk.
 const ELITE_PPG = { C: 1.5, LW: 1.5, RW: 1.5, LD: 1.0, RD: 1.0 };
+
+function juniorNhlePerGame(player) {
+  const hist = (player.seasonHistory || []).filter(h => (h.gp ?? h.games ?? 0) > 0 && h.league && h.league !== 'NHL');
+  if (!hist.length) return null;
+  let nhlePts = 0, games = 0;
+  for (const h of hist) {
+    const gp = h.gp ?? h.games ?? 0;
+    const pts = h.pts != null ? h.pts : (h.goals || 0) + (h.assists || 0);
+    nhlePts += pts * nhleOf(h.league);
+    games += gp;
+  }
+  return games > 0 ? nhlePts / games : null;
+}
 
 function productionScore(player) {
   const s = player.stats?.chl || {};
@@ -64,6 +95,7 @@ function productionScore(player) {
     return clamp01((savePct - 0.880) / 0.060) * MAX_PRODUCTION;
   }
 
+  const nhle = juniorNhlePerGame(player);
   const ppg = ((s.goals || 0) + (s.assists || 0)) / games;
   const elite = ELITE_PPG[player.pos] || 1.3;
 
@@ -80,13 +112,15 @@ function productionScore(player) {
     // Weighted as rateSeason weights the two halves of his year, so the file,
     // the board and the season grade cannot tell him three different stories.
     const toi = (s.toiGames || 0) > 0 ? s.toiGames / games : null;
-    const off = clamp01(ppg / elite);
+    const off = nhle != null
+      ? clamp01(nhle / (ELITE_NHLE * POS_PACE.star))
+      : clamp01(ppg / elite);
     const def = clamp01((defensiveHalf((s.plusMinus || 0) / games, toi) + 1) / 2);
     const w = D_WEIGHT.off + D_WEIGHT.def;
     return ((off * D_WEIGHT.off + def * D_WEIGHT.def) / w) * MAX_PRODUCTION;
   }
 
-  return clamp01(ppg / elite) * MAX_PRODUCTION;
+  return clamp01(nhle != null ? nhle / ELITE_NHLE : ppg / elite) * MAX_PRODUCTION;
 }
 
 function honoursScore(player) {

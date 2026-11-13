@@ -598,7 +598,23 @@ export default function RecapScreen() {
                                 name, and the whole point of this list is that
                                 he comes to know who these people are. */}
                             <span className="hidden sm:block shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-500 w-8 text-right">{r.pos}</span>
-                            <span className="flex shrink-0 items-center justify-end gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 w-[52px] sm:w-16">
+                            {/* Left-aligned, so the flags make a column.
+                                Aligning this cell to its right edge lined up
+                                the end of the text instead, and because the
+                                codes run from three letters to five the flags
+                                came out ragged: the one thing in the cell that
+                                is the same width on every row was the one
+                                thing not in a straight line.
+
+                                Fifty-eight rather than fifty-two on a phone
+                                because QMJHL is thirty-nine pixels wide and
+                                fifty-two left it thirty-five after the flag
+                                and the gap, so the longest code in the game
+                                was rendering as QMJ with a dot after it. The
+                                six come off the name, which truncates anyway
+                                and has the whole middle of the row to do it
+                                in. */}
+                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 w-[58px] sm:w-16">
                               <LeagueTag league={r.league} flagClass="w-[13px] h-[9px]" />
                             </span>
                             <span className={`shrink-0 text-[11px] font-black number-font w-[52px] sm:w-16 text-right ${
