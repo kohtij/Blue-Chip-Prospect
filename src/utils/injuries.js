@@ -31,13 +31,41 @@ const INJURIES = [
   { key: 'upper',    label: 'upper-body injury',   weight: 22, games: [3, 9],   nag: false },
   { key: 'lower',    label: 'lower-body injury',   weight: 20, games: [4, 11],  nag: false },
   { key: 'hand',     label: 'broken hand',         weight: 9,  games: [12, 22], nag: false },
-  { key: 'foot',     label: 'blocked shot, foot',  weight: 12, games: [2, 7],   nag: false },
+  { key: 'foot',     label: 'bruised foot',        weight: 12, games: [2, 7],   nag: false },
   { key: 'ankle',    label: 'high ankle sprain',   weight: 9,  games: [14, 26], nag: false },
-  { key: 'shoulder', label: 'shoulder',            weight: 8,  games: [16, 34], nag: true },
-  { key: 'groin',    label: 'groin',               weight: 10, games: [8, 18],  nag: true },
-  { key: 'back',     label: 'back',                weight: 6,  games: [10, 24], nag: true },
-  { key: 'head',     label: 'head injury',         weight: 4,  games: [8, 30],  nag: true }
+  { key: 'shoulder', label: 'separated shoulder',  weight: 8,  games: [16, 34], nag: true },
+  { key: 'groin',    label: 'groin strain',        weight: 10, games: [8, 18],  nag: true },
+  { key: 'back',     label: 'back spasm',          weight: 6,  games: [10, 24], nag: true },
+  { key: 'head',     label: 'concussion',          weight: 4,  games: [8, 30],  nag: true }
 ];
+
+// How each one happened, for the event that tells him about it. One line, in
+// the second person, starting lower case so it can follow "In December,".
+const HOW = {
+  upper:    'you took a hit along the boards and came off holding your arm',
+  lower:    'you went into the boards awkwardly and could not put weight on the leg afterwards',
+  hand:     'a slash caught you across the knuckles, and the X-ray showed a break',
+  foot:     'you blocked a slapshot with the side of your skate',
+  ankle:    'your skate caught a rut and the ankle turned right under you',
+  shoulder: 'you went into the end boards shoulder first',
+  groin:    'you felt something go in your groin reaching for a pass',
+  back:     'your back seized up after a morning skate and has not let go since',
+  head:     'you took an elbow to the head and do not remember the rest of the shift'
+};
+
+// The event is raised after the December games, so it happened before then.
+const MONTHS = ['October', 'November', 'December'];
+
+/** "a" or "an", so the labels can start with any letter. */
+export const withArticle = (label) => `${/^[aeiou]/i.test(label || '') ? 'an' : 'a'} ${label}`;
+
+/** Roughly how long a number of games is, in the words a player would use. */
+export function timeOut(games) {
+  const weeks = Math.round((games || 0) / 3.5);
+  if (weeks <= 1) return 'about a week';
+  if (weeks <= 8) return `about ${weeks} weeks`;
+  return `about ${Math.round(weeks / 4.3)} months`;
+}
 
 // A goaltender gets hurt differently: fewer collisions, more of the same two
 // joints over and over.
@@ -121,14 +149,70 @@ export function rollInjury(player, { games = 82 } = {}) {
 /** A line for the recap, in the voice the rest of the game uses. */
 export function injuryLine(inj) {
   if (!inj) return null;
-  const long = inj.games >= 25;
-  const mid = inj.games >= 10;
-  const how = long
-    ? 'It was the sort of thing you measure in months.'
-    : mid
-      ? 'Six weeks of watching, and the room moved on without you for a while.'
-      : 'A couple of weeks, and nobody outside the building noticed.';
-  return `You missed ${inj.games} game${inj.games === 1 ? '' : 's'} with a ${inj.label}. ${how}`;
+  const n = inj.games;
+  const after = n >= 25
+    ? `That was ${timeOut(n)} out of the lineup.`
+    : n >= 10
+      ? `${timeOut(n).replace(/^a/, 'A')} in the press box, and the room got used to playing without you.`
+      : 'You were back before most people outside the building noticed you had gone.';
+  return `You missed ${n} game${n === 1 ? '' : 's'} with ${withArticle(inj.label)}. ${after}`;
+}
+
+/**
+ * THE EVENT THAT SAYS IT HAPPENED.
+ *
+ * The injury was rolled, taken off his games and mentioned once in the recap,
+ * so the first a player heard of a broken hand was a line in June. It is told
+ * now, in the middle of the year, with the one decision a player actually gets
+ * about it: whether to wait for the staff or push to get back early. Pushing
+ * can save a few games or cost a lot more and leave it lingering. A concussion
+ * does not offer that choice, because nobody responsible would.
+ */
+export function injuryEvent(inj) {
+  if (!inj) return null;
+  const month = MONTHS[Math.floor(Math.random() * MONTHS.length)];
+  const how = HOW[inj.key] || 'you got hurt';
+  const who = inj.key === 'head' ? 'the doctors' : 'the staff';
+  const desc = `In ${month}, ${how}. It is ${withArticle(inj.label)}, and ${who} have you out for ${timeOut(inj.games)}.`;
+  const title = '🩹 OUT OF THE LINEUP';
+
+  const wait = {
+    label: 'Do the rehab properly',
+    subLabel: 'Come back when the staff clear you and not a day before.',
+    isRisky: false,
+    feedback: 'You did every session the staff asked for and came back when they said you were ready.',
+    effect: { fanStatus: 0, ovr: 0 },
+    action: 'INJURY_RETURN',
+    actionData: { plan: 'wait' }
+  };
+  if (inj.key === 'head' || inj.games < 6) {
+    return {
+      title, desc,
+      choices: [inj.key === 'head'
+        ? { ...wait, label: 'Follow the protocol', subLabel: 'There is no rushing a concussion. You go back when the doctors say so.' }
+        : { ...wait, label: 'Get back out there', subLabel: 'It is a short one. Do the work and get back in the lineup.' }],
+      isMidSeasonEvent: true
+    };
+  }
+  return {
+    title, desc,
+    choices: [
+      wait,
+      {
+        label: 'Push to come back early',
+        subLabel: 'Skate before you are cleared and try to get back in the lineup sooner.',
+        isRisky: true,
+        successChance: 0.5,
+        successFeedback: 'You were back a couple of weeks ahead of schedule, and it held up.',
+        successEffect: { fanStatus: 10, ovr: 0, rel: { coach: 5 } },
+        failFeedback: 'You came back too soon and it went again in your second game. Longer out, and it has not felt right since.',
+        failEffect: { fanStatus: -5, ovr: -1 },
+        action: 'INJURY_RETURN',
+        actionData: { plan: 'rush' }
+      }
+    ],
+    isMidSeasonEvent: true
+  };
 }
 
 /**

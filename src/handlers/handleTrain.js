@@ -3,7 +3,7 @@ import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
 import { getFullTeamName } from '../utils/appHelpers';
 import { getOpponentPool, LEAGUE_CONFIG } from '../data/teams';
-import { rollInjury, injuryLine } from '../utils/injuries';
+import { rollInjury, injuryLine, injuryEvent } from '../utils/injuries';
 import { coachOpening, ensureClub, playerArchetype, recordSeason, roomFor, roomTrust } from '../utils/roster';
 import { teamStrengthOf } from '../utils/leagueState';
 import { teammatesFrom } from '../utils/peers';
@@ -312,7 +312,7 @@ export function handleTrain(ctx, t) {
   };
 
   const advanceTo = (stints, nextStage) => {
-    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: nextStage, injury: thisYearInjury } }));
+    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: prev.season?.gamesMissed ?? baseMissed, stage: nextStage, injury: prev.season?.injury ?? thisYearInjury, injuryShown: !!season?.injuryShown } }));
     setPendingSeasonResult(partialResult(stints));
   };
 
@@ -332,7 +332,7 @@ export function handleTrain(ctx, t) {
   const endSeasonNow = (stints) => {
     setPlayer(prev => ({
       ...prev, trial: null, debut: null,
-      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury }
+      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury, injuryShown: !!season?.injuryShown }
     }));
     setPendingSeasonResult(partialResult(stints));
   };
@@ -494,6 +494,25 @@ export function handleTrain(ctx, t) {
   }
 
   if (stage <= 1) {
+    // THIS YEAR'S INJURY, TOLD WHEN IT HAPPENS.
+    //
+    // It was only ever a line in the recap. It is an event now, raised once,
+    // after the December games and before the second half: the season parks at
+    // this stage and comes straight back here, so nothing after it is skipped.
+    if (thisYearInjury && !season?.injuryShown) {
+      const ev = injuryEvent(thisYearInjury);
+      if (ev) {
+        setPlayer(prev => ({
+          ...prev, trial: null, debut: null,
+          season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 1, injury: thisYearInjury, injuryShown: true }
+        }));
+        setPendingSeasonResult(partialResult(stints));
+        ctx.setActiveEvent(ev);
+        ctx.setScreen('event');
+        return;
+      }
+    }
+
     // Late January, or February every fourth year. In Olympic years the
     // Olympics replace the All-Star Game outright, as they do in the NHL.
     const seg = playNext(0.333);
@@ -739,7 +758,7 @@ export function handleTrain(ctx, t) {
   }
 
   if (thisYearInjury) recap.injury = injuryLine(thisYearInjury);
-  else if (lingering) recap.injury = `The ${lingering.label} that ended last season was still there in October, and it cost you the start of this one.`;
+  else if (lingering) recap.injury = `The ${lingering.label} from last season was still bothering you in October, and it cost you the start of this one.`;
 
   // The season is finished, so the trial is spent.
   setPlayer({

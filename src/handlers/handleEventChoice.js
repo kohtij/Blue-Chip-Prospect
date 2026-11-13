@@ -53,6 +53,24 @@ export function handleEventChoice(ctx, choice) {
         nmc: true // Mid-season extensions for core players usually carry an NMC
       };
     }
+  } else if (actionStr === 'INJURY_RETURN') {
+    // Rushing back moves the injury itself: a good return takes about a third
+    // off the time out, a bad one adds half again and leaves it lingering into
+    // next year. The games come off the rest of the season through gamesMissed,
+    // so the year still adds up, and the recap line reads the new figure.
+    const s0 = updated.season;
+    const inj = s0?.injury;
+    if (inj && choice.actionData?.plan === 'rush') {
+      const worked = outcomeEffect === choice.successEffect;
+      const delta = worked
+        ? -Math.max(1, Math.round(inj.games * 0.33))
+        : Math.max(2, Math.round(inj.games * 0.5));
+      updated.season = {
+        ...s0,
+        gamesMissed: Math.max(0, (s0.gamesMissed || 0) + delta),
+        injury: { ...inj, games: Math.max(1, inj.games + delta), lingers: worked ? inj.lingers : true }
+      };
+    }
   } else if (actionStr === 'DECLINE_EXTENSION') {
     updated.storylines = { ...(updated.storylines || {}), declinedExtension: true };
   } else if (actionStr === 'VETERAN_EXTENSION') {
