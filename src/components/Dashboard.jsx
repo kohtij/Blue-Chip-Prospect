@@ -810,10 +810,21 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                         </p>
                       )}
                     </div>
-                    <span className={`shrink-0 number-font ${
-                      row.mine ? 'text-white font-black text-base' : 'text-slate-300 font-bold text-sm'}`}>
-                      {row.val}
-                    </span>
+                    {/* A DEFENCEMAN GETS NO BLENDED NUMBER.
+                        His rank comes from points plus a quarter of his
+                        blocks, which put a bare 491 on the card next to a line
+                        reading "238 points and 1010 blocks" and left the
+                        reader to work out what the third number was. It exists
+                        to order these two rows and nothing else, so it can do
+                        that without being printed. A forward's figure is his
+                        points and a goalie's is his shutouts, which say what
+                        they are. */}
+                    {!isDman && (
+                      <span className={`shrink-0 number-font ${
+                        row.mine ? 'text-white font-black text-base' : 'text-slate-300 font-bold text-sm'}`}>
+                        {row.val}
+                      </span>
+                    )}
                   </div>
                 ))}
                 <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">

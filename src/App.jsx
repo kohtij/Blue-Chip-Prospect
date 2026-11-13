@@ -186,7 +186,11 @@ function App() {
   useEffect(() => {
     const hist = player.seasonHistory || [];
     const seasonsPlayed = player.stats?.seasonsPlayed || 0;
-    if (player.ovr >= 75 && !player.draftTeam && !player.rights && seasonsPlayed >= 1) unlockAchievement('undrafted_star');
+    // Underdog Story is for a man nobody wanted. A generational talent who
+    // slipped through the draft is a lot of things, and an underdog is not one
+    // of them.
+    if (player.ovr >= 75 && !player.draftTeam && !player.rights && !player.isGenerational
+        && seasonsPlayed >= 1) unlockAchievement('undrafted_star');
     if (seasonsPlayed >= 15) unlockAchievement('iron_man');
 
     const teamCounts = {};
@@ -202,7 +206,7 @@ function App() {
         } else { currentStreak = 1; streakTeam = hist[i].team; }
       } else { currentStreak = 0; streakTeam = null; }
     }
-  }, [player.draftTeam, player.ovr, player.rights, player.seasonHistory, player.stats?.seasonsPlayed, unlockAchievement]);
+  }, [player.draftTeam, player.isGenerational, player.ovr, player.rights, player.seasonHistory, player.stats?.seasonsPlayed, unlockAchievement]);
 
   useEffect(() => {
     if (screen !== 'retirement') return;
@@ -647,6 +651,14 @@ function App() {
 
     setPlayer(updatedPlayer);
     setSeasonEvents(prev => {
+      // THE INTRO EVENT IS NOT A THING THAT HAPPENED THIS SEASON.
+      //
+      // The chosen-one reveal fires at creation, before a game has been
+      // played, and its feedback was being appended to the season log like any
+      // other moment. So the first recap of a generational career opened with
+      // "You are ready to change a franchise forever" filed under In the news,
+      // which is the game telling him something he was told on the way in.
+      if (activeEvent?.isIntroEvent) return prev;
       if (prev.length > 0 && prev[prev.length - 1].feedback === msg) return prev;
       return [...prev, { feedback: msg, effect: { fanStatus: outcome.fanStatus || 0, ovr: outcome.ovr || 0, money: outcome.money || 0 } }];
     });
@@ -856,8 +868,10 @@ function App() {
     const res = pendingSeasonResult;
     if (!res?.recap) { setScreen('recap'); return; }
     setSeasonRecap(res.recap);
+    // Carried on the result because this is the one route into the post-season
+    // that goes through a screen first, and the injury flag has to survive it.
     runPostSeasonFlow(who.age, who.ovr, res.currentLg, res.currentTeam, res.madePlayoffs,
-      2026 + (who.stats?.seasonsPlayed || 0), res.recap.standings || 16);
+      2026 + (who.stats?.seasonsPlayed || 0), res.recap.standings || 16, { sidelined: !!res.sidelined });
   };
   ctx.finishSeason = finishSeason;
   // These are declared after ctx, so they are attached rather than listed in it.
@@ -966,9 +980,18 @@ function App() {
     let totalWins = 0;
     let playoffGames = 0;
     
+    // Series won, not games won. How far the club actually went is the only
+    // thing some of this game can ask about a spring, and nothing was keeping
+    // it: a run was stored as a number of wins and a number of games, which
+    // cannot tell a sweep of two rounds from a seven-game first-round loss.
+    let roundsWon = 0;
     (playoffs.bracket || []).forEach(r => {
        const pm = r.find(m => m.isPlayerSeries);
-       if (pm) { totalWins += pm.wins1; playoffGames += (pm.wins1 || 0) + (pm.wins2 || 0); }
+       if (pm) {
+         totalWins += pm.wins1;
+         playoffGames += (pm.wins1 || 0) + (pm.wins2 || 0);
+         if (pm.status === 'won') roundsWon++;
+       }
     });
     // An injured player sat the run out, so they earn no playoff stats of their own.
     // The team result still counts.
@@ -1085,6 +1108,7 @@ function App() {
                 ...newHistory[lastIdx], 
                 titleWon: isCupWon || newHistory[lastIdx].titleWon, 
                 playoffGames,
+                playoffRounds: roundsWon,
                 playoffGoals: pG,
                 playoffAssists: pA,
                 // A goalie's playoffs were going into the career buckets and
@@ -1568,17 +1592,13 @@ function App() {
           now, in the same place at every width. */}
       <footer className="mt-auto w-full border-t border-[rgba(255,255,255,0.05)] px-4 pt-5 pb-7">
         <div className="mx-auto flex max-w-xl flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
-          {/* Version and build both come from the git history at build time
-              (see vite.config.js), so neither has to be remembered and the
-              number a player quotes in a bug report points at one commit. */}
-          <span>
-            Blue Chip Prospect
-            {__GAME_VERSION__ && (
-              <span className="ml-2 text-slate-500 tabular-nums" title={__GAME_BUILD__ ? `Build ${__GAME_BUILD__}` : undefined}>
-                v{__GAME_VERSION__}
-              </span>
-            )}
-          </span>
+          {/* The version used to sit here, derived from the git history at
+              build time. It is gone: the feedback link is the only thing in
+              this footer anybody needs, and a build number next to it was
+              asking a player to care about which commit he was on. The
+              constants are still defined in vite.config.js and still declared
+              in eslint.config.js, so putting it back is one line. */}
+          <span>Blue Chip Prospect</span>
           <span aria-hidden="true" className="h-3 w-px bg-[rgba(255,255,255,0.1)] max-[359px]:hidden" />
           <a
             href="https://x.com/ferreirahockey"

@@ -1,4 +1,4 @@
-import { LEAGUE_RECORDS, NHL_CLUB_RECORDS } from '../data/hockeyRecords';
+import { CLUB_RECORDS, LEAGUE_RECORDS } from '../data/hockeyRecords';
 
 // THE RECORD BOOK.
 //
@@ -22,6 +22,9 @@ import { LEAGUE_RECORDS, NHL_CLUB_RECORDS } from '../data/hockeyRecords';
 //      is ninety and Edmonton's is two hundred and fifteen. Where he signs
 //      decides whether his name can ever go on that wall, which is a more
 //      interesting fact about a career than a uniform bar would have been.
+//      Junior is where this bites hardest: Mississauga's club record is
+//      eighty-two points and Windsor's is a hundred and fifty-three, and a
+//      sixteen-year-old does not choose which one drafts him.
 //
 // A league or club with no sourced record has no book here at all, and nothing
 // can be broken there. That is the honest failure mode: filling the gaps with
@@ -54,9 +57,10 @@ export const formatRecord = (key, value) => String(Math.round(value));
 /**
  * The book for one league and one club, as far as it is actually known.
  *
- * Club books exist for the NHL and nowhere else, because the NHL is the only
- * league whose franchise record books are published in a form that can be
- * checked club by club.
+ * Club books exist for the NHL, the OHL, the WHL and one AHL club, because
+ * those are the leagues that publish franchise records in a form that can be
+ * checked club by club. The QMJHL and the rest of the AHL have none here, so
+ * nothing can be broken there and nothing claims to have been.
  */
 export function ensureBook(book, league, club) {
   const next = { ...(book || {}) };
@@ -73,7 +77,7 @@ export function ensureBook(book, league, club) {
 
   const clubs = { ...(lg.clubs || {}) };
   if (club && !(club in clubs)) {
-    const src = league === 'NHL' ? NHL_CLUB_RECORDS[club] : null;
+    const src = CLUB_RECORDS[league]?.[club] || null;
     if (src) {
       const c = {};
       for (const k of Object.keys(src)) c[k] = asEntry(src[k]);

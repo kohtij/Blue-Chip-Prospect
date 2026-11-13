@@ -26,7 +26,11 @@ export function midSeasonLetter(player, seg) {
 
   const trust = player.relationships?.coach || 50;
   const proSeasons = player.stats?.seasonsPlayed || 0;
-  if (proSeasons < 3 || trust < 65 || player.ovr < 80) return null;
+  // Same head start a generational talent gets in September, applied to the
+  // mid-season route as well, or the two paths would disagree about how long
+  // a club waits before putting a letter on the man it built the team around.
+  const gen = !!player.isGenerational;
+  if (proSeasons < (gen ? 1 : 3) || trust < 65 || player.ovr < 80) return null;
   // Thirty games of a sixty-five game stretch is the room seeing him play. A
   // player who has been hurt since October has not been in it.
   if ((seg.games || 0) < 20) return null;
@@ -42,7 +46,8 @@ export function midSeasonLetter(player, seg) {
   // bad year, whatever the standings say.
   if ((seg.rating || 0) < 7.0) return null;
 
-  const odds = trust >= 80 ? 0.35 : trust >= 70 ? 0.22 : 0.12;
+  const base = trust >= 80 ? 0.35 : trust >= 70 ? 0.22 : 0.12;
+  const odds = gen ? Math.min(0.70, base * 1.75) : base;
   if (Math.random() >= odds) return null;
 
   const clubName = withTeamArticle(getFullTeamName(player.team, player.league), player.league, true);
@@ -232,7 +237,14 @@ export function handleTrain(ctx, t) {
       // leads its goalie tiles with W-L-OTL and was showing 0-0-0 to a goalie
       // forty games into his season.
       wins: sum.wins || 0, losses: sum.losses || 0, otl: sum.otl || 0,
-      ppToi: sum.ppToi || 0
+      ppToi: sum.ppToi || 0,
+      // And the skater stats, for exactly the same reason and with exactly
+      // the same symptom: a defenceman arrived at the deadline being told he
+      // had blocked nothing and finished the year on a hundred and sixty.
+      // Note the rename, summariseStints calls it blocks and every recap in
+      // the game calls it blk, which is how it went missing in the first place.
+      blk: sum.blocks || 0,
+      sog: sum.sog || 0, fot: sum.fot || 0, fow: sum.fow || 0, pim: sum.pim || 0
     };
     return {
       recap: { ...tot, standings: last.standings, madePlayoffs: last.standings <= 16, awards: [] },
@@ -632,6 +644,18 @@ export function handleTrain(ctx, t) {
   // the career totals from both before and after the year.
   recap.milestones = updatedPlayer.seasonMilestones || [];
 
+  // WHETHER HE IS IN THE PLAYOFFS, CARRIED ON THE RESULT.
+  //
+  // A season ended by the December injury routes through here with the year
+  // marked over, and the two calls below pass that on. The third route did
+  // not: a milestone or a demotion shown as the year finishes parks the
+  // result and hands off to finishSeason, which called the post-season with
+  // no opts at all. The flag was lost in the detour, so a man who had been
+  // stretchered off in December was dealt a playoff bracket and invited to
+  // play in it. It travels on the result now, which is the only thing that
+  // survives that round trip.
+  result.sidelined = !!season?.over;
+
   if (isDemoted || isWaiverClaim || customWaiverEvent === 'DEVELOPMENT' || customWaiverEvent) {
      setSeasonRecap({
         ...recap,
@@ -674,13 +698,21 @@ export function handleTrain(ctx, t) {
      // The debut is played as its own game at the top of this function now, so
      // it is no longer reported here. Watching the career counter cross zero
      // only ever fired once a full season of games had already been written.
-     if (oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
+     // A ceremony is a night at the rink, and a man whose season ended in
+     // December is not at the rink. The 500th and the 1000th still happened,
+     // and both are listed in the recap's milestones either way, but the
+     // standing ovation does not get shown to someone who was stretchered off
+     // six weeks earlier. That sequence, injury then confetti, is what made
+     // the end of that year read like a machine firing screens off a list.
+     const quietYear = !!season?.over;
+
+     if (!quietYear && oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
          moveTitle = '🥈 THE SILVER STICK (1000 GAMES)';
          moveDesc = `Tonight is your 1000th career NHL game. The team holds a pre-game ceremony, presenting you with the traditional silver stick. The crowd gives you a standing ovation for your incredible longevity.`;
          moveChoices = [
              { label: 'Soak it in', subLabel: 'Take a moment to celebrate a career most players never reach.', isRisky: false, feedback: 'A beautiful, emotional night. You are a true ironman of the sport.', effect: { fanStatus: 150, ovr: 1, rel: { teammates: 30, coach: 20 } }, action: 'ROUTE_SEASON_END' }
          ];
-     } else if (oldNhlGames < 500 && newNhlGames >= 500 && currentLg === 'NHL') {
+     } else if (!quietYear && oldNhlGames < 500 && newNhlGames >= 500 && currentLg === 'NHL') {
          moveTitle = '💯 500 CAREER GAMES';
          moveDesc = `You've officially played 500 games in the NHL. You are no longer a kid; you are an established veteran in this league. The rookies are starting to look up to you.`;
          moveChoices = [

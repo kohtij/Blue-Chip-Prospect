@@ -61,8 +61,11 @@ function Hardware({ season }) {
 
   return (
     <div className="flex flex-wrap gap-1.5 items-center">
-      {season.titleWon && (
-        <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] sm:text-[10px] font-bold px-2 h-5 rounded uppercase tracking-wider inline-flex items-center gap-1.5 leading-none shadow-sm">
+      {/* !! rather than a bare truthiness test. titleWon is a NUMBER, so a
+          season with awards and no championship rendered the digit 0 into the
+          cell in front of its trophies: React prints 0 where it skips false. */}
+      {!!season.titleWon && (
+        <span className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] text-[9px] sm:text-[10px] font-bold px-2 py-[3px] rounded uppercase tracking-wider inline-flex items-center gap-1.5 leading-tight shadow-sm">
           <TrophyImage league={season.league || 'NHL'} className="w-3 h-3 shrink-0" />
           <span>{season.league === 'NHL' ? 'Stanley Cup' : 'Championship'}</span>
         </span>
@@ -85,7 +88,14 @@ function Hardware({ season }) {
           // A register column is not the place for "James Norris Memorial
           // Trophy". Every league's hardware ends in some arrangement of
           // Memorial, Trophy and Award, and none of those words identify it.
-          text = text.replace(/\s+Memorial\s+(Trophy|Award)$/, '')
+          //
+          // The parenthetical goes FIRST. Most league awards are named
+          // "Scotty Munro Memorial Trophy (Regular Season Champ)", and
+          // stripping the suffix before the bracket matched neither pattern,
+          // so the whole forty-six character string went into a pill twenty
+          // pixels tall and spilled over the two rows underneath it.
+          text = text.replace(/\s*\([^)]*\)\s*$/, '')
+                     .replace(/\s+Memorial\s+(Trophy|Award)$/, '')
                      .replace(/\s+(Trophy|Award)$/, '')
                      .replace(/^Frank J\.\s+/, '');
         }
@@ -103,7 +113,9 @@ function Hardware({ season }) {
         }
 
         return (
-          <span key={aIdx} className={`${colorClass} border text-[9px] sm:text-[10px] font-bold px-2 h-5 rounded uppercase tracking-wider leading-none inline-flex items-center gap-1.5 shadow-sm`}>
+          // py rather than a fixed h-5. A pill whose name still wraps now
+          // grows to hold it instead of printing over its neighbours.
+          <span key={aIdx} className={`${colorClass} border text-[9px] sm:text-[10px] font-bold px-2 py-[3px] rounded uppercase tracking-wider leading-tight inline-flex items-center gap-1.5 shadow-sm`}>
             {imgUrl && (
               <img src={imgUrl} alt="" className="w-3 h-3 shrink-0 object-contain"
                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -275,6 +287,13 @@ export default function RetirementScreen() {
                 shots: simShots, 
                 shutouts: simShutouts, 
                 plusMinus: simPM,
+                // The same numbers the club rows carry, so the two tables on
+                // this screen report a career in one set of terms. Absent on
+                // a legacy save, where the columns fall back to a dash.
+                blocks: season.intlData?.stats?.blk ?? 0,
+                sog: season.intlData?.stats?.sog ?? 0,
+                fot: season.intlData?.stats?.fot ?? 0,
+                fow: season.intlData?.stats?.fow ?? 0,
                 league: 'INTL',
                 team: player.nat || 'UNK'
             });
@@ -1062,6 +1081,14 @@ export default function RetirementScreen() {
                             <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'SV%' : 'G'}</th>
                             <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'GAA' : 'A'}</th>
                             <th className="px-2 py-2.5 font-medium text-center">{isGoalie ? 'SO' : 'Pts'}</th>
+                            {/* A tournament sat next to a club season showing
+                                four columns against the club's seven, so one
+                                career was reported two different ways on one
+                                screen. These are the club table's. */}
+                            {!isGoalie && isDefence(player.pos) && <th className="px-2 py-2.5 font-medium text-center">BLK</th>}
+                            {!isGoalie && !isDefence(player.pos) && <th className="px-2 py-2.5 font-medium text-center">S%</th>}
+                            {player.pos === 'C' && <th className="px-2 py-2.5 font-medium text-center">FO%</th>}
+                            {!isGoalie && <th className="px-2 py-2.5 font-medium text-center">+/-</th>}
                             <th className="px-4 py-2.5 font-medium w-full border-l border-[rgba(255,255,255,0.065)]">Hardware</th>
                           </tr>
                         </thead>
@@ -1087,6 +1114,28 @@ export default function RetirementScreen() {
                                 <td className="px-2 py-2.5 text-center font-black number-font text-[#3b82f6]">
                                   {isGoalie ? (t.shutouts || 0) : ((t.goals || 0) + (t.assists || 0))}
                                 </td>
+                                {!isGoalie && isDefence(player.pos) && (
+                                  <td className="px-2 py-2.5 text-center font-black number-font text-[#c084fc]">{t.blocks || 0}</td>
+                                )}
+                                {!isGoalie && !isDefence(player.pos) && (
+                                  <td className="px-2 py-2.5 text-center font-black number-font text-[#F59E0B]">
+                                    {(t.sog || 0) > 0
+                                      ? (((t.goals || 0) / t.sog) * 100).toFixed(1)
+                                      : <span className="text-slate-700">&ndash;</span>}
+                                  </td>
+                                )}
+                                {player.pos === 'C' && (
+                                  <td className="px-2 py-2.5 text-center font-black number-font text-[#c084fc]">
+                                    {(t.fot || 0) > 0
+                                      ? (((t.fow || 0) / t.fot) * 100).toFixed(1)
+                                      : <span className="text-slate-700">&ndash;</span>}
+                                  </td>
+                                )}
+                                {!isGoalie && (
+                                  <td className="px-2 py-2.5 text-center font-black number-font text-slate-200">
+                                    {t.plusMinus > 0 ? `+${t.plusMinus}` : (t.plusMinus || 0)}
+                                  </td>
+                                )}
                                 <td className="px-4 py-2 w-full min-w-[180px] whitespace-normal border-l border-[rgba(255,255,255,0.065)]">
                                   <Hardware season={t} />
                                 </td>
@@ -1147,15 +1196,23 @@ export default function RetirementScreen() {
                 <p className="text-[10px] text-slate-500 mb-3 ml-2">
                   The {groupName(compGroup(player.pos))} of your year, by NHL career {unit}.
                 </p>
-                {/* A header, because the purple number had nothing anywhere
-                    on the screen telling anyone what it was. */}
+                {/* IT DID NOT FIT ON A PHONE AND IT DID NOT SCROLL.
+                    Five fixed-width columns plus a flexible name against a
+                    390px screen puts the last column past the right edge, and
+                    nothing here could scroll to reach it: a player opened his
+                    own retirement screen and could not see his own points.
+                    One scroller around the header and the rows together, with
+                    a minimum width they both honour, so the columns stay in
+                    line with each other while they move. */}
+                <div className="-mx-4 sm:-mx-6 overflow-x-auto">
+                  <div className="min-w-[560px] px-4 sm:px-6">
                 <div className="flex items-center gap-3 px-3 sm:px-4 pb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
                   <span className="w-5 shrink-0" />
-                  <span className="flex-1">Player</span>
-                  <span className="w-20 text-right">Drafted</span>
-                  <span className="w-20 text-right">Awards</span>
-                  <span className="w-14 text-right">Games</span>
-                  <span className="w-20 text-right">{isGoalie ? 'Shutouts' : isDman ? 'Pts · Blk' : 'Points'}</span>
+                  <span className="flex-1 min-w-[110px]">Player</span>
+                  <span className="w-20 shrink-0 text-right">Drafted</span>
+                  <span className="w-20 shrink-0 text-right">Awards</span>
+                  <span className="w-14 shrink-0 text-right">Games</span>
+                  <span className="w-20 shrink-0 text-right">{isGoalie ? 'Shutouts' : isDman ? 'Pts · Blk' : 'Points'}</span>
                 </div>
                 <div className="rounded-xl border border-[rgba(255,255,255,0.05)] overflow-hidden">
                   {rows.map((r, i) => (
@@ -1166,7 +1223,7 @@ export default function RetirementScreen() {
                     >
                       <span className="w-5 text-[10px] font-black number-font text-slate-600 shrink-0">{i + 1}</span>
                       {/* You, not your own name, as on every other board. */}
-                      <span className={`flex-1 truncate font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-300'}`}>
+                      <span className={`flex-1 min-w-[110px] truncate font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-300'}`}>
                         {r.me ? 'You' : r.name}
                       </span>
                       {/* Where he was taken and by whom, so this reads as a
@@ -1200,6 +1257,8 @@ export default function RetirementScreen() {
                       </span>
                     </div>
                   ))}
+                </div>
+                  </div>
                 </div>
               </div>
             );

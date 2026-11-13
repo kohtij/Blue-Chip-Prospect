@@ -3,6 +3,7 @@ import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
 import { recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle } from '../utils/gameHelpers';
+import { capFor } from '../utils/contracts';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -147,6 +148,114 @@ export function advanceToOffseason(ctx) {
       });
       enterStage(CELEBRATED);
       ctx.setScreen('event');
+      return;
+  }
+
+  // THE REHABILITATION.
+  //
+  // The first beat of the summer for a man whose year ended on a stretcher.
+  // It used to fire in the post-season flow, which runs before the playoff
+  // bracket, so the injury, the surgery and a whole offseason of recovery all
+  // arrived in the same breath as the hit, and the playoffs came after them.
+  // The arc advances itself, so coming back into the summer for the next beat
+  // cannot show it twice and no stage of its own is needed.
+  if ((player.storylines?.injury || 0) === 1) {
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 2 } }));
+      setActiveEvent({
+          title: '🏥 THE REHABILITATION',
+          desc: `It's been a grueling offseason of rehab. Your physical therapists have presented you with two options: a standard team-covered recovery plan, or flying to Germany for cutting-edge, experimental treatments out of your own pocket.`,
+          choices: [
+              { label: 'Experimental Rehab ($100k)', subLabel: 'Fly overseas for cutting-edge treatment at your own expense.', isRisky: true, successChance: 0.75, successFeedback: 'The treatment worked miracles! You actually feel faster and stronger than you did before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'The experimental treatment was a bust. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
+              { label: 'Standard Rehab (Free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You played it safe. You are medically cleared to play, but you definitely lost a step physically.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+          ],
+          isOffseasonEvent: true
+      });
+      setScreen('event');
+      return;
+  }
+
+  // THE CITY TURNS ON ITS BEST PLAYER.
+  //
+  // A fanbase does not stay patient forever, and when it runs out it does not
+  // pick the fourth-line centre. It picks the man on the biggest contract, and
+  // once that has gone on long enough the front office stops being able to
+  // ignore it. Toronto and Mitch Marner is the shape of it: years of the same
+  // ending, the same name on the radio every morning, and eventually a club
+  // that had no intention of moving him moving him anyway.
+  //
+  // What counts as a barren year is deliberately not "missed the playoffs". A
+  // first-round exit is the thing that actually wears a city down, because it
+  // keeps happening and keeps being described as progress. Twelve playoff
+  // games is two rounds won: anything short of that is another spring of the
+  // same conversation.
+  // Rounds won, because that is what a city counts. Reaching a conference
+  // final is a spring people remember fondly; anything short of it is the one
+  // they argue about on the radio all summer. Games played would have been the
+  // wrong measure twice over, since it cannot separate two sweeps from a long
+  // first-round loss and it reads zero for a man who watched from the box.
+  const sourYear = (s) => !s.titleWon && (s.playoffRounds || 0) < 2;
+  let barrenYears = 0;
+  const histForSour = player.seasonHistory || [];
+  for (let i = histForSour.length - 1; i >= 0; i--) {
+      const s = histForSour[i];
+      if (s.league !== 'NHL' || s.team !== player.team || !sourYear(s)) break;
+      barrenYears++;
+  }
+
+  const sourStage = player.storylines?.fanSour || 0;
+  const sourYearNum = 2026 + (player.stats?.seasonsPlayed || 0);
+  // The highest-paid man in the room, which is the one qualification that
+  // matters here. Priced off the cap rather than a written figure so it still
+  // means the same thing in 2048.
+  const isTheGuy = player.league === 'NHL' && player.ovr >= 84
+      && (player.contract?.salary || 0) >= capFor(sourYearNum) * 0.055;
+
+  // A deep run buys the goodwill back, and so does a change of address. The
+  // arc can run again somewhere else, from the beginning.
+  if (sourStage > 0 && barrenYears === 0) {
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, fanSour: 0 } }));
+  }
+
+  if (isTheGuy && sourStage === 0 && barrenYears >= 3) {
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, fanSour: 1 } }));
+      setActiveEvent({
+          title: '📻 THE CITY HAS FOUND ITS NAME',
+          desc: `${barrenYears} springs in a row now, and every one of them has ended the same way. The callers have stopped blaming the coach. They have your cap hit memorised, they have a shift of yours from a Tuesday in November on a loop, and for the first time there are people in this city who would rather watch somebody else wear your number.`,
+          choices: [
+              { label: 'Wear it', subLabel: 'Stand at your stall and say the losing is on you before anyone asks.', isRisky: false, feedback: 'You took it all on yourself in front of the cameras. The room will not forget that. The callers were back the next morning anyway.', effect: { fanStatus: -10, ovr: 0, rel: { teammates: 25, media: 20, coach: 10 } } },
+              { label: 'Point at the roster', subLabel: 'Say out loud that one player cannot be the whole problem.', isRisky: true, successChance: 0.40, successFeedback: 'You said what everyone in that room was thinking, and the front office spent a week answering for it instead of you.', successEffect: { fanStatus: 25, ovr: 0, rel: { media: 10, coach: -25, teammates: -10 } }, failFeedback: 'It came out as a franchise player blaming his teammates. The clip ran for four days.', failEffect: { fanStatus: -70, ovr: -1, rel: { teammates: -35, media: -25 } } },
+              { label: 'Say nothing', subLabel: 'Stop doing any media that is not mandatory and let it burn out.', isRisky: false, feedback: 'You went quiet. In this city silence reads as an admission, and the summer was long.', effect: { fanStatus: -35, ovr: 1, rel: { media: -20 } } }
+          ],
+          isOffseasonEvent: true
+      });
+      setScreen('event');
+      return;
+  }
+
+  // A club can only be forced into trading a man it still has under contract.
+  // With the deal expiring there is nothing to force: he walks in July and the
+  // summer's own free agency is the story instead.
+  // Four, not five. A top seed in this engine reaches its conference final
+  // about three years in five, so five in a row at one club is a career that
+  // never happens; the arc would have been written and never seen. Four is
+  // rare for an elite club and perfectly ordinary for the one this story is
+  // actually about: good enough to be there every April and not good enough
+  // to do anything once it is.
+  if (isTheGuy && sourStage === 1 && barrenYears >= 4 && (player.contract?.years || 0) >= 2) {
+      const sourPool = (getOpponentPool('NHL') || []).filter(t => t.id !== player.team);
+      const sourDest = sourPool[Math.floor(Math.random() * sourPool.length)] || { id: 'UNK', name: 'a club out west' };
+      const sourDestName = getFullTeamName(sourDest.id, 'NHL') || sourDest.name;
+      setPlayer(p => ({ ...p, storylines: { ...p.storylines, fanSour: 2 } }));
+      setActiveEvent({
+          title: '🧨 THE FRONT OFFICE HAS RUN OUT OF ROAD',
+          desc: `The GM asked you to come in before the draft. He did not want to do this and he said so twice. But the building is half empty by the third period, the season-ticket renewals are the worst they have been in a decade, and ownership has decided that something has to visibly change. ${sourDestName} have an offer on the table and he is asking you to let it happen.`,
+          choices: [
+              { label: 'Let it happen', subLabel: `Waive your protection and report to ${sourDestName}.`, isRisky: false, feedback: `You signed off on it. The statement went out at nine the next morning and by lunchtime half the city was thanking you and the other half was arguing about who they just lost.`, effect: { fanStatus: -30, ovr: 0, rel: { media: 10, coach: -5 } }, action: 'TRADE_REQUEST_ACCEPTED', actionData: { teamObj: sourDest, lg: 'NHL' } },
+              { label: 'Refuse', subLabel: 'You have the protection in your deal. Make them live with the room they built.', isRisky: true, successChance: 0.45, successFeedback: 'You told him no and then you went out and had the best year of your life. By Christmas they were chanting your name again.', successEffect: { fanStatus: 60, ovr: 2, rel: { coach: -15, teammates: 15 } }, failFeedback: 'You told him no, and the whole miserable business followed you into the season. The boos started in the home opener.', failEffect: { fanStatus: -90, ovr: -2, rel: { coach: -30, media: -20 } } }
+          ],
+          isOffseasonEvent: true
+      });
+      setScreen('event');
       return;
   }
 
@@ -809,9 +918,17 @@ export function advanceToOffseason(ctx) {
     // A good year in front of the people voting on it helps; a bad one does not
     // rule it out, because a letter is about the room, not the scoresheet.
     const earnedIt = (lastSeason?.rating || 0) >= 7.0 || lastSeason?.titleWon || (player.fanStatus || 0) >= 500;
-    const odds = trust >= 80 ? 0.45 : trust >= 70 ? 0.30 : 0.18;
+    // A club that drafted a generational talent is building the room around
+    // him and the letter follows sooner, which is what every organisation
+    // that has ever had one actually does. It is not a free pass: he still
+    // has to have the coach, the room and a season in it behind him, and the
+    // two-year head start is what the status is worth.
+    const gen = !!player.isGenerational;
+    const base = trust >= 80 ? 0.45 : trust >= 70 ? 0.30 : 0.18;
+    const odds = gen ? Math.min(0.80, base * 1.75) : base;
+    const minSeasons = gen ? 1 : 3;
 
-    if (player.league === 'NHL' && proSeasons >= 3 && trust >= 65 && player.ovr >= 82
+    if (player.league === 'NHL' && proSeasons >= minSeasons && trust >= 65 && player.ovr >= 82
         && sameRoom && earnedIt && Math.random() < odds) {
       setPlayer(p => ({ ...p, storylines: { ...p.storylines, alternateGiven: true } }));
       setActiveEvent({

@@ -114,6 +114,14 @@ export function handleEventChoice(ctx, choice) {
            currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
            currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
         }
+  } else if (actionStr === 'TRADE_REQUEST_ACCEPTED') {
+        // A summer trade. The same move as the deadline one without the part
+        // that splits the season in two: the year is already filed and he
+        // played all of it where he played it.
+        const offTeamId = choice.actionData?.teamObj?.id || choice.actionData?.team?.id || choice.actionData;
+        updated.team = offTeamId;
+        updated.league = choice.actionData?.lg || 'NHL';
+        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), offTeamId]));
   } else if (actionStr === 'RESOLVE_HOLDOUT') {
     const wonHoldout = choice.actionData?.success ? (outcomeEffect === choice.successEffect) : false;
     if (wonHoldout) {

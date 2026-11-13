@@ -272,21 +272,11 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // ==========================================
     const injuryStage = player.storylines?.injury || 0;
 
-    // STAGE 2: THE REHAB (Triggers the immediate next offseason)
-    if (injuryStage === 1) {
-        setPlayer(p => ({ ...p, storylines: { ...p.storylines, injury: 2 } }));
-        setActiveEvent({
-            title: '🏥 THE REHABILITATION',
-            desc: `It's been a grueling offseason of rehab. Your physical therapists have presented you with two options: a standard team-covered recovery plan, or flying to Germany for cutting-edge, experimental treatments out of your own pocket.`,
-            choices: [
-                { label: 'Experimental Rehab ($100k)', subLabel: 'Fly overseas for cutting-edge treatment at your own expense.', isRisky: true, successChance: 0.75, successFeedback: 'The treatment worked miracles! You actually feel faster and stronger than you did before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'The experimental treatment was a bust. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
-                { label: 'Standard Rehab (Free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You played it safe. You are medically cleared to play, but you definitely lost a step physically.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
-            ],
-            madePlayoffs
-        });
-        setScreen('event');
-        return;
-    }
+    // STAGE 2: THE REHAB used to sit here, and here is before the playoffs.
+    // The injury fires in December now, so this fired in the same handful of
+    // seconds: stretchered off, then a summer of rehabilitation, then a
+    // bracket. It lives in advanceToOffseason, which is the actual summer and
+    // runs after the post-season has been played out.
 
     // STAGE 3: THE COMEBACK / REVENGE
     //

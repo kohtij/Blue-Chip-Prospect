@@ -488,7 +488,10 @@ export default function RecapScreen() {
                     not theirs: a goalie was told he was 129 points back. */}
                 {seasonRecap?.classBestAtPos && (() => {
                   const cb = seasonRecap.classBestAtPos;
-                  const lg = formatLeagueName(cb.league || seasonRecap.league);
+                  // "in NHL" rather than "in the NHL". The helper that applies
+                  // the article correctly per league was already imported here
+                  // and used three rows up; this row was formatting the name raw.
+                  const lg = leagueWithArticle(cb.league || seasonRecap.league);
                   const isG = player.pos === 'G';
                   const mySv = (seasonRecap.shots || 0) > 0 ? (seasonRecap.saves || 0) / seasonRecap.shots : null;
                   const myPts = (seasonRecap.g || 0) + (seasonRecap.a || 0);
@@ -522,9 +525,30 @@ export default function RecapScreen() {
                             : ahead
                               ? `No goaltender from your draft class in ${lg} stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
                               : `${cb.name} was the best goaltender of your draft class in ${lg} at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
-                        : (ahead
-                            ? `No defenceman from your draft class in ${lg} had a better year than yours: ${myPts} points and ${seasonRecap.blk || 0} blocks. ${cb.name} was next, on ${cb.pts} and ${cb.blk || 0}.`
-                            : `${cb.name} was the best defenceman of your draft class in ${lg}: ${cb.pts} points and ${cb.blk || 0} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}. You finished on ${myPts} and ${seasonRecap.blk || 0}.`)}
+                        : (() => {
+                            // SAY WHY HE WON IT.
+                            //
+                            // The verdict comes from rateSeason, which marks
+                            // the whole season, and the sentence then quoted
+                            // points and blocks only. So a defenceman could be
+                            // told nobody had a better year than his 39 points
+                            // while the runner-up was listed on 57, which reads
+                            // as the game contradicting itself in one line.
+                            //
+                            // If the man behind him outscored him, the line now
+                            // says so first and then says what beat it.
+                            const myBlk = seasonRecap.blk || 0;
+                            const hisBlk = cb.blk || 0;
+                            const outscored = cb.pts > myPts;
+                            if (ahead) {
+                              return outscored
+                                ? `${cb.name} outscored you, ${cb.pts} points to ${myPts}, and you still had the better year of it: ${myBlk} blocks to his ${hisBlk}, and the harder minutes.`
+                                : `No defenceman from your draft class in ${lg} had a better year than yours: ${myPts} points and ${myBlk} blocks. ${cb.name} was next, on ${cb.pts} and ${hisBlk}.`;
+                            }
+                            return myPts > cb.pts
+                              ? `You outscored every defenceman in your draft class in ${lg} on ${myPts} points, but ${cb.name} had the better season: ${cb.pts} points and ${hisBlk} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}.`
+                              : `${cb.name} was the best defenceman of your draft class in ${lg}: ${cb.pts} points and ${hisBlk} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}. You finished on ${myPts} and ${myBlk}.`;
+                          })()}
                     </RecapRow>
                   );
                 })()}
