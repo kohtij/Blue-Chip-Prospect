@@ -565,7 +565,7 @@ export default function RetirementScreen() {
               #{player.number} · {primaryTeamName.toUpperCase()} · TEAM {teamNatName.toUpperCase()}
             </p>
             <p className="text-xs sm:text-sm text-slate-400 font-sans italic mb-6">
-              {isLegend ? `Your jersey hangs proudly in the rafters of ${arenaName}.` : 'You officially hang up the skates after a hard-fought career.'}
+              {isLegend ? `Your number hangs in the rafters of ${arenaName}.` : 'You hang up the skates.'}
             </p>
             
             <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-6 sm:p-10 rounded-xl mb-8 flex flex-col items-center shadow-lg relative overflow-hidden">
@@ -860,7 +860,7 @@ export default function RetirementScreen() {
                           {/* A goalie is quoted by his record first. The table
                               had save percentage, goals against and shutouts
                               and no way at all to say how a season went. */}
-                          {isGoalie && <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">W&ndash;L&ndash;OTL</th>}
+                          {isGoalie && <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">W-L-OTL</th>}
                           <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'SV%' : 'G'}</th>
                           <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'GAA' : 'A'}</th>
                           <th className="px-1.5 sm:px-2 py-2.5 font-medium text-center">{isGoalie ? 'SO' : 'Pts'}</th>

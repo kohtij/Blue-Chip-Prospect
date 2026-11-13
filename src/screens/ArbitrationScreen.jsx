@@ -46,14 +46,14 @@ export default function ArbitrationScreen() {
       swing = Math.round((gap * 0.12) / 25000) * 25000;
       moodSwing = success ? 15 : -15;
       logMsg = success 
-        ? "🟢 You highlight your underlying metrics. The arbitrator nods, ticking your price up." 
+        ? "🟢 You walk the arbitrator through your underlying numbers, and your number goes up." 
         : "🔴 The team's lawyer points out defensive lapses. The arbitrator frowns.";
     } 
     else if (argType === 'leadership') {
       swing = Math.round((gap * 0.10) / 25000) * 25000;
       moodSwing = success ? 20 : -10;
       logMsg = success 
-        ? "🟢 You present glowing character references. The arbitrator values your leadership." 
+        ? "🟢 Your character references are strong, and the arbitrator gives weight to your leadership." 
         : "🔴 The team hints at behind-the-scenes friction. The arbitrator isn't buying it.";
     } 
     else if (isHardball) {
@@ -62,8 +62,8 @@ export default function ArbitrationScreen() {
       swing = success ? upSwing : -downSwing;
       moodSwing = success ? 10 : -30;
       logMsg = success 
-        ? "🟢 MASSIVE SUCCESS. You compare yourself to superstars, and the arbitrator agrees!" 
-        : "🔴 DISASTER. You demand superstar money, but the team exposes your flaws.";
+        ? "🟢 You compared yourself to the stars of the league, and the arbitrator agreed." 
+        : "🔴 You asked for star money, and the team's lawyer spent twenty minutes on your flaws.";
     }
 
     const newRuling = arbState.currentRuling + (success || isHardball ? swing : 0);
@@ -86,7 +86,7 @@ export default function ArbitrationScreen() {
         const finalSalary = Math.round(arbState.currentRuling / 25000) * 25000;
         setActiveEvent({
           title: '⚖️ ARBITRATION CONCLUDED',
-          desc: `The hearing is over. The independent arbitrator has slammed the gavel and made a binding ruling.\n\nYou are awarded a 1-year, ${formatMoney(finalSalary)} contract.`,
+          desc: `The hearing is over, and the arbitrator's ruling is binding.\n\nYou are awarded a 1-year, ${formatMoney(finalSalary)} contract.`,
           choices: [
             {
               label: 'Sign Binding Contract',

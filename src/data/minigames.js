@@ -22,8 +22,8 @@ export const interactiveMinigames = [
     gameType: 'faceoff',
     pos: ['C'], // Centers only
     reward: { win: { fanStatus: 15, ovr: 1, rel: { coach: 10 } }, loss: { fanStatus: -10, ovr: 0, rel: { coach: -10 } } },
-    successMsg: "Clean win! You snapped it straight back to your defenseman.",
-    failMsg: "You lost the draw, putting your team immediately on the defensive."
+    successMsg: "Clean win, straight back to your defenceman.",
+    failMsg: "You lost the draw, and your team spent the next shift chasing it."
   },
   {
     id: 'rapid_crease',
@@ -35,20 +35,20 @@ export const interactiveMinigames = [
     gameType: 'crease',
     pos: ['G'], // Goalies only
     reward: { win: { fanStatus: 30, ovr: 1, rel: { teammates: 15 } }, loss: { fanStatus: -20, ovr: -1 } },
-    successMsg: "Brick wall! You robbed them blind and kept the puck out of the net.",
+    successMsg: "They threw everything at you and nothing went in.",
     failMsg: "The barrage was too much. You gave up a soft rebound goal."
   },
   {
     id: 'film_room',
     title: 'THE FILM ROOM',
     desc: 'Three clips on the board, and the staff want to hear what you see.',
-    read: 'These are situations, not trick questions. Read the diagram and make the call a coach would want made.',
+    read: 'Each one is a game situation. Read the diagram and make the call a coach would want made.',
     stat: 'hockeyIQ',
     accent: 'emerald',
     gameType: 'film',
     pos: ['C', 'LW', 'RW', 'LD', 'RD', 'G'], // Everyone
     reward: { win: { fanStatus: 5, ovr: 1, rel: { coach: 20 } }, loss: { fanStatus: 0, ovr: 0, rel: { coach: -20 } } },
-    successMsg: "High IQ! You knew exactly where everyone was supposed to be.",
+    successMsg: "You knew where everybody was supposed to be, and the coaches noticed.",
     failMsg: "You blew your assignment and the coach ripped into you."
   },
   {
@@ -61,7 +61,7 @@ export const interactiveMinigames = [
     gameType: 'deflect',
     pos: ['C', 'LW', 'RW'], // Forwards only
     reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -5, ovr: 0 } },
-    successMsg: "Perfect hand-eye coordination! You tipped it right under the bar.",
+    successMsg: "You got a blade on it and tipped it in under the bar.",
     failMsg: "You missed the puck entirely and the goalie swallowed it up."
   },
   {
@@ -74,7 +74,7 @@ export const interactiveMinigames = [
     gameType: 'block',
     pos: ['LD', 'RD'], // Defensemen only
     reward: { win: { fanStatus: 25, ovr: 1, rel: { teammates: 20, coach: 15 } }, loss: { fanStatus: 0, ovr: -1, rel: { coach: -5 } } },
-    successMsg: "You ate those pucks like a champion. The bench is going wild for you!",
+    successMsg: "You ate all three, and the bench was banging their sticks on the boards.",
     failMsg: "You screened your own goalie and the puck went right past you into the net."
   },
   {
@@ -87,7 +87,7 @@ export const interactiveMinigames = [
     gameType: 'breakaway',
     pos: ['G'], // Goalies only
     reward: { win: { fanStatus: 35, ovr: 1, rel: { teammates: 10 } }, loss: { fanStatus: -15, ovr: -1 } },
-    successMsg: "Highway robbery! You read the deke perfectly and flashed the leather.",
+    successMsg: "You read the deke and took it away with the glove.",
     failMsg: "You bit on the fake and he tucked it in the empty side of the net."
   },
   {
@@ -100,7 +100,7 @@ export const interactiveMinigames = [
     gameType: 'onetimer',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'], // Skaters only
     reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -10, ovr: 0 } },
-    successMsg: "What a rocket! You blasted the one-timer top shelf.",
+    successMsg: "You caught it flush and put the one-timer top shelf.",
     failMsg: "You fanned on the shot and the puck trickled into the corner."
   },
   // ONE ROSTER SPOT, THREE DIFFERENT AUDITIONS.
@@ -124,8 +124,8 @@ export const interactiveMinigames = [
     gameType: 'faceoff',
     pos: ['C', 'LW', 'RW'],
     reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
-    successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
-    failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
+    successMsg: "You won the battle, and the coach trusts you with real minutes now.",
+    failMsg: "The veteran outworked you, and you start the year on the depth lines."
   },
   {
     id: 'camp_battle_d',
@@ -137,8 +137,8 @@ export const interactiveMinigames = [
     gameType: 'block',
     pos: ['LD', 'RD'],
     reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
-    successMsg: "You won the battle and earned the coach's trust! You secured premium ice time.",
-    failMsg: "You lost the battle. The veteran outworked you, and you've been demoted to the depth lines."
+    successMsg: "You won the battle, and the coach trusts you with real minutes now.",
+    failMsg: "The veteran outworked you, and you start the year on the depth lines."
   },
   {
     id: 'camp_battle_g',
@@ -163,8 +163,8 @@ export const interactiveMinigames = [
     gameType: 'breakout',
     pos: ['LD', 'RD'],
     reward: { win: { fanStatus: 15, ovr: 1, rel: { coach: 15 } }, loss: { fanStatus: -10, ovr: 0, rel: { coach: -10 } } },
-    successMsg: "Tape to tape! You bypassed the forecheck beautifully.",
-    failMsg: "Turnover! You passed it right to the forechecker."
+    successMsg: "Tape to tape, and the forecheck was behind you.",
+    failMsg: "You put it right on the forechecker's stick."
   },
   {
     id: 'screened',
@@ -176,7 +176,7 @@ export const interactiveMinigames = [
     gameType: 'screened',
     pos: ['G'],
     reward: { win: { fanStatus: 25, ovr: 1, rel: { teammates: 10 } }, loss: { fanStatus: -10, ovr: 0 } },
-    successMsg: "What a reflex save! You fought through the screen.",
+    successMsg: "You fought through the screen and got a piece of it.",
     failMsg: "Beaten clean. You couldn't track it through the traffic."
   },
   {
@@ -189,7 +189,7 @@ export const interactiveMinigames = [
     gameType: 'zone_battle',
     pos: ['C', 'LW', 'RW', 'LD', 'RD'],
     reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -5, ovr: 0 } },
-    successMsg: "You boxed out the defender and got the tip!",
+    successMsg: "You held your spot and got the tip.",
     failMsg: "You lost leverage and got pushed out of the crease."
   }
 ];

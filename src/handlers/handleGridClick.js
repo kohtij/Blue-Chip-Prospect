@@ -179,8 +179,11 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
           }
           newBracket[rIndex + 1] = nextR;
 
-          // Keep the current round on screen so the player sees all their reveal cards.
-          nextActiveIndex = rIndex;
+          // A series keeps its round on screen so the player sees every card he
+          // turned over and presses on when he is ready. A tournament board has
+          // nothing to look back at: the next game is the next press on the
+          // same sixteen squares, so a win goes straight into the next round.
+          nextActiveIndex = board ? rIndex + 1 : rIndex;
         } else {
           overallStatus = 'won_cup';
           // NOTE: the title count (stats.titles) and the cup award are recorded

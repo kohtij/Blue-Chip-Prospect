@@ -61,15 +61,15 @@ export default function TransferScreen() {
             </h2>
             <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10 font-medium text-center max-w-2xl mx-auto">
               {freeAgencyOffers.some(o => o.type === 'TRADE')
-                ? "Your agent has secured multiple trade packages. Review the offers and select your next destination."
+                ? "Your agent has several trade offers. Pick where you want to go."
                 : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type))
-                  ? "You are exploring alternative developmental paths. Review scholarship offers from the NCAA or professional contracts from Europe."
+                  ? "You are looking at other routes: an NCAA scholarship, or a pro contract in Europe."
                   : freeAgencyOffers.some(o => o.type === 'QUALIFYING OFFER' || o.type === 'RFA EXTENSION')
                     ? "You are a Restricted Free Agent. Your current club retains your rights, but rival teams can submit Offer Sheets."
                     : teamDidNotOffer
                         ? (['NHL', 'AHL'].includes(player.league) && player.age < 27 && (player.stats?.seasonsPlayed || 0) < 7
                             ? `The ${owningTeamName} elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent testing the open market.`
-                            : `The ${owningTeamName} elected not to offer you a new contract. You are now testing the open market looking for a new home.`)
+                            : `The ${owningTeamName} elected not to offer you a new contract. You are on the open market.`)
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
             </p>
 

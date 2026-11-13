@@ -254,7 +254,7 @@ export default function TradeDeadlineScreen() {
                         const ahlName = getFullTeamName(destTeam.ahlId, 'AHL');
                         targetTeamObj = { id: destTeam.ahlId, name: ahlName };
                         targetLg = 'AHL';
-                        eventDesc = `Your NHL parent club decided to cash in on your value and shipped your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have immediately been assigned to their AHL affiliate, the **${ahlName}**. The parent club sits **#${destStandings}** and in a playoff spot, which is somebody else's good news for now.`;
+                        eventDesc = `Your NHL parent club traded your rights to the **${getFullTeamName(destTeam.id, 'NHL')}**. You have been assigned to their AHL affiliate, the **${ahlName}**. The parent club sits **#${destStandings}** and in a playoff spot, which is somebody else's good news for now.`;
                         eventTitle = 'YOUR RIGHTS HAVE MOVED';
                         feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
                     }
@@ -286,7 +286,7 @@ export default function TradeDeadlineScreen() {
                               // just repeat the destination twice. These choices are about how you
                               // react, so they stay as plain choices with a subLabel.
                               { label: 'Embrace the fresh start', subLabel: 'Report on good terms and leave the bridge standing.', isRisky: false, feedback: feedback, effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'Fans of your new team loved the fire. You arrived with a chip on your shoulder!', successEffect: { fanStatus: 20, ovr: 1, money: 0 }, failFeedback: 'You came off looking bitter and unprofessional. Not a great first impression.', failEffect: { fanStatus: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'The fans at your new club loved it. You arrived with a chip on your shoulder.', successEffect: { fanStatus: 20, ovr: 1, money: 0 }, failFeedback: 'You came off bitter and unprofessional, which is not how anyone wants to arrive.', failEffect: { fanStatus: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
                            ],
                            isTradeDeadlineEvent: true
                         });

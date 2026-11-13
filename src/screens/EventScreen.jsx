@@ -141,7 +141,7 @@ export default function EventScreen() {
                   }
 
                   if (displayChoice.actionData.madePlayoffs) {
-                      displayChoice.perks.push({ text: '🏆 IMMEDIATE CUP RUN', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' });
+                      displayChoice.perks.push({ text: premiumLeague === 'NCAA' ? '🏆 TOURNAMENT TEAM' : '🏆 IMMEDIATE CUP RUN', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' });
                       if (charCode % 2 === 0) {
                           displayChoice.perks.push({ text: '📈 ELITE COACHING (+1 OVR)', color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' });
                           displayChoice.effect.ovr = (displayChoice.effect.ovr || 0) + 1;
@@ -209,12 +209,12 @@ export default function EventScreen() {
 
               let cardBorder = 'border-slate-700';
               let ribbonClass = 'bg-slate-700 text-slate-200';
-              let ribbonText = '🔧 REBUILDING CLUB';
+              let ribbonText = premiumLeague === 'NCAA' ? '🔧 REBUILDING PROGRAMME' : '🔧 REBUILDING CLUB';
 
               if (isRival) {
                   cardBorder = 'border-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.2)]';
                   ribbonClass = 'bg-[#ef4444] text-white';
-                  ribbonText = '⚔️ ARCH-RIVAL OFFER';
+                  ribbonText = premiumLeague === 'NCAA' ? '⚔️ ARCH-RIVAL PROGRAMME' : '⚔️ ARCH-RIVAL OFFER';
               } else if (isNCAAChoice) {
                   // No ribbon and no coloured outline. Every card on the
                   // recruitment screen is a scholarship offer, so saying so on
@@ -225,7 +225,7 @@ export default function EventScreen() {
               } else if (madePlayoffs) {
                   cardBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]';
                   ribbonClass = 'bg-[#22E748] text-black';
-                  ribbonText = '🏆 PLAYOFF BOUND';
+                  ribbonText = premiumLeague === 'NCAA' ? '🏆 TOURNAMENT BOUND' : '🏆 PLAYOFF BOUND';
               }
 
               // The same card the Free Agency screen draws: the club's own
@@ -243,7 +243,10 @@ export default function EventScreen() {
                   : formatMoney(money);
               const heroCaption = isTradeChoice ? 'PROJECTED FINISH' : 'NIL PACKAGE';
 
-              const ctaText = isNCAAChoice ? 'COMMIT' : isRival ? 'BETRAY & SIGN' : 'ACCEPT TRADE';
+              // A transfer is a move the player chooses, not one a club makes
+              // with him, so it reads as a commitment rather than a trade.
+              const isTransfer = !!data?.transfer || premiumLeague === 'NCAA';
+              const ctaText = (isNCAAChoice || isTransfer) ? 'COMMIT' : isRival ? 'BETRAY & SIGN' : 'ACCEPT TRADE';
               const ctaClass = isRival
                   ? 'bg-[#ef4444] border-[#b91c1c] text-white group-hover:bg-[#f87171]'
                   : 'bg-[#22E748] border-[#16a34a] text-black group-hover:bg-[#4ade80]';

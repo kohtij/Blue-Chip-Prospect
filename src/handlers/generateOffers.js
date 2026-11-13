@@ -186,7 +186,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     if (!isTradeRequest && !isAmateurGraduating) {
       // If Front Office trust is toxic, you are a liability and they let you walk (unless you're an elite superstar)
       if (coachTrust < 30 && player.ovr < 88 && Math.random() < 0.75) {
-         setEventFeedback("The front office considers you a locker room liability. They have informed your agent they will not be offering an extension. You are heading to the open market.");
+         setEventFeedback("The front office thinks you are a problem in the room, and they have told your agent there will be no extension. You are going to the open market.");
          teamDidNotExtend = true;
       } 
       // High Front Office trust saves fringe players from being cut

@@ -731,7 +731,7 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
   if (!isJuniorLg && !isEuroLg && !isNCAA) {
     if (p.ovr >= promoteThresh) {
       if (currentLg === 'AHL') {
-        waiverEvent = 'You had a great camp and earned a call-up to the NHL roster!';
+        waiverEvent = 'You had a great camp and earned a call-up to the NHL roster.';
         const parentNhlTeam = nhlTeams.find(t => t.ahlId === currentTeam);
         if (parentNhlTeam) currentTeam = parentNhlTeam.id;
       }

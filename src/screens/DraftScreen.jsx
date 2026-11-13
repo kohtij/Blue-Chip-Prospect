@@ -52,7 +52,7 @@ export default function DraftScreen() {
               THE RUSSIAN FACTOR
             </h3>
             <p className="text-slate-300 text-sm sm:text-base font-sans mb-6 leading-relaxed">
-              Scouts and General Managers at the NHL Combine are questioning your long-term commitment to North America. They fear you might stay in or return to the KHL. How do you address the media?
+              Scouts and GMs at the Combine are asking whether you will commit to North America or stay in the KHL. What do you tell the media?
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

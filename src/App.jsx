@@ -394,8 +394,8 @@ function App() {
     if (isGen) {
        setActiveEvent({
          title: '🌟 THE CHOSEN ONE',
-         desc: `The hockey world has never seen a prospect quite like you. At just 16 years old, scouts are already calling you the greatest generational talent since Crosby, McDavid, or Bedard. The pressure is on.`,
-         choices: [{ label: 'Embrace the Expectations', isRisky: false, feedback: 'You are ready to change a franchise forever. Let the hype begin.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
+         desc: `Scouts have been talking about you since you were fourteen. You are sixteen now, and the names they compare you to are Crosby, McDavid and Bedard. Every game you play from here gets watched.`,
+         choices: [{ label: 'Embrace the Expectations', isRisky: false, feedback: 'Somebody is going to build a franchise around you. You may as well get used to the cameras.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
          // Not an offseason beat. This fires at creation, before a single game has
          // been played, and tagging it as one dropped a sixteen-year-old into a
          // training camp roster battle before he had picked his first training card.
@@ -530,7 +530,7 @@ function App() {
       resultText = 'Two of the three landed. One answer went somewhere the room was not expecting and a couple of them led with that, but nothing in it needed correcting and you came out of it fine.';
     } else if (hits === 1) {
       fanDelta = -5; mediaDelta = -5;
-      resultText = 'One of the three landed. The other two came out flat and the room stopped writing halfway through, which is its own verdict. Nothing damaging, but nobody left with anything either.';
+      resultText = 'One of the three landed. The other two came out flat and the room stopped writing halfway through. Nothing damaging, but nobody left with anything either.';
     } else {
       fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10;
       resultText = 'You misread all three. The clips went round by the evening with your name on them, the coach was asked about it before you had left the building, and you will be answering for this one for a while.';
@@ -609,9 +609,9 @@ function App() {
         isWin = Math.random() < (baseOdds + (isPlayerSuccess ? 0.15 : -0.15));
         
         if (isPlayerSuccess && !isWin) {
-            msg = successMsg + " But despite your solid effort, the team still fell short.";
+            msg = successMsg + " You did your part, and the team lost anyway.";
         } else if (!isPlayerSuccess && isWin) {
-            msg = failMsg + " Fortunately, your teammates bailed you out for the win!";
+            msg = failMsg + " Your teammates bailed you out and won it anyway.";
         }
     }
 
@@ -758,7 +758,7 @@ function App() {
       updatedPlayer.fanStatus = fanGain(updatedPlayer.fanStatus || 0, isWin ? 100 : -25);
 
       setPlayer(updatedPlayer);
-      const finalMsg = isWin ? "You secured the championship with a heroic final shift!" : "Heartbreak in Game 7. You fell short in the dying seconds.";
+      const finalMsg = isWin ? "Your last shift of the season won the championship." : "They scored in the last minute of Game 7, and the season was over.";
       setSeasonEvents(prev => {
         if (prev.length > 0 && prev[prev.length - 1].feedback === finalMsg) return prev;
         return [...prev, { ...(moment || {}), feedback: finalMsg, effect: { fanStatus: isWin ? 100 : -25, ovr: 0, money: 0 } }];
@@ -846,8 +846,8 @@ function App() {
         setActiveEvent({
             title: 'AMATEUR GRADUATION',
             desc: isAgedOutNCAA 
-                ? `You have exhausted your NCAA collegiate eligibility. Your amateur career has concluded and it is time to turn pro.`
-                : `You have officially aged out of major junior hockey. Your amateur career has concluded and it is time to turn pro.`,
+                ? `Your NCAA eligibility is used up. Your amateur career is over, and it is time to turn pro.`
+                : `You have aged out of major junior. Your amateur career is over, and it is time to turn pro.`,
             choices: [{ label: 'Enter Free Agency', effect: { fanStatus: 0, ovr: 0 } }],
             isOffseasonEvent: true
         });
@@ -1183,7 +1183,7 @@ function App() {
     if (rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team)) unlockAchievement('betrayal');
     if (player.draftTeam === o.team && player.team !== o.team) {
        unlockAchievement('return_home');
-       setSeasonEvents(prev => [...prev, { feedback: `You made a triumphant return to ${getFullTeamName(o.team, o.league)}, the team that originally drafted you!`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
+       setSeasonEvents(prev => [...prev, { feedback: `You are back with ${getFullTeamName(o.team, o.league)}, the team that drafted you.`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
     }
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 

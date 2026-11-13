@@ -437,13 +437,13 @@ export function handleTrain(ctx, t) {
       } }));
       ctx.setActiveEvent({
         title: '🚑 DEVASTATING INJURY',
-        desc: `A fourth-line enforcer just caught you with your head down. The hit was brutal. You are stretchered off the ice with a torn ACL. Your season is completely over.`,
+        desc: `A fourth-line enforcer caught you with your head down. You left the ice on a stretcher with a torn ACL, and your season is over.`,
         choices: [
           {
             label: 'Begin Recovery',
             subLabel: 'Start the long road back. You will miss the rest of the season and the playoffs.',
             isRisky: false,
-            feedback: 'The surgery was successful, but the road back is going to be incredibly difficult.',
+            feedback: 'The surgery went well, and the rehab will be long.',
             effect: { fanStatus: 15, ovr: -3, money: 0 }
           }
         ],
@@ -465,9 +465,9 @@ export function handleTrain(ctx, t) {
         choices: [
           {
             label: 'Rest and Heal',
-            subLabel: 'Take the full four weeks, missing crucial mid-season games.',
+            subLabel: 'Take the full four weeks and miss the games.',
             isRisky: false,
-            feedback: 'You took the time to heal. Your body is 100%, but the team struggled without you.',
+            feedback: 'You took the time. The wrist healed, and the team struggled while you were out.',
             effect: { fanStatus: -10, ovr: 0, rel: { coach: -10, teammates: -10 } }
           },
           {
@@ -475,9 +475,9 @@ export function handleTrain(ctx, t) {
             subLabel: 'Mask the pain with medication to stay in the lineup.',
             isRisky: true,
             successChance: 0.50,
-            successFeedback: 'You gritted your teeth and played through it! Your teammates revere your toughness.', 
+            successFeedback: 'You played through it, and the room has not stopped talking about it.', 
             successEffect: { fanStatus: 30, ovr: 1, rel: { teammates: 40, coach: 20 } }, 
-            failFeedback: 'You played through it, but the fracture worsened. Your shot has suffered significantly.', 
+            failFeedback: 'You played through it, the fracture got worse, and your shot has not been the same since.', 
             failEffect: { fanStatus: 10, ovr: -2, rel: { teammates: 20 } } 
           }
         ],
@@ -518,10 +518,10 @@ export function handleTrain(ctx, t) {
         advanceTo(stints, 2);
         ctx.setActiveEvent({
             title: '👔 THE COACHING CAROUSEL',
-            desc: `After a disastrous first half, the front office fired the head coach. The new bench boss has pulled you into his office to discuss your role moving forward.`,
+            desc: `The front office fired the head coach after a bad first half. His replacement has called you into his office to talk about your role.`,
             choices: [
-                { label: 'Pledge to play a 200-foot defensive game', subLabel: 'Commit to a team-first, defensively responsible role.', isRisky: false, feedback: 'He appreciates your commitment to a team-first system.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 30 } } },
-                { label: 'Demand the offense runs through you', subLabel: 'Push for the green light to be the focal point of the attack.', isRisky: true, successChance: (player.ovr >= 85 ? 0.7 : 0.3), successFeedback: 'He loves your confidence and gives you the green light to dominate!', successEffect: { fanStatus: 15, ovr: 1, rel: { coach: 20 } }, failFeedback: 'He hates your ego. You start the second half in his doghouse.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -30 } } }
+                { label: 'Pledge to play a 200-foot defensive game', subLabel: 'Commit to a team-first, defensively responsible role.', isRisky: false, feedback: 'He likes that, and he tells you so.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 30 } } },
+                { label: 'Demand the offense runs through you', subLabel: 'Push for the green light to be the focal point of the attack.', isRisky: true, successChance: (player.ovr >= 85 ? 0.7 : 0.3), successFeedback: 'He likes the confidence and gives you the green light.', successEffect: { fanStatus: 15, ovr: 1, rel: { coach: 20 } }, failFeedback: 'He hates your ego. You start the second half in his doghouse.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -30 } } }
             ],
             madePlayoffs: false
         });
@@ -555,7 +555,7 @@ export function handleTrain(ctx, t) {
                   label: 'Bet on Yourself', 
                   subLabel: 'Decline the offer. Go to free agency this summer and try to get more.', 
                   isRisky: false, 
-                  feedback: 'You politely declined the offer. The GM wasn\'t thrilled, but you are officially going to market this summer.', 
+                  feedback: 'You turned it down politely. The GM was not happy, and you are going to market this summer.', 
                   effect: { fanStatus: 0, ovr: 0, rel: { coach: -15 } },
                   action: 'DECLINE_EXTENSION'
                 }
@@ -751,7 +751,7 @@ export function handleTrain(ctx, t) {
 
   if (recap.waiverEvent === '9_GAME_RULE' || (isDemoted && ['OHL', 'WHL', 'QMJHL'].includes(currentLg))) {
      const draftTeamName = player.draftTeam ? player.draftTeam : "The team that drafted you";
-     customWaiverEvent = `${draftTeamName} felt you needed more time to develop physically. They have officially assigned you back to the CHL team that holds your junior rights.`;
+     customWaiverEvent = `${draftTeamName} decided you need another year to fill out, and sent you back to the junior club that holds your rights.`;
   }
 
   // The nights a career is remembered by, carried onto the recap so the screen
@@ -822,15 +822,15 @@ export function handleTrain(ctx, t) {
 
      if (!quietYear && oldNhlGames < 1000 && newNhlGames >= 1000 && currentLg === 'NHL') {
          moveTitle = '🥈 THE SILVER STICK (1000 GAMES)';
-         moveDesc = `Tonight is your 1000th career NHL game. The team holds a pre-game ceremony, presenting you with the traditional silver stick. The crowd gives you a standing ovation for your incredible longevity.`;
+         moveDesc = `Tonight is your 1000th NHL game. Before warm-ups the club presents you with the silver stick, and the crowd stands for the whole ceremony.`;
          moveChoices = [
-             { label: 'Soak it in', subLabel: 'Take a moment to celebrate a career most players never reach.', isRisky: false, feedback: 'A beautiful, emotional night. You are a true ironman of the sport.', effect: { fanStatus: 150, ovr: 1, rel: { teammates: 30, coach: 20 } }, action: 'ROUTE_SEASON_END' }
+             { label: 'Soak it in', subLabel: 'Take a moment to celebrate a career most players never reach.', isRisky: false, feedback: 'Your family was on the ice with you, and you got through the speech without your voice going. Mostly.', effect: { fanStatus: 150, ovr: 1, rel: { teammates: 30, coach: 20 } }, action: 'ROUTE_SEASON_END' }
          ];
      } else if (!quietYear && oldNhlGames < 500 && newNhlGames >= 500 && currentLg === 'NHL') {
          moveTitle = '💯 500 CAREER GAMES';
-         moveDesc = `You've officially played 500 games in the NHL. You are no longer a kid; you are an established veteran in this league. The rookies are starting to look up to you.`;
+         moveDesc = `That is 500 NHL games. Nobody calls you a kid any more, and the rookies have started asking you where to eat on the road.`;
          moveChoices = [
-             { label: 'Acknowledge the Milestone', subLabel: 'A quiet nod to your growing status as a veteran in this league.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { fanStatus: 50, ovr: 0, rel: { teammates: 10 } }, action: 'ROUTE_SEASON_END' }
+             { label: 'Acknowledge the Milestone', subLabel: 'Acknowledge it and get on with the game.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { fanStatus: 50, ovr: 0, rel: { teammates: 10 } }, action: 'ROUTE_SEASON_END' }
          ];
      } else if (isWaiverClaim || (customWaiverEvent === 'WAIVERS' && wasNHLtoAHL && !isWaiverExempt)) {
          // WAIVER WIRE 24-HOUR INTERCEPT
@@ -842,7 +842,7 @@ export function handleTrain(ctx, t) {
                  subLabel: 'Sit by your phone and wait for the league deadline to pass.', 
                  isRisky: false, 
                  feedback: isWaiverClaim 
-                     ? `Your phone rang. You were claimed off waivers by ${withTeamArticle(getFullTeamName(updatedPlayer.team, 'NHL'), 'NHL', false)}! Pack your bags, you are heading to a new city.`
+                     ? `Your phone rang. You were claimed off waivers by ${withTeamArticle(getFullTeamName(updatedPlayer.team, 'NHL'), 'NHL', false)}, and you are heading to a new city.`
                      : `2:00 PM passed in silence. You cleared waivers and are heading to the AHL.`,
                  effect: { fanStatus: isWaiverClaim ? 10 : -10, ovr: 0, rel: { coach: -15 } },
                  action: 'ROUTE_SEASON_END' 
@@ -851,7 +851,7 @@ export function handleTrain(ctx, t) {
      } else if (wasJuniorReturn) {
          if (player.storylines?.hadNineGameTryout) {
              moveTitle = '📉 REASSIGNED TO JUNIORS';
-             moveDesc = `For the second consecutive year, you couldn't secure a permanent NHL roster spot out of training camp. You spent the season developing with your junior club to finish out your amateur eligibility.`;
+             moveDesc = `For the second year running, you did not make the NHL roster out of camp. You spent the season back with your junior club, using up the last of your junior eligibility.`;
          } else {
              moveTitle = '📉 9-GAME TRYOUT CONCLUDED';
              moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season playing top-line minutes in juniors.`;
@@ -862,7 +862,7 @@ export function handleTrain(ctx, t) {
          moveDesc = `The GM called you into his office. You've been reassigned to the AHL affiliate. "Head down, work on your game, and you'll be back," he said.`;
      } else if (wasAHLtoECHL) {
          moveTitle = '📉 SENT TO THE COAST';
-         moveDesc = `You've been reassigned to the ECHL. It's a tough demotion, but you need to find your game again if you want to make it back up.`;
+         moveDesc = `You have been sent down to the ECHL. It stings, and the only way back up is to find your game again.`;
      } else if (player.league === 'NHL' && currentLg === 'NHL'
                 && (recap.stints || []).length > 1
                 && (recap.stints || []).some(st => st.league === 'AHL' && (st.games || 0) > 0)) {
@@ -882,7 +882,7 @@ export function handleTrain(ctx, t) {
          const exempt = waiverExempt(player);
          moveTitle = '🔁 DOWN AND BACK';
          moveDesc = exempt
-             ? `It was not a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they do not need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up, which is its own kind of comment.`
+             ? `It was not a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they do not need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up.`
              : `It was not a good autumn. You were put on waivers, you cleared, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL, and you know now exactly how quickly it can go the other way.`;
      } else if (wasAHLtoNHL) {
          const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
@@ -931,10 +931,10 @@ export function handleTrain(ctx, t) {
                ];
      } else if (wasECHLtoAHL) {
          moveTitle = '📈 PROMOTED TO AHL';
-         moveDesc = `Your hard work on the Coast has paid off. You've been promoted to the AHL roster!`;
+         moveDesc = `The work in the ECHL paid off, and you have been called up to the AHL.`;
      } else if (wasJuniorToPro) {
          moveTitle = '🚨 TURNING PRO';
-         moveDesc = `Your amateur career is officially over. You are officially joining the pro roster! It's time to show the veterans what you're made of.`;
+         moveDesc = `Your amateur career is over and you are on a pro roster now. The veterans will want to see what you have.`;
      }
 
      if (moveTitle) {

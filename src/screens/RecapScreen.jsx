@@ -158,62 +158,62 @@ export default function RecapScreen() {
                  narrative = `Three straight. There are franchises a century old that have never done this once, and you have done it three years running. People have started using the word dynasty without smirking.`;
              } else {
                  narrativeTitle = `${streak} STRAIGHT`;
-                 narrative = `${streak} in a row. Whatever the rest of the league is building, it is being built to beat you, and it is not working. This is a dynasty by any measure anyone has ever used.`;
+                 narrative = `${streak} in a row. Whatever the rest of the league is building, it is being built to beat you, and it is not working. Nobody argues about the word dynasty any more.`;
              }
           } else if (seasonRecap?.titleWon === 1) {
              if (player.league === 'NHL') {
                  narrativeTitle = 'STANLEY CUP CHAMPIONS';
-                 narrative = `Absolute glory. You climbed the mountain and won the Stanley Cup! Your name is immortalized.`;
+                 narrative = `You won the Stanley Cup, and your name goes on it.`;
              } else if (isJunior) {
                  if (seasonRecap?.memCupStatus === 'won') {
                      narrativeTitle = 'MEMORIAL CUP CHAMPIONS';
-                     narrative = `Absolute glory. You conquered ${leagueWithArticle(player.league)} and lifted the Memorial Cup, cementing your legacy as a junior hockey legend.`;
+                     narrative = `You won ${leagueWithArticle(player.league)} and then the Memorial Cup. Nobody in junior hockey was better this year.`;
             } else if (seasonRecap?.memCupStatus === 'lost') {
                          narrativeTitle = 'REGIONAL CHAMPIONS';
-                         narrative = `You dominated your league and lifted the ${titles?.cupName || 'Championship'}, but fell agonizingly short in the Memorial Cup against the nation's best. A bittersweet, but incredible season.`;
+                         narrative = `You won the ${titles?.cupName || 'Championship'} and came up just short at the Memorial Cup. A great season that ended one game too early.`;
                      } else {
                          narrativeTitle = `${formatLeagueName(player.league)} CHAMPIONS`;
-                         narrative = `You climbed the mountain and won the ${titles?.cupName || 'Championship'}!`;
+                         narrative = `You won the ${titles?.cupName || 'Championship'}.`;
                      }
                  } else {
                      narrativeTitle = 'CHAMPIONS';
-                     narrative = `Absolute glory. You climbed the mountain and won the ${titles?.cupName || 'Championship'}!`;
+                     narrative = `You won the ${titles?.cupName || 'Championship'}.`;
                  }
           } else if (madePlayoffsForNarrative) {
               if (pw === maxWins - 1) {
                   narrativeTitle = 'GAME 7 HEARTBREAK';
-                  narrative = 'One win away from the ultimate prize. The locker room is devastated.';
+                  narrative = 'One win from the title. Nobody said a word on the bus home.';
               } else if (pw >= maxWins / 2) {
                   narrativeTitle = 'DEEP PLAYOFF RUN';
-                  narrative = 'A valiant effort, but you ran out of gas down the stretch.';
+                  narrative = 'You ran out of gas at the end.';
               } else if (pw === 0) {
                   narrativeTitle = 'SWEPT';
                   narrative = standings <= 4 
-                    ? 'A humiliating sweep after a dominant regular season. The media is ruthless.' 
+                    ? 'Swept, after the regular season you had. The papers have not been kind.' 
                     : 'Swept out of the first round. You were outmatched from puck drop.';
               } else {
                   narrativeTitle = 'PLAYOFF EXIT';
                   if (standings <= 4) {
-                      narrative = 'A dominant regular season erased by a shocking early playoff collapse.';
+                      narrative = 'A great regular season, and then an early exit nobody saw coming.';
                   } else if (standings >= 13) {
-                      narrative = 'After barely squeaking into the postseason as a fringe seed, the Cinderella run was cut short.';
+                      narrative = 'You squeaked into the playoffs, and the run ended early.';
                   } else {
-                      narrative = 'A solid regular season erased by an early playoff elimination.';
+                      narrative = 'A solid regular season, and an early exit.';
                   }
               }
               
               if (rivalWonTitle) {
-                  narrative += ` Adding insult to injury, your arch-rivals, ${withTeamArticle(rivalName, player.league)}, lifted the trophy.`;
+                  narrative += ` And your arch-rivals, ${withTeamArticle(rivalName, player.league)}, lifted the trophy.`;
               } else if (hasHardware && pw > 0 && pw < maxWins - 1) {
-                  narrative += " Your individual brilliance wasn't enough to carry the team.";
+                  narrative += " You were brilliant, and it was not enough.";
               }
           } else {
               narrativeTitle = 'MISSED THE DANCE';
-              narrative = 'A disappointing campaign. Rebuild for next year.';
+              narrative = 'A disappointing year, and there is work to do in the summer.';
               if (rivalWonTitle) {
-                  narrative = `A nightmare season. Not only did you miss the playoffs, but your arch-rivals, ${withTeamArticle(rivalName, player.league)}, won it all.`;
+                  narrative = `You missed the playoffs, and your arch-rivals, ${withTeamArticle(rivalName, player.league)}, won it all.`;
               } else if (hasHardware) {
-                  narrative = 'You had an incredible individual year, but the team completely let you down.';
+                  narrative = 'You had a great year, and the team around you did not.';
               }
           }
 
@@ -271,12 +271,12 @@ export default function RecapScreen() {
 
                      if (currentHistory?.tradedTo) {
                         return (
-                          <>🏅 Started the year with <strong className="text-white">{getFullTeamName(currentHistory.team, player.league)}</strong> ({currentHistory.gamesWithOriginal} GP) before a blockbuster trade to <strong className="text-white">{getFullTeamName(currentHistory.tradedTo, player.league)}</strong> ({currentHistory.gamesWithNew} GP).</>
+                          <>🏅 Started the year with <strong className="text-white">{getFullTeamName(currentHistory.team, player.league)}</strong> ({currentHistory.gamesWithOriginal} GP) before {player.league === 'NCAA' ? 'transferring to' : 'a trade to'} <strong className="text-white">{getFullTeamName(currentHistory.tradedTo, player.league)}</strong> ({currentHistory.gamesWithNew} GP).</>
                         );
                      }
                      return (
                        <>🏅 {withTeamArticle(getFullTeamName(player.team, player.league), player.league, true)} finished <strong className="text-white">#{seasonRecap?.standings || '-'}</strong> in {leagueWithArticle(player.league)}. {
-                         (seasonRecap?.standings === 1) ? 'An absolutely dominant regular season.' :
+                         (seasonRecap?.standings === 1) ? 'A dominant regular season.' :
                          (seasonRecap?.madePlayoffs) ? 'A solid campaign to secure a playoff berth.' :
                          (seasonRecap?.standings >= (getOpponentPool(player.league)?.length || 20) - 3) ? 'A miserable rebuilding year for the franchise.' :
                          'A mediocre year that fell short of expectations.'
@@ -287,7 +287,7 @@ export default function RecapScreen() {
                 
                 {player.pos === 'G' ? (
                   <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Went <strong className="text-white">{seasonRecap?.wins || 0}&ndash;{seasonRecap?.losses || 0}&ndash;{seasonRecap?.otl || 0}</strong> with a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} save percentage</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
-                    (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Truly elite numbers between the pipes.' :
+                    (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Elite numbers in net.' :
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.905 ? 'A reliable, steady presence in the crease.' :
                     'Struggled to find consistency this year.'
                   }</li>
@@ -335,7 +335,7 @@ export default function RecapScreen() {
                       ? <>, and won <strong className="text-white">{foPct.toFixed(1)}%</strong> of <strong className="text-white">{fot}</strong> draws</>
                       : null}
 . {
-                    (gls + (seasonRecap?.a || 0)) >= 100 ? 'A legendary century-mark campaign.' :
+                    (gls + (seasonRecap?.a || 0)) >= 100 ? 'A hundred-point season.' :
                     (gls >= 50) ? 'An elite goal-scoring year.' :
                     (gls + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :
                     (gls + (seasonRecap?.a || 0)) >= 40 ? 'A solid middle-six contribution.' :
@@ -380,7 +380,7 @@ export default function RecapScreen() {
                     )}
                     {seasonRecap?.memCupStatus === 'won' && (
                        <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
-                         🏆 CONQUERED THE NATION AND WON THE MEMORIAL CUP!
+                         🏆 WON THE MEMORIAL CUP!
                        </li>
                     )}
                   </>
@@ -746,7 +746,7 @@ export default function RecapScreen() {
                            perks: t.perks,
                            flaws: t.flaws,
                            isRisky: false, 
-                           feedback: `You signed your transfer paperwork and are officially a member of ${t.name}!`, 
+                           feedback: `You signed the transfer paperwork. You play for ${t.name} now.`, 
                            effect: { fanStatus: t.finalFans, ovr: t.finalOvr, money: t.finalMoney }, 
                            action: 'JOIN_NCAA', 
                            actionData: t.id
@@ -754,7 +754,7 @@ export default function RecapScreen() {
 
                        setActiveEvent({
                            title: 'TRANSFER PORTAL OFFERS',
-                           desc: `You officially entered the transfer portal. Your former fans are furious (Fan Status -15), but several top programs have immediately reached out with scholarship and NIL offers. Weigh your options carefully.`,
+                           desc: `You entered the transfer portal. The fans you are leaving are furious (Fan Status -15), and several programmes called the same day with scholarship and NIL offers.`,
                            choices: choices,
                            isPortalEvent: true
                        });

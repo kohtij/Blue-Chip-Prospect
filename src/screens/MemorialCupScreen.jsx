@@ -166,8 +166,8 @@ export default function MemorialCupScreen() {
                      <h4 className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-3">LIVE MINIGAME SCENARIO</h4>
                      <p className="text-sm sm:text-base text-slate-300 font-sans mb-8 max-w-lg mx-auto">
                        {isFinal 
-                         ? "This is for all the glory. Step onto the ice and complete a live interactive scenario to win the Memorial Cup!" 
-                         : "The Semi-Final is a do-or-die elimination game. Step onto the ice and complete a live interactive scenario to secure your spot in the Championship Final!"}
+                         ? "One game for the Memorial Cup. Play the moment that decides it." 
+                         : "The semi-final is one game, and the loser goes home. Play the moment that decides it."}
                      </p>
                      <button onClick={() => triggerMinigame('memcup')} className={`py-4 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer ${isFinal ? 'shadow-[0_0_15px_rgba(245,158,11,0.3)] bg-[#F59E0B] text-black hover:bg-[#d97706]' : 'btn-primary shadow-[0_0_15px_rgba(34,231,75,0.3)]'}`}>
                         {isFinal ? 'ENTER CHAMPIONSHIP SCENARIO' : 'ENTER SEMI-FINAL SCENARIO'}

@@ -99,7 +99,7 @@ export default function NegotiationScreen() {
        setNegotiation(prev => ({
          ...prev, gmPatience: 0, currentSalary: Math.max(850000, prev.currentSalary - penalty),
          status: 'busted', history: [...prev.history, { label, success: false }],
-         msg: "The GM slammed the table and walked away! Word of your greed is spreading around the league."
+         msg: "The GM walked out of the room. Word is getting around the league that you are greedy."
        }));
     } else {
        setNegotiation(prev => ({

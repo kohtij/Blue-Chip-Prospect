@@ -275,8 +275,10 @@ export function handleEventChoice(ctx, choice) {
     // whether the club moved you or you asked to be moved. It scales with how
     // much you had: a fringe player barely registers, a franchise face leaving
     // is the story of the week.
+    // A college transfer is not a trade: the portal choice already carries its
+    // own smaller cost, and charging the trade penalty on top doubled it.
     const TRADES = ['ACCEPT_TRADE_DEADLINE', 'TRADE_REQUEST_ACCEPTED'];
-    if (TRADES.includes(actionStr)) {
+    if (TRADES.includes(actionStr) && !choice.actionData?.transfer) {
       const standing = updated.fanStatus || 0;
       updated.fanStatus = capFanStatus(standing - Math.round(Math.min(70, Math.max(12, standing * 0.12))));
     }
@@ -378,7 +380,7 @@ export function handleEventChoice(ctx, choice) {
           
           setActiveEvent({
               title: 'HOLDOUT RESOLVED: TRADED!',
-              desc: `Your holdout forced management's hand. They finally caved to the pressure and shipped you out to a new destination.`,
+              desc: `Your holdout worked. Management gave in and traded you.`,
               isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent, // <-- Keeps the routing intact!
               choices: [
                   { 
@@ -402,8 +404,8 @@ export function handleEventChoice(ctx, choice) {
                      action: 'RESOLVE_DOUBLE_DOWN', 
                      isRisky: true, successChance: 0.3, 
                      successFeedback: isPro 
-                         ? 'The owner stepped in and fired the GM! You won the power struggle and now essentially run the locker room.' 
-                         : 'Ownership sided with you! The GM backed off and you are now the undisputed star of the franchise.', 
+                         ? 'The owner stepped in and fired the GM. You won, and the room is yours now.' 
+                         : 'Ownership sided with you. The GM backed off, and nobody in the organisation is going to cross you again.', 
                      successEffect: { fanStatus: 15, ovr: 0, rel: { coach: 20 } }, 
                      failFeedback: finalPlayer.league === 'NHL' 
                          ? 'You were suspended, waived, and banished to the AHL for conduct detrimental to the team.' 

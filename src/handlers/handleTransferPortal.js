@@ -50,7 +50,7 @@ export function handleTransferPortal(ctx, { res }) {
         // college hockey, not a betrayal.
         effect: { fanStatus: -10, ovr: 0, money: 0 },
         action: 'ACCEPT_TRADE_DEADLINE',
-        actionData: { teamObj, lg: 'NCAA', teamStandings: standing, madePlayoffs: standing <= 16, showTeamCard: true }
+        actionData: { teamObj, lg: 'NCAA', teamStandings: standing, madePlayoffs: standing <= 16, showTeamCard: true, transfer: true }
       };
     });
 

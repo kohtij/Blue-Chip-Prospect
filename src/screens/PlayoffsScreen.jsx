@@ -147,11 +147,11 @@ export default function PlayoffsScreen() {
                 : "One game, one loss, and the season is over.";
           }
       } else if (isFinalRound) {
-          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A dominant sweep to capture the ultimate prize! You are a champion!" : isMaxGames ? "A legendary final-game victory to win the championship! History is made." : "You conquered the finals and claimed the championship. The glory is yours!";
-          else seriesFlavor = isSwept ? "An embarrassing sweep on the biggest stage. A devastating end to the season." : isMaxGames ? "Heartbreak in the deciding game of the finals. The ultimate prize slips through your fingers." : "A crushing defeat in the finals. You fell just short of hockey immortality.";
+          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep in the final. You are champions." : isMaxGames ? "You won it in the deciding game of the final." : "You won the final, and the championship with it.";
+          else seriesFlavor = isSwept ? "Swept in the final. It will be a long summer." : isMaxGames ? "You lost the final in the deciding game." : "You lost in the final.";
       } else {
-          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "You brought out the brooms! A flawless sweep sends you to the next round." : isMaxGames ? "A grueling, blood-and-guts deciding game victory. You survive and advance." : "A hard-fought series win. Your playoff journey continues.";
-          else seriesFlavor = isSwept ? "Swept out of the playoffs. A humiliating end to a promising season." : isMaxGames ? "A devastating final-game heartbreak. Your postseason run ends here." : "A bitter series defeat. Pack your bags for the summer.";
+          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep. On to the next round." : isMaxGames ? "It went the distance, and you won the deciding game." : "A hard series, and you are through to the next round.";
+          else seriesFlavor = isSwept ? "Swept out of the playoffs." : isMaxGames ? "You lost the deciding game, and the season is over." : "You lost the series. Time to clean out your stall.";
       }
   }
 
@@ -177,14 +177,14 @@ export default function PlayoffsScreen() {
            ovrDelta = 1; 
            fanStatusDelta = choice === 'guarantee' ? 50 : 15;
            feedbackMsg = choice === 'guarantee' 
-              ? "You backed up your guarantee and eliminated them! The fans are going wild!" 
-              : "You eliminated your rivals and stayed composed. A huge series win!";
+              ? "You guaranteed it and delivered. The fans are going wild." 
+              : "You put your rivals out and kept your mouth shut doing it.";
        } else {
            relDelta = { media: -15, coach: -15 };
            fanStatusDelta = choice === 'guarantee' ? -50 : -10;
            feedbackMsg = choice === 'guarantee' 
               ? "You guaranteed a win and choked. The media is roasting you." 
-              : "A devastating playoff loss to a familiar foe.";
+              : "Knocked out by the team you least wanted to lose to.";
        }
 
        setPlayer(p => {
@@ -308,7 +308,7 @@ export default function PlayoffsScreen() {
                <div className="w-full flex flex-col items-center pb-2 animate-fade-in">
                   <h3 className="text-xl sm:text-2xl font-black text-[#ef4444] sports-font uppercase mb-3">BAD BLOOD</h3>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
-                     You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. The media surrounds your locker, begging for a headline. How do you respond?
+                     You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
                   </p>
                   <div className="flex flex-col gap-3 w-full">
                      <button 
@@ -335,7 +335,7 @@ export default function PlayoffsScreen() {
                      <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 max-w-md mx-auto">
                         {isSingleGame
                           ? 'Third period, tie game, winner takes the national title. One shift between you and everything.'
-                          : 'Game 7. Third Period. Tie Game. The entire season comes down to this single moment. Your legacy is on the line.'}
+                          : 'Game 7, third period, tied. The whole season comes down to the next shift.'}
                      </p>
                      <button 
                        onClick={() => triggerMinigame('finals')} 

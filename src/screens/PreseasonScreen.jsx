@@ -21,25 +21,25 @@ const ARCHETYPE_POOLS = {
     pool: [
       { id: 'arch_bfly', archetype: 'Butterfly', tag: 'POS', name: 'Butterfly Specialist', flavor: 'You rely on perfect positioning and dropping to the ice efficiently to take away the lower half of the net.', desc: '+8 POS', effect: { skating: 8 } },
       { id: 'arch_hyb', archetype: 'Hybrid', tag: 'REF', name: 'Athletic Hybrid', flavor: 'You combine technical positioning with explosive, athletic desperation saves when the play breaks down.', desc: '+8 REF', effect: { shooting: 8 } },
-      { id: 'arch_trk', archetype: 'Puck Tracker', tag: 'IQ', name: 'Puck Tracker', flavor: 'You read the play incredibly well, tracking the puck through traffic and anticipating passes before they happen.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
-      { id: 'arch_acr', archetype: 'Reflex', tag: 'AGI', name: 'Acrobatic', flavor: 'You rely on elite flexibility and raw athleticism to make highlight-reel saves that defy logic.', desc: '+8 AGI', effect: { physicality: 8 } }
+      { id: 'arch_trk', archetype: 'Puck Tracker', tag: 'IQ', name: 'Puck Tracker', flavor: 'You read the play early, find the puck through traffic, and are often across before the pass is made.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
+      { id: 'arch_acr', archetype: 'Reflex', tag: 'AGI', name: 'Acrobatic', flavor: 'You rely on flexibility and athleticism, and you make saves that should not be possible.', desc: '+8 AGI', effect: { physicality: 8 } }
     ],
-    elite: { id: 'arch_all_g', archetype: 'Hybrid', tag: 'ELITE', name: 'Fundamentally Sound', flavor: 'You are a jack-of-all-trades in the crease. No glaring weaknesses, just rock-solid consistency.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
+    elite: { id: 'arch_all_g', archetype: 'Hybrid', tag: 'ELITE', name: 'Fundamentally Sound', flavor: 'You do everything in the crease well enough and nothing badly, and coaches like how little changes from night to night.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
   },
   D: {
     pool: [
       { id: 'arch_ofd', archetype: 'Offensive Dynamo', tag: 'SKT', name: 'Offensive Dynamo', flavor: 'You act as a fourth forward, driving the rush and commanding the powerplay from the blue line.', desc: '+8 SKT', effect: { skating: 8 } },
-      { id: 'arch_dfd', archetype: 'Shutdown', tag: 'PHY', name: 'Shutdown Defender', flavor: 'You clear the crease, block shots, and make life absolutely miserable for opposing forwards.', desc: '+8 PHY', effect: { physicality: 8 } },
-      { id: 'arch_qb', archetype: 'Playmaker', tag: 'IQ', name: 'Powerplay QB', flavor: 'You have elite vision and passing ability, perfectly distributing the puck to your offensive weapons.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
-      { id: 'arch_bom', archetype: 'Point Bomber', tag: 'SHT', name: 'Point Bomber', flavor: 'You possess a terrifyingly heavy slapshot that forces forwards to think twice before blocking it.', desc: '+8 SHT', effect: { shooting: 8 } }
+      { id: 'arch_dfd', archetype: 'Shutdown', tag: 'PHY', name: 'Shutdown Defender', flavor: 'You clear the crease, block shots, and make life miserable for opposing forwards.', desc: '+8 PHY', effect: { physicality: 8 } },
+      { id: 'arch_qb', archetype: 'Playmaker', tag: 'IQ', name: 'Powerplay QB', flavor: 'You see the ice well and move the puck to the forwards who can do something with it.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
+      { id: 'arch_bom', archetype: 'Point Bomber', tag: 'SHT', name: 'Point Bomber', flavor: 'You have a heavy slapshot, and forwards think twice before stepping in front of it.', desc: '+8 SHT', effect: { shooting: 8 } }
     ],
     elite: { id: 'arch_all_d', archetype: 'Two-Way', tag: 'ELITE', name: 'Two-Way Defender', flavor: 'You pride yourself on a complete 200-foot game. You can jump into the rush or lock down the opponent\'s top line.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
   },
   F: {
     pool: [
-      { id: 'arch_snp', archetype: 'Sniper', tag: 'SHT', name: 'Pure Sniper', flavor: 'You have a lethal, lightning-fast release and a relentless hunger to put the puck in the back of the net.', desc: '+8 SHT', effect: { shooting: 8 } },
-      { id: 'arch_ply', archetype: 'Playmaker', tag: 'IQ', name: 'Elite Playmaker', flavor: 'You see the ice like a chess board, manipulating defenders to open up passing lanes for your teammates.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
-      { id: 'arch_spd', archetype: 'Speedster', tag: 'SKT', name: 'Speed Demon', flavor: 'You are an absolute blur on the ice. Defenders back off immediately because they respect your sheer breakaway speed.', desc: '+8 SKT', effect: { skating: 8 } },
+      { id: 'arch_snp', archetype: 'Sniper', tag: 'SHT', name: 'Pure Sniper', flavor: 'You have a quick release, and you want the puck in the net more than anyone else on the ice.', desc: '+8 SHT', effect: { shooting: 8 } },
+      { id: 'arch_ply', archetype: 'Playmaker', tag: 'IQ', name: 'Elite Playmaker', flavor: 'You see the ice early and move defenders where you want them, so the passing lanes open up.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
+      { id: 'arch_spd', archetype: 'Speedster', tag: 'SKT', name: 'Speed Demon', flavor: 'You are the fastest player on the ice most nights, and defenders back off the moment you pick up the puck.', desc: '+8 SKT', effect: { skating: 8 } },
       { id: 'arch_pwf', archetype: 'Power Forward', tag: 'PHY', name: 'Power Forward', flavor: 'You drop your shoulders, drive hard to the net, and physically overpower anyone who stands in your way.', desc: '+8 PHY', effect: { physicality: 8 } }
     ],
     elite: { id: 'arch_all_f', archetype: 'Two-Way', tag: 'ELITE', name: 'Two-Way Forward', flavor: 'You play a complete 200-foot game. You are just as comfortable backchecking as you are leading the rush.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
@@ -99,7 +99,7 @@ export default function PreseasonScreen() {
           desc: `You have been reassigned from the AHL to the ${getFullTeamName(move.team, 'ECHL')} (ECHL). It's time to put your head down and grind your way back up the depth chart.` };
       case 'PROMOTION':
         return { title: 'MADE THE ROSTER', type: 'PROMOTION',
-          desc: `You had an incredible camp and forced the coach's hand. You are starting the season on the ${getFullTeamName(move.team, move.lg)} roster!` };
+          desc: `You had a great camp and forced the coach's hand. You start the season on the ${getFullTeamName(move.team, move.lg)} roster.` };
       default:
         return { title: 'SENT DOWN', type: 'DEMOTION',
           desc: `The front office has assigned you to the ${ahl()} (AHL) to start the season.` };
@@ -182,7 +182,7 @@ export default function PreseasonScreen() {
                       {isArchetypeChoice ? "WHAT KIND OF PLAYER ARE YOU?" : `PRE-SEASON ${currentYear}`}
                     </h2>
                     <p className="text-slate-400 text-sm sm:text-base font-sans mt-1">
-                      {isArchetypeChoice ? "Before you step on the ice, you need to define your identity. This choice will shape the foundation of your career." : trainingTier.note}
+                      {isArchetypeChoice ? "Your choice shapes how your career develops from here." : trainingTier.note}
                     </p>
                   </div>
 

@@ -315,7 +315,7 @@ const TRADE_CALL = {
     solid: [
       "Your GM called you into the office and got to it quickly. The season was gone, and your name kept coming up on other people's lists.",
       "He thanked you for the year before he said anything else, and you knew then.",
-      "The call came with twenty minutes left on the clock. A short conversation about a big decision."
+      "The call came with twenty minutes left on the clock, and it did not take long."
     ],
     piece: [
       "Your GM called you in, glanced at a sheet of paper, and told you you had been moved.",
@@ -346,7 +346,7 @@ const TRADE_CALL = {
 const TRADE_PACKAGE = {
   selling: {
     prize: [
-      'A first-round pick, their best prospect and a conditional second came back the other way. The room read the return and understood exactly what you had been worth.',
+      'A first-round pick, their best prospect and a conditional second came back the other way. Nobody in the room thought the club had asked for too much.',
       'The return was two picks and a kid everybody rates, and the local press spent the evening arguing about whether it was enough.',
       'They got a first and change for you, which is the going rate and still felt light to everyone who had watched you play.'
     ],

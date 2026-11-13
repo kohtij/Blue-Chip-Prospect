@@ -249,11 +249,11 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   const callMeeting = () => {
     setActiveEvent({
       title: '📢 CALL TEAM MEETING',
-      desc: 'As the Captain, you have the authority to lock the locker room doors and address the team. A great speech will rally the boys, but if you do this too often, they will tune you out.',
+      desc: 'As captain, you can shut the dressing room door and talk to the team. A good speech lifts the room. Do it too often and they stop listening.',
       choices: [
         {
           label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65,
-          successFeedback: 'The room was silent. You fired them up, and team morale skyrocketed!',
+          successFeedback: 'Nobody said a word while you talked, and they went out of that room flying.',
           successEffect: { fanStatus: 15, ovr: 1, rel: { teammates: 25 } },
           failFeedback: 'You stumbled over your words. The veterans rolled their eyes.',
           failEffect: { fanStatus: -10, ovr: -1, rel: { teammates: -20 } },

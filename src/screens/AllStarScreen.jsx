@@ -89,21 +89,21 @@ const handleQuickSim = () => {
     let msg, fanHit = 0, mediaHit = 0, coachHit = 0;
 
     if (type === 'safe') {
-      msg = "You spent an hour signing autographs for kids. A classic, classy move.";
+      msg = "You spent an hour signing autographs for kids.";
       fanHit = 15;
     } else if (type === 'risky') {
       if (dripLands) {
-        msg = "Your bold, flashy suit went viral! The fans absolutely loved the swagger.";
+        msg = "Your suit went viral, and the fans loved it.";
         fanHit = 40;
       } else {
-        msg = "You tried a wild fashion statement and got completely roasted on social media.";
+        msg = "You wore something nobody could explain and got roasted online for it.";
         fanHit = -15;
       }
     } else if (type === 'classy') {
-      msg = "You attended the local hospital charity gala. The media and your coach praised your maturity.";
+      msg = "You went to the hospital fundraiser, and your coach and the media both noticed.";
       fanHit = 10; mediaHit = 10; coachHit = 5;
     } else if (type === 'spicy') {
-      msg = "You gave a spicy interview calling out your division rivals. Fans loved it, but the media thought it was uncalled for.";
+      msg = "You called out your division rivals in an interview. The fans loved it, and the media thought it was out of line.";
       fanHit = 25; mediaHit = -10;
     }
 
@@ -206,7 +206,7 @@ const handleQuickSim = () => {
              </p>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                {[
-                 { key: 'safe', tag: 'SAFE', accent: '#3b82f6', title: 'Sign Autographs', blurb: "Give the kids a memory they'll never forget." },
+                 { key: 'safe', tag: 'SAFE', accent: '#3b82f6', title: 'Sign Autographs', blurb: "Sign for the kids until they run out of things to sign." },
                  { key: 'risky', tag: 'RISKY', accent: '#ef4444', title: 'Drip Check', blurb: 'Wear an absurdly flashy designer outfit.' },
                  { key: 'classy', tag: 'CLASSY', accent: '#22E748', title: 'Charity Gala', blurb: 'Attend the host city hospital fundraiser.' },
                  { key: 'spicy', tag: 'SPICY', accent: '#F59E0B', title: 'Rivalry Banter', blurb: 'Talk some trash about your division rivals.' }
@@ -242,7 +242,7 @@ const handleQuickSim = () => {
          <div className="max-w-2xl w-full mt-2 animate-fade-in bg-[#101410] border border-[#ef4444]/40 p-8 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.15)] flex flex-col items-center">
             <h3 className="text-3xl font-black text-[#ef4444] sports-font uppercase mb-4">INVITATION DECLINED</h3>
             <p className="text-lg text-slate-300 mb-6 font-sans">
-              You chose to rest your body instead of attending the All-Star weekend. Per league rules, you have been handed an automatic <strong>1-game suspension</strong>. The media is questioning your dedication, but you secured some much-needed rest (+1 Stamina).
+              You skipped the All-Star weekend to rest. Under league rules, that means an automatic <strong>1-game suspension</strong>. The media is questioning your commitment, and you got the rest you needed (+1 Stamina).
             </p>
             <button onClick={() => finishSeason()} className="btn-primary w-full py-4 rounded-xl font-black sports-font tracking-widest text-lg uppercase transition-transform hover:scale-105 cursor-pointer">
               SERVE SUSPENSION & RETURN

@@ -529,7 +529,7 @@ export default function CreationScreen() {
                     </div>
 
                     {savedCareers.length === 0 ? (
-                       <p className="text-slate-500 text-sm italic font-sans text-center py-4">No past careers found. Finish a career to log it here!</p>
+                       <p className="text-slate-500 text-sm italic font-sans text-center py-4">No past careers yet. Finish one and it shows up here.</p>
                     ) : (
                        <div className="flex flex-col gap-3">
                          {savedCareers.map(c => (

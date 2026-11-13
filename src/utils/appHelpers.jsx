@@ -168,7 +168,7 @@ export const MASTER_ACHIEVEMENTS = [
   // INDIVIDUAL AWARDS
   { id: 'hart', name: 'League MVP', desc: 'Win the Hart Memorial Trophy', icon: '⭐' },
   { id: 'vezina', name: 'Vezina Trophy', desc: 'Win the Vezina Trophy as the top Goaltender', icon: '🧱' },
-  { id: 'norris', name: 'Norris Trophy', desc: 'Win the Norris Trophy as the top Defenseman', icon: '🛡️' },
+  { id: 'norris', name: 'Norris Trophy', desc: 'Win the Norris Trophy as the top Defenceman', icon: '🛡️' },
   { id: 'calder', name: 'Rookie of the Year', desc: 'Win the Calder Memorial Trophy', icon: '🐣' },
   { id: 'art_ross', name: 'Scoring Champion', desc: 'Win the Art Ross Trophy for leading the league in points', icon: '🏒' },
   { id: 'richard', name: 'Rocket Richard', desc: 'Win the Maurice Richard Trophy for leading the league in goals', icon: '🚀' },

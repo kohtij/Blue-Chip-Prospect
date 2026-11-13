@@ -216,7 +216,7 @@ export default function CombineScreen() {
   const finishRx = useCallback((score) => {
     setRxDone(true);
     let pts, msg;
-    if (score >= 18) { pts = 2; msg = "Lightning reflexes! The scouts are amazed."; }
+    if (score >= 18) { pts = 2; msg = "Lightning reflexes. The scouts were all writing at once."; }
     else if (score >= 12) { pts = 1; msg = "Great quickness and eye tracking."; }
     else if (score >= 7) { pts = 0; msg = "Average reaction time for a prospect."; }
     else { pts = -1; msg = "Slow reads. The puck beats you cleanly."; }
@@ -287,7 +287,7 @@ export default function CombineScreen() {
                    NHL DRAFT COMBINE
                  </h2>
                  <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
-                   Welcome to the Draft Combine. This is your final chance to prove your worth to general managers before draft day. You will undergo physical testing to measure your athleticism, followed by intense interviews to evaluate your character and hockey IQ. 
+                   This is the Draft Combine, your last chance to impress the general managers before draft day. The physical testing comes first. Then the interviews, where they find out how you think and what you are like. 
                  </p>
                  <button 
                    onClick={() => setShowIntro(false)} 
@@ -480,7 +480,7 @@ export default function CombineScreen() {
              // scouting file at its full -4..+8 resolution, and the projection
              // below is the real one: the same call the draft itself makes.
              let verdict, boostColor;
-             if (combineScore >= 6) { verdict = "You destroyed the Combine. Teams are scrambling to trade up for you!"; boostColor = "text-[#22E748]"; }
+             if (combineScore >= 6) { verdict = "You were the best player at the Combine. Teams are calling about trading up for you."; boostColor = "text-[#22E748]"; }
              else if (combineScore >= 3) { verdict = "An excellent week. Scouts are moving you up their boards."; boostColor = "text-[#22E748]"; }
              else if (combineScore >= 1) { verdict = "A solid Combine showing. You helped your draft stock."; boostColor = "text-[#3b82f6]"; }
              else if (combineScore === 0) { verdict = "Average showing. Your on-ice tape will have to do the talking."; boostColor = "text-slate-400"; }

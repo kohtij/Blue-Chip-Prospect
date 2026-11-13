@@ -44,7 +44,7 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
       const teamInPlayoffs = teamStandings <= playoffSpots;
 
       let displayLabel = `Accept a trade to ${namedTeam(teamObj.id, tradeLg)}`;
-      let feedback = `The trade went through! You were dealt to ${namedTeam(teamObj.id, tradeLg)}.`;
+      let feedback = `The trade went through. You were dealt to ${namedTeam(teamObj.id, tradeLg)}.`;
       let targetTeamObj = teamObj;
       let targetLg = tradeLg;
 
@@ -72,7 +72,7 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
 
     setActiveEvent({
       title: 'TRADE OFFERS RECEIVED',
-      desc: 'Your agent leveraged interest across the league. Your GM has agreed to trade packages from multiple suitors. Where do you want to be shipped?',
+      desc: 'Your agent found interest around the league, and your GM has offers from several clubs. Where do you want to go?',
       choices,
       isTradeDeadlineEvent: true
     });
@@ -81,22 +81,22 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
     unlockAchievement('trade_rejected');
     setActiveEvent({
       title: 'TRADE REQUEST REJECTED',
-      desc: 'Your GM publicly shut down your request: "We control his rights and he isn\'t going anywhere." The media is blasting your loyalty, your teammates are giving you the cold shoulder, and your GM benched you.',
+      desc: 'Your GM publicly shut down your request: "We control his rights and he isn\'t going anywhere." The media is questioning your loyalty, your teammates have gone cold on you, and you have been benched.',
       choices: [
         {
           label: 'Accept your fate and stay focused',
           isRisky: false,
-          feedback: 'You put your head down, but the environment in the locker room is toxic.',
+          feedback: 'You put your head down, and the room stayed poisonous all the same.',
           effect: { fanStatus: -30, ovr: -1, money: 0 }
         },
         {
           label: 'Hold Out (Refuse to Play)',
-          subLabel: '⚡ High Risk • Force a trade, but risk massive fan and skill backlash',
+          subLabel: '⚡ High Risk • Force a trade, at a cost to your fans and your game',
           isRisky: true,
           successChance: 0.35,
-          successFeedback: 'The GM panicked and immediately shipped you out for pennies on the dollar to rid the locker room of the distraction!',
+          successFeedback: 'The GM panicked and moved you for almost nothing, just to get you out of the room.',
           successEffect: { fanStatus: -50, ovr: 0 },
-          failFeedback: 'The GM called your bluff. You missed camp, lost your conditioning, and permanently damaged your reputation.',
+          failFeedback: 'The GM called your bluff. You missed camp, lost your conditioning, and your reputation will not recover.',
           failEffect: { fanStatus: -125, ovr: -3 },
           action: 'TRADE_HOLDOUT'
         }
