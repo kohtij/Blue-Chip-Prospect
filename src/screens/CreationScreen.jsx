@@ -281,9 +281,15 @@ export default function CreationScreen() {
                 <div className="relative mb-8 max-w-sm mx-auto z-10">
                   <input
                     type="text" placeholder="ENTER PLAYER NAME"
-                    className="w-full bg-transparent text-white placeholder:text-slate-700 border-b-2 border-slate-700 pb-2 text-center text-2xl sm:text-3xl font-black sports-font uppercase focus:border-slate-300 outline-none transition-all drop-shadow-sm"
+                    aria-label="Player name"
+                    aria-describedby="name-hint"
+                    autoComplete="off"
+                    className="w-full bg-transparent text-white placeholder:text-slate-500 border-b-2 border-slate-700 pb-2 text-center text-2xl sm:text-3xl font-black sports-font uppercase focus:border-slate-300 outline-none transition-all drop-shadow-sm"
                     onChange={(e) => setPlayer({ ...player, name: e.target.value })}
                   />
+                  {/* The start buttons stay disabled until there is a name, and
+                      a disabled button cannot say why, so the field does. */}
+                  <span id="name-hint" className="sr-only">You need a name before you can start a career.</span>
                                   </div>
 
               <div data-nosnippet className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
@@ -298,9 +304,10 @@ export default function CreationScreen() {
                   <button
                     key={p.id}
                     onClick={() => setPlayer({ ...player, pos: p.id, number: p.num })}
+                    aria-pressed={player.pos === p.id}
                     className={`p-3 sm:p-4 rounded-xl border transition-colors cursor-pointer ${player.pos === p.id ? 'border-[#22E748] bg-[#22E748]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
                   >
-                    <h3 className="text-2xl sm:text-3xl font-black text-white sports-font">{p.id}</h3>
+                    <span className="block text-2xl sm:text-3xl font-black text-white sports-font">{p.id}</span>
                     <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase mt-1 font-sans">{p.name}</p>
                   </button>
                 ))}
@@ -371,10 +378,11 @@ export default function CreationScreen() {
                       <button
                         key={n.id}
                         onClick={() => pickNationality(n.id)}
+                        aria-pressed={player.nat === n.id}
                         className={`pt-3 pb-1.5 px-1 rounded-xl border transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                           player.nat === n.id
                             ? 'border-[#22E748] bg-[#22E748]/10 shadow-[0_0_10px_rgba(34,231,72,0.15)]'
-                            : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-[#3b82f6]/50'
+                            : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'
                         }`}
                         title={n.name}
                       >
@@ -389,6 +397,7 @@ export default function CreationScreen() {
                   {restNations.length > 0 && (
                     <button
                       onClick={() => setShowAllNations(v => !v)}
+                      aria-expanded={showAllNations}
                       className="mt-2 text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest cursor-pointer"
                     >
                       {showAllNations ? 'Show fewer' : `+ ${restNations.length} more nations`}
@@ -406,9 +415,10 @@ export default function CreationScreen() {
                       <button
                         key={lg.id}
                         onClick={() => setPlayer({ ...player, startLeague: lg.id, team: null })}
+                        aria-pressed={player.startLeague === lg.id}
                         className={`relative py-2.5 px-2 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
                       >
-                        <h3 className="text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</h3>
+                        <span className="block text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</span>
                         {lg.id === homeLeague && (
                           <span className="absolute top-1 right-1.5 text-[7px] font-black uppercase tracking-widest text-[#22E748]">Home</span>
                         )}
@@ -439,14 +449,15 @@ export default function CreationScreen() {
                 <button 
                   type="button"
                   onClick={() => { setShowAchievementsMenu(!showAchievementsMenu); setShowRecordsMenu(false); }}
-                  className="w-full bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer group"
+                  aria-expanded={!!showAchievementsMenu}
+                  className="w-full bg-[#101410] hover:bg-[#151b15] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-xl sm:text-2xl">🏆</span>
                     <div>
-                      <h3 className="text-xs sm:text-sm font-black text-white sports-font uppercase tracking-wider group-hover:text-[#22E748] transition-colors">
+                      <p className="text-xs sm:text-sm font-black text-white sports-font uppercase tracking-wider group-hover:text-[#22E748] transition-colors">
                         CAREER ACHIEVEMENTS
-                      </h3>
+                      </p>
                       <p className="text-[10px] sm:text-xs text-slate-400 font-sans">
                         {unlockedAchievements.length} OF {MASTER_ACHIEVEMENTS.length} UNLOCKED
                       </p>
@@ -502,14 +513,15 @@ export default function CreationScreen() {
                 <button 
                   type="button"
                   onClick={() => { setShowRecordsMenu(!showRecordsMenu); setShowAchievementsMenu(false); }}
-                  className="w-full bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer group"
+                  aria-expanded={showRecordsMenu}
+                  className="w-full bg-[#101410] hover:bg-[#151b15] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-xl sm:text-2xl">🏛️</span>
                     <div>
-                      <h3 className="text-xs sm:text-sm font-black text-white sports-font uppercase tracking-wider group-hover:text-[#3b82f6] transition-colors">
+                      <p className="text-xs sm:text-sm font-black text-white sports-font uppercase tracking-wider group-hover:text-[#3b82f6] transition-colors">
                         HALL OF RECORDS
-                      </h3>
+                      </p>
                       <p className="text-[10px] sm:text-xs text-slate-400 font-sans">
                         {savedCareers.length} PAST CAREERS LOGGED
                       </p>

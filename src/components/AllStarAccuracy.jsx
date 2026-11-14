@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NetMouth, Surface } from './rink/Ice';
 import { MOUTH, MOUTH_VIEW } from './rink/geometry';
 import { EventHeader, Stage, Verdict } from './minigame/Shell';
+import { useZoneKeys } from '../utils/a11y';
 
 // Accuracy shooting.
 //
@@ -71,6 +72,12 @@ export default function AllStarAccuracy({ onComplete, strategy }) {
     }
   };
 
+  // The four targets are the net's four corners, so the corner keys hit them.
+  useZoneKeys(gameStarted, (id) => {
+    const quadrant = { 0: 0, 1: 1, 3: 2, 4: 3 }[id];
+    if (quadrant !== undefined && !targets[quadrant]) hitTarget(quadrant);
+  });
+
   // The captain's speed call makes the targets bigger.
   const r = strategy === 'speed' ? 8.6 : 6.2;
   const left = targets.filter(t => !t).length;
@@ -87,6 +94,7 @@ export default function AllStarAccuracy({ onComplete, strategy }) {
 
       <div className="mt-4">
         <Stage
+          keys="Keyboard: 7 and 9 for the top corners, 1 and 3 for the low ones."
           verdict={
             <Verdict
               show={!!result}

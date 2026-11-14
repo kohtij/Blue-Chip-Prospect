@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NetMouth, Goalie, Surface } from './rink/Ice';
 import { MOUTH, MOUTH_VIEW, MOUTH_ZONES, wavePath } from './rink/geometry';
 import { EventHeader, Stage, Verdict } from './minigame/Shell';
+import { useZoneKeys, ZONE_KEY_HINT } from '../utils/a11y';
 
 // Save streak.
 //
@@ -87,6 +88,8 @@ export default function AllStarSaveStreak({ onComplete, strategy }) {
     else setTimeout(() => triggerShot(newShots, newSaves), 500);
   };
 
+  useZoneKeys(gameStarted && !gameOver, (id) => handleSave(id));
+
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const zone = activeZone !== null ? MOUTH_ZONES[activeZone] : null;
@@ -103,6 +106,7 @@ export default function AllStarSaveStreak({ onComplete, strategy }) {
 
       <div className="mt-4">
         <Stage
+          keys={ZONE_KEY_HINT}
           hud={
             <div className="flex items-center justify-between gap-2 px-1">
               <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">

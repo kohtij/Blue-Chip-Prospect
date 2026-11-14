@@ -5,6 +5,7 @@ import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
 import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
 import { capFor, comparables, marketTier } from '../utils/contracts';
+import { veteranBonuses } from '../utils/bonuses';
 
 // A club's projected finish, read out of one table for the whole league.
 //
@@ -463,7 +464,12 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     offers.sort((a, b) => b.salary - a.salary);
     
     setFreeAgencyOffers(offers.map(o => {
-      const oWithPerks = withOfferPerks({ ...o, market });
+      // A one-year NHL deal for a man of thirty-five or more is the one veteran
+      // contract allowed to carry performance bonuses, and the clubs use them:
+      // a smaller guarantee, paid up if he stays in the lineup.
+      const veteranDeal = o.league === 'NHL' && (player.age || 0) >= 35 && o.years === 1
+        && o.type !== 'QUALIFYING OFFER' && o.type !== 'OFFER SHEET';
+      const oWithPerks = withOfferPerks({ ...o, market, ...(veteranDeal ? { bonuses: veteranBonuses() } : {}) });
       
       // Inject NMC / Trade Protection directly into the perk arrays
       if (o.nmc && !oWithPerks.perks?.some(p => p.name?.includes('No-Move'))) {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getTeamData, nhlTeams } from '../data/teams';
+import { readableOn } from '../utils/a11y';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) => {
@@ -15,6 +16,8 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
   const isNHL = league === 'NHL' && !isAHL && (nhlTeams || []).some(t => t.id === teamId);  
   let team = getTeamData(teamId, league);
   const finalLogoUrl = team ? team.logo : null;
+  // The club's name for a screen reader. The id alone read out as letters.
+  const altName = team?.fullName || (team?.city && team?.name ? `${team.city} ${team.name}` : team?.name) || teamId || '';
 
   // Standardized container sizing across components (SCALED UP)
   const containerSize = size === "tiny"
@@ -66,7 +69,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
         {/* scale-[1.28] counteracts built-in SVG viewBox padding from NHL.com */}
         <img
           src={`https://assets.nhle.com/logos/nhl/svg/${teamId}_light.svg`}
-          alt={teamId}
+          alt={altName}
           className="w-full h-full object-contain drop-shadow-lg scale-[1.28] transform-gpu"
           onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
         />
@@ -80,7 +83,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
         {/* p-0.5 keeps tightly cropped junior logos proportionally balanced */}
         <img
           src={finalLogoUrl}
-          alt={teamId}
+          alt={altName}
           className="w-full h-full object-contain drop-shadow-lg p-0.5"
           onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
         />
@@ -91,7 +94,10 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
   return (
     <div 
       className={`relative ${containerSize} rounded-full flex items-center justify-center font-black text-[8px] sm:text-xs border-2 sports-font shadow-lg shrink-0 text-center leading-none overflow-hidden ${className}`} 
-      style={{ backgroundColor: team?.bg || '#101410', color: team?.color || '#FFF', borderColor: team?.color || '#FFF' }}
+      // The letters take the club's second colour only when it can be read
+      // on the first; Montreal's blue on Montreal's red could not.
+      style={{ backgroundColor: team?.bg || '#101410', color: readableOn(team?.bg || '#101410', team?.color || '#FFFFFF'), borderColor: team?.color || '#FFF' }}
+      role="img" aria-label={altName}
     >
       {teamId}
     </div>

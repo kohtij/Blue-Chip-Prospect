@@ -5,6 +5,7 @@ import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
 import { applyOvrDelta, recomputeOvr } from '../utils/gameHelpers';
+import { CHOICE_ROW, kickerClass, TAG_RED, TITLE_MD, TITLE_SM } from '../utils/ui';
 
 export default function PlayoffsScreen() {
   const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setPlayer, setPlayoffs, triggerMinigame } = useAppContext();
@@ -212,7 +213,7 @@ export default function PlayoffsScreen() {
   }, [activeMatch, isBadBlood, playerMatchIndex, playoffs.activeRoundIndex, setPlayer, setPlayoffs]);
 
   return (
-    <div className="game-panel p-3 sm:p-6 mt-2 border-t-2 border-t-[#F59E0B] flex flex-col items-center relative">
+    <div className="game-panel p-3 sm:p-6 mt-2 flex flex-col items-center relative">
       
       {/* CARD MINIGAME GRID & NEXT ROUND PROCEED BUTTON */}
       {activeMatch && (
@@ -221,23 +222,23 @@ export default function PlayoffsScreen() {
             {/* MATCHUP HEADER */}
             <div className="flex flex-col items-center w-full mb-5">
               {/* FIXED STATUS BAR (Prevents top text shifting) */}
-              <div className="h-5 flex items-center justify-center w-full mb-4">
+              <div className="h-8 flex items-center justify-center w-full mb-4">
                 {activeMatch.status === 'playing' && (
-                  <p className="text-[11px] sm:text-xs font-black text-[#3b82f6] uppercase tracking-widest font-sans leading-none">
-                      ROUND {playoffs.activeRoundIndex + 1} MATCHUP
-                  </p>
+                  <span className={kickerClass('neutral')}>
+                      Round {playoffs.activeRoundIndex + 1}
+                  </span>
                 )}
                 {activeMatch.status === 'won' && (
-                  <p className="text-[11px] sm:text-xs font-black text-[#22E748] uppercase tracking-widest font-sans leading-none">
+                  <span className={kickerClass('green')}>
                       {isSingleGame
-                        ? (playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? '🏆 CHAMPIONS!' : '⚡ YOU ADVANCE!')
-                        : `⚡ SERIES VICTORY! (${activeMatch.wins1}-${activeMatch.wins2})`}
-                  </p>
+                        ? (playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? 'Champions' : 'Through to the next round')
+                        : `Series won ${activeMatch.wins1}-${activeMatch.wins2}`}
+                  </span>
                 )}
                 {activeMatch.status === 'lost' && (
-                  <p className="text-[11px] sm:text-xs font-black text-[#ef4444] uppercase tracking-widest font-sans leading-none">
-                      {isSingleGame ? '💔 ELIMINATED' : `💔 ELIMINATED (${activeMatch.wins1}-${activeMatch.wins2})`}
-                  </p>
+                  <span className={kickerClass('red')}>
+                      {isSingleGame ? 'Eliminated' : `Eliminated ${activeMatch.wins1}-${activeMatch.wins2}`}
+                  </span>
                 )}
               </div>
 
@@ -277,10 +278,10 @@ export default function PlayoffsScreen() {
 
            {isSidelined ? (
                <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
-                  <h3 className="text-xl sm:text-2xl font-black text-[#F59E0B] sports-font uppercase mb-3">FROM THE PRESS BOX</h3>
+                  <h3 className={`${TITLE_SM} mb-3`}>From the press box</h3>
                   <div className="w-full flex flex-col gap-2 mb-5">
                     {sidelinedRuns.map(run => (
-                      <div key={run.key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1a2230]/60 text-left">
+                      <div key={run.key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0d110d] text-left">
                         <div className="min-w-0">
                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{run.roundName}</p>
                           <p className="text-xs sm:text-sm text-slate-300 font-sans truncate">vs. {getFullTeamName(run.opponentId, playoffs.currentLg)}</p>
@@ -296,8 +297,8 @@ export default function PlayoffsScreen() {
                       onClick={proceedFromPlayoffs}
                       className={`py-3 px-6 rounded-xl cursor-pointer sports-font tracking-widest w-full font-black text-sm uppercase transition-transform hover:scale-105 ${
                         playoffs.overallStatus === 'eliminated'
-                          ? 'bg-[#101410] border border-[rgba(255,255,255,0.15)] text-white hover:bg-[#1a2230]'
-                          : 'btn-primary shadow-[0_0_15px_rgba(34,231,75,0.2)]'
+                          ? 'btn-secondary'
+                          : 'btn-primary'
                       }`}
                     >
                       {playoffs.overallStatus === 'won_cup' ? 'LIFT THE TROPHY' : 'PROCEED TO RECAP'}
@@ -306,24 +307,27 @@ export default function PlayoffsScreen() {
                </div>
             ) : isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
                <div className="w-full flex flex-col items-center pb-2 animate-fade-in">
-                  <h3 className="text-xl sm:text-2xl font-black text-[#ef4444] sports-font uppercase mb-3">BAD BLOOD</h3>
+                  <span className={`${kickerClass('red')} mb-4`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
+                  <h2 className={`${TITLE_SM} mb-3`}>Bad blood</h2>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
                      You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
                   </p>
                   <div className="flex flex-col gap-3 w-full">
-                     <button 
-                       onClick={() => handleBadBloodAnswer('guarantee')}
-                       className="w-full p-4 rounded-xl bg-[#101410] border border-[#ef4444]/40 hover:bg-[#1a2230] hover:border-[#ef4444] text-[#ef4444] font-bold text-left transition-all cursor-pointer shadow-lg"
-                     >
-                       <div className="font-black sports-font uppercase text-lg mb-1">Guarantee a Series Win</div>
-                       <div className="text-xs font-sans text-slate-400">High Risk, High Reward (+/- 50 Fan Status).</div>
+                     {/* The same choice rows as every event in the game. */}
+                     <button onClick={() => handleBadBloodAnswer('guarantee')} className={CHOICE_ROW}>
+                       <span className="flex justify-between items-start gap-4 w-full">
+                         <span className="flex flex-col min-w-0">
+                           <span className="font-bold leading-tight text-sm sm:text-base text-white">Guarantee a series win</span>
+                           <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">Win it and the city loves you. Lose it and they never let you forget.</span>
+                         </span>
+                         <span className={TAG_RED}>Risky</span>
+                       </span>
                      </button>
-                     <button 
-                       onClick={() => handleBadBloodAnswer('safe')}
-                       className="w-full p-4 rounded-xl bg-[#101410] border border-[rgba(255,255,255,0.1)] hover:bg-[#1a2230] hover:border-[#3b82f6] text-white font-bold text-left transition-all cursor-pointer shadow-lg"
-                     >
-                       <div className="font-black sports-font uppercase text-lg mb-1">Play it Safe</div>
-                       <div className="text-xs font-sans text-slate-400">Standard media answers. Focus on the hockey.</div>
+                     <button onClick={() => handleBadBloodAnswer('safe')} className={CHOICE_ROW}>
+                       <span className="flex flex-col min-w-0">
+                         <span className="font-bold leading-tight text-sm sm:text-base text-white">Play it safe</span>
+                         <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">The usual answers. Talk about the hockey.</span>
+                       </span>
                      </button>
                   </div>
                </div>
@@ -331,7 +335,8 @@ export default function PlayoffsScreen() {
               <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
                  {activeMatch.status === 'playing' ? (
                    <>
-                     <h3 className="text-2xl sm:text-3xl font-black text-[#F59E0B] sports-font uppercase mb-3">THE FINAL SHIFT</h3>
+                     <span className={`${kickerClass('red')} mb-4`}>Final</span>
+                     <h2 className={`${TITLE_MD} mb-3`}>The final shift</h2>
                      <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 max-w-md mx-auto">
                         {isSingleGame
                           ? 'Third period, tie game, winner takes the national title. One shift between you and everything.'
@@ -339,7 +344,7 @@ export default function PlayoffsScreen() {
                      </p>
                      <button 
                        onClick={() => triggerMinigame('finals')} 
-                       className="w-full max-w-sm mx-auto bg-[#F59E0B] hover:bg-[#d97706] text-white py-3 sm:py-4 rounded-xl font-black sports-font tracking-widest uppercase text-sm sm:text-base transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.4)] block"
+                       className="btn-primary py-4 px-10 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-[0.18em]"
                      >
                        TAKE THE ICE
                      </button>
@@ -349,9 +354,9 @@ export default function PlayoffsScreen() {
                      <button 
                         onClick={proceedFromPlayoffs} 
                         className={`py-3 px-6 rounded-xl cursor-pointer sports-font tracking-widest w-full font-black text-sm uppercase transition-transform hover:scale-105 ${
-                          playoffs.overallStatus === 'eliminated' 
-                            ? 'bg-[#101410] border border-[rgba(255,255,255,0.15)] text-white hover:bg-[#1a2230]' 
-                            : 'btn-primary shadow-[0_0_15px_rgba(34,231,75,0.2)]'
+                          playoffs.overallStatus === 'eliminated'
+                            ? 'btn-secondary'
+                            : 'btn-primary'
                         }`}
                       >
                         {playoffs.overallStatus === 'won_cup' ? 'LIFT THE TROPHY' : 'PROCEED TO RECAP'}
@@ -371,8 +376,8 @@ export default function PlayoffsScreen() {
                     rather than a plain win/loss letter, since one game is
                     worth seeing the final score of. */}
                 {isSingleGame && (
-                  <p className="text-[10px] sm:text-[11px] font-black text-[#F59E0B] uppercase tracking-widest text-center mb-3 font-sans">
-                    ⚡ Single elimination · Winner advances
+                  <p className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest text-center mb-3 font-sans">
+                    One game, winner advances
                   </p>
                 )}
                 <div className={isSingleGame ? 'grid grid-cols-4 gap-1.5 sm:gap-2' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
@@ -393,12 +398,12 @@ export default function PlayoffsScreen() {
 
                     if (isRevealed || showForcefully) {
                       btnClass += isWinCard
-                        ? 'bg-[#22E748]/20 border-[#22E748] text-[#22E748] shadow-[0_0_10px_rgba(34,231,72,0.3)]'
-                        : 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444] shadow-[0_0_10px_rgba(239,68,68,0.3)]';
+                        ? 'bg-[#22E748]/20 border-[#22E748] text-[#22E748]'
+                        : 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]';
                     } else if (isRigged) {
-                      btnClass += 'bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B] shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse cursor-pointer hover:scale-105 active:scale-95';
+                      btnClass += 'bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B] animate-pulse cursor-pointer hover:scale-105 active:scale-95';
                     } else {
-                      btnClass += 'bg-[#1a2230] border-[rgba(255,255,255,0.12)] text-slate-400 hover:border-[#3b82f6] hover:text-white hover:scale-105 active:scale-95 cursor-pointer';
+                      btnClass += 'bg-[#151b15] border-[rgba(255,255,255,0.12)] text-slate-400 hover:border-[#22E748]/60 hover:text-white hover:scale-105 active:scale-95 cursor-pointer';
                     }
 
                     return (
@@ -485,7 +490,7 @@ export default function PlayoffsScreen() {
                                 
                                 setPlayoffs({ ...playoffs, bracket: updatedBracket });
                               }}
-                              className="w-full py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 rounded-xl font-black sports-font tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] cursor-pointer text-sm"
+                              className="w-full py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 rounded-xl font-black sports-font tracking-widest uppercase transition-all cursor-pointer text-sm"
                             >
                               📢 CAPTAIN'S SPEECH (GUARANTEE NEXT WIN)
                             </button>
@@ -504,14 +509,14 @@ export default function PlayoffsScreen() {
                   ) : (
                     <div className="w-full max-w-xs mx-auto animate-fade-in mt-4">
                       {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
-                        <button onClick={advancePlayoffRound} className="btn-primary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(34,231,75,0.2)]">
-                          ADVANCE TO ROUND {playoffs.activeRoundIndex + 2} ➔
+                        <button onClick={advancePlayoffRound} className="btn-primary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer">
+                          ADVANCE TO ROUND {playoffs.activeRoundIndex + 2}
                         </button>
                       )}
                       
                       {activeMatch.status === 'lost' && (
-                        <button onClick={proceedFromPlayoffs} className="bg-[#101410] border border-[#ef4444]/50 hover:bg-[#1a2230] text-[#ef4444] w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer shadow-lg mt-2">
-                          PROCEED TO RECAP ➔
+                        <button onClick={proceedFromPlayoffs} className="btn-secondary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest cursor-pointer mt-2">
+                          PROCEED TO RECAP
                         </button>
                       )}
                     </div>
@@ -531,7 +536,9 @@ export default function PlayoffsScreen() {
       )}
 
       {/* BRACKET VIEW */}
-      <div className="w-full overflow-x-auto pb-6 border-b border-[rgba(255,255,255,0.065)] scrollbar-hide">
+      {/* Wider than a phone, so it scrolls sideways; focusable so the arrow
+          keys can scroll it too. */}
+      <div tabIndex={0} role="region" aria-label="Playoff bracket" className="w-full overflow-x-auto pb-6 border-b border-[rgba(255,255,255,0.065)] scrollbar-hide">
         <div className="flex items-stretch gap-1.5 sm:gap-2 w-max mx-auto px-2 min-h-[250px]">
           {playoffs.hasConfs ? (
             <>
@@ -550,7 +557,7 @@ export default function PlayoffsScreen() {
                         const isLocked = match.status === 'locked';
                         const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
                         return (
-                          <div key={mIdx} className={`rounded p-1 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
+                          <div key={mIdx} className={`rounded p-1 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
                             {renderTeamRow(match.team1, match.wins1, rWN)}
                             {renderTeamRow(match.team2, match.wins2, rWN)}
                           </div>
@@ -584,7 +591,7 @@ export default function PlayoffsScreen() {
                         isLocked 
                           ? 'opacity-30 grayscale border-[#F59E0B]/20 bg-[#101410]' 
                           : match.isPlayerSeries 
-                          ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_15px_rgba(59,130,246,0.4)]' 
+                          ? 'border-[#3b82f6] bg-[#3b82f6]/10' 
                           : 'border-[#F59E0B]/50 bg-[#101410]'
                       }`}
                     >
@@ -617,7 +624,7 @@ export default function PlayoffsScreen() {
                         const isLocked = match.status === 'locked';
                         const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
                         return (
-                          <div key={mIdx} className={`rounded p-1 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
+                          <div key={mIdx} className={`rounded p-1 border flex flex-col gap-0.5 transition-all duration-300 ${isLocked ? 'opacity-30 grayscale' : 'opacity-100'} ${match.isPlayerSeries ? 'border-[#3b82f6] bg-[#3b82f6]/10 ring-1 ring-[#3b82f6]' : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'}`}>
                             {renderTeamRow(match.team1, match.wins1, rWN)}
                             {renderTeamRow(match.team2, match.wins2, rWN)}
                           </div>
@@ -654,7 +661,7 @@ export default function PlayoffsScreen() {
                               : 'opacity-100'
                           } ${
                             match.isPlayerSeries 
-                              ? 'border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-[#3b82f6]' 
+                              ? 'border-[#3b82f6] bg-[#3b82f6]/10 ring-1 ring-[#3b82f6]' 
                               : isFinal 
                               ? 'border-[#F59E0B]/50 bg-[#101410]' 
                               : 'border-[rgba(255,255,255,0.065)] bg-[#101410]'

@@ -1,9 +1,63 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useDialog } from '../utils/a11y';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ordinal } from '../utils/gameHelpers';
 import { draftBoard, flagFor, groupName, positionDraftSlot } from '../utils/peers';
 import LeagueTag from '../components/LeagueTag';
+import { kickerClass, TITLE_LG } from '../utils/ui';
+
+// The question before the draft, as a real dialog: the rest of the screen is
+// behind it, so focus goes into it and stays there until it is answered.
+function RussianFactorDialog({ onChoose }) {
+  const ref = useRef(null);
+  useDialog(ref, null);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="russian-factor-title" className="bg-[#101410] border-2 border-[#ef4444]/60 p-6 sm:p-8 rounded-2xl max-w-xl w-full text-center shadow-2xl animate-fade-in">
+        <div className="text-5xl mb-3" aria-hidden="true">🇷🇺</div>
+        <h3 id="russian-factor-title" className="text-3xl font-black text-white sports-font uppercase mb-2">
+          THE RUSSIAN FACTOR
+        </h3>
+        <p className="text-slate-300 text-sm sm:text-base font-sans mb-6 leading-relaxed">
+          Scouts and GMs at the Combine are asking whether you will commit to North America or stay in the KHL. What do you tell the media?
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            onClick={() => onChoose('NHL')}
+            className="bg-[#151b15] hover:bg-[#1c241c] border border-[#3b82f6]/40 p-5 rounded-xl text-left transition-transform hover:scale-105 cursor-pointer"
+          >
+            <span className="text-xs font-black text-[#3b82f6] tracking-widest uppercase block mb-1">
+              COMMIT TO NHL
+            </span>
+            <span className="text-base font-bold text-white sports-font block uppercase mb-1">
+              "My Dream is the Stanley Cup"
+            </span>
+            <span className="text-xs text-slate-400 font-sans block">
+              📈 Draft stock rises (+15). NHL GMs feel safe selecting you higher.
+            </span>
+          </button>
+
+          <button
+            onClick={() => onChoose('KHL')}
+            className="bg-[#151b15] hover:bg-[#1c241c] border border-[#ef4444]/40 p-5 rounded-xl text-left transition-transform hover:scale-105 cursor-pointer"
+          >
+            <span className="text-xs font-black text-[#ef4444] tracking-widest uppercase block mb-1">
+              LEVERAGE THE KHL
+            </span>
+            <span className="text-base font-bold text-white sports-font block uppercase mb-1">
+              "I Keep My Options Open"
+            </span>
+            <span className="text-xs text-slate-400 font-sans block">
+              📉 Draft stock drops (-25), but guarantees lucrative KHL contract offers later.
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DraftScreen() {
   const { TeamLogo, handleDraftChoice, player, setPlayer, seasonRecap } = useAppContext();
@@ -41,59 +95,15 @@ export default function DraftScreen() {
       : null);
 
   return (
-    <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#22E748] relative">
+    <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
       
       {/* RUSSIAN FACTOR PRE-DRAFT OVERLAY */}
-      {isRussianFactorEligible && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#101410] border-2 border-[#ef4444]/60 p-6 sm:p-8 rounded-2xl max-w-xl w-full text-center shadow-2xl animate-fade-in">
-            <div className="text-5xl mb-3">🇷🇺</div>
-            <h3 className="text-3xl font-black text-white sports-font uppercase mb-2">
-              THE RUSSIAN FACTOR
-            </h3>
-            <p className="text-slate-300 text-sm sm:text-base font-sans mb-6 leading-relaxed">
-              Scouts and GMs at the Combine are asking whether you will commit to North America or stay in the KHL. What do you tell the media?
-            </p>
+      {isRussianFactorEligible && <RussianFactorDialog onChoose={handleRussianFactorChoice} />}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                onClick={() => handleRussianFactorChoice('NHL')}
-                className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#3b82f6]/40 p-5 rounded-xl text-left transition-transform hover:scale-105 cursor-pointer"
-              >
-                <span className="text-xs font-black text-[#3b82f6] tracking-widest uppercase block mb-1">
-                  COMMIT TO NHL
-                </span>
-                <span className="text-base font-bold text-white sports-font block uppercase mb-1">
-                  "My Dream is the Stanley Cup"
-                </span>
-                <span className="text-xs text-slate-400 font-sans block">
-                  📈 Draft stock rises (+15). NHL GMs feel safe selecting you higher.
-                </span>
-              </button>
-
-              <button
-                onClick={() => handleRussianFactorChoice('KHL')}
-                className="bg-[#1a2230] hover:bg-[#232d3f] border border-[#ef4444]/40 p-5 rounded-xl text-left transition-transform hover:scale-105 cursor-pointer"
-              >
-                <span className="text-xs font-black text-[#ef4444] tracking-widest uppercase block mb-1">
-                  LEVERAGE THE KHL
-                </span>
-                <span className="text-base font-bold text-white sports-font block uppercase mb-1">
-                  "I Keep My Options Open"
-                </span>
-                <span className="text-xs text-slate-400 font-sans block">
-                  📉 Draft stock drops (-25), but guarantees lucrative KHL contract offers later.
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <p className="text-[#22E748] font-bold tracking-widest uppercase text-xs sm:text-sm mb-2">THE NHL DRAFT</p>
+      <span className={`${kickerClass('neutral')} mb-5`}>The NHL draft</span>
       
-      <div className="bg-[#101410] border border-[#3b82f6]/30 p-8 sm:p-12 rounded-2xl mb-10 max-w-2xl mx-auto shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden flex flex-col items-center">
-        <div className="absolute top-0 w-full bg-[#3b82f6] text-white font-black text-xs sm:text-sm py-1.5 text-center tracking-widest">
+      <div className="bg-[#0d110d] border border-[rgba(255,255,255,0.08)] p-8 sm:p-12 rounded-2xl mb-10 max-w-2xl mx-auto relative overflow-hidden flex flex-col items-center">
+        <div className="absolute top-0 w-full bg-[#2563eb] text-white font-black text-xs sm:text-sm py-1.5 text-center tracking-widest">
           ROUND {seasonRecap?.draftRound} • PICK {seasonRecap?.draftPick}
         </div>
         
@@ -101,12 +111,12 @@ export default function DraftScreen() {
            <TeamLogo teamId={seasonRecap?.draftedBy?.id} league="NHL" />
         </div>
         
-        <h3 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight px-4">
+        <h2 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight px-4">
           THE {getFullTeamName(seasonRecap?.draftedBy?.id, 'NHL').toUpperCase()} ARE PROUD TO SELECT, FROM {['SHL', 'LIIGA'].includes(seasonRecap?.juniorLeague) ? '' : 'THE '}{getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
-        </h3>
+        </h2>
         
         {/* Added break-words, w-full, and responsive sizing so long names wrap cleanly and maintain box padding */}
-        <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-[#3b82f6] sports-font uppercase mt-2 w-full px-2 sm:px-4 break-words">
+        <h2 className={`${TITLE_LG} mt-2 w-full px-2 sm:px-4 break-words`}>
           {player.name}
         </h2>
 
@@ -199,7 +209,7 @@ export default function DraftScreen() {
                 <span className="shrink-0 w-[22px] flex items-center justify-center">
                   {r.flag
                     ? <img src={r.flag} alt="" className="w-[20px] h-[14px] object-cover rounded-[1px]" />
-                    : <span className="w-[20px] h-[14px] rounded-[1px] bg-[#1a2230]" />}
+                    : <span className="w-[20px] h-[14px] rounded-[1px] bg-[#151b15]" />}
                 </span>
 
                 <span className="min-w-0 flex-1">
@@ -237,7 +247,7 @@ export default function DraftScreen() {
         {(isFirstRound || player.ovr >= 65) ? (
           <button 
             onClick={() => handleDraftChoice('ELC')} 
-            className="w-full sm:w-auto py-4 px-6 rounded-xl text-sm sm:text-base font-black sports-font tracking-widest transition-all cursor-pointer bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)] hover:scale-[1.02]"
+            className="btn-primary w-full sm:w-auto py-4 px-6 rounded-xl text-sm sm:text-base sports-font tracking-widest cursor-pointer"
           >
             SIGN ELC (TURN PRO)
           </button>
@@ -248,11 +258,11 @@ export default function DraftScreen() {
         )}
         
         {player.league === 'USHL' ? (
-           <button onClick={() => handleDraftChoice('EXPLORE_OPTIONS')} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest transition-colors w-full sm:w-auto">
+           <button onClick={() => handleDraftChoice('EXPLORE_OPTIONS')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
              EXPLORE OPTIONS
            </button>
         ) : (
-           <button onClick={() => handleDraftChoice('RETURN')} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-white py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest transition-colors w-full sm:w-auto">
+           <button onClick={() => handleDraftChoice('RETURN')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
              {player.league === 'NCAA' ? 'RETURN TO NCAA' : ['SHL', 'LIIGA', 'KHL', 'SWISS', 'CZECH', 'SLOVAK'].includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
            </button>
         )}

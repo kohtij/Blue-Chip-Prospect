@@ -55,7 +55,7 @@ export const interactiveMinigames = [
     id: 'tip_in',
     title: 'THE DEFLECTION',
     desc: 'You are screening the goalie while your defenceman winds up from the point.',
-    read: 'You cannot see the lane from in there, and nobody is going to show it to you. Hold your ground, then let go when you think the puck has arrived.',
+    read: 'You cannot see the puck through the bodies. Your defenceman taps his stick before he shoots, at the speed of the shot. The puck reaches you one beat after he hits it: press TIP on that beat.',
     stat: 'physicality',
     accent: 'emerald',
     gameType: 'deflect',

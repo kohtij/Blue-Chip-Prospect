@@ -3,7 +3,9 @@ import { careerTrophies, formatMoney, getActiveStat, ordinal, resolveRole, summa
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
 import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
-import { isDefence } from '../utils/production';
+import { deploymentLabel, isDefence } from '../utils/production';
+import { formOf, stretchLine } from '../utils/form';
+import { bonusCeiling, bonusLabels, salaryParts } from '../utils/bonuses';
 import { COACH_SYSTEMS, depthAhead, goaliePartner, lineFor, roomFor } from '../utils/roster';
 import { STAT_TEXT, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
@@ -252,7 +254,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
       desc: 'As captain, you can shut the dressing room door and talk to the team. A good speech lifts the room. Do it too often and they stop listening.',
       choices: [
         {
-          label: 'Deliver a Fiery Speech', isRisky: true, successChance: 0.65,
+          label: 'Deliver a fiery speech', isRisky: true, successChance: 0.65,
           successFeedback: 'Nobody said a word while you talked, and they went out of that room flying.',
           successEffect: { fanStatus: 15, ovr: 1, rel: { teammates: 25 } },
           failFeedback: 'You stumbled over your words. The veterans rolled their eyes.',
@@ -346,14 +348,18 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                     now. Until this line nothing anywhere told the player any of
                     it, so the window opened and closed around him
                     invisibly. */}
-                <div className="flex items-baseline gap-2 min-w-0">
-                  {/* Grey, like every other label on the card. A blue club
-                      name next to a coloured outlook next to a coloured status
-                      line put three different highlight colours in the top
-                      inch, and the eye had nowhere to rest. */}
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 truncate">
-                    {getFullTeamName(player.team, player.league)}
-                  </p>
+                {/* Grey, like every other label on the card. A blue club
+                    name next to a coloured outlook next to a coloured status
+                    line put three different highlight colours in the top
+                    inch, and the eye had nowhere to rest.
+                    The name has a line to itself and may wrap. It used to share
+                    one row with the league chip and the outlook, which left a
+                    club like the Wilkes-Barre/Scranton Penguins about half the
+                    width of the card and cut it off with an ellipsis. */}
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 leading-tight break-words">
+                  {getFullTeamName(player.team, player.league)}
+                </p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-w-0">
                   {/* WHICH LEAGUE HE IS ACTUALLY IN.
                       The card named his club and never his league, so a player
                       sent down read "San Jose Barracuda" and nothing else: the
@@ -516,6 +522,36 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
             )}
           </Strip>
 
+          {/* FORM AND USAGE.
+              How the last stretch of games went, which only exists while a
+              season is being played, and where the coach is starting his
+              shifts, which a goalie does not have. Both come off the same
+              stints as the strip above. */}
+          {(() => {
+            const segs = player.season?.stints || [];
+            const lastSeg = inProgress ? segs[segs.length - 1] : null;
+            const form = formOf(lastSeg);
+            const stretch = form ? stretchLine(lastSeg, player.pos) : null;
+            const oz = isGoalie ? null : (ls.ozPct ?? null);
+            if (!form && oz == null) return null;
+            return (
+              <Strip title={form ? 'Form and usage' : 'How you were used'} cols={(form ? 2 : 0) + (oz != null ? 2 : 0)}>
+                {form && (
+                  <>
+                    <Cell tone={form.tone} value={form.label} label="Form" />
+                    <Cell value={stretch.value} label={stretch.label} />
+                  </>
+                )}
+                {oz != null && (
+                  <>
+                    <Cell tone="text-sky-400" value={`${oz}%`} label="Off. zone starts" />
+                    <Cell value={deploymentLabel(oz)} label="Deployment" />
+                  </>
+                )}
+              </Strip>
+            );
+          })()}
+
           {/* WHAT YOU ARE MADE OF */}
           <Strip title="Attributes">
             {[
@@ -563,6 +599,42 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 tone={player.contract?.salary ? 'text-white' : 'text-slate-600'}
               />
             </div>
+            {/* The small print: what the deal protects, how it is paid, what it
+                pays on top, and what an old club still owes him. */}
+            {(() => {
+              const c = player.contract || {};
+              const live = (c.years || 0) > 0;
+              const notes = [];
+              if (live && c.nmc) notes.push({ text: 'No-movement clause', tone: 'text-[#c084fc]' });
+              else if (live && c.ntc) notes.push({ text: 'No-trade clause', tone: 'text-[#c084fc]' });
+              if (live && c.sbShare > 0) {
+                notes.push({ text: `${formatMoney(salaryParts(c).bonus)} of it as a signing bonus every July 1`, tone: 'text-[#F59E0B]' });
+              }
+              if (live && c.bonuses?.length) {
+                notes.push({
+                  text: `Bonuses worth up to ${formatMoney(bonusCeiling(c.bonuses))} a season`,
+                  sub: bonusLabels(c.bonuses).join(', '),
+                  tone: 'text-[#F59E0B]'
+                });
+              }
+              for (const b of player.buyouts || []) {
+                notes.push({
+                  text: `Buyout from the ${getFullTeamName(b.team, 'NHL')}: ${formatMoney(b.perYear)} a year, ${b.seasonsLeft} more ${b.seasonsLeft === 1 ? 'season' : 'seasons'}`,
+                  tone: 'text-slate-300'
+                });
+              }
+              if (!notes.length) return null;
+              return (
+                <ul className="mt-2 space-y-1 px-1">
+                  {notes.map(nt => (
+                    <li key={nt.text} className="text-[10px] font-bold leading-snug">
+                      <span className={nt.tone}>{nt.text}</span>
+                      {nt.sub && <span className="block text-[9px] font-semibold text-slate-500 mt-0.5">{nt.sub}</span>}
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </div>
           )}
 
@@ -939,7 +1011,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <button
                   type="button"
                   onClick={onOpenShop}
-                  className="flex-1 py-2.5 rounded-lg border border-[#22E748]/40 bg-[#22E748]/10 text-[#22E748] font-black sports-font uppercase tracking-[0.16em] text-xs hover:bg-[#22E748]/20 transition-colors cursor-pointer"
+                  className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
                 >
                   Shop
                 </button>
@@ -948,7 +1020,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <button
                   type="button"
                   onClick={callMeeting}
-                  className="flex-1 py-2.5 rounded-lg border border-[#3b82f6]/40 bg-[#3b82f6]/10 text-[#3b82f6] font-black sports-font uppercase tracking-[0.16em] text-xs hover:bg-[#3b82f6]/20 transition-colors cursor-pointer"
+                  className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
                 >
                   Team meeting
                 </button>
@@ -964,7 +1036,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
             onClick={() => {
               if (window.confirm('Are you sure you want to retire? This will end your career permanently and calculate your final score.')) onRetire();
             }}
-            className="self-center text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 hover:text-[#ef4444] transition-colors cursor-pointer py-1 shrink-0"
+            className="self-center text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 hover:text-[#ef4444] transition-colors cursor-pointer py-1 px-3 min-h-[28px] shrink-0"
           >
             Retire Now
           </button>

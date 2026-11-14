@@ -1,6 +1,7 @@
 import 'react';
 import { useAppContext } from '../AppContext';
 import { PRESS_VIBES } from '../utils/appHelpers';
+import { kickerClass, TITLE_MD } from '../utils/ui';
 
 export default function PressScreen() {
   const { activePress, handlePressAnswer, player, pressAnswerKeys } = useAppContext();
@@ -10,10 +11,10 @@ export default function PressScreen() {
           const answerKeys = pressAnswerKeys;
 
           return (
-            <div className="game-panel p-4 sm:p-8 mt-2 border-t-2 border-t-[#3b82f6] text-left">
+            <div className="game-panel p-4 sm:p-8 mt-2 text-left">
               <div className="mb-4 sm:mb-6 border-b border-[rgba(255,255,255,0.065)] pb-4">
-                 <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-1 font-sans">PRESS ROOM</h3>
-                 <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase tracking-wide">THE PRESS CONFERENCE</h2>
+                 <span className={`${kickerClass('neutral')} mb-4`}>Press room</span>
+                 <h2 className={TITLE_MD}>The press conference</h2>
               </div>
               
               <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 flex flex-col justify-center min-h-[100px]">
@@ -44,7 +45,7 @@ export default function PressScreen() {
               </div>
 
               {player.hockeyIQ >= 75 && (
-                <div className="bg-[#22E748]/10 border border-[#22E748]/30 p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 flex items-center gap-3 shadow-[0_0_15px_rgba(34,231,75,0.1)]">
+                <div className="bg-[#22E748]/10 border border-[#22E748]/30 p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 flex items-center gap-3">
                   <span className="text-xl sm:text-3xl">🧠</span>
                   <div>
                     <p className="text-[#22E748] text-[9px] sm:text-[10px] font-black tracking-widest uppercase mb-1">HIGH IQ INSIGHT</p>
@@ -67,7 +68,7 @@ export default function PressScreen() {
                     : q.answers[vibeKey];
 
                   return (
-                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.065)] text-left p-4 sm:p-5 rounded-xl transition-colors group flex flex-col justify-center cursor-pointer h-auto">
+                    <button key={vibeKey} onClick={() => handlePressAnswer(vibeKey)} className="bg-[#101410] hover:bg-[#151b15] border border-[rgba(255,255,255,0.065)] text-left p-4 sm:p-5 rounded-xl transition-colors group flex flex-col justify-center cursor-pointer h-auto">
                        <p className="text-sm sm:text-base text-slate-300 font-medium group-hover:text-white transition-colors italic leading-relaxed">
                          "{answerText}"
                        </p>
@@ -86,7 +87,7 @@ export default function PressScreen() {
 
               <div className="flex gap-2 w-full h-1 mt-auto">
                  {[0,1,2].map(step => (
-                    <div key={step} className={`flex-1 rounded-full ${step <= activePress.currentQ ? 'bg-[#3b82f6]' : 'bg-[#232d3f]'}`}></div>
+                    <div key={step} className={`flex-1 rounded-full ${step <= activePress.currentQ ? 'bg-[#3b82f6]' : 'bg-[#1c241c]'}`}></div>
                  ))}
               </div>
             </div>

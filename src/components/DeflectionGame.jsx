@@ -4,6 +4,7 @@ import { buildShot, judge } from '../utils/tipShot';
 import { SlotSheet, Marker, Surface } from './rink/Ice';
 import { SLOT, SLOT_VIEW, bez, wavePath } from './rink/geometry';
 import { Stage, Hud, Verdict } from './minigame/Shell';
+import { isPress } from '../utils/a11y';
 
 // Net-front screen and tip.
 //
@@ -79,7 +80,15 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
     setTimeout(() => onComplete(won), 2400);
   }, [onComplete]);
 
-  const press = () => {
+  // HOW IT IS PLAYED, AND WHY IT USED TO BE UNREADABLE.
+  //
+  // It was press and hold, then let go on a beat nobody could see, with the
+  // rule explained in a caption: three things to understand before the first
+  // tap. Nobody could tell what the hold was for, so nobody could tell why
+  // they had lost. It is one press now. Start it, watch his taps light up a
+  // row of dots at the speed of this kind of shot, and press TIP on the empty
+  // dot after the shot, which is when the puck reaches you.
+  const start = () => {
     if (phase !== 'ready' || doneRef.current) return;
     setPhase('winding');
 
@@ -105,7 +114,7 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
     }, shot.windupMs);
   };
 
-  const release = () => {
+  const tip = () => {
     if (doneRef.current) return;
     if (phase === 'winding') { settle('EARLY', -1); return; }
     if (phase !== 'flying') return;
@@ -129,7 +138,7 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
 
   const detail = !outcome ? '' : {
     EARLY: outcome.sinceShot < 0
-      ? 'You came off the post before he had even shot it, and the goalie had a clear look the whole way.'
+      ? 'You went for it before he had even shot. Wait for the shot, then one more beat.'
       : 'Your blade went down while it was still coming, and it went under you untouched.',
     LATE: 'It was past you before you moved, and the whistle went for goaltender interference.',
     TIPPED: 'Blade down, half a stick in the lane, and it changes direction.'
@@ -162,10 +171,10 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
       caption={
         revealed ? null
           : phase === 'flying'
-            ? 'One more beat. Let go on it.'
+            ? 'He has shot it. Press TIP on the next beat.'
             : phase === 'winding'
-              ? 'That tapping is his tempo. When he shoots, the puck is one beat away, so let go on the next one.'
-              : 'The puck is hard to track through the bodies, so your teammate gives you the tempo instead. He taps the ice while he loads up, and the shot takes one of those beats to reach you.'
+              ? 'Count along with his taps.'
+              : 'You cannot see the puck through the bodies, so your defenceman taps his stick before he shoots. The taps are the speed of the shot: the puck reaches you one beat after he hits it. Press TIP on that beat.'
       }
     >
       <Surface view={SLOT_VIEW}>
@@ -234,28 +243,62 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
         <Marker at={[49, 61]} kind="me" label="YOU" r="5" />
       </Surface>
 
-      <div className="p-3">
+      <div className="p-3 space-y-3">
+        {/* THE BEAT, WHERE YOU CAN SEE IT.
+            His taps, then the shot, then the beat the puck reaches you on. The
+            taps light as they land and the shot lights when it goes. The last
+            dot never lights while it is live, because that is the one you are
+            supposed to press on. */}
+        <div className="flex items-end justify-center gap-2 sm:gap-3" aria-hidden="true">
+          {Array.from({ length: shot.beats }, (_, i) => {
+            const lit = phase !== 'ready' && (beat > i || phase === 'flying' || revealed);
+            return (
+              <div key={`t${i}`} className="flex flex-col items-center gap-1">
+                <span className={`block w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border transition-colors duration-75 ${
+                  lit ? 'bg-[#22E748] border-[#22E748]' : 'border-slate-600'}`} />
+                <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Tap</span>
+              </div>
+            );
+          })}
+          <div className="flex flex-col items-center gap-1">
+            <span className={`block w-4 h-4 sm:w-5 sm:h-5 rounded-full border transition-colors duration-75 ${
+              phase === 'flying' || revealed ? 'bg-[#F59E0B] border-[#F59E0B]' : 'border-slate-600'}`} />
+            <span className="text-[8px] font-black uppercase tracking-widest text-[#F59E0B]/80">Shot</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className={`block w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-dashed transition-colors ${
+              revealed ? (outcome?.won ? 'bg-[#22E748] border-[#22E748]' : 'bg-[#ef4444] border-[#ef4444]')
+                : 'border-slate-300'}`} />
+            <span className="text-[8px] font-black uppercase tracking-widest text-slate-300">Tip</span>
+          </div>
+        </div>
+
         {phase === 'ready' && (
           <button
             type="button"
-            onPointerDown={press}
+            onPointerDown={start}
+            onKeyDown={e => { if (isPress(e)) start(); }}
             className="w-full py-4 rounded-xl border border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-200 font-black text-sm sm:text-base sports-font uppercase tracking-[0.18em] hover:border-[#22E748]/70 hover:text-white transition-all active:scale-[0.99] cursor-pointer select-none"
           >
-            Press and hold to screen
+            Get set in front
           </button>
         )}
         {(phase === 'winding' || phase === 'flying') && (
           <button
             type="button"
-            onPointerUp={release}
-            onPointerLeave={release}
-            className={`w-full py-4 rounded-xl border font-black text-sm sm:text-base sports-font uppercase tracking-[0.18em] cursor-pointer select-none transition-colors ${
+            onPointerDown={tip}
+            onKeyDown={e => { if (isPress(e)) tip(); }}
+            // The start button has just gone, so focus is put here for a
+            // keyboard player, who would otherwise be left with nothing focused
+            // halfway through the play.
+            autoFocus
+            className={`w-full py-4 rounded-xl border font-black text-sm sm:text-base sports-font uppercase tracking-[0.18em] cursor-pointer select-none transition-colors active:scale-[0.99] ${
               phase === 'flying'
                 ? 'border-[#F59E0B] bg-[#F59E0B]/15 text-[#F59E0B]'
-                : 'border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-400'
+                : 'border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-300'
             }`}
           >
-            {phase === 'flying' ? 'Let go on the next beat' : `Hold the paint · ${'•'.repeat(Math.min(beat, shot.beats))}`}
+            Tip
           </button>
         )}
         {revealed && (

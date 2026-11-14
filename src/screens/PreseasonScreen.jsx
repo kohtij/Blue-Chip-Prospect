@@ -3,6 +3,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../utils/appHelpers';
 import { cap, recomputeOvr } from '../utils/gameHelpers';
 import { statPillClass } from '../utils/statColors';
+import { kickerClass, TITLE_LG, TITLE_MD } from '../utils/ui';
 
 // Your identity, chosen before your first game.
 //
@@ -145,26 +146,23 @@ export default function PreseasonScreen() {
                  so being sent to the American League looked exactly like being
                  told which junior club to report to. Three tones now: green up,
                  amber down, slate for an assignment that is neither. */
-              <div className={`p-6 sm:p-10 border-t-2 bg-gradient-to-br from-[#0f1115] to-[#050608] relative overflow-hidden flex flex-col justify-center items-center text-center min-h-[400px] ${
-                rosterMoveNotice.type === 'PROMOTION'
-                  ? 'border-t-[#22E748] shadow-[0_0_40px_rgba(34,231,72,0.18)]'
-                  : rosterMoveNotice.type === 'DEMOTION'
-                    ? 'border-t-[#F59E0B] shadow-[0_0_40px_rgba(245,158,11,0.18)]'
-                    : 'border-t-slate-500 shadow-[0_0_40px_rgba(100,116,139,0.15)]'}`}>
+              <div className="p-6 sm:p-10 bg-gradient-to-br from-[#0f1115] to-[#050608] relative overflow-hidden flex flex-col justify-center items-center text-center min-h-[400px]">
                  <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale absolute inset-0 pointer-events-none"></div>
                  <div className="relative z-10 w-full max-w-xl mx-auto flex flex-col items-center">
-                   <h2 className={`text-4xl sm:text-5xl font-black sports-font mb-4 uppercase ${
-                     rosterMoveNotice.type === 'PROMOTION' ? 'text-[#22E748]'
-                       : rosterMoveNotice.type === 'DEMOTION' ? 'text-[#F59E0B]'
-                       : 'text-slate-300'}`}>
+                   {/* The direction of the move is the kicker's colour; the title
+                       stays white like every other title in the game. */}
+                   <span className={kickerClass(rosterMoveNotice.type === 'PROMOTION' ? 'green' : rosterMoveNotice.type === 'DEMOTION' ? 'amber' : 'neutral')}>
+                      {rosterMoveNotice.type === 'PROMOTION' ? 'Called up' : rosterMoveNotice.type === 'DEMOTION' ? 'Sent down' : 'Assignment'}
+                   </span>
+                   <h2 className={`mt-5 mb-4 ${TITLE_LG}`}>
                       {rosterMoveNotice.title}
                    </h2>
-                   <p className="text-lg sm:text-xl text-slate-400 mb-10">
+                   <p className="text-base sm:text-lg text-slate-300 mb-8 leading-relaxed">
                       {rosterMoveNotice.desc}
                    </p>
-                   <button 
+                   <button
                       onClick={handleAcknowledgeMove}
-                      className="bg-[#101410] hover:bg-[#1a2230] text-slate-300 hover:text-white font-black sports-font tracking-widest text-xl px-12 py-5 rounded-xl border border-slate-700 hover:border-slate-500 shadow-lg transition-all w-full cursor-pointer active:scale-95 uppercase"
+                      className="btn-primary py-4 px-10 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-[0.18em]"
                    >
                       {rosterMoveNotice.type === 'PROMOTION' ? 'HIT THE ICE'
                         : rosterMoveNotice.type === 'ASSIGNMENT' ? 'GO AND DOMINATE IT'
@@ -173,15 +171,15 @@ export default function PreseasonScreen() {
                  </div>
               </div>
             ) : (
-              <div className="p-6 sm:p-10 border-t-2 border-t-[#22E748]">
+              <div className="p-6 sm:p-10">
                  <div className="flex flex-col items-start border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
-                    <span className="text-[10px] sm:text-xs font-bold text-[#3b82f6] uppercase tracking-widest font-sans border border-[#3b82f6]/30 px-2.5 py-1 rounded bg-[#3b82f6]/10 mb-2">
-                      {isArchetypeChoice ? "PLAYER ARCHETYPE" : trainingTier.tier}
+                    <span className={`${kickerClass('neutral')} mb-4`}>
+                      {isArchetypeChoice ? "Player archetype" : trainingTier.tier}
                     </span>
-                    <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase sports-font tracking-tighter">
+                    <h2 className={TITLE_MD}>
                       {isArchetypeChoice ? "WHAT KIND OF PLAYER ARE YOU?" : `PRE-SEASON ${currentYear}`}
                     </h2>
-                    <p className="text-slate-400 text-sm sm:text-base font-sans mt-1">
+                    <p className="text-slate-400 text-sm sm:text-base font-sans mt-2">
                       {isArchetypeChoice ? "Your choice shapes how your career develops from here." : trainingTier.note}
                     </p>
                   </div>
@@ -239,7 +237,7 @@ export default function PreseasonScreen() {
                             // Either way the cuts are made first. See leaveCamp.
                             leaveCamp(applied);
                         }}
-                        className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[12rem] sm:min-h-[16rem] text-left relative z-30 ${isArchetypeChoice ? 'hover:border-[#c084fc] shadow-[0_0_15px_rgba(192,132,252,0.1)]' : t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
+                        className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl cursor-pointer transition-all hover:-translate-y-1 flex flex-col min-h-[12rem] sm:min-h-[16rem] text-left relative z-30 ${isArchetypeChoice ? 'hover:border-[#c084fc]' : t.rarity === 'Epic' ? 'hover:border-[#F59E0B]' : t.rarity === 'Rare' ? 'hover:border-[#3b82f6]' : 'hover:border-[#22E748]'}`}
                       >
                         <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between w-full pointer-events-none">
                           <div>

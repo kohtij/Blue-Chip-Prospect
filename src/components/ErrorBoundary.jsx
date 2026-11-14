@@ -79,7 +79,7 @@ export default class ErrorBoundary extends Component {
             </button>
             <button
               onClick={this.handleReload}
-              className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.15)] text-slate-300 hover:text-white py-3 px-6 rounded-xl font-black sports-font tracking-widest text-sm sm:text-base uppercase cursor-pointer transition-colors"
+              className="bg-[#101410] hover:bg-[#151b15] border border-[rgba(255,255,255,0.15)] text-slate-300 hover:text-white py-3 px-6 rounded-xl font-black sports-font tracking-widest text-sm sm:text-base uppercase cursor-pointer transition-colors"
             >
               Reload Page
             </button>

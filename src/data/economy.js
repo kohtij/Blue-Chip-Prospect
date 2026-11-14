@@ -191,31 +191,31 @@ export const eventDeck = [
     title: 'The High-Profile Romance', minAge: 20,
     desc: 'You have started dating a very famous pop star. The paparazzi are swarming your house and following you to the arena. It is starting to get in the way of the hockey.',
     choices: [
-      { label: 'Embrace the Limelight', subLabel: "Go public and let the attention follow you to the rink.", isRisky: true, successChance: 0.5, successFeedback: 'You leaned into it. You are half of the most photographed couple in the country, and your jersey is selling everywhere.', successEffect: { fanStatus: 150, ovr: 0, money: 45000, rel: { media: 20 } }, failFeedback: 'It got to you. You looked lost on the ice, and the coach sat you to protect the team.', failEffect: { fanStatus: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
-      { label: 'Keep it Private', subLabel: "Set hard boundaries with the press.", isRisky: false, feedback: 'You kept the press at a distance and your mind on hockey. Your coach noticed.', effect: { fanStatus: 10, ovr: 1, money: 0, rel: { coach: 15 } } }
+      { label: 'Embrace the limelight', subLabel: "Go public and let the attention follow you to the rink.", isRisky: true, successChance: 0.5, successFeedback: 'You leaned into it. You are half of the most photographed couple in the country, and your jersey is selling everywhere.', successEffect: { fanStatus: 150, ovr: 0, money: 45000, rel: { media: 20 } }, failFeedback: 'It got to you. You looked lost on the ice, and the coach sat you to protect the team.', failEffect: { fanStatus: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
+      { label: 'Keep it private', subLabel: "Set hard boundaries with the press.", isRisky: false, feedback: 'You kept the press at a distance and your mind on hockey. Your coach noticed.', effect: { fanStatus: 10, ovr: 1, money: 0, rel: { coach: 15 } } }
     ]
   },
   {
     title: 'Family Investment Opportunity', proOnly: true, minAge: 22,
     desc: 'Your brother wants you to invest heavily in his new "revolutionary" tech startup. Your financial advisor strongly advises against it.',
     choices: [
-      { label: 'Fund the Startup', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'The company took off. You doubled your money, and your brother has not stopped mentioning it.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
-      { label: 'Trust the Advisor (Pass)', subLabel: "Say no and accept the awkward family dinners.", isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
+      { label: 'Fund the startup', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'The company took off. You doubled your money, and your brother has not stopped mentioning it.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
+      { label: 'Trust the advisor (pass)', subLabel: "Say no and accept the awkward family dinners.", isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
     ]
   },
   {
     title: 'The Fired Agent', proOnly: true, minAge: 20,
     desc: 'Your agent has been caught up in an illegal gambling scandal, and reporters are asking whether you were involved.',
     choices: [
-      { label: 'Defend Him to the Press', subLabel: "Stake your own name on his innocence.", isRisky: true, successChance: 0.40, successFeedback: 'He beat the charges, your name came out clean, and he thanked you with a big endorsement deal.', successEffect: { fanStatus: 20, ovr: 0, money: 80000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming, and you had put your name next to his.', failEffect: { fanStatus: -50, ovr: 0, money: 0, rel: { media: -30 } } },
-      { label: 'Fire Him Immediately', subLabel: "Cut him loose before the story reaches you.", isRisky: false, feedback: 'You cut him loose that afternoon. It was cold, and it kept your name out of it.', effect: { fanStatus: 15, ovr: 0, money: 0, rel: { media: 15 } } }
+      { label: 'Defend him to the press', subLabel: "Stake your own name on his innocence.", isRisky: true, successChance: 0.40, successFeedback: 'He beat the charges, your name came out clean, and he thanked you with a big endorsement deal.', successEffect: { fanStatus: 20, ovr: 0, money: 80000, rel: { media: 10 } }, failFeedback: 'The evidence against him was overwhelming, and you had put your name next to his.', failEffect: { fanStatus: -50, ovr: 0, money: 0, rel: { media: -30 } } },
+      { label: 'Fire him immediately', subLabel: "Cut him loose before the story reaches you.", isRisky: false, feedback: 'You cut him loose that afternoon. It was cold, and it kept your name out of it.', effect: { fanStatus: 15, ovr: 0, money: 0, rel: { media: 15 } } }
     ]
   },
   {
     title: 'The Hometown Charity Gala',
     desc: 'Your hometown is holding a charity gala in your honour, on the night before the hardest day of training camp.',
     choices: [
-      { label: 'Fly Home for the Kids', subLabel: "Make the trip the night before the hardest day of camp.", isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, the hometown loved it, and you still led the bag skate the next morning.', successEffect: { fanStatus: 75, ovr: 1, money: -50000, rel: { coach: 10 } }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { fanStatus: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 } } },
+      { label: 'Fly home for the kids', subLabel: "Make the trip the night before the hardest day of camp.", isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, the hometown loved it, and you still led the bag skate the next morning.', successEffect: { fanStatus: 75, ovr: 1, money: -50000, rel: { coach: 10 } }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { fanStatus: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 } } },
       { label: 'Skip it for Hockey', subLabel: "Send a cheque and a video message instead.", isRisky: false, feedback: 'You sent a video and a cheque. The hometown was a little disappointed, and you had a strong camp.', effect: { fanStatus: -15, ovr: 2, money: -50000, rel: { coach: 15 } } }
     ]
   },
@@ -223,8 +223,8 @@ export const eventDeck = [
     title: 'Off-Ice Controversy',
     desc: 'A teammate was filmed at a bar saying things he should not have. Reporters want a statement from you, as one of the leaders in the room.',
     choices: [
-      { label: 'Condemn the Comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You condemned it publicly. The media praised you for it, and part of the room has not forgiven you.', effect: { fanStatus: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
-      { label: 'Protect the Room', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You gave the media nothing. The story died within a few days, and the room respected that you kept it inside.', successEffect: { fanStatus: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic room, and your silence became the story.', failEffect: { fanStatus: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
+      { label: 'Condemn the comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You condemned it publicly. The media praised you for it, and part of the room has not forgiven you.', effect: { fanStatus: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
+      { label: 'Protect the room', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You gave the media nothing. The story died within a few days, and the room respected that you kept it inside.', successEffect: { fanStatus: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic room, and your silence became the story.', failEffect: { fanStatus: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
     ]
   },
   {
@@ -232,7 +232,7 @@ export const eventDeck = [
     desc: 'Your teenage son is generating serious buzz ahead of the junior hockey draft. The media is already comparing him to you, and the pressure on him is immense.',
     choices: [
       { 
-        label: 'Push Him to Greatness', subLabel: "Hold him to your standard and see if he can carry it.", 
+        label: 'Push him to greatness', subLabel: "Hold him to your standard and see if he can carry it.", 
         isRisky: true, 
         successChance: 0.5, 
         successFeedback: 'He took to it. He went first overall, and now there are two of you in the record books.', 
@@ -241,7 +241,7 @@ export const eventDeck = [
         failEffect: { fanStatus: -50, ovr: -1, money: 0, rel: { media: -30 } } 
       },
       { 
-        label: 'Protect Him from the Spotlight',
+        label: 'Protect him from the spotlight',
         subLabel: 'Shield him from the comparisons and let him grow at his own pace.', 
         isRisky: false, 
         feedback: 'You kept him away from the cameras and let him be a kid. The hockey world was disappointed, and he was happy.', 

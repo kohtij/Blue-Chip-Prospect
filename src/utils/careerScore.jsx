@@ -210,3 +210,30 @@ export function computeCareerScore(player) {
 
   return { total: score, tier, color, breakdown: breakdown.slice(0, 6) };
 }
+// THE HALL OF FAME.
+//
+// No vote is played out. The career score already decides the tier, and the
+// two top tiers are the Hall of Fame; what the score adds is how long he
+// waits. A player is eligible three years after his last season. The clearest
+// cases go in the first year they can, and a career that only just cleared the
+// bar waits a few years on the ballot before the call comes. A strong career
+// that missed the bar spends its years on the ballot and is never called.
+export function hallOfFame(score, lastSeasonYear) {
+  if (!score) return null;
+  const eligible = (lastSeasonYear || 2026) + 4;
+  const inducted = score.tier === 'Generational Icon' || score.tier === 'Hall of Famer';
+  if (inducted) {
+    const wait = score.tier === 'Generational Icon' || score.total >= 3800
+      ? 0
+      : Math.min(6, Math.ceil((3800 - score.total) / 200));
+    return {
+      inducted: true,
+      classYear: eligible + wait,
+      ballot: wait === 0 ? 'First ballot' : wait === 1 ? 'Second year on the ballot' : `${wait + 1} years on the ballot`
+    };
+  }
+  if (score.tier === 'Franchise Cornerstone' && score.total >= 2400) {
+    return { inducted: false, nearMiss: true, eligible };
+  }
+  return null;
+}

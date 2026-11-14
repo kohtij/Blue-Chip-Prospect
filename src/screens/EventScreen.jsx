@@ -4,6 +4,7 @@ import { useAppContext } from '../AppContext';
 import TeamLogo from '../components/TeamLogo';
 import { getFullTeamName } from '../utils/appHelpers';
 import { getPrimaryRival, getTeamData, readableAccent, teamAccent } from '../data/teams';
+import { kickerClass, TAG_AMBER, TAG_GREEN, TAG_RED, TITLE_SM } from '../utils/ui';
 
 export default function EventScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,18 +35,22 @@ export default function EventScreen() {
           const isDemotion = activeEvent.isDemotionEvent || activeEvent.title?.includes('DEMOTED') || activeEvent.title?.includes('SENT DOWN') || activeEvent.title?.includes('ASSIGNED');
           const isRivalryNight = activeEvent.title?.includes('RIVALRY NIGHT');
 
-          let panelStyles = 'border-t-[#3b82f6]';
-          let titleColor = 'text-white';
+          // Three kinds of event wear a tint, so the moment reads before the
+          // words do. The title stays white on all of them: colour belongs to
+          // the panel and the kicker, not to the headline. They also used to
+          // glow, each in its own colour, which nothing else in the game does.
+          let panelStyles = '';
+          let kicker = null;
 
           if (isGenEvent) {
-             panelStyles = 'border-t-[#F59E0B] shadow-[0_0_40px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#1a1405] to-[#0a0802]';
-             titleColor = 'text-[#F59E0B]';
+             panelStyles = 'bg-gradient-to-br from-[#1a1405] to-[#0a0802]';
+             kicker = { tone: 'amber', text: 'Generational talent' };
           } else if (isInjuryEvent) {
-             panelStyles = 'border-t-[#ef4444] shadow-[0_0_40px_rgba(239,68,68,0.2)] bg-gradient-to-br from-[#1a0505] to-[#0a0202]';
-             titleColor = 'text-[#ef4444]';
+             panelStyles = 'bg-gradient-to-br from-[#1a0505] to-[#0a0202]';
+             kicker = { tone: 'red', text: 'Season-ending injury' };
           } else if (isDemotion) {
-             panelStyles = 'border-t-slate-500 shadow-[0_0_40px_rgba(100,116,139,0.15)] bg-gradient-to-br from-[#0f1115] to-[#050608]';
-             titleColor = 'text-slate-300';
+             panelStyles = 'bg-gradient-to-br from-[#0f1115] to-[#050608]';
+             kicker = { tone: 'neutral', text: 'Roster move' };
           }
 
           const renderDesc = (text) => {
@@ -135,30 +140,35 @@ export default function EventScreen() {
                   isRival = !!(rival && rival.id === tId);
                   const charCode = tId.charCodeAt(0) || 0;
 
+                  // Written in the same shape as the free agency perks (a name
+                  // and an effect), so the chips line up the same way on both
+                  // screens instead of one long shouted string.
+                  const G = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30';
+                  const B = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
                   if (isRival) {
-                      displayChoice.flaws.push({ text: 'ARCH-RIVAL: FANS WILL REVOLT' });
+                      displayChoice.flaws.push({ name: '⚔️ Arch-Rival', effect: '-75 FAN' });
                       displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 75;
                   }
 
                   if (displayChoice.actionData.madePlayoffs) {
-                      displayChoice.perks.push({ text: premiumLeague === 'NCAA' ? '🏆 TOURNAMENT TEAM' : '🏆 IMMEDIATE CUP RUN', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' });
+                      displayChoice.perks.push({ name: premiumLeague === 'NCAA' ? '🏆 Tournament Team' : '🏆 Cup Run', color: G });
                       if (charCode % 2 === 0) {
-                          displayChoice.perks.push({ text: '📈 ELITE COACHING (+1 OVR)', color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' });
+                          displayChoice.perks.push({ name: '📈 Elite Coaching', effect: '+1 OVR', color: B });
                           displayChoice.effect.ovr = (displayChoice.effect.ovr || 0) + 1;
                       }
                   } else {
-                      displayChoice.perks.push({ text: '⏱️ GUARANTEED TOP 6 MINUTES', color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' });
+                      displayChoice.perks.push({ name: '⏱️ Top-6 Minutes', color: B });
                       if (charCode % 2 !== 0) {
-                          displayChoice.flaws.push({ text: '⚠️ REBUILDING PHASE (-10 FANS)' });
+                          displayChoice.flaws.push({ name: '⚠️ Rebuilding', effect: '-10 FAN' });
                           displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 10;
                       }
                   }
 
                   if (charCode % 3 === 0) {
-                       displayChoice.perks.push({ text: '🏟️ MAJOR MARKET (+15 FANS)', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' });
+                       displayChoice.perks.push({ name: '🏟️ Major Market', effect: '+15 FAN', color: G });
                        displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) + 15;
                   } else if (charCode % 3 === 1) {
-                       displayChoice.flaws.push({ text: '⚠️ SMALL MARKET (-5 FANS)' });
+                       displayChoice.flaws.push({ name: '⚠️ Small Market', effect: '-5 FAN' });
                        displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 5;
                   }
               }
@@ -199,75 +209,69 @@ export default function EventScreen() {
           const premiumChoices = isRivalryNight ? [] : prepared.filter(p => p.isPremiumChoice);
           const plainChoices = prepared.filter(p => !premiumChoices.includes(p));
 
-          // PREMIUM CARD, mirrors the Free Agency offer card on the Transfer screen:
-          // ribbon, crest, headline figure, status row, perks/flaws, call to action.
+          // PREMIUM CARD. The same card the Free Agency screen draws, built
+          // the same way: one neutral border, the club's colour as a strip
+          // across the top, a tag line every card has, the crest and name, a
+          // figure in white, labelled rows, the chips, and a real button at the
+          // bottom. The trade cards used to carry a coloured ribbon and outline
+          // of their own, so the two screens showed the same kind of decision
+          // in two different languages.
           const renderPremiumCard = ({ key, displayChoice, isTradeChoice, isNCAAChoice, premiumTeamId, premiumLeague, isRival }) => {
               const data = displayChoice.actionData;
-              const madePlayoffs = isTradeChoice && !!data?.madePlayoffs;
               const money = displayChoice.effect?.money || 0;
               const fanStatus = displayChoice.effect?.fanStatus || 0;
+              const isTransfer = !!data?.transfer || premiumLeague === 'NCAA';
 
-              let cardBorder = 'border-slate-700';
-              let ribbonClass = 'bg-slate-700 text-slate-200';
-              let ribbonText = premiumLeague === 'NCAA' ? '🔧 REBUILDING PROGRAMME' : '🔧 REBUILDING CLUB';
-
-              if (isRival) {
-                  cardBorder = 'border-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.2)]';
-                  ribbonClass = 'bg-[#ef4444] text-white';
-                  ribbonText = premiumLeague === 'NCAA' ? '⚔️ ARCH-RIVAL PROGRAMME' : '⚔️ ARCH-RIVAL OFFER';
-              } else if (isNCAAChoice) {
-                  // No ribbon and no coloured outline. Every card on the
-                  // recruitment screen is a scholarship offer, so saying so on
-                  // each one told you nothing, and a blue ring around a card
-                  // already wearing Boston College maroon just fought with it.
-                  cardBorder = 'border-[rgba(255,255,255,0.08)]';
-                  ribbonText = null;
-              } else if (madePlayoffs) {
-                  cardBorder = 'border-[#22E748] shadow-[0_0_15px_rgba(34,231,72,0.15)]';
-                  ribbonClass = 'bg-[#22E748] text-black';
-                  ribbonText = premiumLeague === 'NCAA' ? '🏆 TOURNAMENT BOUND' : '🏆 PLAYOFF BOUND';
-              }
-
-              // The same card the Free Agency screen draws: the club's own
-              // colour as a top strip and a soft glow, the crest beside the
-              // name, league and conference under it, the figure in white, then
-              // labelled rows and the chips. The two screens were showing the
-              // same kind of decision in two different languages.
               const teamData = getTeamData(premiumTeamId, premiumLeague);
               const accent = teamAccent(teamData);
               const accentText = readableAccent(accent);
               const conference = teamData?.ncaaConf || teamData?.div || null;
+              const fullName = getFullTeamName(premiumTeamId, premiumLeague);
+              const nameSize = fullName.length > 26 ? 'text-[10px] sm:text-[11px]'
+                  : fullName.length > 21 ? 'text-[11px] sm:text-xs'
+                    : fullName.length > 16 ? 'text-xs sm:text-sm'
+                      : 'text-sm sm:text-base';
 
-              const heroValue = isTradeChoice
-                  ? `#${data?.teamStandings ?? '?'}`
-                  : formatMoney(money);
-              const heroCaption = isTradeChoice ? 'PROJECTED FINISH' : 'NIL PACKAGE';
+              // The headline figure. A free agent is looking at a salary; a
+              // traded player keeps the contract he already has, so that is the
+              // figure that travels with him. A college offer shows its NIL
+              // money. Anything with no money attached leads with where the
+              // club is expected to finish.
+              const salary = player.contract?.salary || 0;
+              const yrsLeft = player.contract?.years || 0;
+              let hero;
+              if (isNCAAChoice || (isTransfer && money > 0)) {
+                  hero = { value: formatMoney(money), unit: '/NIL', caption: isNCAAChoice ? '4-YEAR ELIGIBILITY' : 'NIL PACKAGE' };
+              } else if (isTradeChoice && !isTransfer && salary > 0) {
+                  hero = { value: formatMoney(salary), unit: '/YR', caption: `YOUR CONTRACT, ${yrsLeft} ${yrsLeft === 1 ? 'YEAR' : 'YEARS'} LEFT` };
+              } else {
+                  hero = { value: `#${data?.teamStandings ?? '?'}`, unit: null, caption: 'PROJECTED FINISH' };
+              }
+              const finishRow = isTradeChoice && data?.teamStandings != null && hero.caption !== 'PROJECTED FINISH';
+              const situation = isTradeChoice
+                  ? (data?.madePlayoffs ? (premiumLeague === 'NCAA' ? 'Tournament bound' : 'Playoff bound') : 'Rebuilding')
+                  : null;
 
-              // A transfer is a move the player chooses, not one a club makes
-              // with him, so it reads as a commitment rather than a trade.
-              const isTransfer = !!data?.transfer || premiumLeague === 'NCAA';
-              const ctaText = (isNCAAChoice || isTransfer) ? 'COMMIT' : isRival ? 'BETRAY & SIGN' : 'ACCEPT TRADE';
-              const ctaClass = isRival
-                  ? 'bg-[#ef4444] border-[#b91c1c] text-white group-hover:bg-[#f87171]'
-                  : 'bg-[#22E748] border-[#16a34a] text-black group-hover:bg-[#4ade80]';
+              // As on the free agency cards, the tag line is only for something
+              // out of the ordinary, but every card keeps the line so the rows
+              // below stay level.
+              const tag = isRival ? { text: 'Arch-rival', cls: 'text-[#ef4444]' } : null;
+
+              const ctaText = (isNCAAChoice || isTransfer) ? 'COMMIT' : 'ACCEPT TRADE';
 
               return (
-                <button
-                  key={key}
-                  disabled={isProcessing}
-                  onClick={() => fireChoice(displayChoice)}
-                  className={`bg-[#0a0d0a] border ${cardBorder} rounded-xl relative overflow-hidden flex flex-col text-left shadow-lg group transition-all ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-[1.02]'}`}
-                >
-                  {ribbonText && (
-                    <div className={`relative z-10 ${ribbonClass} text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 py-2 text-center sports-font w-full`}>
-                      {ribbonText}
-                    </div>
-                  )}
-
+                <div key={key} className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] rounded-xl relative overflow-hidden flex flex-col transition-all hover:scale-[1.02] shadow-lg group">
                   <div className="p-4 sm:p-5 flex flex-col flex-1">
-                    {/* No ribbon means no strip has been drawn yet, so the club
-                        colour takes the top edge, exactly as on an offer card. */}
-                    {!ribbonText && <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />}
+
+                    <div className="h-4 mb-2 z-10 relative flex items-center">
+                      {tag && (
+                        <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] leading-none ${tag.cls}`}>
+                          {tag.text}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />
                     <div
                       className="absolute inset-x-0 top-0 h-24 z-0 pointer-events-none opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-300"
                       style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }}
@@ -278,13 +282,10 @@ export default function EventScreen() {
                          <TeamLogo teamId={premiumTeamId} league={premiumLeague} isAHL={premiumLeague === 'AHL'} size="small" />
                        </div>
                        <div className="min-w-0 flex-1">
-                         <h3 className="text-[13px] sm:text-base font-black text-white sports-font leading-tight uppercase tracking-wide break-words"
-                             title={getFullTeamName(premiumTeamId, premiumLeague)}>
-                           {getFullTeamName(premiumTeamId, premiumLeague)}
+                         <h3 className={`${nameSize} font-black text-white sports-font leading-tight uppercase tracking-wide break-words line-clamp-2`}
+                             title={fullName}>
+                           {fullName}
                          </h3>
-                         {/* The conference is the thing that places a college
-                             programme, and it was the one detail the recruitment
-                             card never showed. */}
                          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block mt-1" style={{ color: accentText }}>
                            {[premiumLeague, conference].filter(Boolean).join(' · ')}
                          </span>
@@ -293,48 +294,67 @@ export default function EventScreen() {
 
                     <div className="flex flex-col z-10 relative mb-4">
                        <div className="flex items-baseline gap-1.5">
-                         <span className="text-3xl sm:text-4xl font-black text-white sports-font tracking-tighter leading-none">
-                           {heroValue}
+                         <span className="text-3xl sm:text-4xl font-black text-white sports-font tracking-tighter">
+                           {hero.value}
                          </span>
+                         {hero.unit && (
+                           <span className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">{hero.unit}</span>
+                         )}
                        </div>
-                       <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1.5">
-                         {isNCAAChoice ? '4-YEAR ELIGIBILITY' : heroCaption}
+                       <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                         {hero.caption}
                        </span>
                     </div>
 
-                    <div className="z-10 relative mb-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
-                       {/* No Outlook row for a trade and no NIL row for a
-                           scholarship: the ribbon already says playoff bound or
-                           rebuilding, and the NIL package is the headline figure
-                           two lines up. Both were the same fact twice. */}
-                       {fanStatus !== 0 && (
-                         <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                           <span className="text-slate-500">Fan impact</span>
-                           <span className={`ml-auto shrink-0 whitespace-nowrap ${fanStatus > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-                             {fanStatus > 0 ? '+' : ''}{fanStatus} FANS
-                           </span>
-                         </p>
-                       )}
-                    </div>
+                    {(finishRow || situation || fanStatus !== 0) && (
+                      <div className="z-10 relative mb-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
+                         {finishRow && (
+                           <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                             <span className="text-slate-500 shrink-0">Projected finish</span>
+                             <span className="ml-auto shrink-0 whitespace-nowrap text-white">#{data.teamStandings}</span>
+                           </p>
+                         )}
+                         {situation && (
+                           <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                             <span className="text-slate-500 shrink-0">Situation</span>
+                             <span className="ml-auto min-w-0 truncate text-right text-white">{situation}</span>
+                           </p>
+                         )}
+                         {fanStatus !== 0 && (
+                           <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                             <span className="text-slate-500 shrink-0">Fan impact</span>
+                             <span className={`ml-auto shrink-0 whitespace-nowrap ${fanStatus > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                               {fanStatus > 0 ? '+' : ''}{fanStatus} FANS
+                             </span>
+                           </p>
+                         )}
+                      </div>
+                    )}
 
                     {(displayChoice.perks?.length > 0 || displayChoice.flaws?.length > 0) && (
                       <div className="flex flex-col gap-1.5 mb-5 z-10 relative">
                          {displayChoice.perks?.map((p, pIdx) => (
-                                <PerkChip key={`perk-${pIdx}`} perk={p} />
-                             ))}
+                           <PerkChip key={`perk-${pIdx}`} perk={p} />
+                         ))}
                          {displayChoice.flaws?.map((f, fIdx) => (
-                                <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />
-                             ))}
+                           <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />
+                         ))}
                       </div>
                     )}
 
-                    <div className="mt-auto z-10 relative">
-                      <div className={`w-full py-3 rounded-xl text-center sports-font tracking-widest font-black text-sm sm:text-base uppercase border shadow-lg transition-all ${ctaClass}`}>
+                    <div className="mt-auto flex flex-col gap-2 z-10 relative">
+                      <button
+                        disabled={isProcessing}
+                        onClick={() => fireChoice(displayChoice)}
+                        aria-label={`${ctaText === 'COMMIT' ? 'Commit to' : 'Accept the trade to'} ${fullName}`}
+                        className={`w-full py-3 rounded-xl sports-font tracking-widest text-sm sm:text-base active:scale-[0.98] ${
+                          isRival ? 'btn-danger' : 'btn-primary'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
                         {ctaText}
-                      </div>
+                      </button>
                     </div>
                   </div>
-                </button>
+                </div>
               );
           };
 
@@ -347,7 +367,7 @@ export default function EventScreen() {
               className={`relative overflow-hidden group p-4 sm:p-5 rounded-xl text-left transition-all flex flex-col justify-center shadow-lg h-full border ${
                 shortBy > 0
                   ? 'bg-[#0d100d] text-slate-500 border-[rgba(255,255,255,0.05)] cursor-not-allowed'
-                  : `bg-[#101410] hover:bg-[#1a2230] text-white border-[rgba(255,255,255,0.065)] hover:border-[#3b82f6] ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}`}
+                  : `bg-[#101410] hover:bg-[#151b15] text-white border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.22)] ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}`}
             >
               <div className="flex justify-between items-start w-full gap-4 relative z-10">
                  <div className="flex flex-col min-w-0">
@@ -360,7 +380,7 @@ export default function EventScreen() {
                  </div>
                  <div className="flex flex-col items-end gap-2 shrink-0">
                    {shortBy > 0 ? (
-                     <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30 whitespace-nowrap">
+                     <span className={TAG_RED}>
                        {formatMoney(shortBy)} short
                      </span>
                    ) : (
@@ -373,9 +393,9 @@ export default function EventScreen() {
                            button cannot be compared against the choice beside
                            it. Only shown when he can afford it, because the
                            shortfall pill above says it louder when he cannot. */}
-                       {cost > 0 && <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#F59E0B]/30 whitespace-nowrap">{formatMoney(cost)}{displayChoice.isRisky ? ' at risk' : ' cost'}</span>}
-                       {!isRivalryNight && displayChoice.isDevBoost && <span className="bg-[#22E748]/10 text-[#22E748] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#22E748]/30">+DEV BOOST</span>}
-                       {displayChoice.isRisky && <span className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border border-[#ef4444]/30">RISKY</span>}
+                       {cost > 0 && <span className={TAG_AMBER}>{formatMoney(cost)}{displayChoice.isRisky ? ' at risk' : ' cost'}</span>}
+                       {!isRivalryNight && displayChoice.isDevBoost && <span className={TAG_GREEN}>+Dev boost</span>}
+                       {displayChoice.isRisky && <span className={TAG_RED}>Risky</span>}
                      </>
                    )}
                  </div>
@@ -403,15 +423,23 @@ export default function EventScreen() {
           );
 
           return (
-          <div className={`game-panel p-4 sm:p-10 mt-2 border-t-2 relative overflow-hidden ${panelStyles}`}>
+          <div className={`game-panel p-4 sm:p-10 mt-2 relative overflow-hidden ${panelStyles}`}>
             {isGenEvent && <div className="bluechip-foil-overlay opacity-60"></div>}
             {isInjuryEvent && <div className="bluechip-foil-overlay opacity-50 mix-blend-color-dodge" style={{ filter: 'hue-rotate(-45deg) saturate(200%)' }}></div>}
             {isDemotion && <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale"></div>}
 
             <div className="relative z-10">
-              <h2 className={`text-xl sm:text-2xl font-black uppercase mb-3 sm:mb-4 sports-font text-left flex items-center gap-1 sm:gap-1.5 ${titleColor}`}>
-                {!isInjuryEvent && <span className="shrink-0 leading-none pb-0.5">🗣</span>}
-                <span className="leading-tight">{activeEvent.title}</span>
+              {kicker && <span className={`${kickerClass(kicker.tone)} mb-4`}>{kicker.text}</span>}
+              {/* One icon, the event's own. A speech bubble used to sit in
+                  front of it on every event, so most titles carried two. The
+                  icon is decoration and is hidden from screen readers. */}
+              <h2 className={`${TITLE_SM} mb-3 sm:mb-4 text-left flex items-center gap-2`}>
+                {(() => {
+                  const m = /^((?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\uFE0F|\u200D)+)\s*/u.exec(activeEvent.title || '');
+                  return m
+                    ? <span className="leading-tight"><span aria-hidden="true">{m[1]} </span>{activeEvent.title.slice(m[0].length)}</span>
+                    : <span className="leading-tight">{activeEvent.title}</span>;
+                })()}
               </h2>
               <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 w-full font-sans text-left leading-relaxed pr-2 sm:pr-4">
                 {renderDesc(activeEvent.desc)}

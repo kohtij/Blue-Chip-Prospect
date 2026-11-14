@@ -3,6 +3,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ohlTeams, qmjhlTeams, whlTeams } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
+import { kickerClass, TITLE_LG } from '../utils/ui';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function MemorialCupScreen() {
@@ -42,16 +43,14 @@ export default function MemorialCupScreen() {
           const currentOpponent = !isFinal ? semiOpponent : finalOpponent;
 
           return (
-            <div className="game-panel p-4 sm:p-10 mt-2 border-t-2 border-t-[#F59E0B] flex flex-col items-center">
+            <div className="game-panel p-4 sm:p-10 mt-2 flex flex-col items-center">
               
               {/* HEADER BANNER */}
               <div className="text-center mb-4">
-                 <p className="text-[10px] sm:text-xs font-black text-[#F59E0B] uppercase tracking-widest font-sans flex items-center justify-center gap-2">
-                   <span>🏆</span> CANADIAN HOCKEY LEAGUE <span>🏆</span>
-                 </p>
-                 <h1 className="text-3xl sm:text-5xl font-black italic tracking-tighter text-white sports-font uppercase">
-                   THE MEMORIAL CUP
-                 </h1>
+                 <span className={kickerClass('amber')}>Canadian Hockey League</span>
+                 <h2 className={`mt-5 ${TITLE_LG}`}>
+                   The Memorial Cup
+                 </h2>
               </div>
 
               {/* 2-STAGE TOURNAMENT TRACKER */}
@@ -60,7 +59,7 @@ export default function MemorialCupScreen() {
                    memCup.status === 'semi_won' || isFinal 
                      ? 'bg-[#22E748]/10 border-[#22E748] text-[#22E748]' 
                      : !isFinal 
-                       ? 'bg-[#F59E0B]/15 border-[#F59E0B] text-white shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                       ? 'bg-[#F59E0B]/15 border-[#F59E0B] text-white' 
                        : 'bg-[#0a0d0a] border-[rgba(255,255,255,0.04)] text-slate-500'
                  }`}>
                     <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">STAGE 1: SEMI-FINAL</p>
@@ -74,7 +73,7 @@ export default function MemorialCupScreen() {
                    memCup.status === 'won' 
                      ? 'bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B]' 
                      : isFinal 
-                       ? 'bg-[#F59E0B]/15 border-[#F59E0B] text-white shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                       ? 'bg-[#F59E0B]/15 border-[#F59E0B] text-white' 
                        : 'bg-[#0a0d0a] border-[rgba(255,255,255,0.04)] opacity-50 text-slate-500'
                  }`}>
                     <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">STAGE 2: FINAL</p>
@@ -102,9 +101,9 @@ export default function MemorialCupScreen() {
                     return teamsToRender.map((team, idx) => (
                        <div key={idx} className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all relative overflow-hidden flex flex-col justify-center items-center gap-1.5 min-h-[90px] ${
                          team.isHost 
-                           ? 'bg-[#101410] border-[#F59E0B]/40 shadow-[0_0_8px_rgba(245,158,11,0.15)]' 
+                           ? 'bg-[#101410] border-[#F59E0B]/40' 
                            : team.active 
-                             ? 'bg-[#F59E0B]/10 border-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                             ? 'bg-[#F59E0B]/10 border-[#F59E0B]' 
                              : 'bg-[#101410] border-[rgba(255,255,255,0.065)] opacity-60'
                        }`}>
                           
@@ -131,7 +130,7 @@ export default function MemorialCupScreen() {
 
               {/* SEMI-FINAL VICTORY INTERMISSION SCREEN */}
               {memCup.status === 'semi_won' && (
-                <div className="w-full max-w-xl bg-gradient-to-b from-[#102010] to-[#081008] border-2 border-[#22E748] p-6 sm:p-8 rounded-2xl text-center shadow-[0_0_30px_rgba(34,231,72,0.2)] mb-6">
+                <div className="w-full max-w-xl bg-gradient-to-b from-[#102010] to-[#081008] border-2 border-[#22E748] p-6 sm:p-8 rounded-2xl text-center mb-6">
                    <div className="text-4xl sm:text-5xl mb-3 animate-bounce">⚡</div>
                    <p className="text-xs font-black text-[#22E748] uppercase tracking-widest font-sans mb-1">SEMI-FINAL VICTORY!</p>
                    <h3 className="text-2xl sm:text-3xl font-black text-white sports-font uppercase mb-3">
@@ -144,7 +143,7 @@ export default function MemorialCupScreen() {
                      onClick={() => setMemCup({ round: 1, status: 'playing' })}
                      className="btn-primary w-full py-4 px-2 rounded-xl flex flex-col items-center justify-center transition-transform hover:scale-105 cursor-pointer shadow-lg"
                    >
-                     <span className="text-lg sm:text-xl font-black sports-font uppercase text-[#040505] tracking-widest text-center text-balance leading-none">PROCEED TO THE CHAMPIONSHIP FINAL ➔</span>
+                     <span className="text-lg sm:text-xl font-black sports-font uppercase text-[#040505] tracking-widest text-center text-balance leading-none">PROCEED TO THE CHAMPIONSHIP FINAL</span>
                    </button>
                 </div>
               )}
@@ -161,7 +160,7 @@ export default function MemorialCupScreen() {
                     </h3>
                   </div>
 
-                  <div className={`bg-[#1a2230] border ${isFinal ? 'border-[#F59E0B]/50 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-[#3b82f6]/30 shadow-lg'} rounded-xl p-6 sm:p-8 text-center`}>
+                  <div className={`bg-[#151b15] border ${isFinal ? 'border-[#F59E0B]/50' : 'border-[#3b82f6]/30 shadow-lg'} rounded-xl p-6 sm:p-8 text-center`}>
                      <div className="text-4xl mb-4 animate-bounce">{isFinal ? '🏆' : '🏒'}</div>
                      <h4 className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-3">LIVE MINIGAME SCENARIO</h4>
                      <p className="text-sm sm:text-base text-slate-300 font-sans mb-8 max-w-lg mx-auto">
@@ -169,7 +168,7 @@ export default function MemorialCupScreen() {
                          ? "One game for the Memorial Cup. Play the moment that decides it." 
                          : "The semi-final is one game, and the loser goes home. Play the moment that decides it."}
                      </p>
-                     <button onClick={() => triggerMinigame('memcup')} className={`py-4 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer ${isFinal ? 'shadow-[0_0_15px_rgba(245,158,11,0.3)] bg-[#F59E0B] text-black hover:bg-[#d97706]' : 'btn-primary shadow-[0_0_15px_rgba(34,231,75,0.3)]'}`}>
+                     <button onClick={() => triggerMinigame('memcup')} className={`py-4 px-8 rounded-xl font-black sports-font text-lg uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer ${isFinal ? ' bg-[#F59E0B] text-black hover:bg-[#d97706]' : 'btn-primary'}`}>
                         {isFinal ? 'ENTER CHAMPIONSHIP SCENARIO' : 'ENTER SEMI-FINAL SCENARIO'}
                      </button>
                   </div>
@@ -180,20 +179,18 @@ export default function MemorialCupScreen() {
               {['won', 'lost'].includes(memCup.status) && (
                 <div className={`w-full max-w-2xl p-6 sm:p-8 rounded-2xl border text-center relative overflow-hidden ${
                   memCup.status === 'won'
-                    ? 'bg-gradient-to-b from-[#1a1405] to-[#0a0802] border-[#F59E0B] shadow-[0_0_40px_rgba(245,158,11,0.25)]'
-                    : 'bg-gradient-to-b from-[#180a0a] to-[#0a0404] border-[#ef4444] shadow-[0_0_30px_rgba(239,68,68,0.2)]'
+                    ? 'bg-gradient-to-b from-[#1a1405] to-[#0a0802] border-[#F59E0B]'
+                    : 'bg-gradient-to-b from-[#180a0a] to-[#0a0404] border-[#ef4444]'
                 }`}>
                   <div className="text-5xl sm:text-6xl mb-4 animate-bounce">
                     {memCup.status === 'won' ? '🏆' : '💔'}
                   </div>
 
-                  <p className={`text-xs font-black uppercase tracking-widest mb-1 ${
-                    memCup.status === 'won' ? 'text-[#F59E0B]' : 'text-[#ef4444]'
-                  }`}>
-                    {memCup.status === 'won' ? 'CHL SUPREMACY UNLOCKED' : 'TOURNAMENT ELIMINATION'}
-                  </p>
+                  <span className={`${kickerClass(memCup.status === 'won' ? 'amber' : 'red')} mb-4`}>
+                    {memCup.status === 'won' ? 'Champions of the CHL' : 'Knocked out'}
+                  </span>
 
-                  <h2 className="text-3xl sm:text-5xl font-black text-white sports-font uppercase tracking-tight mb-3">
+                  <h2 className={`${TITLE_LG} mb-3`}>
                     {memCup.status === 'won' ? 'MEMORIAL CUP CHAMPIONS!' : 'SEASON ENDS IN HEARTBREAK'}
                   </h2>
 
@@ -232,17 +229,15 @@ export default function MemorialCupScreen() {
                       <p className={`text-sm sm:text-base font-black sports-font leading-tight ${
                         memCup.status === 'won' ? 'text-[#F59E0B]' : 'text-[#ef4444]'
                       }`}>
-                        {memCup.status === 'won' ? '🔥 MAX HYPE (+50)' : '📉 DISAPPOINTED'}
+                        {memCup.status === 'won' ? 'Ecstatic (+50)' : 'Disappointed'}
                       </p>
                     </div>
                   </div>
 
                   <button
                     onClick={handleEndMemCup}
-                    className={`w-full sm:w-auto py-3.5 px-10 rounded-xl font-black sports-font tracking-widest text-sm uppercase transition-transform hover:scale-105 ${
-                      memCup.status === 'won'
-                        ? 'bg-[#F59E0B] text-black hover:bg-[#d97706]'
-                        : 'bg-[#101410] border border-[rgba(255,255,255,0.12)] text-white hover:bg-[#1a2230]'
+                    className={`w-full sm:w-auto py-3.5 px-10 rounded-xl sports-font tracking-widest text-sm cursor-pointer ${
+                      memCup.status === 'won' ? 'btn-primary' : 'btn-secondary'
                     }`}
                   >
                     {memCup.status === 'won' ? 'LIFT THE TROPHY & PROCEED' : 'CONTINUE TO RECAP'}

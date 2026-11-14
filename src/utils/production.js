@@ -57,6 +57,15 @@ export function seasonForm(games) {
   };
 }
 
+// How far from his normal a stretch of games was, in standard deviations, so a
+// twenty-game run and a full season are read on the same scale. A short run
+// swings further by chance, and the sample scale is what allows for that.
+export function formReading(form, games) {
+  const index = Math.sqrt(Math.max(1e-6, form.goals) * Math.max(1e-6, form.assists));
+  const sd = Math.sqrt(SIGMA_SHARED ** 2 + (SIGMA_IDIO ** 2) / 2) * sampleScale(games);
+  return { index, z: Math.log(index) / sd };
+}
+
 // How age moves production, over and above what it does to the ratings.
 //
 // The ratings already decay: skating, stamina and physicality from 31, and
@@ -595,6 +604,64 @@ const anchoredIce = (roleMulti) => {
   }
   return [last[1], last[2]];
 };
+
+// ZONE STARTS.
+//
+// Of the shifts that begin with a faceoff in one end or the other, the share
+// the coach starts in the attacking end. It is his decision and nobody else's:
+// he sends his scorers out for the offensive-zone draws, keeps the defensive
+// ones for the players he trusts to get the puck out, and protects a young
+// player he is not sure of yet by keeping him away from his own net. A real
+// NHL season runs from about thirty per cent for a shutdown centre to the low
+// seventies for a sheltered sniper, and nearly everybody sits between forty
+// and sixty.
+//
+// It is worth something either way. A shift that starts in the attacking end
+// is a shift with a chance on it, and one that starts beside his own goalie is
+// thirty seconds of getting the puck out before anything else can happen.
+// Pivoted on fifty, so a balanced deployment is exactly the game it was.
+const ZONE_OFFENSIVE = ['Sniper', 'Playmaker', 'Speedster', 'Offensive Dynamo', 'Point Bomber', 'Puck-Mover'];
+const ZONE_DEFENSIVE = ['Two-Way', 'Shutdown', 'Grinder', 'Enforcer'];
+
+export function zoneStarts({ pos, roleMulti = 1, archetype = '', contractRole = '', coachTrust = 50, age = 25, noise = 0 }) {
+  if (pos === 'G') return null;
+  let oz = 50;
+  // The top of the lineup takes the draws in the other end, the checking lines
+  // take them in their own.
+  oz += Math.max(-8, Math.min(6, (roleMulti - 0.95) * 18));
+  const defensive = ZONE_DEFENSIVE.includes(archetype) || /Shutdown|Grinder|Checking/.test(contractRole);
+  if (ZONE_OFFENSIVE.includes(archetype)) oz += 6;
+  else if (defensive) oz -= 7;
+  else if (archetype === 'Power Forward') oz -= 1;
+  // A coach shelters a kid he does not trust yet, and gives the hardest
+  // matchups to the defensive player he trusts most.
+  if (age <= 22 && coachTrust < 60 && !defensive) oz += 4;
+  if (defensive && coachTrust >= 70) oz -= 4;
+  oz += noise;
+  return Math.round(Math.max(28, Math.min(72, oz)));
+}
+
+// What the deployment does to his season. Each point of offensive-zone share
+// is worth four tenths of a per cent of his production, so a sheltered
+// seventy is about eight per cent more and a shutdown thirty about eight per
+// cent less. Plus-minus moves with it, by about nine tenths of a goal over a
+// full season for every ten points, because starting in your own end is how
+// goals against happen.
+export const ZONE_PM_PER_SEASON = 0.09;
+export function zoneEffect(oz) {
+  if (oz == null) return { offence: 1, pm: 0 };
+  return { offence: 1 + (oz - 50) * 0.004, pm: (oz - 50) * ZONE_PM_PER_SEASON };
+}
+
+// The word a broadcaster would use for it.
+export function deploymentLabel(oz) {
+  if (oz == null) return null;
+  if (oz >= 60) return 'Sheltered';
+  if (oz >= 54) return 'Offensive';
+  if (oz > 46) return 'Balanced';
+  if (oz > 40) return 'Defensive';
+  return 'Shutdown';
+}
 
 export function iceTime({ roleMulti, pos, coachTrust = 50, stamina = 50 }) {
   const group = isDefence(pos) ? 'D' : 'F';

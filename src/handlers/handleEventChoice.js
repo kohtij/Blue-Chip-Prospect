@@ -1,6 +1,7 @@
 import { capFanStatus, fanGain, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { getOpponentPool, JUNIOR_PARENT_LEAGUE } from '../data/teams';
+import { elcBonuses, veteranBonuses } from '../utils/bonuses';
 
 export function handleEventChoice(ctx, choice) {
   const { 
@@ -71,10 +72,32 @@ export function handleEventChoice(ctx, choice) {
         injury: { ...inj, games: Math.max(1, inj.games + delta), lingers: worked ? inj.lingers : true }
       };
     }
+  } else if (actionStr === 'BUYOUT') {
+    // The deal is over: no years left, no clause, no bonuses. The salary stays
+    // on the record because free agency reads it to know he has been a pro.
+    // The club that bought him out is not on the list of clubs calling him.
+    const d = choice.actionData || {};
+    updated.contract = { salary: updated.contract?.salary || 0, years: 0, role: updated.contract?.role };
+    updated.buyouts = [...(updated.buyouts || []), {
+      team: d.team, perYear: d.perYear || 0, seasonsLeft: d.seasons || 0, total: d.total || 0
+    }];
+    updated.rightsLapsedBy = d.team || null;
+  } else if (actionStr === 'SLUMP_RESPONSE') {
+    // The form he carries into the next stretch, in place of the cold one.
+    const d = choice.actionData || {};
+    const boost = choice.isRisky
+      ? (outcomeEffect === choice.successEffect ? d.successBoost : d.failBoost)
+      : d.boost;
+    if (updated.season && typeof boost === 'number') {
+      updated.season = { ...updated.season, formBoost: boost, slumpShown: true };
+    }
   } else if (actionStr === 'DECLINE_EXTENSION') {
     updated.storylines = { ...(updated.storylines || {}), declinedExtension: true };
   } else if (actionStr === 'VETERAN_EXTENSION') {
-    updated.contract = { salary: 850000, years: 1 };
+    // A one-year deal at thirty-five or over is the one veteran contract the
+    // league lets carry performance bonuses, and clubs use them to pay for the
+    // games he actually plays.
+    updated.contract = { salary: 850000, years: 1, ...((player.age || 0) >= 35 ? { bonuses: veteranBonuses() } : {}) };
   } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
     // No club is chosen here any more. This used to roll one of two leagues and
     // one of its teams and simply tell you where you had signed, taking the
@@ -100,7 +123,7 @@ export function handleEventChoice(ctx, choice) {
     const teamId = choice.actionData?.id || choice.actionData;
     updated.team = teamId; updated.league = 'NCAA';
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
-    if ((choice.perks || []).some(perk => perk.text && perk.text.includes('NIL'))) unlockAchievement('big_nil');
+    if ((choice.perks || []).some(perk => String(perk.name || perk.text || '').includes('NIL'))) unlockAchievement('big_nil');
   } else if (actionStr === 'JOIN_CHL') {
     const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData;
     const lg = choice.actionData?.league || 'OHL';
@@ -117,7 +140,7 @@ export function handleEventChoice(ctx, choice) {
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), seniorId]));
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
-    updated.contract = { salary: 925000, years: 3, role: getRole(925000, player) };
+    updated.contract = { salary: 925000, years: 3, role: getRole(925000, player), bonuses: elcBonuses(player.pos) };
   } else if (actionStr === 'DEMOTE') {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
   } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {

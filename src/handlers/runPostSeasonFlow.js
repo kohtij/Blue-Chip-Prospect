@@ -35,8 +35,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '📰 THE HIT PIECE',
             desc: `${player.nemesisName || 'A local columnist'}, the city's loudest shock-jock, has written a hit piece on you. He called you selfish, lazy and a cancer in the room, and everybody in town has read it.`,
             choices: [
-                { label: 'Take the High Road', subLabel: 'Stay quiet and let your play speak for itself.', isRisky: false, feedback: 'You did not take the bait. Your coach liked that, and the fans wanted you to fight back.', effect: { fanStatus: -15, ovr: 1, rel: { coach: 15, media: 5 } } },
-                { label: 'Declare War', subLabel: 'Fire back publicly and make this personal.', isRisky: true, successChance: 0.5, successFeedback: 'You called him a hack in public and backed it up on the ice. The fans loved every minute.', successEffect: { fanStatus: 40, ovr: 1, rel: { media: -20, teammates: 10 } }, failFeedback: 'You sounded rattled and defensive, and he posted "I rest my case" before you had left the building.', failEffect: { fanStatus: -30, ovr: -1, rel: { media: -30 } } }
+                { label: 'Take the high road', subLabel: 'Stay quiet and let your play speak for itself.', isRisky: false, feedback: 'You did not take the bait. Your coach liked that, and the fans wanted you to fight back.', effect: { fanStatus: -15, ovr: 1, rel: { coach: 15, media: 5 } } },
+                { label: 'Declare war', subLabel: 'Fire back publicly and make this personal.', isRisky: true, successChance: 0.5, successFeedback: 'You called him a hack in public and backed it up on the ice. The fans loved every minute.', successEffect: { fanStatus: 40, ovr: 1, rel: { media: -20, teammates: 10 } }, failFeedback: 'You sounded rattled and defensive, and he posted "I rest my case" before you had left the building.', failEffect: { fanStatus: -30, ovr: -1, rel: { media: -30 } } }
             ],
             madePlayoffs
         });
@@ -51,8 +51,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🎤 THE AMBUSH',
             desc: `After a bad loss, ${player.nemesisName} pushes his way to your stall and asks you, on camera, whether you actually work hard.`,
             choices: [
-                { label: 'Walk Away', subLabel: 'Avoid the confrontation, even if it looks bad on camera.', isRisky: false, feedback: 'You walked away mid-question. It looks bad on TV, but you avoided a fine.', effect: { fanStatus: -10, ovr: 0, rel: { media: -15 } } },
-                { label: 'Put Him In His Place', subLabel: 'Fire back on camera and risk a fine if it goes too far.', isRisky: true, successChance: (pOvr >= 85 ? 0.7 : 0.3), successFeedback: 'You took his hockey knowledge apart one question at a time, on live TV. The clip is still going round.', successEffect: { fanStatus: 50, ovr: 1, money: 10000, rel: { media: 20 } }, failFeedback: 'You lost your temper and swore at him on camera. The league fined you, and the clip ran for days.', failEffect: { fanStatus: -40, ovr: -1, money: -50000, rel: { media: -40 } } }
+                { label: 'Walk away', subLabel: 'Avoid the confrontation, even if it looks bad on camera.', isRisky: false, feedback: 'You walked away mid-question. It looks bad on TV, but you avoided a fine.', effect: { fanStatus: -10, ovr: 0, rel: { media: -15 } } },
+                { label: 'Put him in his place', subLabel: 'Fire back on camera and risk a fine if it goes too far.', isRisky: true, successChance: (pOvr >= 85 ? 0.7 : 0.3), successFeedback: 'You took his hockey knowledge apart one question at a time, on live TV. The clip is still going round.', successEffect: { fanStatus: 50, ovr: 1, money: 10000, rel: { media: 20 } }, failFeedback: 'You lost your temper and swore at him on camera. The league fined you, and the clip ran for days.', failEffect: { fanStatus: -40, ovr: -1, money: -50000, rel: { media: -40 } } }
             ],
             madePlayoffs
         });
@@ -67,7 +67,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🏆 THE ULTIMATE VINDICATION',
             desc: `You have just won the Cup. At the post-game press conference you spot ${player.nemesisName} at the back of the room, not writing anything.`,
             choices: [
-                { label: 'Call Him Out Publicly', isRisky: false, feedback: 'You looked straight at him and asked, "What are you going to write tomorrow?" The room laughed, and he left before the next question.', effect: { fanStatus: 100, ovr: 1, rel: { media: 30 } } }
+                { label: 'Call him out publicly', isRisky: false, feedback: 'You looked straight at him and asked, "What are you going to write tomorrow?" The room laughed, and he left before the next question.', effect: { fanStatus: 100, ovr: 1, rel: { media: 30 } } }
             ],
             madePlayoffs
         });
@@ -92,7 +92,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🤝 THE DYNAMIC DUO',
             desc: `You and a young linemate know where the other one is without looking. The fans have given the two of you a nickname, and you are rarely seen apart, on the ice or off it.`,
             choices: [
-                { label: 'Embrace the Brotherhood', isRisky: false, feedback: 'The two of you drive this team, and everybody on the ice with you plays better for it.', effect: { fanStatus: 30, ovr: 1, rel: { teammates: 25 } } }
+                { label: 'Embrace the brotherhood', isRisky: false, feedback: 'The two of you drive this team, and everybody on the ice with you plays better for it.', effect: { fanStatus: 30, ovr: 1, rel: { teammates: 25 } } }
             ],
             madePlayoffs
         });
@@ -107,8 +107,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '💼 THE BUSINESS OF HOCKEY',
             desc: `Your best friend on the team is entering a contract year. The GM pulls you aside and says they can't afford to keep both of you under the salary cap unless you agree to restructure your own contract and defer a large part of your salary.`,
             choices: [
-                { label: 'Restructure & Defer Salary', subLabel: 'Give up millions of your own money to keep your friend around.', isRisky: false, feedback: 'You deferred millions to keep the two of you together, and the fans will not forget it.', effect: { fanStatus: 100, ovr: 1, money: -2500000, rel: { teammates: 50, coach: 20 } } },
-                { label: 'Keep Your Contract Intact', subLabel: 'Let business be business, even if it costs the friendship.', isRisky: false, feedback: 'You told the GM hockey is a business. Your friend was traded the next day, the room went quiet, and you have rarely felt so alone in it.', effect: { fanStatus: -50, ovr: -2, money: 0, rel: { teammates: -40 } } }
+                { label: 'Restructure and defer salary', subLabel: 'Give up millions of your own money to keep your friend around.', isRisky: false, feedback: 'You deferred millions to keep the two of you together, and the fans will not forget it.', effect: { fanStatus: 100, ovr: 1, money: -2500000, rel: { teammates: 50, coach: 20 } } },
+                { label: 'Keep your contract intact', subLabel: 'Let business be business, even if it costs the friendship.', isRisky: false, feedback: 'You told the GM hockey is a business. Your friend was traded the next day, the room went quiet, and you have rarely felt so alone in it.', effect: { fanStatus: -50, ovr: -2, money: 0, rel: { teammates: -40 } } }
             ],
             madePlayoffs
         });
@@ -134,8 +134,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '👴 THE OLD GUARD',
             desc: `You have walked into a room run by a veteran captain and an old-school coach who cannot stand flashy rookies. They want you to keep your head down, dump it in and chase.`,
             choices: [
-                { label: 'Buy In', subLabel: 'Dump and chase on command, even if it bores the crowd.', isRisky: false, feedback: 'You dumped it in and finished your checks. The coach nodded, and the crowd was bored stiff.', effect: { fanStatus: -15, ovr: 0, rel: { coach: 25, teammates: 10 } } },
-                { label: 'Play Your Game', subLabel: 'Stick to your flashy instincts and risk the coach\'s wrath.', isRisky: true, successChance: 0.5, successFeedback: 'You pulled a toe-drag and scored. The crowd went wild, and the coach had to bite his tongue.', successEffect: { fanStatus: 30, ovr: 1, money: 0, rel: { coach: -10 } }, failFeedback: 'You turned the puck over at the blue line. The coach stapled you to the bench for the rest of the period.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -25, teammates: -10 } } }
+                { label: 'Buy in', subLabel: 'Dump and chase on command, even if it bores the crowd.', isRisky: false, feedback: 'You dumped it in and finished your checks. The coach nodded, and the crowd was bored stiff.', effect: { fanStatus: -15, ovr: 0, rel: { coach: 25, teammates: 10 } } },
+                { label: 'Play your game', subLabel: 'Stick to your flashy instincts and risk the coach\'s wrath.', isRisky: true, successChance: 0.5, successFeedback: 'You pulled a toe-drag and scored. The crowd went wild, and the coach had to bite his tongue.', successEffect: { fanStatus: 30, ovr: 1, money: 0, rel: { coach: -10 } }, failFeedback: 'You turned the puck over at the blue line. The coach stapled you to the bench for the rest of the period.', failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -25, teammates: -10 } } }
             ],
             madePlayoffs
         });
@@ -165,12 +165,12 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                 title: '⚡ LOCKER ROOM MUTINY',
                 desc: `You and the coach are not speaking, and your numbers are too good to bench. The GM calls you in to settle it.`,
                 choices: [
-                    { label: 'Demand the Coach is Fired', subLabel: 'Use your leverage to push the coach out, at the risk of suspension.', isRisky: true, successChance: 0.6, successFeedback: 'The GM sided with you. The coach was fired the next morning, and the room is yours.', successEffect: { fanStatus: 20, ovr: 1, rel: { coach: 50, teammates: 20 } }, failFeedback: 'The GM would not let a player run the team, and suspended you for insubordination.', failEffect: { fanStatus: -25, ovr: -1, money: -50000, rel: { coach: -20, teammates: -20 } } },
+                    { label: 'Demand the coach is fired', subLabel: 'Use your leverage to push the coach out, at the risk of suspension.', isRisky: true, successChance: 0.6, successFeedback: 'The GM sided with you. The coach was fired the next morning, and the room is yours.', successEffect: { fanStatus: 20, ovr: 1, rel: { coach: 50, teammates: 20 } }, failFeedback: 'The GM would not let a player run the team, and suspended you for insubordination.', failEffect: { fanStatus: -25, ovr: -1, money: -50000, rel: { coach: -20, teammates: -20 } } },
                     // Left as a plain choice on purpose: this is a fork between two very
                     // different decisions, not a comparison of destinations, so a full team
                     // card here would tower over the other choice. The subLabel names the
                     // destination instead, which was only revealed after choosing.
-                    { label: 'Demand a Trade', subLabel: `Ask out and start fresh with the ${destTeam.name}.`, isRisky: false, feedback: `You told the GM you want out. Within a day you had been traded to ${destTeam.name}.`, effect: { fanStatus: -15, ovr: 0, rel: { coach: 10 } }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 12, madePlayoffs: true } }
+                    { label: 'Demand a trade', subLabel: `Ask out and start fresh with the ${destTeam.name}.`, isRisky: false, feedback: `You told the GM you want out. Within a day you had been traded to ${destTeam.name}.`, effect: { fanStatus: -15, ovr: 0, rel: { coach: 10 } }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 12, madePlayoffs: true } }
                 ],
                 madePlayoffs
             });
@@ -183,7 +183,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                 title: '👑 PASSING THE TORCH',
                 desc: `You bought into the system and earned the old guard's respect. The captain has announced his retirement and told the press the "C" should go to you.`,
                 choices: [
-                    { label: 'Accept the Captaincy', isRisky: false, feedback: 'You are the captain now.', effect: { fanStatus: 100, ovr: 2, rel: { coach: 20, teammates: 20 } }, action: 'MAKE_CAPTAIN' }
+                    { label: 'Accept the captaincy', isRisky: false, feedback: 'You are the captain now.', effect: { fanStatus: 100, ovr: 2, rel: { coach: 20, teammates: 20 } }, action: 'MAKE_CAPTAIN' }
                 ],
                 madePlayoffs
             });
@@ -209,7 +209,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // has its own history, and a club that is not actually waiting for
     // anything does not get the storyline at all.
     const nowYear = 2026 + (player.stats?.seasonsPlayed || 0);
-    const drought = lastTitle(player.titleLedger, currentTeam, nowYear);
+    const drought = lastTitle(player.titleLedger, currentTeam, nowYear, currentLg);
     const realDrought = drought.never || (drought.gap ?? 0) >= 12;
     const cityName = getFullTeamName(currentTeam, currentLg);
     if (hometownStage === 0 && currentLg === 'NHL' && pOvr >= 78 && !wonHere && realDrought && Math.random() < 0.12) {
@@ -220,8 +220,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
               ? `The ${cityName} have never won a championship, and the city has stopped pretending it does not think about it. The media and the fans have decided you are the one who ends it. They expect a great deal, and they already love you.`
               : `The ${cityName} have not won since ${drought.year}, ${drought.gap} years of it now, and the city wears every one of them. The media and the fans have decided you are the one who ends it. They expect a great deal, and they already love you.`,
             choices: [
-                { label: 'Embrace the Pressure', subLabel: 'Publicly commit to winning a championship for this city.', isRisky: false, feedback: 'You told the press you are here to win a Cup. The city is ready to run through a brick wall for you.', effect: { fanStatus: 50, ovr: 1, money: 0 } },
-                { label: 'Downplay the Hype', subLabel: 'Manage expectations instead of making bold promises.', isRisky: true, successChance: 0.5, successFeedback: 'You kept expectations down, the media stayed calm, and the fans still liked what they heard.', successEffect: { fanStatus: 20, ovr: 0, rel: { media: 20 } }, failFeedback: 'The media accused you of lacking confidence. They wanted a promise and did not get one.', failEffect: { fanStatus: -15, ovr: 0, rel: { media: -20 } } }
+                { label: 'Embrace the pressure', subLabel: 'Publicly commit to winning a championship for this city.', isRisky: false, feedback: 'You told the press you are here to win a Cup. The city is ready to run through a brick wall for you.', effect: { fanStatus: 50, ovr: 1, money: 0 } },
+                { label: 'Downplay the hype', subLabel: 'Manage expectations instead of making bold promises.', isRisky: true, successChance: 0.5, successFeedback: 'You kept expectations down, the media stayed calm, and the fans still liked what they heard.', successEffect: { fanStatus: 20, ovr: 0, rel: { media: 20 } }, failFeedback: 'The media accused you of lacking confidence. They wanted a promise and did not get one.', failEffect: { fanStatus: -15, ovr: 0, rel: { media: -20 } } }
             ],
             madePlayoffs
         });
@@ -236,8 +236,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '📉 THE HONEYMOON IS OVER',
             desc: `Another season has ended without a parade. The local coverage has turned nasty, and talk radio is asking whether you can carry this franchise at all.`,
             choices: [
-                { label: 'Ignore the Noise', subLabel: 'Stay silent and keep your focus on the gym and the ice.', isRisky: false, feedback: 'You stayed off social media and hit the gym. The fans are still mad, but you kept your focus.', effect: { fanStatus: -30, ovr: 1, rel: { media: -10 } } },
-                { label: 'Call Out the Critics', subLabel: 'Push back publicly and risk it blowing up in your face.', isRisky: true, successChance: 0.4, successFeedback: 'You stood up for your team in public, and the diehards loved you for it.', successEffect: { fanStatus: 25, ovr: 0, rel: { teammates: 15 } }, failFeedback: 'It backfired. The media tore into you for making excuses.', failEffect: { fanStatus: -50, ovr: -1, rel: { media: -30 } } }
+                { label: 'Ignore the noise', subLabel: 'Stay silent and keep your focus on the gym and the ice.', isRisky: false, feedback: 'You stayed off social media and hit the gym. The fans are still mad, but you kept your focus.', effect: { fanStatus: -30, ovr: 1, rel: { media: -10 } } },
+                { label: 'Call out the critics', subLabel: 'Push back publicly and risk it blowing up in your face.', isRisky: true, successChance: 0.4, successFeedback: 'You stood up for your team in public, and the diehards loved you for it.', successEffect: { fanStatus: 25, ovr: 0, rel: { teammates: 15 } }, failFeedback: 'It backfired. The media tore into you for making excuses.', failEffect: { fanStatus: -50, ovr: -1, rel: { media: -30 } } }
             ],
             madePlayoffs
         });
@@ -257,9 +257,9 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🧳 THE BREAKING POINT',
             desc: `The season is over, and a club in a warm, low-pressure market has made you an off-the-books promise: let them trade for you, and they will pay you a fortune to get away from all this.`,
             choices: [
-                { label: 'Stay and Fight', subLabel: 'Pledge your loyalty to the city, for better or worse.', isRisky: true, successChance: 0.5, successFeedback: 'You told the city you are staying. The fans were in tears, and you will not pay for a drink here again.', successEffect: { fanStatus: 150, ovr: 2, rel: { teammates: 20 } }, failFeedback: 'You stayed, and the coverage is wearing away how much you enjoy playing.', failEffect: { fanStatus: 10, ovr: -2, rel: { media: -10 } } },
+                { label: 'Stay and fight', subLabel: 'Pledge your loyalty to the city, for better or worse.', isRisky: true, successChance: 0.5, successFeedback: 'You told the city you are staying. The fans were in tears, and you will not pay for a drink here again.', successEffect: { fanStatus: 150, ovr: 2, rel: { teammates: 20 } }, failFeedback: 'You stayed, and the coverage is wearing away how much you enjoy playing.', failEffect: { fanStatus: 10, ovr: -2, rel: { media: -10 } } },
                 // Plain choice on purpose, same reasoning as the mutiny trade above.
-                { label: 'Take the Money & Escape', subLabel: `Take the money and leave for the ${destTeam.name}.`, isRisky: false, feedback: `You left for ${destTeam.name}. You are rich and relaxed, and back home they are burning your jersey.`, effect: { fanStatus: -150, ovr: 0, money: 2500000 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 8, madePlayoffs: true } }
+                { label: 'Take the money and escape', subLabel: `Take the money and leave for the ${destTeam.name}.`, isRisky: false, feedback: `You left for ${destTeam.name}. You are rich and relaxed, and back home they are burning your jersey.`, effect: { fanStatus: -150, ovr: 0, money: 2500000 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 8, madePlayoffs: true } }
             ],
             madePlayoffs
         });
@@ -296,8 +296,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             title: '🩸 BAD BLOOD',
             desc: `It is your first game against the enforcer who tore your ACL last year. The crowd knows it, and so does everyone on the ice.`,
             choices: [
-                { label: 'Drop the Gloves', subLabel: 'Settle the score physically for the hit that ended your season.', isRisky: true, successChance: (pOvr >= 75 ? 0.6 : 0.3), successFeedback: 'You beat the brakes off him, and the building lost its mind.', successEffect: { fanStatus: 75, ovr: 1, rel: { teammates: 30, coach: -10 } }, failFeedback: 'He got the better of you again. You left the ice with a black eye and a bruised ego.', failEffect: { fanStatus: -15, ovr: 0, rel: { teammates: -10, coach: -15 } } },
-                { label: 'Scoreboard Revenge', subLabel: 'Let your game do the talking instead of your fists.', isRisky: true, successChance: (player.hockeyIQ >= 70 ? 0.7 : 0.4), successFeedback: 'You beat him one-on-one and scored the winner.', successEffect: { fanStatus: 40, ovr: 1, rel: { coach: 20 } }, failFeedback: 'You tried to force a play on him and turned it over. The coach wasn\'t happy.', failEffect: { fanStatus: -10, ovr: -1, rel: { coach: -15 } } }
+                { label: 'Drop the gloves', subLabel: 'Settle the score physically for the hit that ended your season.', isRisky: true, successChance: (pOvr >= 75 ? 0.6 : 0.3), successFeedback: 'You beat the brakes off him, and the building lost its mind.', successEffect: { fanStatus: 75, ovr: 1, rel: { teammates: 30, coach: -10 } }, failFeedback: 'He got the better of you again. You left the ice with a black eye and a bruised ego.', failEffect: { fanStatus: -15, ovr: 0, rel: { teammates: -10, coach: -15 } } },
+                { label: 'Scoreboard revenge', subLabel: 'Let your game do the talking instead of your fists.', isRisky: true, successChance: (player.hockeyIQ >= 70 ? 0.7 : 0.4), successFeedback: 'You beat him one-on-one and scored the winner.', successEffect: { fanStatus: 40, ovr: 1, rel: { coach: 20 } }, failFeedback: 'You tried to force a play on him and turned it over. The coach wasn\'t happy.', failEffect: { fanStatus: -10, ovr: -1, rel: { coach: -15 } } }
             ],
             madePlayoffs
         });
@@ -315,7 +315,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             desc: `Your team is deep down the middle and thin on the wings. The head coach pulls you aside and asks you to move to the wing permanently to balance the lines.`,
             choices: [
                 {
-                    label: 'Accept the Move',
+                    label: 'Accept the move',
                     subLabel: 'Put the team first and learn a new position on the fly.',
                     isRisky: false,
                     feedback: 'You moved to the wing. The coach appreciated it, and you spent a month learning the position on the fly.',
@@ -349,7 +349,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             desc: `The NHL club has sent its big 18-year-old draft pick to the AHL, and the GM has asked you to centre his line and teach him how to be a professional.`,
             choices: [
                 {
-                    label: 'Take Him Under Your Wing',
+                    label: 'Take him under your wing',
                     subLabel: 'Mentor the kid, even though he might be your eventual replacement.',
                     isRisky: false,
                     feedback: 'You spent the season looking after him on the ice and teaching him off it. The organisation noticed.',
@@ -382,7 +382,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             desc: `The NHL club lost three players to injury in one night. Your AHL coach knocks on your hotel door at 2 AM. "Pack your bags. You are starting in the NHL tomorrow night."`,
             choices: [
                 {
-                    label: 'Play a Safe, Grinding Game',
+                    label: 'Play a safe, grinding game',
                     subLabel: 'Keep it simple and let reliability make the case for staying up.',
                     isRisky: false,
                     feedback: 'You played eight clean minutes without a mistake, and the coach told you to unpack your bags. You are staying up.',
@@ -391,7 +391,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                     actionData: 'NHL'
                 },
                 {
-                    label: 'Try to Be the Hero',
+                    label: 'Try to be the hero',
                     subLabel: 'Force the moment for a shot at a permanent roster spot.',
                     isRisky: true,
                     successChance: (pOvr >= 72 ? 0.4 : 0.15),
@@ -471,7 +471,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
       const fullChoicesPool = [
         {
           label: say('Guarantee a Shutout', null, 'Run Your Mouth to the Press'),
-          subLabel: '⚡ High Risk • A lot of new fans, or a lot of embarrassment',
+          subLabel: 'A lot of new fans, or a lot of embarrassment.',
           isRisky: true,
           successChance: 0.45,
           successFeedback: say(
@@ -486,8 +486,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           failEffect: { fanStatus: -25, ovr: 0, money: 0 }
         },
         {
-          label: 'Lead by Example',
-          subLabel: '🛡️ Safe • Steady team effort with reliable Fan approval',
+          label: 'Lead by example',
+          subLabel: 'A steady team game the fans always like.',
           isRisky: false,
           feedback: say(
             'You played a calm game in net, and the team ground out the win.',
@@ -497,7 +497,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         },
         {
           label: say('Aggressive Crease Control', null, 'Set the Physical Tone'),
-          subLabel: '💥 Moderate Risk • High intensity performance',
+          subLabel: 'Play on the edge for sixty minutes.',
           isRisky: true,
           successChance: 0.65,
           successFeedback: say(
@@ -514,7 +514,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         {
           label: say('Stare Down Their Top Sniper', 'Shadow Their Top Line All Night',
             'Target Their Star Player', 'Take Every Draw Against Their Best Centre'),
-          subLabel: '🎯 Target Focus • Take away their best player',
+          subLabel: 'Take their best player out of the game.',
           isRisky: true,
           successChance: 0.55,
           successFeedback: say(
@@ -531,15 +531,15 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           failEffect: { fanStatus: -15, ovr: 0, money: 0 }
         },
         {
-          label: 'Deliver a Fiery Pre-Game Speech',
-          subLabel: '🔥 Leadership • Fire up the locker room',
+          label: 'Deliver a fiery pre-game speech',
+          subLabel: 'Fire up the room before puck drop.',
           isRisky: false,
           feedback: `The room was dead quiet while you talked, and they went out for warm-up like they meant it.`,
           effect: { fanStatus: 10, ovr: 1, money: 0 }
         },
         {
           label: say('Slash Anyone Entering Your Crease', null, 'Agitate Their Bench Between Whistles'),
-          subLabel: '😈 Mind Games • Get under their skin',
+          subLabel: 'Get under their skin early.',
           isRisky: true,
           successChance: 0.60,
           successFeedback: `You got into their heads. Two of their best players were thrown out for retaliating.`,
@@ -548,22 +548,22 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           failEffect: { fanStatus: -10, ovr: -1, money: -5000 }
         },
         {
-          label: 'Pump Up the Home Crowd Early',
-          subLabel: '📣 Crowd Control • Hype up the stadium',
+          label: 'Pump up the home crowd early',
+          subLabel: 'Get the building going before the anthem.',
           isRisky: false,
           feedback: `You waved your arms at the crowd before puck drop, and the noise did not let up all night.`,
           effect: { fanStatus: 20, ovr: 0, money: 0 }
         },
         {
-          label: 'Obsess Over Video Tape',
-          subLabel: '🧠 High IQ • Tactical preparation',
+          label: 'Obsess over video tape',
+          subLabel: 'Learn their system better than they know it.',
           isRisky: false,
           feedback: `The film paid off. You knew their breakouts before they ran them.`,
           effect: { fanStatus: 5, ovr: 2, money: 0 }
         },
         {
           label: say('Flashy Glove Saves', 'Jump Into the Rush and Pinch Hard', 'Attempt a Highlight-Reel Move'),
-          subLabel: '✨ Showmanship • Go for the viral highlight',
+          subLabel: 'Go for the highlight everyone shares.',
           isRisky: true,
           successChance: 0.50,
           successFeedback: say(
@@ -579,7 +579,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         },
         {
           label: say('Aggressively Play the Puck Behind Net', null, 'Pledge to Block Every Shot'),
-          subLabel: '🛡️ Sacrifice • Put your body on the line',
+          subLabel: 'Put your body on the line.',
           isRisky: true,
           successChance: 0.60,
           successFeedback: say(
@@ -595,7 +595,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         },
         {
           label: say('Get Involved in a Line Scrum', null, 'Drop the Gloves Early'),
-          subLabel: '👊 Heavy Enforcer • Old-school rivalry brawl',
+          subLabel: 'An old-school rivalry fight.',
           isRisky: true,
           successChance: 0.55,
           successFeedback: `You won the fight clearly, and the building was loud for the rest of the night.`,
@@ -604,8 +604,8 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           failEffect: { fanStatus: -15, ovr: -1, money: 0 }
         },
         {
-          label: 'Ice-Cold Systems Hockey',
-          subLabel: '🧊 Composure • Pure tactical discipline',
+          label: 'Ice-cold systems hockey',
+          subLabel: 'Stay disciplined and play the system.',
           isRisky: false,
           feedback: `They ran around trying to hit everything, and you just played the game plan.`,
           effect: { fanStatus: 10, ovr: 1, money: 0 }
@@ -613,7 +613,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         {
           label: say('Aggressive Poke-Checks', 'Step Up at the Line First Shift',
             'Fly Down the Wing First Shift', 'Win the Opening Draw Clean'),
-          subLabel: '⚡ High Energy • Speed and quickness',
+          subLabel: 'Win every race to the puck.',
           isRisky: true,
           successChance: 0.65,
           successFeedback: say(
@@ -631,7 +631,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         },
         {
           label: say('Relentlessly Chirp Their Forwards', 'Relentlessly Chirp Their Forwards', 'Relentlessly Chirp Their Defense'),
-          subLabel: '🗣️ Chirping • Get in their heads',
+          subLabel: 'Talk your way into their heads.',
           isRisky: true,
           successChance: 0.50,
           successFeedback: `By the second period their players were arguing with each other on the bench.`,
@@ -640,15 +640,15 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           failEffect: { fanStatus: -15, ovr: 0, money: 0 }
         },
         {
-          label: 'Anchor Team Composure',
-          subLabel: '🧘 Veteran Calm • Keep emotions in check',
+          label: 'Anchor team composure',
+          subLabel: 'Keep the emotions out of it.',
           isRisky: false,
           feedback: `The second period got wild, and you were the one who settled everyone down.`,
           effect: { fanStatus: 15, ovr: 1, money: 0 }
         },
         {
           label: say('Stack the Pads in Traffic', null, 'Demand Double-Shifts Late'),
-          subLabel: '👑 Hero Ball • Take control of the game',
+          subLabel: 'Put the game on your stick.',
           isRisky: true,
           successChance: 0.50,
           successFeedback: say(

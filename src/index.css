@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* READABLE GREYS.
+   The quiet text across the game is slate-500 and slate-600, and on these
+   near-black panels Tailwind's own values come out at 3.9:1 and 2.5:1, under
+   the 4.5:1 that small text needs to be readable. These two are lifted just
+   far enough to pass on every panel colour the game uses, and they keep their
+   order: 600 is still a step quieter than 500, which is still quieter than
+   400. Borders using the same names get a touch brighter with them. */
+@theme {
+  --color-slate-500: #7c8ba3;
+  --color-slate-600: #717f96;
+}
+
 /* Inter Variable - Normal */
 @font-face {
   font-family: 'Inter';
@@ -202,10 +214,54 @@ body::after {
   transform: scale(1.02);
 }
 
-button { outline: none; }
-button:focus-visible {
-  box-shadow: 0 0 0 3px rgba(34, 231, 72, 0.5);
+/* THE OTHER TWO BUTTONS.
+   Every screen used to style its own second button, so the game had a dozen:
+   dark outlines, green outlines, amber fills, purple fills, a dimmed green
+   that looked disabled and was not. There are three now. Primary is the green
+   fill above and moves the game on. Secondary is a dark button for the other
+   way out. Danger is the risky or destructive choice. */
+.btn-secondary {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  background-color: var(--card-bg-elevated);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
+.btn-secondary:hover { border-color: rgba(34, 231, 72, 0.55); color: #ffffff; }
+
+.btn-danger {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  background-color: rgba(220, 38, 38, 0.08);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+.btn-danger:hover { background-color: rgba(220, 38, 38, 0.16); color: #fca5a5; border-color: rgba(239, 68, 68, 0.7); }
+
+/* WHERE THE KEYBOARD IS.
+   Only buttons had a focus style, and it was a half-transparent glow that a
+   parent with overflow hidden could clip away. Every focusable thing gets a
+   solid ring now, drawn as an outline so nothing clips it and only shown for
+   keyboard focus, never for a tap or a click. */
+button { outline-style: none; }
+/* The colour is set before focus arrives, so elements that animate their
+   colours do not fade the ring in from white. */
+:where(a, button, input, select, textarea, summary, [tabindex], [role="button"]) { outline-color: #22E748; }
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), [role="button"]):focus-visible {
+  outline: 2px solid #22E748;
+  outline-offset: 2px;
+  box-shadow: none;
+}
+input:focus-visible { outline-offset: 4px; }
+/* Headings and panels that only take focus so a screen reader lands on them
+   draw no ring: nothing about them can be pressed. */
+[tabindex="-1"]:focus { outline: none; }
 
 /* ============================================================
    TRADING-CARD SYSTEM — polygon corners, rarity frames, foil,
@@ -478,6 +534,17 @@ button:focus-visible {
   }
   .btn-primary:hover {
     transform: none;
+  }
+  /* The toast still appears and still leaves on its timer, it just does not
+     slide in from the side. */
+  .achievement-toast {
+    animation: none !important;
+  }
+  /* Cards and buttons that grow under the pointer stay their size. */
+  [class*="hover:scale-"]:hover,
+  [class*="active:scale-"]:active {
+    scale: none !important;
+    transform: none !important;
   }
 }
 

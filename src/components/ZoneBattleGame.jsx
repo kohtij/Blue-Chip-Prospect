@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
 import { SLOT, SLOT_VIEW } from './rink/geometry';
 import { Stage, Hud, Clock, Verdict } from './minigame/Shell';
+import { isPress } from '../utils/a11y';
 
 // The net-front battle.
 //
@@ -287,6 +288,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
         <button
           type="button"
           onPointerDown={() => shove(-1)}
+          onKeyDown={e => { if (isPress(e)) shove(-1); }}
           disabled={status !== 'live'}
           className="flex-1 py-4 rounded-xl border border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-200 font-black text-[11px] sm:text-xs uppercase tracking-[0.16em] hover:border-[#22E748]/70 hover:text-white transition-all active:scale-[0.98] cursor-pointer disabled:cursor-default"
         >
@@ -295,6 +297,7 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
         <button
           type="button"
           onPointerDown={() => shove(1)}
+          onKeyDown={e => { if (isPress(e)) shove(1); }}
           disabled={status !== 'live'}
           className="flex-1 py-4 rounded-xl border border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-200 font-black text-[11px] sm:text-xs uppercase tracking-[0.16em] hover:border-[#22E748]/70 hover:text-white transition-all active:scale-[0.98] cursor-pointer disabled:cursor-default"
         >

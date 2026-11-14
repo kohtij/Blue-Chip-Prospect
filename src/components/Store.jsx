@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useDialog } from '../utils/a11y';
 import { shopItems } from '../data/economy';
 import { formatMoney } from '../utils/gameHelpers';
 import { NEUTRAL_PILL, NEUTRAL_PILL_DIM, statCode, statPillClass } from '../utils/statColors';
@@ -68,10 +69,13 @@ export default function Store({ player, onBuy, onClose }) {
     .sort((a, b) => a.cost - b.cost);
 
   const shelfMeta = SHELVES.find(s => s.id === shelf);
+  const panelRef = useRef(null);
+  useDialog(panelRef, onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-start bg-black/50 p-3 sm:p-4 backdrop-blur-[2px]" onClick={onClose}>
       <div
+        ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="store-title"
         className="w-full max-w-md game-panel h-full flex flex-col border border-[rgba(255,255,255,0.1)] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
@@ -81,12 +85,12 @@ export default function Store({ player, onBuy, onClose }) {
         <div className="px-5 pt-5 pb-4 bg-[#101410] border-b border-[rgba(255,255,255,0.065)] shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-black text-white sports-font tracking-wide uppercase leading-none">The Store</h2>
+              <h2 id="store-title" className="text-xl font-black text-white sports-font tracking-wide uppercase leading-none">The Store</h2>
               <p className="text-[10px] text-slate-500 font-bold mt-1.5">Career earnings are what you spend here.</p>
             </div>
             <button
               type="button" onClick={onClose}
-              className="text-slate-500 hover:text-white text-xl leading-none px-2 -mt-1 cursor-pointer"
+              className="text-slate-500 hover:text-white text-xl leading-none -mt-2 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg cursor-pointer"
               aria-label="Close the store"
             >
               ×
@@ -104,9 +108,9 @@ export default function Store({ player, onBuy, onClose }) {
               const n = (shopItems || []).filter(i => i.type === s.id && !owned(i)).length;
               return (
                 <button
-                  key={s.id} type="button" onClick={() => setShelf(s.id)}
+                  key={s.id} type="button" onClick={() => setShelf(s.id)} aria-pressed={shelf === s.id}
                   className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.14em] transition-colors cursor-pointer ${
-                    shelf === s.id ? 'bg-[#1a2230] text-white shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}
+                    shelf === s.id ? 'bg-[#151b15] text-white shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                   {s.label}{n > 0 && <span className="text-slate-600 font-bold"> {n}</span>}
                 </button>
@@ -193,7 +197,7 @@ export default function Store({ player, onBuy, onClose }) {
         <div className="p-4 bg-[#101410] border-t border-[rgba(255,255,255,0.065)] shrink-0">
           <button
             type="button" onClick={onClose}
-            className="w-full bg-[#1a2230] hover:bg-[#232d3f] border border-[rgba(255,255,255,0.065)] text-white py-3 rounded-xl font-black sports-font uppercase tracking-[0.16em] text-xs transition-colors cursor-pointer"
+            className="w-full bg-[#151b15] hover:bg-[#1c241c] border border-[rgba(255,255,255,0.065)] text-white py-3 rounded-xl font-black sports-font uppercase tracking-[0.16em] text-xs transition-colors cursor-pointer"
           >
             Back to the rink
           </button>

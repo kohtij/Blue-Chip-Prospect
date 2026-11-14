@@ -2,8 +2,9 @@ import { getOpponentPool, getTeamData, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
-import { recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle } from '../utils/gameHelpers';
-import { capFor } from '../utils/contracts';
+import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle } from '../utils/gameHelpers';
+import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
+import { buyoutTerms, salaryParts } from '../utils/bonuses';
 import { COACH_SYSTEMS, coachOpening, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
 import { teamStrengthOf } from '../utils/leagueState';
 
@@ -100,6 +101,25 @@ export function advanceToOffseason(ctx) {
               }
           }));
       }
+  }
+
+  // JULY 1. A deal paid partly as signing bonuses pays next season's lump now,
+  // before anything else can happen to it, which is the whole point of asking
+  // for one: a buyout later this summer cannot take it back.
+  if (opening && (player.contract?.years || 0) > 0 && (player.contract?.sbShare || 0) > 0) {
+    const lump = salaryParts(player.contract).bonus;
+    if (lump > 0) {
+      setPlayer(p => ({ ...p, stats: {
+        ...p.stats,
+        earnings: (p.stats?.earnings || 0) + lump,
+        careerEarnings: (p.stats?.careerEarnings || p.stats?.earnings || 0) + lump
+      } }));
+      setSeasonEvents(prev => [...prev, {
+        title: 'SIGNING BONUS',
+        feedback: `Next season's signing bonus landed on July 1: ${formatMoney(lump)}.`,
+        effect: { money: lump }
+      }]);
+    }
   }
 
   if (opening) mark('opened');
@@ -222,8 +242,8 @@ export function advanceToOffseason(ctx) {
           title: '🏥 THE REHABILITATION',
           desc: `The rehab has taken the whole summer. Your physios have given you two options: the team's standard recovery plan, which the club pays for, or an experimental treatment in Germany that you pay for yourself.`,
           choices: [
-              { label: 'Experimental Rehab ($100k)', subLabel: 'Fly to Germany and pay for the treatment yourself.', isRisky: true, successChance: 0.75, successFeedback: 'It worked. You came back feeling quicker and stronger than before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'It did nothing. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
-              { label: 'Standard Rehab (Free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You are cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+              { label: 'Experimental rehab ($100k)', subLabel: 'Fly to Germany and pay for the treatment yourself.', isRisky: true, successChance: 0.75, successFeedback: 'It worked. You came back feeling quicker and stronger than before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'It did nothing. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
+              { label: 'Standard rehab (free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You are cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
           ],
           isOffseasonEvent: true
       });
@@ -314,6 +334,61 @@ export function advanceToOffseason(ctx) {
       });
       setScreen('event');
       return;
+  }
+
+  // THE BUYOUT.
+  //
+  // Late June, before the market opens. A club with a veteran it is paying far
+  // more than he is now worth can buy out what is left of the deal: he gets two
+  // thirds of the remaining salary (a third if he is under twenty-six), spread
+  // over twice as many years, and he is a free agent on July 1. Signing bonuses
+  // are not salary, so they are paid in full regardless, and a deal built out
+  // of them is a deal a club rarely bothers to buy out. A no-movement clause
+  // does not stop it; nothing in a contract does. Rolled once a summer.
+  if (done < SUMMER_DONE && !marks.buyout) {
+    mark('buyout');
+    const c = player.contract || {};
+    const yearsLeft = c.years || 0;
+    const year = 2026 + (player.stats?.seasonsPlayed || 0);
+    const eligible = player.league === 'NHL' && yearsLeft >= 1 && (c.salary || 0) >= 2500000
+      && c.salary !== 925000 && !c.isScholarship && (player.age || 0) >= 28;
+    if (eligible) {
+      const fair = priceOf(recentForm(player).rate, year, { age: player.age, awards: majorCount(player) });
+      const ratio = fair > 0 ? c.salary / fair : 0;
+      const odds = Math.min(0.55, Math.max(0, (ratio - 1.6) * 0.35)) * (1 - 0.6 * (c.sbShare || 0));
+      if (odds > 0 && Math.random() < odds) {
+        const terms = buyoutTerms(c, player.age);
+        const clubName = getFullTeamName(player.team, 'NHL');
+        const bonusNote = (c.sbShare || 0) > 0
+          ? ' Your signing bonuses are not part of it. Those are paid in full, on the dates in the contract.'
+          : '';
+        setActiveEvent({
+          title: '✂️ BOUGHT OUT',
+          desc: `The GM called the morning the buyout window opened. The ${clubName} are buying out the last ${yearsLeft === 1 ? 'year' : `${yearsLeft} years`} of your contract. You will be paid ${terms.fractionWord} of what was left, ${formatMoney(terms.perYear)} a year for the next ${terms.seasons} years, and on July 1 you are a free agent.${bonusNote}`,
+          choices: [
+            {
+              label: 'Thank the fans and move on',
+              subLabel: 'A short statement, then start taking calls from other clubs.',
+              isRisky: false,
+              feedback: 'You thanked the city in a short statement and spent the evening on the phone with your agent.',
+              effect: { fanStatus: 10, ovr: 0, rel: { media: 5 } },
+              action: 'BUYOUT', actionData: { team: player.team, ...terms }
+            },
+            {
+              label: 'Say what you think of it',
+              subLabel: 'Tell the reporters the club has given up on you, and train like it.',
+              isRisky: false,
+              feedback: 'You told the reporters exactly what you thought of the decision. It made the papers in every city you might sign in, and you have not trained this hard in years.',
+              effect: { fanStatus: 0, ovr: 1, rel: { media: -15 } },
+              action: 'BUYOUT', actionData: { team: player.team, ...terms }
+            }
+          ],
+          isOffseasonEvent: true
+        });
+        setScreen('event');
+        return;
+      }
+    }
   }
 
   // The rest of the summer runs once. The aging curve, the ELC slide and the
@@ -409,7 +484,7 @@ export function advanceToOffseason(ctx) {
        // any of them do.
        const isPro = !['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(player.league);
        if (isPro && !hasContract) {
-           choices.push({ label: 'Sign a Twilight Contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You signed in Europe for one last stretch. Less travel, bigger ice, and nobody asking about your cap hit.', effect: { fanStatus: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
+           choices.push({ label: 'Sign a twilight contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You signed in Europe for one last stretch. Less travel, bigger ice, and nobody asking about your cap hit.', effect: { fanStatus: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
        }
 
        if (choices.length === 1) {
@@ -564,7 +639,7 @@ export function advanceToOffseason(ctx) {
              title: 'CHL IMPORT DRAFT',
              desc: `The ${getFullTeamName(chlTeam, 'OHL')} took you in the CHL Import Draft. Will you leave Europe to play major junior in North America?`,
              choices: [
-               { label: 'Move to Canada (Join OHL)', subLabel: 'Leave Europe to prepare for your draft year in the OHL.', isRisky: false, feedback: 'You packed your bags for North America to prepare for your draft year.', effect: { fanStatus: 5, ovr: 2, money: 0 }, action: 'JOIN_CHL', actionData: chlTeam.id },
+               { label: 'Move to Canada (join the OHL)', subLabel: 'Leave Europe to prepare for your draft year in the OHL.', isRisky: false, feedback: 'You packed your bags for North America to prepare for your draft year.', effect: { fanStatus: 5, ovr: 2, money: 0 }, action: 'JOIN_CHL', actionData: chlTeam.id },
                { label: 'Stay in Europe', subLabel: 'Stay close to home for now.', isRisky: false, feedback: 'You decided to stay close to home.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
@@ -822,7 +897,7 @@ export function advanceToOffseason(ctx) {
                    desc: `Your development window has closed. The ${teamName} still hold your draft rights and have offered you an Entry-Level Contract. If you decline, your rights will expire and you will become an Unrestricted Free Agent.`,
                    choices: [
                        { label: `Sign ELC with ${teamName}`, subLabel: 'Turn pro immediately on your entry-level deal.', isRisky: false, feedback: 'You signed your entry-level contract and are heading to pro camp.', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
-                       { label: 'Test Free Agency', subLabel: 'Let your rights expire and look for a better opportunity elsewhere.', isRisky: false, feedback: 'You let your draft rights expire to test the open market.', effect: { fanStatus: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                       { label: 'Test free agency', subLabel: 'Let your rights expire and look for a better opportunity elsewhere.', isRisky: false, feedback: 'You let your draft rights expire to test the open market.', effect: { fanStatus: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                    ],
                    isOffseasonEvent: true
                });
@@ -831,7 +906,7 @@ export function advanceToOffseason(ctx) {
                    title: 'RIGHTS EXPIRED',
                    desc: `Your development window has closed. The ${teamName} have decided not to offer you a contract. Your draft rights have expired and you are now an Unrestricted Free Agent.`,
                    choices: [
-                       { label: 'Enter Free Agency', subLabel: 'Look for a team willing to take a chance on you.', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                       { label: 'Enter free agency', subLabel: 'Look for a team willing to take a chance on you.', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                    ],
                    isOffseasonEvent: true
                });
@@ -841,7 +916,7 @@ export function advanceToOffseason(ctx) {
                title: 'AMATEUR GRADUATION',
                desc: `You have aged out of amateur hockey as an undrafted free agent. It's time to see if any pro teams are interested in signing you.`,
                choices: [
-                   { label: 'Enter Free Agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You are looking for your first pro contract.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                   { label: 'Enter free agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You are looking for your first pro contract.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                ],
                isOffseasonEvent: true
            });
@@ -970,8 +1045,8 @@ export function advanceToOffseason(ctx) {
               title: '🔥 LATE BLOOMER BREAKOUT',
               desc: `Something clicked over the summer. The game has slowed down, you feel strong, and you are running the informal scrimmages. The papers are predicting a breakout year.`,
               choices: [
-                  { label: 'Embrace the Spotlight', subLabel: 'Lean into the hype for a bigger immediate boost.', isRisky: false, feedback: 'You told everyone who asked that this is your year.', effect: { fanStatus: 50, ovr: 4, money: 0 } },
-                  { label: 'Keep Your Head Down', subLabel: 'Stay humble and let your game do the talking.', isRisky: false, feedback: 'You kept quiet and got on with it.', effect: { fanStatus: 10, ovr: 5, money: 0 } }
+                  { label: 'Embrace the spotlight', subLabel: 'Lean into the hype for a bigger immediate boost.', isRisky: false, feedback: 'You told everyone who asked that this is your year.', effect: { fanStatus: 50, ovr: 4, money: 0 } },
+                  { label: 'Keep your head down', subLabel: 'Stay humble and let your game do the talking.', isRisky: false, feedback: 'You kept quiet and got on with it.', effect: { fanStatus: 10, ovr: 5, money: 0 } }
               ],
               isOffseasonEvent: true
           });
@@ -987,8 +1062,8 @@ export function advanceToOffseason(ctx) {
               title: '📉 OFF-YEAR REGRESSION',
               desc: `You spent the summer enjoying the money and not training. You turned up to camp out of shape, and people are calling last season a fluke.`,
               choices: [
-                  { label: 'Ignore the Haters', subLabel: 'Save the money, but your game stays sluggish.', isRisky: false, feedback: 'You brushed off the media, and your game still looks sluggish.', effect: { fanStatus: -20, ovr: -3, money: 0 } },
-                  { label: 'Hire a Private Trainer ($250k)', subLabel: 'Spend to get back in shape and limit the damage.', isRisky: false, feedback: 'It cost a fortune, and you got most of the way back.', effect: { fanStatus: 10, ovr: -1, money: -250000 } }
+                  { label: 'Ignore the haters', subLabel: 'Save the money, but your game stays sluggish.', isRisky: false, feedback: 'You brushed off the media, and your game still looks sluggish.', effect: { fanStatus: -20, ovr: -3, money: 0 } },
+                  { label: 'Hire a private trainer ($250k)', subLabel: 'Spend to get back in shape and limit the damage.', isRisky: false, feedback: 'It cost a fortune, and you got most of the way back.', effect: { fanStatus: 10, ovr: -1, money: -250000 } }
               ],
               isOffseasonEvent: true
           });
@@ -1105,7 +1180,7 @@ export function advanceToOffseason(ctx) {
             desc: `You refused to sign your Qualifying Offer and are holding out of training camp for a big extension ($${(updatedContract?.salary || 0).toLocaleString()}/yr). Every day you stay away, the front office gets angrier and the coverage gets worse.`,
             choices: [
                 {
-                    label: 'Hold the Line',
+                    label: 'Hold the line',
                     subLabel: 'Refuse to report until they meet your exact asking price.',
                     isRisky: true,
                     successChance: 0.4,
@@ -1117,7 +1192,7 @@ export function advanceToOffseason(ctx) {
                     actionData: { success: true }
                 },
                 {
-                    label: 'Cave and Sign the QO',
+                    label: 'Cave and sign the QO',
                     subLabel: 'End the holdout, apologize, and accept a 1-year Qualifying Offer to get back on the ice.',
                     isRisky: false,
                     feedback: 'You folded and signed the 1-year Qualifying Offer. The holdout was for nothing, and the coach is furious you missed camp.',
@@ -1235,14 +1310,14 @@ export function advanceToOffseason(ctx) {
             desc: `You arrive at camp as one of the core players for the ${player.league} season. The coaches know what you bring, and the rookies are watching how you go about it.`,
             choices: [
                 {
-                  label: 'Pace Yourself',
+                  label: 'Pace yourself',
                   subLabel: 'Play it safe to stay fresh for opening night, and avoid a reckless injury.',
                   isRisky: false,
                   feedback: 'You got through camp without a scratch and were fresh for opening night.',
                   effect: { fanStatus: 10, ovr: 0 }
                 },
                 {
-                  label: 'Dominate Scrimmages',
+                  label: 'Dominate scrimmages',
                   subLabel: 'Push hard to set the tone, at some injury risk.',
                   isRisky: true,
                   successChance: 0.75,

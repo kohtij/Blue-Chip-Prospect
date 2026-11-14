@@ -85,7 +85,7 @@ function RunLine({ run }) {
 }
 
 function Flag({ nation, className = 'w-5 h-3.5' }) {
-  if (!nation?.img) return <span className={`${className} inline-block rounded-[1px] bg-[#1a2230]`} />;
+  if (!nation?.img) return <span className={`${className} inline-block rounded-[1px] bg-[#151b15]`} />;
   return <img src={nation.img} alt="" className={`${className} object-cover rounded-[1px] shrink-0`} />;
 }
 
@@ -198,13 +198,13 @@ export default function IntlTournamentScreen() {
   const mgProps = { player, difficulty: stakes.difficulty, onComplete: handleLastChance };
 
   return (
-    <div className="game-panel p-4 sm:p-7 mt-2 border-t-2 border-t-[#F59E0B]">
+    <div className="game-panel p-4 sm:p-7 mt-2">
       {/* HEADER */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
           <Flag nation={nat} className="w-8 h-6 sm:w-10 sm:h-7" />
           <div className="min-w-0">
-            <h2 className="text-xl sm:text-3xl font-black text-[#F59E0B] sports-font tracking-tighter uppercase leading-none truncate">
+            <h2 className="text-xl sm:text-3xl font-black text-white sports-font tracking-tighter uppercase leading-none truncate">
               {TITLE[minigameContext] || 'WORLD CHAMPIONSHIP'}
             </h2>
             <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 truncate">
@@ -327,7 +327,7 @@ export default function IntlTournamentScreen() {
             </div>
           </div>
           <button onClick={handleLeave} className="btn-primary w-full py-4 rounded-xl mt-5 sports-font tracking-widest text-base sm:text-lg cursor-pointer">
-            LEAVE THE TOURNAMENT ➔
+            LEAVE THE TOURNAMENT
           </button>
         </div>
       ) : (
@@ -378,7 +378,7 @@ export default function IntlTournamentScreen() {
             <span className={`shrink-0 text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${
               round?.kind === 'knockout'
                 ? 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'
-                : 'text-slate-400 bg-[#1a2230] border-[rgba(255,255,255,0.08)]'
+                : 'text-slate-400 bg-[#151b15] border-[rgba(255,255,255,0.08)]'
             }`}>
               {round?.kind === 'knockout' ? 'Win or go home' : 'Group'}
             </span>
@@ -449,7 +449,7 @@ export default function IntlTournamentScreen() {
                 </div>
               </div>
               <button onClick={handleContinue} className="btn-primary w-full py-3.5 rounded-xl mt-4 sports-font tracking-widest cursor-pointer">
-                {outcome.advanced.finish ? 'SEE HOW IT ENDED ➔' : 'NEXT GAME ➔'}
+                {outcome.advanced.finish ? 'SEE HOW IT ENDED' : 'NEXT GAME'}
               </button>
             </div>
           ) : (
@@ -499,14 +499,14 @@ export default function IntlTournamentScreen() {
               {/* WHAT YOU ARE CARRYING */}
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-2">⏱️ Call a timeout</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-2">Call a timeout</p>
                 <button
                   onClick={useTimeout}
                   disabled={!canTimeout}
                   className={`w-full py-2.5 rounded-lg font-black sports-font tracking-widest text-[11px] sm:text-xs uppercase transition-all ${
                     canTimeout
-                      ? 'bg-[#F59E0B]/10 border border-[#F59E0B]/40 text-[#F59E0B] hover:bg-[#F59E0B]/20 cursor-pointer'
-                      : 'bg-[#1a2230] border border-[rgba(255,255,255,0.06)] text-slate-600'
+                      ? 'btn-secondary cursor-pointer'
+                      : 'bg-[#151b15] border border-[rgba(255,255,255,0.06)] text-slate-600'
                   }`}
                 >
                   {run.timeoutUsed ? 'Timeout spent' : 'Get the scouting report'}
@@ -527,7 +527,7 @@ export default function IntlTournamentScreen() {
                   </p>
                   <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
                     run.escapeUsed
-                      ? 'text-slate-600 border-[rgba(255,255,255,0.08)] bg-[#1a2230]'
+                      ? 'text-slate-600 border-[rgba(255,255,255,0.08)] bg-[#151b15]'
                       : 'text-[#22E748] border-[#22E748]/40 bg-[#22E748]/10'
                   }`}>
                     {run.escapeUsed ? 'Already spent' : 'Still have it'}
@@ -551,7 +551,7 @@ export default function IntlTournamentScreen() {
                 {run.usedPlays.map(id => {
                   const p = book.find(x => x.id === id);
                   return p ? (
-                    <span key={id} className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border border-[rgba(255,255,255,0.1)] bg-[#1a2230] text-slate-400">
+                    <span key={id} className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border border-[rgba(255,255,255,0.1)] bg-[#151b15] text-slate-400">
                       {p.name}
                     </span>
                   ) : null;

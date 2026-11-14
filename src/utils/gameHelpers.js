@@ -4,11 +4,12 @@ import {
 } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
-import { ageFactor, curvesFor, D_TOI_REF, drawComebackBar, drawCommunityBar, drawRoomBar, faceoffs, forwardDefence, gaussianNoise, goalieAgeAdjust, iceTime, isDefence, paceOf, penaltyMinutes, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
+import { ageFactor, curvesFor, D_TOI_REF, drawComebackBar, drawCommunityBar, drawRoomBar, faceoffs, forwardDefence, gaussianNoise, goalieAgeAdjust, iceTime, isDefence, paceOf, penaltyMinutes, rateSeason, seasonForm, shotsOnGoal, soften, formReading, zoneEffect, zoneStarts, ZONE_PM_PER_SEASON } from './production';
 import { depthAhead, lineEffect, roomFor } from './roster';
 import { advanceLeagueState, teamStrengthOf } from './leagueState';
 import { advanceRecords, claimRecords } from './records';
 import { waiverExempt } from './waivers';
+import { earnedBonuses, salaryParts } from './bonuses';
 import { advancePeers, classBestAt, classNews, dmanBar, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
@@ -398,7 +399,7 @@ export const applyOvrDelta = (player, delta) => {
   };
 };
 
-function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, dBar = null, pm = 0, blk = null, toi = null, fot = 0, fow = 0, pim = 0 }) {
+function _computeAwards({ player, rating, g, a, saves, shots, games, standings, bar, gBar = null, dBar = null, pm = 0, blk = null, toi = null, fot = 0, fow = 0, pim = 0, ozPct = null }) {
   const awards = [];
   const pts = g + a;
 
@@ -536,8 +537,13 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // defensive centre is for. He still has to be a hockey player: the award has
   // never gone to somebody who could not also play.
   if (trophy.defensiveFwd && !isGoalie && !isDefense && fullish) {
-    const twoWay = forwardDefence({
-      pmPerGame: (pm || 0) / games, toi,
+    // Voters know who was sent out for the defensive-zone draws. The cost of
+    // those starts to his plus-minus is handed back before he is judged, and a
+    // coach who trusted him with the hardest ones is worth a little on top.
+    const zoneBack = ozPct == null ? 0 : ((50 - ozPct) * ZONE_PM_PER_SEASON) / 82;
+    const zoneCredit = ozPct == null ? 0 : Math.max(0, 50 - ozPct) * 0.004;
+    const twoWay = zoneCredit + forwardDefence({
+      pmPerGame: (pm || 0) / games + zoneBack, toi,
       blkPerGame: blk == null ? null : blk / games,
       foPct: fot > 0 ? fow / fot : null
     });
@@ -741,7 +747,9 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
       const hasCHLHistory = (p.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
       const needsAHLDevelopment = currentLg === 'NHL' && p.ovr < 78 && p.age < 24 && Math.random() < 0.85;
 
-      if (p.ovr < demoteThresh || needsAHLDevelopment) {
+      // A no-movement clause means he cannot be sent down or waived without
+      // agreeing to it, so the season placement does not try.
+      if ((p.ovr < demoteThresh || needsAHLDevelopment) && !(currentLg === 'NHL' && p.contract?.nmc)) {
         if (currentLg === 'NHL') {
           if (isUnder20 && hasCHLHistory) {
              // WHERE A SIGNED DRAFTEE ACTUALLY SPENDS HIS FIRST YEAR.
@@ -979,6 +987,13 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       }
   }
 
+  // Where the coach starts his shifts. See zoneStarts in production.js.
+  const ozPct = zoneStarts({
+    pos: p.pos, roleMulti, archetype: p.archetype, contractRole: p.contract?.role || '',
+    coachTrust, age: p.age, noise: gaussianNoise() * 2
+  });
+  const zone = zoneEffect(ozPct);
+
   // FIRST PLACE WAS NOT REACHABLE.
   //
   // finalTeamFactor is clamped to 0.95 a few lines above, and this read
@@ -1067,6 +1082,21 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const form = seasonForm(games);
   const curves = curvesFor(currentLg);
 
+  // FORM CARRIES.
+  //
+  // Each stretch of the year drew its luck from scratch, so a player who went
+  // cold in November was exactly as likely to be hot in December as anybody
+  // else, and nothing on the card could say he was in a slump because the
+  // engine had no idea. A streak carries now: about a third of how far above
+  // or below himself he was in the last stretch comes with him into the next.
+  // formCarry is that last stretch's multiplier, or whatever the answer to a
+  // slump event set in its place.
+  const carry = typeof options.formCarry === 'number' && options.formCarry > 0 ? options.formCarry : 1;
+  const carryMul = Math.pow(carry, 0.3);
+  form.goals *= carryMul;
+  form.assists *= carryMul;
+  let formIndex, formZ;
+
   if (p.pos === 'G') {
       // Save percentage calibration.
       //
@@ -1094,7 +1124,13 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       // the same goalie. The team term is a third of what it was: a club in
       // front of him moved his save percentage by nearly two points, which is
       // more than the gap between an average starter and an elite one.
-      const actualSavePct = Math.min(0.942, Math.max(0.855, savePctBase + gaussianNoise() * 0.008));
+      // The goalie's version of the same carry: a third of last stretch's
+      // swing, in the same units, on top of this stretch's own.
+      const prevZ = Math.log(carry) / 0.15;
+      const gz = gaussianNoise() + 0.3 * prevZ;
+      formZ = gz;
+      formIndex = Math.exp(gz * 0.15);
+      const actualSavePct = Math.min(0.942, Math.max(0.855, savePctBase + gz * 0.008));
       shots = games * (26 + Math.floor(Math.random() * 8));
       saves = Math.floor(shots * actualSavePct);
       
@@ -1138,12 +1174,27 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       // recognisable shape in hockey and the engine could not express it.
       // The tilt is the part worth having. A sniper on his wing turns his
       // passes into assists; a playmaker beside him turns his shots into goals.
-      const context = games * iceFactor * teamStrength * line.offence * lgMulti * fatigueMultiplier * ageMulti;
+      const context = games * iceFactor * teamStrength * line.offence * lgMulti * fatigueMultiplier * ageMulti * zone.offence;
       const gRaw = context * gpg * form.goals * line.goalTilt;
       const aRaw = context * apg * form.assists * line.assistTilt;
 
       g = Math.floor(soften(gRaw, curves.goals.soft, curves.goals.hard));
       a = Math.floor(soften(aRaw, curves.assists.soft, curves.assists.hard));
+
+      // PLUS-MINUS IS A SEASON'S WORTH, SO IT HAS TO BE SCALED TO THE GAMES.
+      //
+      // The three formulas above give a full season's plus-minus and were
+      // calibrated that way, but a season is played in four pieces now (to
+      // December, to the break, to the deadline, the run-in), and each piece
+      // was handed a whole season's number. The year added up to about four
+      // times what it should: a good two-way centre finished on +55 where the
+      // same player simulated in one go finished on +14. The zone starts go in
+      // first, at their season value, so both are scaled together.
+      pm = Math.round((pm + zone.pm) * (games / Math.max(1, maxGames)));
+
+      const reading = formReading(form, games);
+      formIndex = reading.index;
+      formZ = reading.z;
   }
 
   // BLOCKED SHOTS.
@@ -1251,7 +1302,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     return {
       segment: {
         team: playedTeam, league: playedLg, games,
-        g, a, pm, blk, sog, fot, fow, pim, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating, standings,
+        g, a, pm, blk, sog, fot, fow, pim, saves, shots, sho, wins, losses, otl, avgToi, ppToi, ozPct, formIndex, formZ, rating, standings,
         // Carried so the next segment inherits the same club, rather than
         // re-rolling how good the team is at every checkpoint of the year.
         // The base, not this segment's jittered value, so drift does not compound.
@@ -1261,7 +1312,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   }
 
   // Every stint of this season, earlier ones first, this one last.
-  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, blk, sog, fot, fow, pim, saves, shots, sho, wins, losses, otl, avgToi, ppToi, rating };
+  const thisStint = { team: playedTeam, league: playedLg, games, g, a, pm, blk, sog, fot, fow, pim, saves, shots, sho, wins, losses, otl, avgToi, ppToi, ozPct, rating };
   // Consecutive stints at the same club are one spell, not two: a prospect kept
   // past his nine games played 71 games for that team, not "9 and then 62".
   const stints = [...(options.priorStints || []), thisStint].reduce((acc, s) => {
@@ -1276,6 +1327,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       if (gA + gB > 0) {
         last.avgToi = ((last.avgToi || 0) * gA + (s.avgToi || 0) * gB) / (gA + gB);
         last.ppToi = ((last.ppToi || 0) * gA + (s.ppToi || 0) * gB) / (gA + gB);
+        if (last.ozPct != null || s.ozPct != null) {
+          last.ozPct = Math.round(((last.ozPct ?? 50) * gA + (s.ozPct ?? 50) * gB) / (gA + gB));
+        }
       }
       last.games += (s.games || 0); last.g += (s.g || 0); last.a += (s.a || 0);
       last.pm += (s.pm || 0); last.saves += (s.saves || 0);
@@ -1339,6 +1393,13 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
 
   // The rest of the draft class plays its season here, at the end of yours,
   // because the scoring title cannot be settled until everyone has finished.
+  // The season's zone starts, weighted by the games in each stint.
+  const seasonOz = (() => {
+    let sum = 0, n = 0;
+    for (const st of stints) if (st.ozPct != null && st.games > 0) { sum += st.ozPct * st.games; n += st.games; }
+    return n > 0 ? Math.round(sum / n) : null;
+  })();
+
   const nextPeers = advancePeers(ensureClass(p.peers, p.age, p.stats?.seasonsPlayed || 0, p.pos, p.leagueState));
   // What it actually took to lead this league this year, which is either the
   // best of the known field or a number drawn from the league's history.
@@ -1360,7 +1421,8 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     blk: leagueYear.blk,
     // And a forward's, for the Selke and the Byng.
     fot: leagueYear.fot, fow: leagueYear.fow, pim: leagueYear.pim,
-    toi: leagueYear.games > 0 ? leagueYear.toiGames / leagueYear.games : avgToi
+    toi: leagueYear.games > 0 ? leagueYear.toiGames / leagueYear.games : avgToi,
+    ozPct: seasonOz
   });
 
   // Every club the player had anything to do with this year is now a club the
@@ -1489,8 +1551,37 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     };
   }
 
+  // THE YEAR'S PAY.
+  //
+  // The salary, less whatever part of it was paid as a signing bonus on July 1,
+  // plus any performance bonus the season reached. Only NHL games count toward
+  // those, because no bonus in an NHL contract pays for games anywhere else.
+  const { wages } = salaryParts(p.contract);
+  const nhlStints = stints.filter(st => st.league === 'NHL');
+  const nhlGames = nhlStints.reduce((n, st) => n + (st.games || 0), 0);
+  const bonusYear = (p.contract?.bonuses?.length && nhlGames > 0)
+    ? earnedBonuses(p.contract.bonuses, {
+        games: nhlGames,
+        g: nhlStints.reduce((n, st) => n + (st.g || 0), 0),
+        a: nhlStints.reduce((n, st) => n + (st.a || 0), 0),
+        pm: nhlStints.reduce((n, st) => n + (st.pm || 0), 0),
+        blk: nhlStints.reduce((n, st) => n + (st.blk || 0), 0),
+        saves: nhlStints.reduce((n, st) => n + (st.saves || 0), 0),
+        shots: nhlStints.reduce((n, st) => n + (st.shots || 0), 0),
+        wins: nhlStints.reduce((n, st) => n + (st.wins || 0), 0),
+        sho: nhlStints.reduce((n, st) => n + (st.sho || 0), 0),
+        toi: nhlStints.reduce((n, st) => n + (st.avgToi || 0) * (st.games || 0), 0) / nhlGames,
+        awards: playedLg === 'NHL' ? awards : [],
+        allStar: !!p.storylines?.allStarSelected && p.league === 'NHL'
+      })
+    : { lines: [], total: 0 };
+  // And a year of every buyout still being paid, wherever he is playing now.
+  const buyoutPay = (p.buyouts || []).reduce((n, b) => n + ((b.seasonsLeft || 0) > 0 ? (b.perYear || 0) : 0), 0);
+  const yearPay = wages + bonusYear.total + buyoutPay;
+
   const updatedPlayer = {
     ...p,
+    buyouts: (p.buyouts || []).map(b => ({ ...b, seasonsLeft: Math.max(0, (b.seasonsLeft || 0) - 1) })).filter(b => b.seasonsLeft > 0),
     // Banked so next season can be held within a line of this one.
     lastRoleMulti: roleMulti,
     // What this season passed on the way through. Worked out here because
@@ -1529,8 +1620,8 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       ...p.stats,
       value: newVal,
       peakValue: Math.max((p.stats.peakValue || p.stats.value || 0), newVal),
-      earnings: (p.stats.earnings || 0) + (p.contract?.salary || 0), 
-      careerEarnings: (p.stats.careerEarnings || p.stats.earnings || 0) + (p.contract?.salary || 0), 
+      earnings: (p.stats.earnings || 0) + yearPay,
+      careerEarnings: (p.stats.careerEarnings || p.stats.earnings || 0) + yearPay,
       peakOvr: newPeakOvr,
       careerHighGoals: Math.max(p.stats.careerHighGoals || 0, seasonTotal.g),
       seasonsPlayed: (p.stats.seasonsPlayed || 0) + 1,
@@ -1566,6 +1657,10 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     saves: seasonTotal.saves, shots: seasonTotal.shots, sho: seasonTotal.sho,
     wins: seasonTotal.wins, losses: seasonTotal.losses, otl: seasonTotal.otl,
     games: seasonTotal.games, stints, titleWon: 0, playoffWins: 0, rating, standings, offPercent, waiverEvent, awards, madePlayoffs, avgToi, ppToi,
+    ozPct: seasonOz,
+    // What the contract's performance bonuses paid, line by line.
+    bonusLines: bonusYear.lines,
+    bonusTotal: bonusYear.total,
     // Who won the scoring race and what it took, so the recap can say so
     // instead of leaving a fifty-goal season with nothing to measure it by.
     scoringBar: bar,
@@ -1881,8 +1976,10 @@ export function summariseStints(stints) {
     fot: acc.fot + (s.fot || 0),
     fow: acc.fow + (s.fow || 0),
     pim: acc.pim + (s.pim || 0),
-    ppGames: acc.ppGames + ((s.ppToi || 0) * (s.games || 0))
-  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, wins: 0, losses: 0, otl: 0, toiGames: 0, ppGames: 0, blocks: 0, sog: 0, fot: 0, fow: 0, pim: 0 });
+    ppGames: acc.ppGames + ((s.ppToi || 0) * (s.games || 0)),
+    ozGames: acc.ozGames + (s.ozPct != null ? s.ozPct * (s.games || 0) : 0),
+    ozN: acc.ozN + (s.ozPct != null ? (s.games || 0) : 0)
+  }), { games: 0, goals: 0, assists: 0, plusMinus: 0, saves: 0, shots: 0, shutouts: 0, wins: 0, losses: 0, otl: 0, toiGames: 0, ppGames: 0, blocks: 0, sog: 0, fot: 0, fow: 0, pim: 0, ozGames: 0, ozN: 0 });
 
   const last = stints[stints.length - 1];
   return {
@@ -1892,6 +1989,7 @@ export function summariseStints(stints) {
     wins: tot.wins, losses: tot.losses, otl: tot.otl,
     avgToi: tot.games > 0 ? tot.toiGames / tot.games : 0,
     ppToi: tot.games > 0 ? tot.ppGames / tot.games : 0,
+    ozPct: tot.ozN > 0 ? Math.round(tot.ozGames / tot.ozN) : null,
     team: last?.team, league: last?.league, standings: last?.standings,
     inProgress: true
   };

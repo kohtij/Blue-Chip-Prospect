@@ -90,8 +90,8 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
           effect: { fanStatus: -30, ovr: -1, money: 0 }
         },
         {
-          label: 'Hold Out (Refuse to Play)',
-          subLabel: '⚡ High Risk • Force a trade, at a cost to your fans and your game',
+          label: 'Hold out (refuse to play)',
+          subLabel: 'Force a trade, at a cost to your fans and your game.',
           isRisky: true,
           successChance: 0.35,
           successFeedback: 'The GM panicked and moved you for almost nothing, just to get you out of the room.',

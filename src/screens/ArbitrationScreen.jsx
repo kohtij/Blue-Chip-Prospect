@@ -3,6 +3,10 @@ import { useAppContext } from '../AppContext';
 import { getRole } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
 import { isDefence } from '../utils/production';
+import { CHOICE_ROW, kickerClass, TAG_AMBER, TAG_GREEN, TAG_RED, TITLE_MD } from '../utils/ui';
+
+// The dice, outside the component so a render can never be the thing that rolls them.
+const roll = () => Math.random();
 
 export default function ArbitrationScreen() {
   const { arbState, player, setActiveEvent, setArbState, setScreen } = useAppContext();
@@ -40,7 +44,7 @@ export default function ArbitrationScreen() {
     const isHardball = argType === 'hardball';
     const hardballChance = Math.max(0.1, Math.min(0.95, 0.35 + moodModifier));
     const baseSuccess = isHardball ? hardballChance : (argType === 'impact' ? impactChance : leadershipChance);
-    const success = Math.random() < baseSuccess;
+    const success = roll() < baseSuccess;
 
     if (argType === 'impact') {
       swing = Math.round((gap * 0.12) / 25000) * 25000;
@@ -89,7 +93,7 @@ export default function ArbitrationScreen() {
           desc: `The hearing is over, and the arbitrator's ruling is binding.\n\nYou are awarded a 1-year, ${formatMoney(finalSalary)} contract.`,
           choices: [
             {
-              label: 'Sign Binding Contract',
+              label: 'Sign binding contract',
               isRisky: false,
               feedback: `You are locked in for 1 year at ${formatMoney(finalSalary)}. The relationship with the front office is bruised after the hearing.`,
               effect: { fanStatus: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
@@ -112,10 +116,10 @@ export default function ArbitrationScreen() {
           
           <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
             <div>
-              <span className="text-[10px] sm:text-xs font-bold text-[#ef4444] uppercase tracking-widest font-sans border border-[#ef4444]/30 px-2.5 py-1 rounded bg-[#ef4444]/10">
-                BINDING ARBITRATION
+              <span className={kickerClass('red')}>
+                Binding arbitration
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white sports-font uppercase mt-2">
+              <h2 className={`${TITLE_MD} mt-4`}>
                 THE HEARING
               </h2>
             </div>
@@ -164,50 +168,36 @@ export default function ArbitrationScreen() {
 
           {arbState.rounds > 0 ? (
             <div className="space-y-4 fade-up">
-              <h4 className="sports-font text-slate-300 text-sm uppercase tracking-widest text-center mb-4">Arguments Remaining: <span className="text-[#3b82f6] text-lg">{arbState.rounds}</span></h4>
+              <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.18em] text-center mb-4">Arguments left: <span className="text-white number-font text-sm">{arbState.rounds}</span></p>
               
               <div className="flex flex-col gap-3">
-                <button
-                  disabled={usedArgs.includes('impact')}
-                  onClick={() => handleArgument('impact')}
-                  className="bg-[#101410] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1a2230] border border-[rgba(255,255,255,0.08)] hover:border-[#3b82f6] p-4 rounded-xl text-left transition-all group"
-                >
-                  <div className="flex justify-between items-center mb-1">
-                     <span className="sports-font text-white text-base sm:text-lg group-hover:text-[#3b82f6] transition-colors">HIGHLIGHT ON-ICE IMPACT</span>
-                     <span className={`text-[10px] font-bold uppercase tracking-widest ${impactChance > 0.8 ? 'text-[#22E748]' : impactChance > 0.5 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>{Math.round(impactChance * 100)}% SUCCESS</span>
-                  </div>
-                  <div className="text-xs text-slate-400 font-sans">Point to your offensive production, hockey IQ, and skill metrics.</div>
-                </button>
-
-                <button
-                  disabled={usedArgs.includes('leadership')}
-                  onClick={() => handleArgument('leadership')}
-                  className="bg-[#101410] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1a2230] border border-[rgba(255,255,255,0.08)] hover:border-[#22E748] p-4 rounded-xl text-left transition-all group"
-                >
-                  <div className="flex justify-between items-center mb-1">
-                     <span className="sports-font text-white text-base sm:text-lg group-hover:text-[#22E748] transition-colors">CITE LOCKER ROOM LEADERSHIP</span>
-                     <span className={`text-[10px] font-bold uppercase tracking-widest ${leadershipChance > 0.8 ? 'text-[#22E748]' : leadershipChance > 0.5 ? 'text-[#F59E0B]' : 'text-[#ef4444]'}`}>{Math.round(leadershipChance * 100)}% SUCCESS</span>
-                  </div>
-                  <div className="text-xs text-slate-400 font-sans">Focus on your strong relationships with teammates and the coaching staff.</div>
-                </button>
-
-                <button
-                  onClick={() => handleArgument('hardball')}
-                  className="bg-[#101410] hover:bg-[#1a2230] border border-[rgba(255,255,255,0.08)] hover:border-[#ef4444] p-4 rounded-xl text-left transition-all group"
-                >
-                  <div className="flex justify-between items-center mb-1">
-                     <span className="sports-font text-[#ef4444] text-base sm:text-lg group-hover:text-red-400 transition-colors">DEMAND SUPERSTAR MONEY</span>
-                     <span className="text-[10px] font-bold uppercase tracking-widest text-[#ef4444]">35% SUCCESS</span>
-                  </div>
-                  <div className="text-xs text-slate-400 font-sans">Aggressively compare yourself to the highest-paid players in the league. <span className="text-red-400 font-bold">High risk of backfiring.</span></div>
-                </button>
+                {/* The three arguments, drawn the same way as the moves in
+                    contract talks: a title, its odds on the right, a line under. */}
+                {[
+                  { key: 'impact', title: 'Highlight your on-ice impact', line: 'Point to your production, your hockey IQ and your skill numbers.', chance: impactChance, used: usedArgs.includes('impact') },
+                  { key: 'leadership', title: 'Cite your leadership', line: 'Lean on how well you get on with your teammates and the staff.', chance: leadershipChance, used: usedArgs.includes('leadership') },
+                  { key: 'hardball', title: 'Demand superstar money', line: 'Compare yourself to the best-paid players in the league. It can backfire badly.', chance: 0.35, used: false, risky: true }
+                ].map(a => (
+                  <button key={a.key} disabled={a.used} onClick={() => handleArgument(a.key)}
+                          className={`${CHOICE_ROW} disabled:opacity-40 disabled:cursor-not-allowed`}>
+                    <span className="flex justify-between items-start gap-4 w-full">
+                      <span className="flex flex-col min-w-0">
+                        <span className="font-bold leading-tight text-sm sm:text-base text-white">{a.title}</span>
+                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">{a.line}</span>
+                      </span>
+                      <span className={a.risky ? TAG_RED : a.chance > 0.8 ? TAG_GREEN : a.chance > 0.5 ? TAG_AMBER : TAG_RED}>
+                        {Math.round(a.chance * 100)}%
+                      </span>
+                    </span>
+                  </button>
+                ))}
 
                 {arbState.rounds < 3 && (
                   <button
                     onClick={() => setArbState(prev => ({ ...prev, rounds: 0 }))}
-                    className="w-full mt-4 bg-transparent border-2 border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-white py-3 rounded-xl sports-font tracking-widest uppercase transition-all"
+                    className="w-full mt-4 btn-secondary py-3 rounded-xl sports-font tracking-widest cursor-pointer"
                   >
-                    REST YOUR CASE (SETTLE NOW)
+                    Rest your case and settle
                   </button>
                 )}
               </div>

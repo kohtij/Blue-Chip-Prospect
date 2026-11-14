@@ -3,8 +3,11 @@ import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { formatComp } from '../utils/contracts';
+import { formatMoney } from '../utils/gameHelpers';
+import { bonusCeiling } from '../utils/bonuses';
 import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
+import { TITLE_MD } from '../utils/ui';
 
 // Each club already carries its own two colours, and `teamAccent` picks the one
 // that reads against a near-black card. That gives every offer its own identity.
@@ -55,8 +58,8 @@ export default function TransferScreen() {
   const teamDidNotOffer = !freeAgencyOffers.some(o => o.team === owningTeam);
 
   return (
-          <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6]">
-            <h2 className="text-3xl sm:text-4xl font-black italic text-white uppercase mb-4 text-center sports-font tracking-tighter">
+          <div className="game-panel p-6 sm:p-10 mt-2">
+            <h2 className={`${TITLE_MD} mb-4 text-center`}>
               {freeAgencyOffers.some(o => o.type === 'TRADE') ? 'TRADE REQUEST' : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type)) ? 'OPEN MARKET' : 'FREE AGENCY'}
             </h2>
             <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10 font-medium text-center max-w-2xl mx-auto">
@@ -299,10 +302,22 @@ export default function TransferScreen() {
                                </span>
                              </p>
                            )}
-                           {o.nmc && (
+                           {(o.nmc || o.ntc) && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                                <span className="text-slate-500 shrink-0">Clause</span>
-                               <span className="ml-auto shrink-0 text-[#c084fc]">No-Movement</span>
+                               <span className="ml-auto shrink-0 text-[#c084fc]">{o.nmc ? 'No-Movement' : 'No-Trade'}</span>
+                             </p>
+                           )}
+                           {o.sbShare > 0 && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500 shrink-0">Signing bonus</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-[#F59E0B]">{Math.round(o.sbShare * 100)}% each July 1</span>
+                             </p>
+                           )}
+                           {o.bonuses?.length > 0 && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500 shrink-0">Games bonuses</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-[#F59E0B]">Up to {formatMoney(bonusCeiling(o.bonuses))}</span>
                              </p>
                            )}
                            {o.type === 'OFFER SHEET' && (
@@ -331,18 +346,18 @@ export default function TransferScreen() {
                            <div className="w-full flex gap-2 mb-1">
                              <button 
                                onClick={() => signContract(qoOffer)} 
-                               className="flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest font-black text-[9px] sm:text-[10px] transition-all active:scale-95 border border-slate-600 bg-[#1a2230] text-slate-300 hover:bg-[#232d3f] flex flex-col items-center leading-tight shadow-md"
+                               className="btn-secondary flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest text-[9px] sm:text-[10px] flex flex-col items-center leading-tight"
                              >
-                               <span>📋 ACCEPT Q.O.</span>
+                               <span>ACCEPT Q.O.</span>
                                <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
                                  {qoOffer.salary >= 1000000 ? `$${(qoOffer.salary / 1000000).toFixed(1)}M/yr` : `$${(qoOffer.salary / 1000).toFixed(0)}K/yr`}
                                </span>
                              </button>
                              <button 
                                onClick={() => handleArbitration(qoOffer)} 
-                               className="flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest font-black text-[9px] sm:text-[10px] transition-all active:scale-95 border border-[#ef4444]/50 bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444]/20 flex flex-col items-center leading-tight shadow-[0_0_10px_rgba(239,68,68,0.15)]"
+                               className="btn-danger flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest text-[9px] sm:text-[10px] flex flex-col items-center leading-tight"
                              >
-                               <span>⚖️ ARBITRATION</span>
+                               <span>ARBITRATION</span>
                                <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
                                  1-Yr Hearing
                                </span>
@@ -354,9 +369,9 @@ export default function TransferScreen() {
                          {discountOffer && (
                            <button 
                              onClick={() => signContract(discountOffer)} 
-                             className="w-full py-2.5 mb-1 rounded-xl cursor-pointer sports-font tracking-widest font-black text-[10px] sm:text-xs transition-all active:scale-95 border border-[#F59E0B]/50 bg-[#F59E0B]/10 text-[#F59E0B] hover:bg-[#F59E0B]/20 flex flex-col items-center leading-tight shadow-[0_0_10px_rgba(245,158,11,0.15)]"
+                             className="btn-secondary w-full py-2.5 mb-1 rounded-xl cursor-pointer sports-font tracking-widest text-[10px] sm:text-xs flex flex-col items-center leading-tight"
                            >
-                             <span>🔒 HOMETOWN DISCOUNT</span>
+                             <span>HOMETOWN DISCOUNT</span>
                              <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
                                Take {discountOffer.salary >= 1000000 ? `$${(discountOffer.salary / 1000000).toFixed(1)}M/yr` : `$${(discountOffer.salary / 1000).toFixed(0)}K/yr`} for +100 Fans
                              </span>
@@ -371,12 +386,12 @@ export default function TransferScreen() {
                          {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && o.type !== 'SCHOLARSHIP')) && (
                            <div className="flex gap-2 mb-1">
                              {o.type === 'QUALIFYING OFFER' && !qoOffer && (
-                               <button onClick={() => handleArbitration(o)} className="flex-1 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#ef4444]/20 transition-colors cursor-pointer">
+                               <button onClick={() => handleArbitration(o)} className="btn-danger flex-1 py-2 rounded-xl sports-font tracking-widest text-[9px] sm:text-[10px] cursor-pointer">
                                  ARBITRATION
                                </button>
                              )}
                              {!o.negotiated && o.type !== 'QUALIFYING OFFER' && o.type !== 'SCHOLARSHIP' && (
-                               <button onClick={() => startNegotiation(o)} className="flex-1 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/40 text-[#3b82f6] font-black sports-font tracking-widest text-[9px] sm:text-[10px] hover:bg-[#3b82f6]/20 transition-colors cursor-pointer">
+                               <button onClick={() => startNegotiation(o)} className="btn-secondary flex-1 py-2 rounded-xl sports-font tracking-widest text-[9px] sm:text-[10px] cursor-pointer">
                                  NEGOTIATE
                                </button>
                              )}
@@ -385,10 +400,10 @@ export default function TransferScreen() {
 
                          <button
                            onClick={() => signContract(o)}
-                           className={`w-full py-3 rounded-xl cursor-pointer sports-font tracking-widest font-black text-sm sm:text-base transition-all shadow-lg hover:shadow-xl active:scale-95 active:translate-y-1 border ${
-                             isReturnHome ? 'bg-[#F59E0B] border-[#d97706] text-black hover:bg-[#fbbf24]' :
-                             isRival ? 'bg-[#ef4444] border-[#b91c1c] text-white hover:bg-[#f87171]' :
-                             'bg-[#22E748] border-[#16a34a] text-black hover:bg-[#4ade80]'
+                           // Green for every signing, red when it means joining the
+                           // arch-rival, which is the one signing with a cost.
+                           className={`w-full py-3 rounded-xl cursor-pointer sports-font tracking-widest text-sm sm:text-base active:scale-[0.98] ${
+                             isRival ? 'btn-danger' : 'btn-primary'
                            }`}
                          >
                            {isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}

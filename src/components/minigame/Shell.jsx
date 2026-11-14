@@ -89,7 +89,7 @@ export function Brief({ stakes, title, blurb, read, stat, onStart }) {
 // --- the stage -------------------------------------------------------------
 // The ice, framed. A game passes its surface in and gets the frame, the HUD rail
 // and the verdict overlay for nothing.
-export function Stage({ hud, children, verdict, caption }) {
+export function Stage({ hud, children, verdict, caption, keys }) {
   return (
     <div className="w-full max-w-xl mx-auto">
       {hud}
@@ -100,6 +100,13 @@ export function Stage({ hud, children, verdict, caption }) {
       {caption && (
         <p className="mt-3 text-center text-[11px] sm:text-xs text-slate-500 leading-relaxed min-h-[2.2em]">
           {caption}
+        </p>
+      )}
+      {/* The keyboard controls, for anybody playing with one. Hidden on a
+          touch screen, where there is no keyboard to use them with. */}
+      {keys && (
+        <p className="mt-1 hidden [@media(pointer:fine)]:block text-center text-[10px] sm:text-[11px] text-slate-500 leading-relaxed">
+          {keys}
         </p>
       )}
     </div>

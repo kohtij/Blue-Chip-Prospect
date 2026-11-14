@@ -1,6 +1,7 @@
 import 'react';
 import { useAppContext } from '../AppContext';
 import { PRESS_VIBES } from '../utils/appHelpers';
+import { kickerClass, TITLE_LG } from '../utils/ui';
 
 export default function PressResultScreen() {
   const { activePress, handleEndPress } = useAppContext();
@@ -15,10 +16,10 @@ export default function PressResultScreen() {
            else { resultTitle = 'PR DISASTER'; resultColor = 'text-[#ef4444]'; resultText = 'You alienated everyone. -15 Fan Status, -1 OVR'; }
 
            return (
-            <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6] text-center max-w-2xl mx-auto">
+            <div className="game-panel p-6 sm:p-10 mt-2 text-center max-w-2xl mx-auto">
               <div className="mb-6 sm:mb-8 border-b border-[rgba(255,255,255,0.065)] pb-6">
-                 <h3 className="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mb-1 font-sans">PRESS ROOM</h3>
-                 <h2 className="text-3xl sm:text-5xl font-black text-white sports-font uppercase tracking-wide">THE TRANSCRIPT</h2>
+                 <span className={`${kickerClass('neutral')} mb-4`}>Press room</span>
+                 <h2 className={TITLE_LG}>The transcript</h2>
               </div>
 
               <div className="flex flex-col gap-3 mb-8">
@@ -45,7 +46,7 @@ export default function PressResultScreen() {
               </div>
 
               <button onClick={handleEndPress} className="w-full btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg transition-transform active:scale-95">
-                CONTINUE CAREER ➔
+                CONTINUE CAREER
               </button>
             </div>
            );

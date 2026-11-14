@@ -13,6 +13,7 @@ import {
 } from './utils/gameHelpers';
 import { createDraftClass, scoutingBoard } from './utils/peers';
 import { recordTitle } from './utils/titles';
+import { elcBonuses, salaryParts, SB_SHARE, veteranBonuses } from './utils/bonuses';
 import { withOfferPerks } from './data/offerPerks';
 import { projectDraftPick } from './utils/draftScouting';
 import { getStakes, applyStakesToReward } from './utils/stakes';
@@ -194,6 +195,27 @@ function App() {
     if (!isDesktop()) return;
     try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
     catch { window.scrollTo(0, 0); }
+  }, [screen, activeEvent]);
+
+  // WHERE FOCUS GOES WHEN THE SCREEN CHANGES.
+  //
+  // Almost every button in the game replaces the screen it is on, so the
+  // button that had focus disappears and the browser drops focus back to the
+  // top of the page. A keyboard user then tabbed through the whole player
+  // card again to reach the new choices, and a screen reader said nothing at
+  // all about the new screen. Focus moves to the new screen's heading instead,
+  // without scrolling, and only when it was actually lost: a press inside the
+  // player card that leaves the screen alone keeps its place.
+  const mainRef = useRef(null);
+  useEffect(() => {
+    const el = document.activeElement;
+    if (el && el !== document.body && document.contains(el)) return;
+    const main = mainRef.current;
+    if (!main) return;
+    // The screen's own title, not the hidden page title above it.
+    const target = main.querySelector('h1:not(.sr-only), h2, h3') || main;
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    try { target.focus({ preventScroll: true }); } catch { /* nothing to focus */ }
   }, [screen, activeEvent]);
 
   useEffect(() => {
@@ -405,7 +427,7 @@ function App() {
        setActiveEvent({
          title: '🌟 THE CHOSEN ONE',
          desc: `Scouts have been talking about you since you were fourteen. You are sixteen now, and the names they compare you to are Crosby, McDavid and Bedard. Every game you play from here gets watched.`,
-         choices: [{ label: 'Embrace the Expectations', isRisky: false, feedback: 'Somebody is going to build a franchise around you. You may as well get used to the cameras.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
+         choices: [{ label: 'Embrace the expectations', isRisky: false, feedback: 'Somebody is going to build a franchise around you. You may as well get used to the cameras.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
          // Not an offseason beat. This fires at creation, before a single game has
          // been played, and tagging it as one dropped a sixteen-year-old into a
          // training camp roster battle before he had picked his first training card.
@@ -462,7 +484,7 @@ function App() {
      const actionName = typeof choice === 'string' ? choice : (choice?.action || String(choice));
 
      if (actionName === 'ELC' && draftedBy) {
-       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: 3, role: getRole(925000, p) } }));
+       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: 3, role: getRole(925000, p), bonuses: elcBonuses(p.pos) } }));
        setEventFeedback("You signed your ELC and are heading to your first NHL training camp.");
      } else if (actionName === 'EXPLORE_OPTIONS' || actionName === 'EXPLORE' || actionName === 'DECLINE') {
        let offers = [];
@@ -858,7 +880,7 @@ function App() {
             desc: isAgedOutNCAA 
                 ? `Your NCAA eligibility is used up. Your amateur career is over, and it is time to turn pro.`
                 : `You have aged out of major junior. Your amateur career is over, and it is time to turn pro.`,
-            choices: [{ label: 'Enter Free Agency', effect: { fanStatus: 0, ovr: 0 } }],
+            choices: [{ label: 'Enter free agency', effect: { fanStatus: 0, ovr: 0 } }],
             isOffseasonEvent: true
         });
         setScreen('event');
@@ -1226,6 +1248,16 @@ function App() {
     const bonus = o.perkTotals || { ovr: 0, fanStatus: 0, money: 0 };
     const withPerks = applyOvrDelta(p, bonus.ovr || 0);
 
+    // A deal paid partly as signing bonuses pays the first of them today. The
+    // rest land on each July 1 the deal still runs, and the season's cheques
+    // pay what is left. See utils/bonuses.js.
+    const nhlDeal = (o.league || 'NHL') === 'NHL';
+    const sbShare = nhlDeal && o.sbShare ? o.sbShare : 0;
+    const firstLump = salaryParts({ salary: o.salary, sbShare }).bonus;
+    // Performance bonuses are only legal on a one-year deal at 35 or over, so
+    // a deal that has grown a second year in talks loses them.
+    const perfBonuses = nhlDeal && o.bonuses?.length && o.years === 1 && (p.age || 0) >= 35 ? o.bonuses : null;
+
     const updatedPlayer = {
       ...withPerks, team: o.team, league: o.league || 'NHL',
       fanStatus: fanGain(p.fanStatus || 0, (o.fanHit || 0) + (bonus.fanStatus || 0)),
@@ -1235,14 +1267,16 @@ function App() {
       // signed?" gets the wrong answer. See hasProContract in gameHelpers.
       teamsPlayedFor: newTeams,
       contract: {
-        salary: o.salary, years: o.years, role: o.role, nmc: o.nmc,
+        salary: o.salary, years: o.years, role: o.role, nmc: o.nmc, ntc: !o.nmc && !!o.ntc,
+        ...(sbShare ? { sbShare } : {}),
+        ...(perfBonuses ? { bonuses: perfBonuses } : {}),
         isScholarship: o.type === 'SCHOLARSHIP' || (o.league || '') === 'NCAA'
       },
       relationships: newRelationships,
       stats: {
         ...p.stats,
-        earnings: (p.stats?.earnings || 0) + (bonus.money || 0),
-        careerEarnings: (p.stats?.careerEarnings || p.stats?.earnings || 0) + (bonus.money || 0)
+        earnings: (p.stats?.earnings || 0) + (bonus.money || 0) + firstLump,
+        careerEarnings: (p.stats?.careerEarnings || p.stats?.earnings || 0) + (bonus.money || 0) + firstLump
       },
       // FIX: Strip captaincy if moving to a new team
       isCaptain: isNewTeam ? false : p.isCaptain,
@@ -1310,12 +1344,15 @@ function App() {
   };
 
   const startNegotiation = (offer) => {
-    setNegotiation({ originalOffer: offer, currentSalary: offer.salary, currentYears: offer.years || 1, gmPatience: 100, rounds: 0, maxRounds: 5, history: [], status: 'playing', msg: "You are at the bargaining table." });
+    setNegotiation({ originalOffer: offer, currentSalary: offer.salary, currentYears: offer.years || 1, ntc: !!offer.ntc, nmc: !!offer.nmc, sb: !!offer.sbShare, gpBonus: !!offer.bonuses?.length, gmPatience: 100, rounds: 0, maxRounds: 5, history: [], status: 'playing', msg: "He slides the offer across the desk and waits to hear what you want." });
     setScreen('negotiation');
   };
 
   const finishNegotiation = (signNow) => {
-    const updatedOffer = { ...negotiation.originalOffer, salary: negotiation.currentSalary, years: negotiation.currentYears, negotiated: true };
+    const updatedOffer = { ...negotiation.originalOffer, salary: negotiation.currentSalary, years: negotiation.currentYears, ntc: !!negotiation.ntc && !negotiation.nmc, nmc: !!negotiation.nmc,
+      sbShare: negotiation.sb ? SB_SHARE : 0,
+      bonuses: negotiation.gpBonus && negotiation.currentYears === 1 ? veteranBonuses() : undefined,
+      negotiated: true };
     if (signNow) signContract(updatedOffer);
     else { setFreeAgencyOffers(prev => prev.map(o => (o.team === updatedOffer.team && o.type === updatedOffer.type) ? updatedOffer : o)); setScreen('transfer'); }
   };
@@ -1547,9 +1584,19 @@ function App() {
         html, body { background-color: #040505; }
       `}</style>
       
+      {/* The toast is visual and slides away on its own, so a screen reader is
+          told about it here instead, in a region that is always present. */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {achievementToast ? `Achievement unlocked: ${achievementToast.name}. ${achievementToast.desc || ''}` : ''}
+      </div>
+      <a href="#main"
+         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-lg focus:bg-[#22E748] focus:px-4 focus:py-2 focus:text-sm focus:font-black focus:text-black">
+        Skip to the game
+      </a>
+
       {achievementToast && (
-        <div data-nosnippet
-          className="fixed top-12 right-4 sm:top-16 sm:right-6 z-50 max-w-[260px] sm:max-w-xs bg-[#101410] border-2 border-[#F59E0B] p-4 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-4 pointer-events-none"
+        <div data-nosnippet aria-hidden="true"
+          className="achievement-toast fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-[280px] sm:max-w-xs bg-[#101410] border border-[#F59E0B]/60 p-4 rounded-xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)] flex items-center gap-4 pointer-events-none"
           style={{ animation: 'toastLifecycle 4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
         >
           <style>{`
@@ -1573,7 +1620,7 @@ function App() {
 
       <div className={`w-full mx-auto pb-10 flex-1 ${screen !== 'creation' && screen !== 'retirement' ? 'max-w-7xl flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch' : 'max-w-5xl'}`}>
         {screen !== 'creation' && screen !== 'retirement' && (
-          <div className="w-full lg:w-[440px] shrink-0 z-40 flex flex-col lg:sticky lg:top-6 lg:self-start">
+          <aside aria-label="Your player" className="w-full lg:w-[440px] shrink-0 z-40 flex flex-col lg:sticky lg:top-6 lg:self-start">
             <Dashboard
               player={player} tier={tier} statChanges={statChanges} 
               lgKey={lgKey} isJunior={isJunior} isAHL={isAHL} 
@@ -1584,10 +1631,13 @@ function App() {
               setActiveEvent={setActiveEvent}
               setScreen={setScreen}
             />
-          </div>
+          </aside>
         )}
 
-        <div className="w-full flex-1 min-w-0 flex flex-col gap-4 mt-2 lg:mt-0">
+        <main id="main" ref={mainRef} tabIndex={-1} className="w-full flex-1 min-w-0 flex flex-col gap-4 mt-2 lg:mt-0 outline-none">
+          {/* Every screen titles itself with a second-level heading, so the
+              page needs one first-level heading above them all. */}
+          {screen !== 'creation' && screen !== 'retirement' && <h1 className="sr-only">Blue Chip Prospect</h1>}
           <ErrorBoundary key={screen} onRecover={() => setScreen('preseason')}>
             {screen === 'creation' && <CreationScreen />}
             {screen === 'retirement' && <RetirementScreen />}
@@ -1608,7 +1658,7 @@ function App() {
             {screen === 'negotiation' && <NegotiationScreen />}
             {screen === 'all-star' && <AllStarScreen />}
           </ErrorBoundary>
-        </div>
+        </main>
       </div> 
       {/* The footer, and the one way out of the game.
           This was a boxed button reading "Have Feedback? Reach out to me!",
@@ -1632,7 +1682,7 @@ function App() {
             target="_blank"
             rel="noopener noreferrer"
             title="Send feedback to @ferreirahockey"
-            className="inline-flex items-center gap-1.5 text-slate-500 transition-colors hover:text-[#22E748]"
+            className="inline-flex items-center gap-1.5 py-2 text-slate-500 transition-colors hover:text-[#22E748]"
           >
             Send feedback
             <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none" stroke="currentColor"

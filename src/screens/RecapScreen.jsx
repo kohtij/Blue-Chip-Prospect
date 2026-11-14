@@ -4,9 +4,10 @@ import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '.
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
-import { rateSeason } from '../utils/production';
+import { deploymentLabel, rateSeason } from '../utils/production';
 import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
+import { kickerClass, TITLE_MD } from '../utils/ui';
 
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
@@ -218,7 +219,7 @@ export default function RecapScreen() {
           }
 
           return (
-            <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#3b82f6]">
+            <div className="game-panel p-6 sm:p-10 mt-2">
               <style>{`
                 @keyframes subtleFadeUp {
                   0% { opacity: 0; transform: translateY(12px); }
@@ -232,8 +233,8 @@ export default function RecapScreen() {
               `}</style>
 
               <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
-                <h2 className="text-[#3b82f6] font-bold tracking-widest uppercase text-sm sm:text-lg sports-font">THE RINK REPORT</h2>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs sm:text-sm">
+                <span className={kickerClass('neutral')}>The rink report</span>
+                <p className="text-slate-500 font-black uppercase tracking-[0.18em] text-[10px] sm:text-xs">
                   {/* The SHL and Liiga used to land here as "AMATEUR CAMPAIGN". They are
                       professional leagues, so they now count as pro seasons, and the label
                       shares one list with the season counter instead of keeping its own. */}
@@ -243,9 +244,9 @@ export default function RecapScreen() {
 
               <div className="w-full mb-8">
                 <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-2">
-                  <h1 className="text-3xl sm:text-4xl font-black text-white italic uppercase text-left sports-font tracking-tighter m-0">
+                  <h2 className={`${TITLE_MD} text-left m-0`}>
                     {narrativeTitle}
-                  </h1>
+                  </h2>
                 </div>
                 <p className="text-base sm:text-lg text-slate-400 font-sans italic text-left m-0">"{narrative}"</p>
               </div>
@@ -350,6 +351,32 @@ export default function RecapScreen() {
                       : foPct != null && foPct <= 46
                         ? ' He lost the circle most nights, and his line started in his own end because of it.'
                         : ''}</li>
+                  );
+                })()}
+
+                {/* Where the coach started his shifts. A skater only, and only
+                    a season that recorded it. */}
+                {player.pos !== 'G' && seasonRecap?.ozPct != null && (() => {
+                  const use = deploymentLabel(seasonRecap.ozPct);
+                  const line = {
+                    Sheltered: 'He kept you away from your own net and sent you out when there was a goal to be had.',
+                    Offensive: 'More of your draws were in their end than yours, which is how a coach uses a scorer.',
+                    Balanced: 'An even split, about what most players get.',
+                    Defensive: 'More of your shifts began in your own end than in theirs.',
+                    Shutdown: "He sent you out in your own end against the other team's best players, all year."
+                  }[use];
+                  return (
+                    <li className="border-l-4 border-sky-500 pl-4 pr-3 py-2.5 rounded-r-lg">🧭 The coach started <strong className="text-white">{seasonRecap.ozPct}%</strong> of your shifts in the attacking zone. {line}</li>
+                  );
+                })()}
+
+                {/* Performance bonuses the year reached, if the deal had any. */}
+                {seasonRecap?.bonusLines?.length > 0 && (() => {
+                  const names = seasonRecap.bonusLines.map(b => b.label);
+                  const list = names.length === 1 ? names[0]
+                    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+                  return (
+                    <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg">💰 Your bonuses paid out: {list}, worth <strong className="text-[#F59E0B]">{formatMoney(seasonRecap.bonusTotal)}</strong> on top of your salary.</li>
                   );
                 })()}
 
@@ -576,7 +603,7 @@ export default function RecapScreen() {
                             <span className="shrink-0 w-[22px] flex items-center justify-center">
                               {r.flag
                                 ? <img src={r.flag} alt="" className="w-[18px] h-[13px] object-cover rounded-[1px]" />
-                                : <span className="w-[18px] h-[13px] rounded-[1px] bg-[#1a2230]" />}
+                                : <span className="w-[18px] h-[13px] rounded-[1px] bg-[#151b15]" />}
                             </span>
                             {/* You, not your own name, the same as every
                                 other board in the game. */}
@@ -694,7 +721,7 @@ export default function RecapScreen() {
               </ul>
 
               <div className="w-full pt-6 mt-8 border-t border-[rgba(255,255,255,0.05)] flex flex-col sm:flex-row gap-4">
-                <button onClick={() => advanceToOffseason()} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-2xl">
+                <button onClick={() => advanceToOffseason()} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest">
                   PROCEED TO OFFSEASON
                 </button>
                 
@@ -709,16 +736,16 @@ export default function RecapScreen() {
 
                        const offeredTeams = pool.map(t => {
                            const possiblePerks = [
-                               { text: '📈 Elite Coaching (+2 OVR)', ovr: 2, fanStatus: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
-                               { text: '🏟️ National Spotlight (+25 Fans)', ovr: 0, fanStatus: 25, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' },
-                               { text: '💰 Massive NIL Deal ($100k)', ovr: 0, fanStatus: 0, money: 100000, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' },
-                               { text: '⚡ Run & Gun System (+1 OVR, +10 Fans)', ovr: 1, fanStatus: 10, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }
+                               { name: '📈 Elite Coaching', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30' },
+                               { name: '🏟️ National Spotlight', effect: '+25 FAN', ovr: 0, fanStatus: 25, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' },
+                               { name: '💰 NIL Deal', effect: '$100K', ovr: 0, fanStatus: 0, money: 100000, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' },
+                               { name: '⚡ Run & Gun', effect: '+1 OVR, +10 FAN', ovr: 1, fanStatus: 10, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }
                            ];
 
                            const possibleFlaws = [
-                               { text: '⚠️ Crowded Depth Chart (-1 OVR)', ovr: -1, fanStatus: 0, money: 0 },
-                               { text: '⚠️ Rebuilding Phase (-10 Fans)', ovr: 0, fanStatus: -10, money: 0 },
-                               { text: '⚠️ Strict System (-5 Fans)', ovr: 0, fanStatus: -5, money: 0 }
+                               { name: '⚠️ Crowded Depth', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
+                               { name: '⚠️ Rebuilding', effect: '-10 FAN', ovr: 0, fanStatus: -10, money: 0 },
+                               { name: '⚠️ Strict System', effect: '-5 FAN', ovr: 0, fanStatus: -5, money: 0 }
                            ];
 
                            const perkCount = Math.floor(Math.random() * 2) + 1; 
@@ -760,7 +787,7 @@ export default function RecapScreen() {
                        });
                        
                        setScreen('event');
-                   }} className="bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest transition-all shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.25)] hover:scale-[1.02]">
+                   }} className="btn-danger flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest">
                      ENTER TRANSFER PORTAL
                    </button>
                 )}

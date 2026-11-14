@@ -8,6 +8,7 @@ import { handleTransferPortal as _handleTransferPortal } from '../handlers/handl
 import { hasProContract as _hasProContract } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
 import { ACTION, CONTRACT, EURO_LEAGUES, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, TRADE_FEEDBACK, TRADE_TITLE, pickFlavor, tradeStanding, tradeStory } from '../data/deadlineFlavor';
+import { kickerClass, TITLE_MD } from '../utils/ui';
 
 export default function TradeDeadlineScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,7 +17,7 @@ export default function TradeDeadlineScreen() {
           const res = pendingSeasonResult;
           if (!res || !res.recap) {
              return (
-               <div className="game-panel p-6 sm:p-10 mt-2 border-t-2 border-t-[#ef4444] text-center">
+               <div className="game-panel p-6 sm:p-10 mt-2 text-center">
                  <button onClick={() => advanceToOffseason()} className="btn-primary py-4 px-8 rounded-xl font-black sports-font">
                    CONTINUE CAREER
                  </button>
@@ -259,20 +260,25 @@ export default function TradeDeadlineScreen() {
                         feedback = `You packed your bags and reported to your new AHL club, the ${ahlName}.`;
                     }
 
-                    if (player.contract?.nmc) {
+                    // A no-trade clause stops a trade exactly as a no-movement
+                    // clause does. The difference between them is waivers and
+                    // the minors, which do not come into a deadline deal.
+                    const clauseName = player.contract?.nmc ? 'No-Movement Clause' : 'No-Trade Clause';
+                    const clauseShort = player.contract?.nmc ? 'NMC' : 'NTC';
+                    if (player.contract?.nmc || player.contract?.ntc) {
                         setActiveEvent({
-                           title: 'WAIVE YOUR NMC?',
+                           title: `WAIVE YOUR ${clauseShort}?`,
                            // The club is not always struggling. A contender asking a
                            // player to waive a clause is asking him to be the price of
                            // somebody else's arrival, which is a different question.
                            desc: isSelling
-                             ? `Your GM called you in. The season is gone and the **${getFullTeamName(destTeam.id, tradeLg)}** have put a package on the table he cannot ignore. You hold a No-Movement Clause. Will you waive it?`
-                             : `Your GM called you in. The club has a deal agreed with the **${getFullTeamName(destTeam.id, tradeLg)}** for the player it has been chasing all year, and you are what they want back. You hold a No-Movement Clause. Will you waive it?`,
+                             ? `Your GM called you in. The season is gone and the **${getFullTeamName(destTeam.id, tradeLg)}** have put a package on the table he cannot ignore. You hold a ${clauseName}. Will you waive it?`
+                             : `Your GM called you in. The club has a deal agreed with the **${getFullTeamName(destTeam.id, tradeLg)}** for the player it has been chasing all year, and you are what they want back. You hold a ${clauseName}. Will you waive it?`,
                            choices: [
                               // showTeamCard gives this the full team card (logo, rank, perks and
                               // flaws) so the destination can be judged before waiving the clause.
-                              { label: 'Waive NMC (Accept Trade)', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
-                              { label: 'Enforce NMC (Veto Trade)', isRisky: false, feedback: 'You invoked your NMC. The GM was frustrated, but you are staying put.', effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
+                              { label: `Waive your ${clauseShort} (accept the trade)`, isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
+                              { label: `Use your ${clauseShort} (veto the trade)`, isRisky: false, feedback: `You used your ${clauseShort}. The GM was frustrated, and you are staying put.`, effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
                            ],
                            isTradeDeadlineEvent: true
                         });
@@ -340,10 +346,11 @@ export default function TradeDeadlineScreen() {
 
           return (
   <div className="w-full max-w-[420px] md:max-w-4xl lg:max-w-5xl mx-auto game-panel p-5 sm:p-8 mt-2 text-center">
-    <h2 className="text-3xl sm:text-4xl font-black tracking-wide mb-1 text-white sports-font uppercase">
+    <span className={`${kickerClass('neutral')} mb-4`}>{isProgram ? 'March' : 'Early March'}</span>
+    <h2 className={`${TITLE_MD} mb-2`}>
       {isProgram ? 'THE STRETCH RUN' : 'TRADE DEADLINE'}
     </h2>
-    <p className="text-slate-400 mb-6 text-sm sm:text-base font-medium max-w-xl mx-auto">
+    <p className="text-slate-300 mb-6 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
       {pickFlavor(SUBTITLE[isCollege ? 'college' : isProgram ? 'program' : outlookKey], seed, 'subtitle')}
     </p>
 
@@ -506,7 +513,7 @@ export default function TradeDeadlineScreen() {
     <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md sm:max-w-lg mx-auto">
       <button
         onClick={handleSkip}
-        className="py-3.5 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest text-lg transition-all hover:scale-[1.02] w-full sm:w-auto flex-1 cursor-pointer bg-[#22E748]/10 hover:bg-[#22E748]/20 border border-[#22E748]/40 text-[#22E748] shadow-[0_0_15px_rgba(34,231,75,0.15)] hover:shadow-[0_0_25px_rgba(34,231,75,0.25)]"
+        className="btn-primary py-3.5 px-6 sm:px-8 rounded-xl sports-font tracking-widest text-lg w-full sm:w-auto flex-1 cursor-pointer"
       >
         {pickFlavor(ACTION[isProgram ? 'program' : outlookKey], seed, 'action')}
       </button>
@@ -520,14 +527,14 @@ export default function TradeDeadlineScreen() {
           disabled={hasDemandedTrade}
           className={`py-3 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest transition-all w-full sm:w-auto flex-1 flex flex-col items-center justify-center gap-1.5 ${
             hasDemandedTrade
-              ? 'bg-[#101410] border border-slate-800 text-slate-500 cursor-not-allowed opacity-50'
-              : 'bg-[#c084fc]/10 hover:bg-[#c084fc]/20 border border-[#c084fc]/40 text-[#c084fc] shadow-[0_0_15px_rgba(192,132,252,0.15)] cursor-pointer hover:scale-[1.02]'
+              ? 'btn-secondary cursor-not-allowed opacity-50'
+              : 'btn-danger cursor-pointer'
           }`}
         >
           <span className="text-lg leading-none">{hasDemandedTrade ? 'NAME IS IN' : 'ENTER THE PORTAL'}</span>
           {!hasDemandedTrade && (
-            <span className="text-[10px] sm:text-xs font-sans font-bold tracking-widest uppercase leading-none opacity-80">
-              ⚡ NO GUARANTEES
+            <span className="text-[10px] sm:text-xs font-bold tracking-[0.16em] uppercase leading-none opacity-80">
+              Risky, no guarantees
             </span>
           )}
         </button>
@@ -538,15 +545,15 @@ export default function TradeDeadlineScreen() {
           onClick={handleTradeRequest}
           disabled={hasDemandedTrade}
           className={`py-3 px-6 sm:px-8 rounded-xl font-black sports-font tracking-widest transition-all w-full sm:w-auto flex-1 flex flex-col items-center justify-center gap-1.5 ${
-            hasDemandedTrade 
-              ? 'bg-[#101410] border border-slate-800 text-slate-500 cursor-not-allowed opacity-50' 
-              : 'bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.15)] cursor-pointer hover:scale-[1.02]'
+            hasDemandedTrade
+              ? 'btn-secondary cursor-not-allowed opacity-50'
+              : 'btn-danger cursor-pointer'
           }`}
         >
           <span className="text-lg leading-none">{hasDemandedTrade ? 'REQUEST SUBMITTED' : 'DEMAND TRADE'}</span>
           {!hasDemandedTrade && (
-            <span className="text-[10px] sm:text-xs font-sans font-bold tracking-widest text-[#ef4444] uppercase leading-none opacity-80">
-              ⚡ RISKY GAMBLE
+            <span className="text-[10px] sm:text-xs font-bold tracking-[0.16em] uppercase leading-none opacity-80">
+              Risky
             </span>
           )}
         </button>

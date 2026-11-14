@@ -34,7 +34,10 @@ export function buildShot({ physicality = 50, hockeyIQ = 50, difficulty = 0, ran
   // hit more precisely than one you are tracking.
   const windowMs = Math.max(
     MIN_WINDOW_MS,
-    lerpDifficulty(60, 96, Math.max(0, Math.min(1, (physicality - 40) / 55)))
+    // Widened from 60-96. Timing a beat by eye and thumb on a phone is
+    // looser than on a keyboard, and the old window punished the screen as
+    // much as the read.
+    lerpDifficulty(78, 118, Math.max(0, Math.min(1, (physicality - 40) / 55)))
       * lerpDifficulty(1.1, 0.72, difficulty)
   );
 

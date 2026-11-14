@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { Marker, NetMouth, Goalie, Puck, Surface } from './rink/Ice';
 import { MOUTH, MOUTH_VIEW, MOUTH_ZONES } from './rink/geometry';
 import { Stage, Hud, Clock, Verdict } from './minigame/Shell';
+import { useZoneKeys, ZONE_KEY_HINT } from '../utils/a11y';
 
 // The shootout, from the shooter's end.
 //
@@ -80,6 +81,8 @@ export default function ShootoutGame({ player, onComplete, difficulty = 0 }) {
     finish(open);
   };
 
+  useZoneKeys(status === 'live', (id) => shoot(MOUTH_ZONES[id]));
+
   // What happened, said the way a person would say it.
   //
   // The old lines were "he had given it to you" and "he had that covered",
@@ -113,6 +116,7 @@ export default function ShootoutGame({ player, onComplete, difficulty = 0 }) {
 
   return (
     <Stage
+      keys={ZONE_KEY_HINT}
       hud={
         <Hud
           left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">

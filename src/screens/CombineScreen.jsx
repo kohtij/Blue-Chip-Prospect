@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
 import { projectDraftPick } from '../utils/draftScouting';
+import { isPress } from '../utils/a11y';
+import { CHOICE_ROW, kickerClass, TITLE_LG, TITLE_MD } from '../utils/ui';
 
 // A button that refuses to be pressed for a moment after it appears.
 //
@@ -98,6 +100,32 @@ const getRandomTarget = (exclude = -1) => {
   const possibleTargets = [0, 1, 2, 3, 4, 5, 6, 7, 8].filter(n => n !== exclude);
   return possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
 };
+
+// The combine's shared furniture, laid out the way a minigame brief is: a
+// kicker, a white title, a line of explanation, one green button. Each screen
+// used to wear its own colour (blue, amber, purple) with its own glowing button.
+const PANEL = 'game-panel p-6 sm:p-10 mt-2 flex flex-col items-center text-center';
+const PLAY_BTN = 'mx-auto rounded-xl border-2 border-[rgba(255,255,255,0.16)] bg-[#101410] text-white font-black sports-font uppercase tracking-[0.16em] transition-colors cursor-pointer select-none hover:border-[#22E748]/70 active:bg-[#22E748]/15 active:border-[#22E748]';
+const START_BTN = 'btn-primary py-4 px-10 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-[0.18em]';
+
+const Readout = ({ items }) => (
+  <div className="flex justify-center gap-10 mb-6">
+    {items.map(([label, value]) => (
+      <div key={label} className="flex flex-col items-center">
+        <span className="number-font font-black text-white tabular-nums leading-none text-3xl sm:text-4xl">{value}</span>
+        <span className="mt-1.5 text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] text-slate-500">{label}</span>
+      </div>
+    ))}
+  </div>
+);
+
+const Row = ({ label, children }) => (
+  <div className="flex justify-between items-baseline gap-4 py-3 border-t border-[rgba(255,255,255,0.06)] first:border-t-0">
+    <span className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.18em] text-left">{label}</span>
+    {children}
+  </div>
+);
+
 
 export default function CombineScreen() {
   const { combinePhase, combineScore, handleDraftDay, player, setCombineClicks, setCombinePhase, setCombineScore } = useAppContext();
@@ -247,6 +275,21 @@ export default function CombineScreen() {
     setRxActive(true); setRxScore(0); setRxTime(10); setRxDone(false); setRxTarget(getRandomTarget());
   };
 
+  // The board by keyboard: the number keys 1 to 9 laid out like the grid, top
+  // row first, so it can be played without a mouse or a finger. Held in a ref
+  // so the listener always calls the current version of the tap.
+  const rxTapRef = useRef(null);
+  useEffect(() => {
+    if (!rxActive) return undefined;
+    const onKey = (e) => {
+      if (e.repeat || !/^[1-9]$/.test(e.key)) return;
+      e.preventDefault();
+      rxTapRef.current?.(Number(e.key) - 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [rxActive]);
+
   const handleRxTap = (idx) => {
     if (!rxActive) return;
     if (idx === rxTarget) {
@@ -254,6 +297,7 @@ export default function CombineScreen() {
       setRxTarget(getRandomTarget(rxTarget));
     }
   };
+  useEffect(() => { rxTapRef.current = handleRxTap; });
 
   // Position-aware interview initialization
   useEffect(() => {
@@ -276,24 +320,18 @@ export default function CombineScreen() {
   };
 
   return (() => {
+
           // PHASE 0: INTRO SCREEN
           if (showIntro) {
              return (
-               <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in flex flex-col items-center">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-[#101410] border border-slate-700 px-3 py-1 rounded-full mb-3 shadow-md">
-                    DRAFT PREPARATION
-                 </span>
-                 <h2 className="text-3xl sm:text-5xl font-black text-[#3b82f6] sports-font uppercase mb-4 tracking-tighter">
-                   NHL DRAFT COMBINE
-                 </h2>
-                 <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
-                   This is the Draft Combine, your last chance to impress the general managers before draft day. The physical testing comes first. Then the interviews, where they find out how you think and what you are like. 
+               <div className={PANEL}>
+                 <span className={kickerClass('neutral')}>Draft preparation</span>
+                 <h2 className={`mt-5 ${TITLE_LG}`}>NHL Draft Combine</h2>
+                 <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">
+                   This is the Draft Combine, your last chance to impress the general managers before draft day. The physical testing comes first. Then the interviews, where they find out how you think and what you are like.
                  </p>
-                 <button 
-                   onClick={() => setShowIntro(false)} 
-                   className="btn-primary py-4 px-10 rounded-xl font-black sports-font text-2xl uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer shadow-[0_0_20px_rgba(59,130,246,0.3)]"
-                 >
-                   ENTER COMBINE
+                 <button onClick={() => setShowIntro(false)} className={`mt-7 ${START_BTN}`}>
+                   Enter the combine
                  </button>
                </div>
              );
@@ -301,25 +339,25 @@ export default function CombineScreen() {
 
           // PHASE 1: PHYSICAL TESTING MINIGAMES
           if (combinePhase === 1) {
-             
+
              const activeResult = posGroup === 'F' ? bpResult : posGroup === 'D' ? vo2Result : rxResult;
              const isDone = posGroup === 'F' ? bpDone : posGroup === 'D' ? vo2Done : rxDone;
 
              if (isDone) {
+                 const tone = activeResult.pts > 0 ? 'text-[#22E748]' : activeResult.pts < 0 ? 'text-[#ef4444]' : 'text-slate-300';
                  return (
-                   <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in max-w-2xl mx-auto">
-                     <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase mb-6">TEST RESULTS</h2>
-                     
-                     <div className={`flex flex-col items-center justify-center bg-[#101410] p-6 rounded-xl border mb-8 ${activeResult.pts > 0 ? 'border-[#22E748]/50 shadow-[0_0_15px_rgba(34,231,72,0.15)]' : activeResult.pts < 0 ? 'border-[#ef4444]/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-slate-500/50'}`}>
-                        <div className="text-5xl font-black sports-font mb-2">{activeResult.finalScore} <span className="text-lg text-slate-400">{activeResult.unit}</span></div>
-                        <p className={`text-lg font-bold uppercase tracking-widest ${activeResult.pts > 0 ? 'text-[#22E748]' : activeResult.pts < 0 ? 'text-[#ef4444]' : 'text-slate-300'}`}>{activeResult.msg}</p>
+                   <div className={PANEL}>
+                     <span className={kickerClass('neutral')}>Draft combine</span>
+                     <h2 className={`mt-5 ${TITLE_MD}`}>Test results</h2>
+                     <div className="mt-6 w-full max-w-md rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0d110d] p-6">
+                        <div className="flex items-end justify-center gap-2">
+                          <span className="number-font font-black text-white tabular-nums leading-none text-5xl">{activeResult.finalScore}</span>
+                          <span className="pb-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500">{activeResult.unit}</span>
+                        </div>
+                        <p className={`mt-3 text-sm sm:text-base font-black uppercase tracking-[0.12em] ${tone}`}>{activeResult.msg}</p>
                      </div>
-
-                     <CooldownButton
-                       onClick={() => setCombinePhase(2)}
-                       className="w-full max-w-sm mx-auto block mt-6 btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg"
-                     >
-                       PROCEED TO INTERVIEWS ➔
+                     <CooldownButton onClick={() => setCombinePhase(2)} className={`mt-7 ${START_BTN}`}>
+                       On to the interviews
                      </CooldownButton>
                    </div>
                  );
@@ -328,32 +366,24 @@ export default function CombineScreen() {
              // FORWARD: BENCH PRESS
              if (posGroup === 'F') {
                return (
-                 <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in">
-                   <h2 className="text-2xl sm:text-4xl font-black text-[#3b82f6] sports-font uppercase mb-2">BENCH PRESS TEST</h2>
-                   <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
-                     Test your strength and composure. Press <strong className="text-white">PUSH</strong> exactly when the bar is inside the green sweet spot. Every rep gets faster!
+                 <div className={PANEL}>
+                   <span className={kickerClass('neutral')}>Draft combine</span>
+                   <h2 className={`mt-5 ${TITLE_MD}`}>Bench press</h2>
+                   <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
+                     Press <strong className="text-white">PUSH</strong> while the bar is inside the green band. Every rep comes faster than the last.
                    </p>
-                   
-                   <div className="flex justify-between items-center max-w-md mx-auto mb-4 font-black sports-font text-xl text-slate-400">
-                      <span>REPS: <span className="text-white">{bpReps} / 5</span></span>
-                   </div>
-
-                   <div className="w-full max-w-md mx-auto h-10 bg-[#101410] rounded-full relative overflow-hidden border-2 border-[rgba(255,255,255,0.1)] mb-8 shadow-inner">
-                      <div className="absolute top-0 bottom-0 left-[40%] right-[40%] bg-[#22E748]/30 border-l-2 border-r-2 border-[#22E748]"></div>
-                      <div 
-                        className="absolute top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_10px_white]" 
+                   <Readout items={[['Reps', `${bpReps} / 5`]]} />
+                   <div className="w-full max-w-md mx-auto h-10 bg-[#0d110d] rounded-full relative overflow-hidden border border-[rgba(255,255,255,0.1)] mb-8">
+                      <div className="absolute top-0 bottom-0 left-[40%] right-[40%] bg-[#22E748]/25 border-l-2 border-r-2 border-[#22E748]"></div>
+                      <div
+                        className="absolute top-0 bottom-0 w-2 bg-white rounded-full"
                         style={{ left: `${bpPos}%`, transform: 'translateX(-50%)' }}
                       ></div>
                    </div>
-
                    {!bpActive ? (
-                      <button onClick={startBenchPress} className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(59,130,246,0.4)]">
-                        START TEST
-                      </button>
+                      <button onClick={startBenchPress} className={START_BTN}>Start the test</button>
                    ) : (
-                      <button onClick={handlePush} className="w-48 h-20 sm:w-56 mx-auto rounded-xl bg-[#ef4444] hover:bg-[#dc2626] border-b-4 border-[#991b1b] active:border-b-0 active:translate-y-1 text-white font-black text-3xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_30px_rgba(239,68,68,0.3)]">
-                        PUSH!
-                      </button>
+                      <button onClick={handlePush} className={`${PLAY_BTN} w-48 h-20 sm:w-56 text-3xl`}>Push</button>
                    )}
                  </div>
                );
@@ -362,25 +392,17 @@ export default function CombineScreen() {
              // DEFENSE: VO2 MAX
              if (posGroup === 'D') {
                 return (
-                  <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#F59E0B] animate-fade-in">
-                   <h2 className="text-2xl sm:text-4xl font-black text-[#F59E0B] sports-font uppercase mb-2">VO2 MAX TREADMILL</h2>
-                   <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
-                     Test your aerobic endurance. Mash the <strong className="text-[#F59E0B]">STRIDE</strong> button as rapidly as humanly possible before the 10-second timer expires!
+                  <div className={PANEL}>
+                   <span className={kickerClass('neutral')}>Draft combine</span>
+                   <h2 className={`mt-5 ${TITLE_MD}`}>VO2 max treadmill</h2>
+                   <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
+                     Press <strong className="text-white">STRIDE</strong> as fast as you can until the ten seconds run out.
                    </p>
-                   
-                   <div className="flex justify-between items-center max-w-md mx-auto mb-6 font-black sports-font text-2xl text-slate-400">
-                      <span>TIME: <span className="text-white">{vo2Time}s</span></span>
-                      <span>STRIDES: <span className="text-[#F59E0B]">{vo2Score}</span></span>
-                   </div>
-
+                   <Readout items={[['Seconds', vo2Time], ['Strides', vo2Score]]} />
                    {!vo2Active ? (
-                      <button onClick={startVo2} className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#F59E0B] hover:bg-[#d97706] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-                        START TEST
-                      </button>
+                      <button onClick={startVo2} className={START_BTN}>Start the test</button>
                    ) : (
-                      <button onClick={() => setVo2Score(s => s + 1)} className="w-48 h-32 sm:w-56 mx-auto rounded-xl bg-[#101410] hover:bg-[#1a2230] border-4 border-[#F59E0B] active:bg-[#F59E0B]/20 active:scale-95 text-[#F59E0B] font-black text-4xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_30px_rgba(245,158,11,0.3)] select-none">
-                        STRIDE!
-                      </button>
+                      <button onClick={() => setVo2Score(s => s + 1)} className={`${PLAY_BTN} w-48 h-32 sm:w-56 text-4xl active:scale-95`}>Stride</button>
                    )}
                  </div>
                 );
@@ -389,28 +411,24 @@ export default function CombineScreen() {
              // GOALIE: REACTION BOARD
              if (posGroup === 'G') {
                 return (
-                  <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#c084fc] animate-fade-in">
-                   <h2 className="text-2xl sm:text-4xl font-black text-[#c084fc] sports-font uppercase mb-2">REACTION BOARD</h2>
-                   <p className="text-slate-300 font-sans mb-8 max-w-lg mx-auto text-sm sm:text-base">
-                     Test your hand-eye coordination. Tap the glowing blue targets as quickly as they appear before time runs out!
+                  <div className={PANEL}>
+                   <span className={kickerClass('neutral')}>Draft combine</span>
+                   <h2 className={`mt-5 ${TITLE_MD}`}>Reaction board</h2>
+                   <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
+                     Tap each square as it lights up, before the time runs out. On a keyboard, the keys 1 to 9 match the grid, top row first.
                    </p>
-                   
-                   <div className="flex justify-between items-center max-w-md mx-auto mb-6 font-black sports-font text-2xl text-slate-400">
-                      <span>TIME: <span className="text-white">{rxTime}s</span></span>
-                      <span>HITS: <span className="text-[#c084fc]">{rxScore}</span></span>
-                   </div>
-
+                   <Readout items={[['Seconds', rxTime], ['Hits', rxScore]]} />
                    {!rxActive ? (
-                      <button onClick={startRx} className="w-48 h-16 sm:w-56 mx-auto rounded-xl bg-[#c084fc] hover:bg-[#a855f7] text-white font-black text-2xl sports-font uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(192,132,252,0.4)]">
-                        START TEST
-                      </button>
+                      <button onClick={startRx} className={START_BTN}>Start the test</button>
                    ) : (
                       <div className="grid grid-cols-3 gap-2 sm:gap-3 w-64 h-64 sm:w-80 sm:h-80 mx-auto select-none">
                         {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
                           <button
                             key={idx}
                             onPointerDown={() => handleRxTap(idx)}
-                            className={`rounded-lg transition-all duration-75 border ${idx === rxTarget ? 'bg-[#3b82f6] border-[#60a5fa] shadow-[0_0_25px_rgba(59,130,246,0.8)] scale-105 cursor-pointer' : 'bg-[#101410] border-[rgba(255,255,255,0.065)] cursor-default'}`}
+                            onKeyDown={e => { if (isPress(e)) handleRxTap(idx); }}
+                            aria-label={`Square ${idx + 1}${idx === rxTarget ? ', lit' : ''}`}
+                            className={`rounded-lg transition-colors duration-75 border ${idx === rxTarget ? 'bg-[#22E748] border-[#22E748] cursor-pointer' : 'bg-[#101410] border-[rgba(255,255,255,0.08)] cursor-default'}`}
                           ></button>
                         ))}
                       </div>
@@ -423,49 +441,41 @@ export default function CombineScreen() {
           // PHASE 2: COMBINE INTERVIEWS
           if (combinePhase === 2 && interviewData) {
              if (interviewResult) {
+                const ok = interviewResult.isMatch;
                 return (
-                  <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in max-w-2xl mx-auto">
-                    <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase mb-6">INTERVIEW RESULT</h2>
-                    
-                    <div className="flex flex-col gap-3 mb-8 w-full">
-                       <div className={`flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#101410] p-5 rounded-xl border ${interviewResult.isMatch ? 'border-[#22E748]/50 shadow-[0_0_15px_rgba(34,231,72,0.15)]' : 'border-[#ef4444]/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]'}`}>
-                          <div className="flex flex-col items-center sm:items-start gap-2 flex-1 min-w-0 text-center sm:text-left w-full">
-                             <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Scout Preferred: <span className={`${interviewData.scout.color}`}>{interviewData.scout.trait}</span></span>
-                             <span className="text-sm font-sans italic text-slate-300 break-words w-full">"{interviewResult.answer.text}"</span>
-                          </div>
-                          <span className={`text-xl sm:text-2xl font-black sports-font tracking-widest whitespace-nowrap shrink-0 ${interviewResult.isMatch ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-                             {interviewResult.isMatch ? '✅ PERFECT MATCH' : '❌ BAD FIT'}
-                          </span>
+                  <div className={PANEL}>
+                    <span className={kickerClass('neutral')}>Draft combine</span>
+                    <h2 className={`mt-5 ${TITLE_MD}`}>Interview result</h2>
+                    <div className={`mt-6 w-full max-w-xl flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0d110d] p-5 rounded-xl border ${ok ? 'border-[#22E748]/45' : 'border-[#ef4444]/45'}`}>
+                       <div className="flex flex-col items-center sm:items-start gap-2 flex-1 min-w-0 text-center sm:text-left w-full">
+                          <span className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.18em]">The scout wanted: <span className={interviewData.scout.color}>{interviewData.scout.trait}</span></span>
+                          <span className="text-sm text-slate-300 break-words w-full">"{interviewResult.answer.text}"</span>
                        </div>
+                       <span className={`text-lg sm:text-xl font-black sports-font tracking-[0.12em] whitespace-nowrap shrink-0 ${ok ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+                          {ok ? 'Good fit' : 'Bad fit'}
+                       </span>
                     </div>
-
-                    <button onClick={() => setCombinePhase(3)} className="w-full btn-primary py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest shadow-lg">
-                      PROCEED TO VERDICT ➔
+                    <button onClick={() => setCombinePhase(3)} className={`mt-7 ${START_BTN}`}>
+                      See the verdict
                     </button>
                   </div>
                 );
              }
 
              return (
-               <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in max-w-2xl mx-auto">
-                 <h2 className="text-2xl sm:text-4xl font-black text-white sports-font uppercase mb-6">DRAFT COMBINE INTERVIEWS</h2>
-                 
-                 <div className={`bg-[#101410] border border-[rgba(255,255,255,0.065)] p-5 rounded-xl text-left mb-6 shadow-inner`}>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">INTERVIEWING WITH:</p>
+               <div className={PANEL}>
+                 <span className={kickerClass('neutral')}>Draft combine</span>
+                 <h2 className={`mt-5 ${TITLE_MD}`}>The interviews</h2>
+                 <div className="mt-6 w-full max-w-xl bg-[#0d110d] border border-[rgba(255,255,255,0.08)] p-5 rounded-xl text-left">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.18em] mb-1.5">Interviewing with</p>
                     <h3 className={`text-lg sm:text-xl font-black uppercase sports-font ${interviewData.scout.color} mb-1`}>{interviewData.scout.name}</h3>
-                    <p className="text-xs sm:text-sm text-slate-400 italic font-sans">{interviewData.scout.desc}</p>
+                    <p className="text-xs sm:text-sm text-slate-400">{interviewData.scout.desc}</p>
                  </div>
-
-                 <p className="text-lg sm:text-xl text-white font-sans mb-8 leading-relaxed">"{interviewData.question.text}"</p>
-                 
-                 <div className="flex flex-col gap-3 w-full">
+                 <p className="mt-6 mb-6 w-full max-w-xl text-lg sm:text-xl text-white leading-relaxed">"{interviewData.question.text}"</p>
+                 <div className="flex flex-col gap-3 w-full max-w-xl">
                    {interviewData.answers.map((ans, idx) => (
-                     <button 
-                       key={idx} 
-                       onClick={() => handleAnswer(ans)} 
-                       className="p-4 bg-[#101410] border border-[rgba(255,255,255,0.065)] text-slate-300 rounded-xl font-sans text-sm sm:text-base hover:bg-[#1a2230] hover:border-[#3b82f6]/50 cursor-pointer shadow-md transition-all text-left"
-                     >
-                       "{ans.text}"
+                     <button key={idx} onClick={() => handleAnswer(ans)} className={CHOICE_ROW}>
+                       <span className="text-sm sm:text-base text-slate-200">"{ans.text}"</span>
                      </button>
                    ))}
                  </div>
@@ -482,8 +492,8 @@ export default function CombineScreen() {
              let verdict, boostColor;
              if (combineScore >= 6) { verdict = "You were the best player at the Combine. Teams are calling about trading up for you."; boostColor = "text-[#22E748]"; }
              else if (combineScore >= 3) { verdict = "An excellent week. Scouts are moving you up their boards."; boostColor = "text-[#22E748]"; }
-             else if (combineScore >= 1) { verdict = "A solid Combine showing. You helped your draft stock."; boostColor = "text-[#3b82f6]"; }
-             else if (combineScore === 0) { verdict = "Average showing. Your on-ice tape will have to do the talking."; boostColor = "text-slate-400"; }
+             else if (combineScore >= 1) { verdict = "A solid Combine showing. You helped your draft stock."; boostColor = "text-[#22E748]"; }
+             else if (combineScore === 0) { verdict = "Average showing. Your on-ice tape will have to do the talking."; boostColor = "text-slate-300"; }
              else if (combineScore >= -2) { verdict = "A poor week in testing. Some clubs have cooled on you."; boostColor = "text-[#F59E0B]"; }
              else { verdict = "A disastrous Combine. You fell down multiple draft boards."; boostColor = "text-[#ef4444]"; }
 
@@ -493,45 +503,38 @@ export default function CombineScreen() {
              const moved = neutral.pick - projected.pick;
 
              return (
-               <div className="game-panel p-6 sm:p-10 mt-2 text-center border-t-2 border-t-[#3b82f6] animate-fade-in max-w-2xl mx-auto">
-                 <h2 className="text-3xl sm:text-4xl font-black text-white sports-font uppercase mb-6">COMBINE VERDICT</h2>
-                 
-                 <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl p-6 mb-8">
-                    <p className="text-lg sm:text-xl text-slate-300 italic mb-6 font-sans">"{verdict}"</p>
-                    
-                    <div className="flex justify-between items-center border-t border-[rgba(255,255,255,0.05)] pt-4">
-                       <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Total Combine Score:</span>
-                       <span className="text-xl sm:text-2xl font-black text-white sports-font">{combineScore > 0 ? `+${combineScore}` : combineScore}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                       <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Draft Stock Impact:</span>
-                       <span className={`text-xl sm:text-2xl font-black sports-font ${boostColor}`}>
-                          {moved > 0 ? `+${moved}` : moved} SPOTS
-                       </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2 border-t border-[rgba(255,255,255,0.05)] pt-4">
-                       <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Projected Selection:</span>
-                       <span className="text-xl sm:text-2xl font-black text-white sports-font">
-                          ROUND {projected.round} · #{projected.pick}
-                       </span>
-                    </div>
+               <div className={PANEL}>
+                 <span className={kickerClass('neutral')}>Draft combine</span>
+                 <h2 className={`mt-5 ${TITLE_MD}`}>Combine verdict</h2>
+                 <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">{verdict}</p>
+                 <div className="mt-6 w-full max-w-xl bg-[#0d110d] border border-[rgba(255,255,255,0.08)] rounded-xl px-5 py-2">
+                    <Row label="Combine score">
+                      <span className="number-font text-xl sm:text-2xl font-black text-white">{combineScore > 0 ? `+${combineScore}` : combineScore}</span>
+                    </Row>
+                    <Row label="Draft stock">
+                      <span className={`number-font text-xl sm:text-2xl font-black ${boostColor}`}>
+                        {moved > 0 ? `Up ${moved}` : moved < 0 ? `Down ${-moved}` : 'No change'}
+                      </span>
+                    </Row>
+                    <Row label="Projected pick">
+                      <span className="number-font text-xl sm:text-2xl font-black text-white">Round {projected.round}, #{projected.pick}</span>
+                    </Row>
                  </div>
-
-                 <button 
+                 <button
                    onClick={() => {
                      handleDraftDay(combineScore);
                      setCombinePhase(1);
                      if (setCombineClicks) setCombineClicks(0);
                      setCombineScore(0);
-                   }} 
-                   className="btn-primary py-4 px-10 w-full rounded-xl font-black sports-font uppercase tracking-widest shadow-2xl cursor-pointer"
+                   }}
+                   className={`mt-7 ${START_BTN}`}
                  >
-                   PROCEED TO NHL DRAFT
+                   On to the draft
                  </button>
                </div>
              );
           }
-          
+
           return null;
         })();
 }

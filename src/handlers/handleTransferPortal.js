@@ -83,7 +83,7 @@ export function handleTransferPortal(ctx, { res }) {
         },
         {
           label: 'Leave your name in and bet on the summer',
-          subLabel: '⚡ High Risk • Force the staff to treat you as someone they might lose',
+          subLabel: 'Make the staff treat you as someone they might lose.',
           isRisky: true,
           successChance: 0.35,
           successFeedback: 'Word got back that you were serious. Your minutes went up, and so did your stock.',

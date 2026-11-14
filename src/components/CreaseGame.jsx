@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { NetMouth, Goalie, Surface } from './rink/Ice';
 import { MOUTH, MOUTH_VIEW, MOUTH_ZONES, wavePath } from './rink/geometry';
 import { Stage, Hud, Pips, Verdict } from './minigame/Shell';
+import { useZoneKeys, ZONE_KEY_HINT } from '../utils/a11y';
 
 // Rapid fire in the crease.
 //
@@ -88,8 +89,14 @@ export default function CreaseGame({ player, onComplete, difficulty = 0 }) {
     setFlash({ kind: 'save', label: shot.zone.label });
   };
 
+  useZoneKeys(status === 'live', (id) => {
+    const target = shots.find(x => x.zone.id === id);
+    if (target) save(target);
+  });
+
   return (
     <Stage
+      keys={ZONE_KEY_HINT}
       hud={
         <Hud
           left={<Pips label="Saves" filled={saves} total={NEEDED} />}

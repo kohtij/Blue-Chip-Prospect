@@ -18,7 +18,7 @@ import { leagueFlag, leagueLabel } from '../utils/peers';
  * instead, so a column of codes stays in line.
  */
 export default function LeagueTag({ league, flagClass = 'w-[14px] h-[10px]' }) {
-  if (!league) return <span className="text-slate-700">&mdash;</span>;
+  if (!league) return <span className="text-slate-600">&mdash;</span>;
   const flag = leagueFlag(league);
   return (
     <>

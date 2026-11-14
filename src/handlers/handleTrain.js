@@ -9,6 +9,7 @@ import { teamStrengthOf } from '../utils/leagueState';
 import { teammatesFrom } from '../utils/peers';
 import { runPostSeasonFlow } from './runPostSeasonFlow';
 import { waiverExempt } from '../utils/waivers';
+import { formTrust, inSlump, slumpEvent } from '../utils/form';
 
 // --- THE LEADERSHIP GROUP, MID-SEASON ---------------------------------------
 // Camp, in advanceToOffseason, is the normal way a letter gets handed out, and
@@ -311,8 +312,11 @@ export function handleTrain(ctx, t) {
     };
   };
 
+  // Whether the slump event has had its turn this year, which has to survive
+  // every one of the rewrites of the season object below.
+  const slumpShown = (prev) => !!(prev.season?.slumpShown || season?.slumpShown);
   const advanceTo = (stints, nextStage) => {
-    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: prev.season?.gamesMissed ?? baseMissed, stage: nextStage, injury: prev.season?.injury ?? thisYearInjury, injuryShown: !!season?.injuryShown } }));
+    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: prev.season?.gamesMissed ?? baseMissed, stage: nextStage, injury: prev.season?.injury ?? thisYearInjury, injuryShown: !!season?.injuryShown, slumpShown: slumpShown(prev) } }));
     setPendingSeasonResult(partialResult(stints));
   };
 
@@ -332,7 +336,7 @@ export function handleTrain(ctx, t) {
   const endSeasonNow = (stints) => {
     setPlayer(prev => ({
       ...prev, trial: null, debut: null,
-      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury, injuryShown: !!season?.injuryShown }
+      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury, injuryShown: !!season?.injuryShown, slumpShown: slumpShown(prev) }
     }));
     setPendingSeasonResult(partialResult(stints));
   };
@@ -378,9 +382,13 @@ export function handleTrain(ctx, t) {
   // AHL games in the recap months later. The club moves under him now, as it
   // happens, and the segment after it starts from where he actually is.
   let livePlayer = withRoom;
+  // The form he takes into the next stretch: whatever the answer to a slump
+  // set, or else how the last stretch went. See FORM CARRIES in simulateSeason.
+  const lastFormed = [...carried].reverse().find(s => typeof s.formIndex === 'number');
+  let nextCarry = typeof season?.formBoost === 'number' ? season.formBoost : (lastFormed?.formIndex ?? 1);
   const playNext = (fraction) => {
     const seg = simulateSeason(livePlayer, effect, baseMissed + played, {
-      gamesFraction: fraction, segmentOnly: true,
+      gamesFraction: fraction, segmentOnly: true, formCarry: nextCarry,
       ...clubFactor(livePlayer.team),
       ...(locked ? { lockPlacement: true } : {})
     })?.segment;
@@ -396,6 +404,15 @@ export function handleTrain(ctx, t) {
           team: seg.team,
           league: seg.league,
           teamsPlayedFor: Array.from(new Set([...(prev.teamsPlayedFor || []), seg.team]))
+        }));
+      }
+      nextCarry = seg.formIndex ?? 1;
+      // The coach notices a streak either way, a little.
+      const nudge = formTrust(seg);
+      if (nudge) {
+        setPlayer(prev => ({
+          ...prev,
+          relationships: { ...(prev.relationships || {}), coach: Math.max(0, Math.min(100, (prev.relationships?.coach ?? 50) + nudge)) }
         }));
       }
       stints = [...stints, seg]; played += seg.games; return seg;
@@ -440,7 +457,7 @@ export function handleTrain(ctx, t) {
         desc: `A fourth-line enforcer caught you with your head down. You left the ice on a stretcher with a torn ACL, and your season is over.`,
         choices: [
           {
-            label: 'Begin Recovery',
+            label: 'Begin recovery',
             subLabel: 'Start the long road back. You will miss the rest of the season and the playoffs.',
             isRisky: false,
             feedback: 'The surgery went well, and the rehab will be long.',
@@ -464,14 +481,14 @@ export function handleTrain(ctx, t) {
         desc: `You took a nasty slash to the wrist and the team doctor says it's a hairline fracture. You can sit out for 4 weeks to let it heal, or shoot up with painkillers and play through it to help the team keep pace in the standings.`,
         choices: [
           {
-            label: 'Rest and Heal',
+            label: 'Rest and heal',
             subLabel: 'Take the full four weeks and miss the games.',
             isRisky: false,
             feedback: 'You took the time. The wrist healed, and the team struggled while you were out.',
             effect: { fanStatus: -10, ovr: 0, rel: { coach: -10, teammates: -10 } }
           },
           {
-            label: 'Play Through the Pain',
+            label: 'Play through the pain',
             subLabel: 'Mask the pain with medication to stay in the lineup.',
             isRisky: true,
             successChance: 0.50,
@@ -491,6 +508,16 @@ export function handleTrain(ctx, t) {
       ctx.setScreen('event');
       return;
     }
+
+    // THE SLUMP. A stretch bad enough that the reporters are counting, once a
+    // year at most. Whatever he does about it sets the form he carries on.
+    if (inSlump(seg) && !season?.slumpShown && Math.random() < 0.7) {
+      advanceTo(stints, 1);
+      setPlayer(p => ({ ...p, season: { ...(p.season || {}), slumpShown: true } }));
+      ctx.setActiveEvent(slumpEvent(livePlayer, seg));
+      ctx.setScreen('event');
+      return;
+    }
   }
 
   if (stage <= 1) {
@@ -504,7 +531,7 @@ export function handleTrain(ctx, t) {
       if (ev) {
         setPlayer(prev => ({
           ...prev, trial: null, debut: null,
-          season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 1, injury: thisYearInjury, injuryShown: true }
+          season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 1, injury: thisYearInjury, injuryShown: true, slumpShown: slumpShown(prev), formBoost: prev.season?.formBoost }
         }));
         setPendingSeasonResult(partialResult(stints));
         ctx.setActiveEvent(ev);
@@ -567,7 +594,7 @@ export function handleTrain(ctx, t) {
             desc: `The GM pulls you into the office before practice. "We don't want you hitting free agency in July. We want you here." They slide a contract across the desk: ${formatMoney(extSalary)} per year. You can lock in your future right now, or bet on yourself and hit the open market this summer.`,
             choices: [
                 { 
-                  label: 'Sign the Extension', 
+                  label: 'Sign the extension', 
                   subLabel: `Lock in ${formatMoney(extSalary)}/yr now and skip free agency.`, 
                   isRisky: false, 
                   feedback: 'You signed the extension. The city loves you for staying, and you don\'t have to worry about July 1st.', 
@@ -576,7 +603,7 @@ export function handleTrain(ctx, t) {
                   actionData: { salary: extSalary, years: 5, role: 'Core Player' }
                 },
                 { 
-                  label: 'Bet on Yourself', 
+                  label: 'Bet on yourself', 
                   subLabel: 'Decline the offer. Go to free agency this summer and try to get more.', 
                   isRisky: false, 
                   feedback: 'You turned it down politely. The GM was not happy, and you are going to market this summer.', 
@@ -587,6 +614,16 @@ export function handleTrain(ctx, t) {
             madePlayoffs: false,
             isMidSeasonEvent: true
         });
+        ctx.setScreen('event');
+        return;
+      }
+
+      // THE SLUMP. A stretch bad enough that the reporters are counting, once a
+      // year at most. Whatever he does about it sets the form he carries on.
+      if (inSlump(seg) && !season?.slumpShown && Math.random() < 0.7) {
+        advanceTo(stints, 2);
+        setPlayer(p => ({ ...p, season: { ...(p.season || {}), slumpShown: true } }));
+        ctx.setActiveEvent(slumpEvent(livePlayer, seg));
         ctx.setScreen('event');
         return;
       }
@@ -618,6 +655,7 @@ export function handleTrain(ctx, t) {
     // than drawing a new one.
     {
       ...(priorStints.length ? { priorStints, lockPlacement: true } : {}),
+      formCarry: nextCarry,
       // A deadline trade fixed where the new club stands; otherwise the club
       // he has been with all year carries on from where it was.
       ...((season?.anchor && season.anchor.team === withRoom.team)
@@ -704,6 +742,8 @@ export function handleTrain(ctx, t) {
       isAlternate: !!player.isAlternate,
       titleWon: false,
       avgToi: recap.avgToi,
+      // The share of his shifts the coach started in the attacking end.
+      ozPct: recap.ozPct ?? null,
       // Where the year was actually played. A split season carries one entry per
       // club, so the recap can say nine games here and fifty there.
       stints: recap.stints,
@@ -855,7 +895,7 @@ export function handleTrain(ctx, t) {
          moveTitle = '💯 500 CAREER GAMES';
          moveDesc = `That is 500 NHL games. Nobody calls you a kid any more, and the rookies have started asking you where to eat on the road.`;
          moveChoices = [
-             { label: 'Acknowledge the Milestone', subLabel: 'Acknowledge it and get on with the game.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { fanStatus: 50, ovr: 0, rel: { teammates: 10 } }, action: 'ROUTE_SEASON_END' }
+             { label: 'Acknowledge the milestone', subLabel: 'Acknowledge it and get on with the game.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { fanStatus: 50, ovr: 0, rel: { teammates: 10 } }, action: 'ROUTE_SEASON_END' }
          ];
      } else if (isWaiverClaim || (customWaiverEvent === 'WAIVERS' && wasNHLtoAHL && !isWaiverExempt)) {
          // WAIVER WIRE 24-HOUR INTERCEPT
