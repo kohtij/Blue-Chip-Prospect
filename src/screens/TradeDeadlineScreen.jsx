@@ -8,7 +8,7 @@ import { handleTransferPortal as _handleTransferPortal } from '../handlers/handl
 import { hasProContract as _hasProContract } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
 import { ACTION, CONTRACT, EURO_LEAGUES, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, TRADE_FEEDBACK, TRADE_TITLE, pickFlavor, tradeStanding, tradeStory } from '../data/deadlineFlavor';
-import { kickerClass, TITLE_MD } from '../utils/ui';
+import { TITLE_MD } from '../utils/ui';
 
 export default function TradeDeadlineScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -346,7 +346,6 @@ export default function TradeDeadlineScreen() {
 
           return (
   <div className="w-full max-w-[420px] md:max-w-4xl lg:max-w-5xl mx-auto game-panel p-5 sm:p-8 mt-2 text-center">
-    <span className={`${kickerClass('neutral')} mb-4`}>{isProgram ? 'March' : 'Early March'}</span>
     <h2 className={`${TITLE_MD} mb-2`}>
       {isProgram ? 'THE STRETCH RUN' : 'TRADE DEADLINE'}
     </h2>

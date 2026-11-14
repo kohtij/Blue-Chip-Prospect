@@ -7,7 +7,7 @@ import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/g
 import { deploymentLabel, rateSeason } from '../utils/production';
 import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
-import { kickerClass, TITLE_MD } from '../utils/ui';
+import { TITLE_MD } from '../utils/ui';
 
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
@@ -105,6 +105,15 @@ export default function RecapScreen() {
   
   return (() => {
           const titles = getPlayoffTitles(player.league);
+
+          // A season played for more than one club. The first line of the
+          // report gives the games with each club, and the stat line below it
+          // counts the whole year, so it has to say so: "50 GP" with Sarnia
+          // above "in 59 games" read as two numbers that disagreed.
+          const lastYear = player.seasonHistory?.[player.seasonHistory.length - 1];
+          const clubCount = Math.max(lastYear?.stints?.length || 0, lastYear?.tradedTo ? 2 : 0);
+          const acrossClubs = clubCount > 2 ? ` across all ${clubCount} clubs` : clubCount === 2 ? ' across both clubs' : '';
+
           let narrative;
           let narrativeTitle;
 
@@ -232,8 +241,7 @@ export default function RecapScreen() {
                 ${Array.from({length: 25}).map((_, i) => `.recap-list > li:nth-child(${i + 1}) { animation-delay: ${(i * 0.15) + 0.1}s; }`).join('\n')}
               `}</style>
 
-              <div className="flex justify-between items-center border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
-                <span className={kickerClass('neutral')}>The rink report</span>
+              <div className="flex items-center border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
                 <p className="text-slate-500 font-black uppercase tracking-[0.18em] text-[10px] sm:text-xs">
                   {/* The SHL and Liiga used to land here as "AMATEUR CAMPAIGN". They are
                       professional leagues, so they now count as pro seasons, and the label
@@ -287,16 +295,16 @@ export default function RecapScreen() {
                 </li>
                 
                 {player.pos === 'G' ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Went <strong className="text-white">{seasonRecap?.wins || 0}&ndash;{seasonRecap?.losses || 0}&ndash;{seasonRecap?.otl || 0}</strong> with a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} save percentage</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games. {
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Went <strong className="text-white">{seasonRecap?.wins || 0}&ndash;{seasonRecap?.losses || 0}&ndash;{seasonRecap?.otl || 0}</strong> with a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} save percentage</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games{acrossClubs}. {
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Elite numbers in net.' :
                     (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.905 ? 'A reliable, steady presence in the crease.' :
                     'Struggled to find consistency this year.'
                   }</li>
                 ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> and <strong className="text-white">{seasonRecap?.blk || 0} blocked shots</strong> in {seasonRecap?.games || 0} games, averaging <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong>
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> and <strong className="text-white">{seasonRecap?.blk || 0} blocked shots</strong> in {seasonRecap?.games || 0} games{acrossClubs}, averaging <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong>
                     {(seasonRecap?.ppToi || 0) >= 0.2
-                      ? <>, <strong className="text-white">{clock(seasonRecap.ppToi)}</strong> of it on the powerplay</>
-                      : <> and no powerplay time at all</>}
+                      ? <>, <strong className="text-white">{clock(seasonRecap.ppToi)}</strong> of it on the power play</>
+                      : <> and no power play time at all</>}
 . {
                     /* The verdict reads off the graded season now rather than
                        the point total alone. A defenceman who finished under
@@ -310,7 +318,7 @@ export default function RecapScreen() {
                       ? (((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 55
                           ? 'You carried the puck out of your own end all season.'
                           : 'You shut down the other team’s best line all season.') :
-                    (seasonRecap?.rating || 5) >= 6.5 ? 'A dependable pair, every night.' :
+                    (seasonRecap?.rating || 5) >= 6.5 ? 'The coach could count on you every night.' :
                     (seasonRecap?.rating || 5) <= 4.0 ? 'Caught out far too often.' :
                     'A quiet year in a sheltered role.'
                   }</li>
@@ -328,7 +336,7 @@ export default function RecapScreen() {
                   const fot = seasonRecap?.fot || 0;
                   const foPct = fot > 0 ? ((seasonRecap?.fow || 0) / fot) * 100 : null;
                   return (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{gls} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{gls + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games, playing <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong> a night
+                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{gls} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{gls + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games{acrossClubs}, playing <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong> a night
                     {shPct != null
                       ? <>, off <strong className="text-white">{sog} shots</strong> at <strong className="text-white">{shPct.toFixed(1)}%</strong></>
                       : null}
@@ -366,7 +374,7 @@ export default function RecapScreen() {
                     Shutdown: "He sent you out in your own end against the other team's best players, all year."
                   }[use];
                   return (
-                    <li className="border-l-4 border-sky-500 pl-4 pr-3 py-2.5 rounded-r-lg">🧭 The coach started <strong className="text-white">{seasonRecap.ozPct}%</strong> of your shifts in the attacking zone. {line}</li>
+                    <li className="border-l-4 border-sky-500 pl-4 pr-3 py-2.5 rounded-r-lg">🧭 The coach started <strong className="text-white">{seasonRecap.ozPct}%</strong> of your shifts in the offensive zone. {line}</li>
                   );
                 })()}
 

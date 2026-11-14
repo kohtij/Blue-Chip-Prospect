@@ -29,7 +29,7 @@ const ARCHETYPE_POOLS = {
   },
   D: {
     pool: [
-      { id: 'arch_ofd', archetype: 'Offensive Dynamo', tag: 'SKT', name: 'Offensive Dynamo', flavor: 'You act as a fourth forward, driving the rush and commanding the powerplay from the blue line.', desc: '+8 SKT', effect: { skating: 8 } },
+      { id: 'arch_ofd', archetype: 'Offensive Dynamo', tag: 'SKT', name: 'Offensive Dynamo', flavor: 'You act as a fourth forward, driving the rush and running the power play from the blue line.', desc: '+8 SKT', effect: { skating: 8 } },
       { id: 'arch_dfd', archetype: 'Shutdown', tag: 'PHY', name: 'Shutdown Defender', flavor: 'You clear the crease, block shots, and make life miserable for opposing forwards.', desc: '+8 PHY', effect: { physicality: 8 } },
       { id: 'arch_qb', archetype: 'Playmaker', tag: 'IQ', name: 'Powerplay QB', flavor: 'You see the ice well and move the puck to the forwards who can do something with it.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
       { id: 'arch_bom', archetype: 'Point Bomber', tag: 'SHT', name: 'Point Bomber', flavor: 'You have a heavy slapshot, and forwards think twice before stepping in front of it.', desc: '+8 SHT', effect: { shooting: 8 } }
@@ -149,12 +149,7 @@ export default function PreseasonScreen() {
               <div className="p-6 sm:p-10 bg-gradient-to-br from-[#0f1115] to-[#050608] relative overflow-hidden flex flex-col justify-center items-center text-center min-h-[400px]">
                  <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale absolute inset-0 pointer-events-none"></div>
                  <div className="relative z-10 w-full max-w-xl mx-auto flex flex-col items-center">
-                   {/* The direction of the move is the kicker's colour; the title
-                       stays white like every other title in the game. */}
-                   <span className={kickerClass(rosterMoveNotice.type === 'PROMOTION' ? 'green' : rosterMoveNotice.type === 'DEMOTION' ? 'amber' : 'neutral')}>
-                      {rosterMoveNotice.type === 'PROMOTION' ? 'Called up' : rosterMoveNotice.type === 'DEMOTION' ? 'Sent down' : 'Assignment'}
-                   </span>
-                   <h2 className={`mt-5 mb-4 ${TITLE_LG}`}>
+                   <h2 className={`mb-4 ${TITLE_LG}`}>
                       {rosterMoveNotice.title}
                    </h2>
                    <p className="text-base sm:text-lg text-slate-300 mb-8 leading-relaxed">
@@ -173,9 +168,9 @@ export default function PreseasonScreen() {
             ) : (
               <div className="p-6 sm:p-10">
                  <div className="flex flex-col items-start border-b border-[rgba(255,255,255,0.065)] pb-4 mb-6">
-                    <span className={`${kickerClass('neutral')} mb-4`}>
-                      {isArchetypeChoice ? "Player archetype" : trainingTier.tier}
-                    </span>
+                    {!isArchetypeChoice && (
+                      <span className={`${kickerClass('neutral')} mb-2`}>{trainingTier.tier}</span>
+                    )}
                     <h2 className={TITLE_MD}>
                       {isArchetypeChoice ? "WHAT KIND OF PLAYER ARE YOU?" : `PRE-SEASON ${currentYear}`}
                     </h2>

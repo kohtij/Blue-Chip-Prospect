@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../AppContext';
 import { projectDraftPick } from '../utils/draftScouting';
 import { isPress } from '../utils/a11y';
-import { CHOICE_ROW, kickerClass, TITLE_LG, TITLE_MD } from '../utils/ui';
+import { CHOICE_ROW, TITLE_LG, TITLE_MD } from '../utils/ui';
 
 // A button that refuses to be pressed for a moment after it appears.
 //
@@ -119,6 +119,49 @@ const Readout = ({ items }) => (
   </div>
 );
 
+// The clock for the two timed tests. It counted down in whole seconds as one
+// more number beside the score, so nothing told you the test had started, how
+// much of it was left, or that it was nearly over. Now it's tenths of a second
+// over a bar that drains, and both turn red for the last two seconds, the same
+// as the shot clock in the minigames. The count sits beside it.
+const TICK_MS = 100;
+const CombineClock = ({ msLeft, msTotal, countLabel, count }) => {
+  const pct = Math.max(0, Math.min(100, (msLeft / msTotal) * 100));
+  const urgent = msLeft <= 2000 && msLeft < msTotal;
+  return (
+    <div className="w-full max-w-sm mx-auto mb-7">
+      <div className="flex items-end justify-between">
+        <div className="flex flex-col items-start">
+          <span className={`number-font font-black tabular-nums leading-none text-5xl sm:text-6xl transition-colors ${urgent ? 'text-[#ef4444]' : 'text-white'}`}>
+            {(Math.max(0, msLeft) / 1000).toFixed(1)}
+          </span>
+          <span className="mt-1.5 text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] text-slate-500">Seconds</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="number-font font-black tabular-nums leading-none text-5xl sm:text-6xl text-white">{count}</span>
+          <span className="mt-1.5 text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] text-slate-500">{countLabel}</span>
+        </div>
+      </div>
+      <div className="mt-4 h-2.5 rounded-full bg-[rgba(255,255,255,0.08)] overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-colors ${urgent ? 'bg-[#ef4444]' : 'bg-[#22E748]'}`}
+          style={{ width: `${pct}%`, transition: `width ${TICK_MS}ms linear` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Three, two, one, in the space where the test is about to appear. Starting
+// the clock the moment the button was pressed cost the first half second to
+// moving a thumb from one button to another.
+const LeadIn = ({ n, size = 'h-32' }) => (
+  <div className={`${size} flex flex-col items-center justify-center select-none`} aria-live="assertive">
+    <span key={n} className="pop-in number-font font-black text-white tabular-nums leading-none text-7xl sm:text-8xl">{n}</span>
+    <span className="mt-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] text-slate-500">Get ready</span>
+  </div>
+);
+
 const Row = ({ label, children }) => (
   <div className="flex justify-between items-baseline gap-4 py-3 border-t border-[rgba(255,255,255,0.06)] first:border-t-0">
     <span className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.18em] text-left">{label}</span>
@@ -194,7 +237,9 @@ export default function CombineScreen() {
   const [vo2Active, setVo2Active] = useState(false);
   const [vo2Done, setVo2Done] = useState(false);
   const [vo2Score, setVo2Score] = useState(0);
-  const [vo2Time, setVo2Time] = useState(5);
+  const VO2_MS = 5000;
+  const [vo2Ms, setVo2Ms] = useState(VO2_MS);
+  const [vo2Lead, setVo2Lead] = useState(0);
   const [vo2Result, setVo2Result] = useState(null);
 
   const finishVo2 = useCallback((score) => {
@@ -212,23 +257,33 @@ export default function CombineScreen() {
   useEffect(() => {
     let interval;
     if (vo2Active) {
-      interval = setInterval(() => setVo2Time(t => (t > 0 ? t - 1 : 0)), 1000);
+      interval = setInterval(() => setVo2Ms(t => Math.max(0, t - TICK_MS)), TICK_MS);
     }
     return () => clearInterval(interval);
   }, [vo2Active]);
 
   // EFFECT 2: Check for game over
   useEffect(() => {
-    if (vo2Active && vo2Time <= 0) {
+    if (vo2Active && vo2Ms <= 0) {
       setTimeout(() => {
         setVo2Active(false);
         finishVo2(vo2Score);
       }, 0);
     }
-  }, [vo2Active, vo2Time, vo2Score, finishVo2]);
+  }, [vo2Active, vo2Ms, vo2Score, finishVo2]);
+
+  // The lead-in: 3, 2, 1, then the clock starts.
+  useEffect(() => {
+    if (vo2Lead <= 0) return undefined;
+    const t = setTimeout(() => {
+      if (vo2Lead === 1) { setVo2Lead(0); setVo2Active(true); }
+      else setVo2Lead(vo2Lead - 1);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [vo2Lead]);
 
   const startVo2 = () => {
-    setVo2Active(true); setVo2Score(0); setVo2Time(5); setVo2Done(false);
+    setVo2Score(0); setVo2Ms(VO2_MS); setVo2Done(false); setVo2Lead(3);
   };
 
   // ==========================================
@@ -237,7 +292,9 @@ export default function CombineScreen() {
   const [rxActive, setRxActive] = useState(false);
   const [rxDone, setRxDone] = useState(false);
   const [rxScore, setRxScore] = useState(0);
-  const [rxTime, setRxTime] = useState(10);
+  const RX_MS = 10000;
+  const [rxMs, setRxMs] = useState(RX_MS);
+  const [rxLead, setRxLead] = useState(0);
   const [rxTarget, setRxTarget] = useState(-1);
   const [rxResult, setRxResult] = useState(null);
 
@@ -256,23 +313,32 @@ export default function CombineScreen() {
   useEffect(() => {
     let interval;
     if (rxActive) {
-      interval = setInterval(() => setRxTime(t => (t > 0 ? t - 1 : 0)), 1000);
+      interval = setInterval(() => setRxMs(t => Math.max(0, t - TICK_MS)), TICK_MS);
     }
     return () => clearInterval(interval);
   }, [rxActive]);
 
   // EFFECT 2: Check for game over
   useEffect(() => {
-    if (rxActive && rxTime <= 0) {
+    if (rxActive && rxMs <= 0) {
       setTimeout(() => {
         setRxActive(false);
         finishRx(rxScore);
       }, 0);
     }
-  }, [rxActive, rxTime, rxScore, finishRx]);
+  }, [rxActive, rxMs, rxScore, finishRx]);
+
+  useEffect(() => {
+    if (rxLead <= 0) return undefined;
+    const t = setTimeout(() => {
+      if (rxLead === 1) { setRxLead(0); setRxActive(true); setRxTarget(getRandomTarget()); }
+      else setRxLead(rxLead - 1);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [rxLead]);
 
   const startRx = () => {
-    setRxActive(true); setRxScore(0); setRxTime(10); setRxDone(false); setRxTarget(getRandomTarget());
+    setRxScore(0); setRxMs(RX_MS); setRxDone(false); setRxLead(3);
   };
 
   // The board by keyboard: the number keys 1 to 9 laid out like the grid, top
@@ -325,8 +391,7 @@ export default function CombineScreen() {
           if (showIntro) {
              return (
                <div className={PANEL}>
-                 <span className={kickerClass('neutral')}>Draft preparation</span>
-                 <h2 className={`mt-5 ${TITLE_LG}`}>NHL Draft Combine</h2>
+                 <h2 className={TITLE_LG}>NHL Draft Combine</h2>
                  <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">
                    This is the Draft Combine, your last chance to impress the general managers before draft day. The physical testing comes first. Then the interviews, where they find out how you think and what you are like.
                  </p>
@@ -347,8 +412,7 @@ export default function CombineScreen() {
                  const tone = activeResult.pts > 0 ? 'text-[#22E748]' : activeResult.pts < 0 ? 'text-[#ef4444]' : 'text-slate-300';
                  return (
                    <div className={PANEL}>
-                     <span className={kickerClass('neutral')}>Draft combine</span>
-                     <h2 className={`mt-5 ${TITLE_MD}`}>Test results</h2>
+                     <h2 className={TITLE_MD}>Test results</h2>
                      <div className="mt-6 w-full max-w-md rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0d110d] p-6">
                         <div className="flex items-end justify-center gap-2">
                           <span className="number-font font-black text-white tabular-nums leading-none text-5xl">{activeResult.finalScore}</span>
@@ -367,8 +431,7 @@ export default function CombineScreen() {
              if (posGroup === 'F') {
                return (
                  <div className={PANEL}>
-                   <span className={kickerClass('neutral')}>Draft combine</span>
-                   <h2 className={`mt-5 ${TITLE_MD}`}>Bench press</h2>
+                   <h2 className={TITLE_MD}>Bench press</h2>
                    <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
                      Press <strong className="text-white">PUSH</strong> while the bar is inside the green band. Every rep comes faster than the last.
                    </p>
@@ -393,13 +456,14 @@ export default function CombineScreen() {
              if (posGroup === 'D') {
                 return (
                   <div className={PANEL}>
-                   <span className={kickerClass('neutral')}>Draft combine</span>
-                   <h2 className={`mt-5 ${TITLE_MD}`}>VO2 max treadmill</h2>
+                   <h2 className={TITLE_MD}>VO2 max treadmill</h2>
                    <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
-                     Press <strong className="text-white">STRIDE</strong> as fast as you can until the ten seconds run out.
+                     Press <strong className="text-white">STRIDE</strong> as fast as you can until the five seconds run out.
                    </p>
-                   <Readout items={[['Seconds', vo2Time], ['Strides', vo2Score]]} />
-                   {!vo2Active ? (
+                   <CombineClock msLeft={vo2Ms} msTotal={VO2_MS} countLabel="Strides" count={vo2Score} />
+                   {vo2Lead > 0 ? (
+                      <LeadIn n={vo2Lead} />
+                   ) : !vo2Active ? (
                       <button onClick={startVo2} className={START_BTN}>Start the test</button>
                    ) : (
                       <button onClick={() => setVo2Score(s => s + 1)} className={`${PLAY_BTN} w-48 h-32 sm:w-56 text-4xl active:scale-95`}>Stride</button>
@@ -412,13 +476,14 @@ export default function CombineScreen() {
              if (posGroup === 'G') {
                 return (
                   <div className={PANEL}>
-                   <span className={kickerClass('neutral')}>Draft combine</span>
-                   <h2 className={`mt-5 ${TITLE_MD}`}>Reaction board</h2>
+                   <h2 className={TITLE_MD}>Reaction board</h2>
                    <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
                      Tap each square as it lights up, before the time runs out. On a keyboard, the keys 1 to 9 match the grid, top row first.
                    </p>
-                   <Readout items={[['Seconds', rxTime], ['Hits', rxScore]]} />
-                   {!rxActive ? (
+                   <CombineClock msLeft={rxMs} msTotal={RX_MS} countLabel="Hits" count={rxScore} />
+                   {rxLead > 0 ? (
+                      <LeadIn n={rxLead} size="h-64 sm:h-80" />
+                   ) : !rxActive ? (
                       <button onClick={startRx} className={START_BTN}>Start the test</button>
                    ) : (
                       <div className="grid grid-cols-3 gap-2 sm:gap-3 w-64 h-64 sm:w-80 sm:h-80 mx-auto select-none">
@@ -444,8 +509,7 @@ export default function CombineScreen() {
                 const ok = interviewResult.isMatch;
                 return (
                   <div className={PANEL}>
-                    <span className={kickerClass('neutral')}>Draft combine</span>
-                    <h2 className={`mt-5 ${TITLE_MD}`}>Interview result</h2>
+                    <h2 className={TITLE_MD}>Interview result</h2>
                     <div className={`mt-6 w-full max-w-xl flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0d110d] p-5 rounded-xl border ${ok ? 'border-[#22E748]/45' : 'border-[#ef4444]/45'}`}>
                        <div className="flex flex-col items-center sm:items-start gap-2 flex-1 min-w-0 text-center sm:text-left w-full">
                           <span className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.18em]">The scout wanted: <span className={interviewData.scout.color}>{interviewData.scout.trait}</span></span>
@@ -464,8 +528,7 @@ export default function CombineScreen() {
 
              return (
                <div className={PANEL}>
-                 <span className={kickerClass('neutral')}>Draft combine</span>
-                 <h2 className={`mt-5 ${TITLE_MD}`}>The interviews</h2>
+                 <h2 className={TITLE_MD}>The interviews</h2>
                  <div className="mt-6 w-full max-w-xl bg-[#0d110d] border border-[rgba(255,255,255,0.08)] p-5 rounded-xl text-left">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.18em] mb-1.5">Interviewing with</p>
                     <h3 className={`text-lg sm:text-xl font-black uppercase sports-font ${interviewData.scout.color} mb-1`}>{interviewData.scout.name}</h3>
@@ -504,8 +567,7 @@ export default function CombineScreen() {
 
              return (
                <div className={PANEL}>
-                 <span className={kickerClass('neutral')}>Draft combine</span>
-                 <h2 className={`mt-5 ${TITLE_MD}`}>Combine verdict</h2>
+                 <h2 className={TITLE_MD}>Combine verdict</h2>
                  <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">{verdict}</p>
                  <div className="mt-6 w-full max-w-xl bg-[#0d110d] border border-[rgba(255,255,255,0.08)] rounded-xl px-5 py-2">
                     <Row label="Combine score">

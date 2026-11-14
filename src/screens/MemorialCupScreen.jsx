@@ -3,7 +3,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { ohlTeams, qmjhlTeams, whlTeams } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
-import { kickerClass, TITLE_LG } from '../utils/ui';
+import { TITLE_LG } from '../utils/ui';
 
 // Auto-extracted from App.jsx. Receives state/handlers/App-scope components as props.
 export default function MemorialCupScreen() {
@@ -47,8 +47,7 @@ export default function MemorialCupScreen() {
               
               {/* HEADER BANNER */}
               <div className="text-center mb-4">
-                 <span className={kickerClass('amber')}>Canadian Hockey League</span>
-                 <h2 className={`mt-5 ${TITLE_LG}`}>
+                 <h2 className={TITLE_LG}>
                    The Memorial Cup
                  </h2>
               </div>
@@ -185,10 +184,6 @@ export default function MemorialCupScreen() {
                   <div className="text-5xl sm:text-6xl mb-4 animate-bounce">
                     {memCup.status === 'won' ? '🏆' : '💔'}
                   </div>
-
-                  <span className={`${kickerClass(memCup.status === 'won' ? 'amber' : 'red')} mb-4`}>
-                    {memCup.status === 'won' ? 'Champions of the CHL' : 'Knocked out'}
-                  </span>
 
                   <h2 className={`${TITLE_LG} mb-3`}>
                     {memCup.status === 'won' ? 'MEMORIAL CUP CHAMPIONS!' : 'SEASON ENDS IN HEARTBREAK'}

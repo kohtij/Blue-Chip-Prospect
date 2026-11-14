@@ -1,7 +1,7 @@
 import 'react';
 import { useAppContext } from '../AppContext';
 import { PRESS_VIBES } from '../utils/appHelpers';
-import { kickerClass, TITLE_MD } from '../utils/ui';
+import { TITLE_MD } from '../utils/ui';
 
 export default function PressScreen() {
   const { activePress, handlePressAnswer, player, pressAnswerKeys } = useAppContext();
@@ -13,7 +13,6 @@ export default function PressScreen() {
           return (
             <div className="game-panel p-4 sm:p-8 mt-2 text-left">
               <div className="mb-4 sm:mb-6 border-b border-[rgba(255,255,255,0.065)] pb-4">
-                 <span className={`${kickerClass('neutral')} mb-4`}>Press room</span>
                  <h2 className={TITLE_MD}>The press conference</h2>
               </div>
               

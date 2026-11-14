@@ -1595,16 +1595,22 @@ function App() {
       </a>
 
       {achievementToast && (
+        // Top of the screen on a phone, dropping in from above, where a
+        // notification is expected; the bottom put it under the player's thumb
+        // and on top of the buttons. On a wider screen it slides in at the top
+        // right, clear of the centred titles it used to cover.
         <div data-nosnippet aria-hidden="true"
-          className="achievement-toast fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 max-w-[280px] sm:max-w-xs bg-[#101410] border border-[#F59E0B]/60 p-4 rounded-xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)] flex items-center gap-4 pointer-events-none"
-          style={{ animation: 'toastLifecycle 4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+          className="achievement-toast fixed top-3 inset-x-3 mx-auto sm:top-6 sm:right-6 sm:left-auto sm:mx-0 z-50 max-w-sm sm:max-w-xs bg-[#101410] border border-[#F59E0B]/60 p-4 rounded-xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)] flex items-center gap-4 pointer-events-none"
         >
           <style>{`
-            @keyframes toastLifecycle { 0% { transform: translateX(120%); opacity: 0; } 10% { transform: translateX(0); opacity: 1; } 85% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(120%); opacity: 0; } }
+            .achievement-toast { animation: toastDrop 4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+            @media (min-width: 640px) { .achievement-toast { animation-name: toastSlide; } }
+            @keyframes toastDrop { 0% { transform: translateY(-140%); opacity: 0; } 10% { transform: translateY(0); opacity: 1; } 85% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-140%); opacity: 0; } }
+            @keyframes toastSlide { 0% { transform: translateX(120%); opacity: 0; } 10% { transform: translateX(0); opacity: 1; } 85% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(120%); opacity: 0; } }
           `}</style>
           <span className="text-3xl sm:text-4xl shrink-0">{achievementToast.icon}</span>
           <div className="text-left">
-            <p className="text-[9px] font-bold text-[#F59E0B] uppercase tracking-widest font-sans">ACHIEVEMENT UNLOCKED!</p>
+            <p className="text-[9px] font-bold text-[#F59E0B] uppercase tracking-widest font-sans">Achievement unlocked</p>
             <h4 className="text-sm sm:text-base font-black text-white sports-font uppercase">{achievementToast.name}</h4>
             <p className="text-[10px] text-slate-300 font-sans">{achievementToast.desc}</p>
           </div>

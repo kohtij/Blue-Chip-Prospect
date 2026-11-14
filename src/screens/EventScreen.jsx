@@ -50,7 +50,7 @@ export default function EventScreen() {
              kicker = { tone: 'red', text: 'Season-ending injury' };
           } else if (isDemotion) {
              panelStyles = 'bg-gradient-to-br from-[#0f1115] to-[#050608]';
-             kicker = { tone: 'neutral', text: 'Roster move' };
+             kicker = null;
           }
 
           const renderDesc = (text) => {
@@ -429,7 +429,7 @@ export default function EventScreen() {
             {isDemotion && <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale"></div>}
 
             <div className="relative z-10">
-              {kicker && <span className={`${kickerClass(kicker.tone)} mb-4`}>{kicker.text}</span>}
+              {kicker && <span className={`${kickerClass(kicker.tone)} mb-2`}>{kicker.text}</span>}
               {/* One icon, the event's own. A speech bubble used to sit in
                   front of it on every event, so most titles carried two. The
                   icon is decoration and is hidden from screen readers. */}

@@ -7,10 +7,14 @@ import { bonusCeiling, SB_SHARE, veteranBonuses } from '../utils/bonuses';
 
 // CONTRACT TALKS.
 //
-// One screen, read top to bottom in the order a player thinks about a deal:
-// who it is with, what is on the table, how much patience is left across the
-// desk, and then what to ask for. The moves are grouped by what they change,
-// money, term or protection, and each says plainly what it risks.
+// Two columns. On the left, the deal as it stands, written the way a free
+// agency card writes it (a salary "/YR", the term under it, labelled rows),
+// and the GM across the desk. On the right, every ask you can make, one under
+// another, grouped by what it changes, and the two ways out at the bottom.
+// It used to be one long column with the asks laid out in grids of two and
+// three inside it, so the eye zigzagged between columns of buttons and the
+// deal it was changing was a scroll away. On a phone the two columns stack:
+// the deal first, then the asks.
 //
 // Protection is new. A no-trade clause stops the club trading him without his
 // say. A no-movement clause goes further: no trade, no waivers, no sending
@@ -72,7 +76,7 @@ function rollMove(type, { hasAgent, base, currentSalary, currentYears, ntcOdds, 
   if (type === 'safe') {
     damage = (Math.floor(Math.random() * 10) + 5) * dmgMult;
     dSalary = round25k(base * 0.03);
-    label = 'A little more'; reply = say('safe'); trustHit = 2;
+    label = 'Asked for a bit more'; reply = say('safe'); trustHit = 2;
   } else if (type === 'hardball') {
     damage = (Math.floor(Math.random() * 25) + 15) * dmgMult;
     dSalary = round25k(base * 0.08);
@@ -85,11 +89,11 @@ function rollMove(type, { hasAgent, base, currentSalary, currentYears, ntcOdds, 
   } else if (type === 'term_up') {
     ok = Math.random() < (0.50 + succBoost) && currentYears < 8;
     damage = (ok ? 10 : 25) * dmgMult; dYears = ok ? 1 : 0;
-    label = 'One more year'; reply = say(ok ? 'term_up_ok' : 'term_up_no'); trustHit = ok ? -5 : -10;
+    label = 'Asked for another year'; reply = say(ok ? 'term_up_ok' : 'term_up_no'); trustHit = ok ? -5 : -10;
   } else if (type === 'term_down') {
     ok = Math.random() < (0.60 + succBoost) && currentYears > 1;
     damage = (ok ? 5 : 15) * dmgMult; dYears = ok ? -1 : 0;
-    label = 'One year fewer'; reply = say(ok ? 'term_down_ok' : 'term_down_no'); trustHit = ok ? -5 : -10;
+    label = 'Asked for a shorter deal'; reply = say(ok ? 'term_down_ok' : 'term_down_no'); trustHit = ok ? -5 : -10;
   } else if (type === 'ntc') {
     ok = Math.random() < ntcOdds;
     damage = (ok ? 10 : 22) * dmgMult;
@@ -118,28 +122,52 @@ function rollMove(type, { hasAgent, base, currentSalary, currentYears, ntcOdds, 
   return { damage, dSalary, dYears, ok, trustHit, reply, label, grant };
 }
 
-const Move = ({ onPick, live, type, title, line, risk, riskTone, disabled, note }) => (
+// An ask is a button like any other in the game: a short label, and under it
+// one small line with what it does and how likely it is. The longer
+// explanation is kept as the button's tooltip. A risky ask is red, the same
+// as demanding a trade at the deadline.
+const Move = ({ onPick, live, type, title, hint, tone = '#94a3b8', danger, disabled, explain, wide }) => (
   <button
     type="button"
     onClick={() => onPick(type)}
     disabled={!live || disabled}
-    className="text-left rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0d110d] px-3.5 py-3 transition-colors hover:border-[rgba(255,255,255,0.22)] hover:bg-[#121812] disabled:opacity-40 disabled:hover:border-[rgba(255,255,255,0.08)] disabled:hover:bg-[#0d110d] disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
+    title={explain}
+    className={`${danger && !disabled ? 'btn-danger' : 'btn-secondary'} ${wide ? 'col-span-2' : ''} py-2.5 px-3 rounded-lg flex flex-col items-center justify-center gap-1 sports-font uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]`}
   >
-    <span className="flex items-baseline justify-between gap-2">
-      <span className="text-[13px] sm:text-sm font-black text-white leading-tight">{title}</span>
-      <span className="shrink-0 text-[9px] font-black uppercase tracking-widest" style={{ color: riskTone }}>{risk}</span>
+    <span className="text-xs sm:text-sm tracking-[0.12em] leading-none">{title}</span>
+    <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.16em] leading-none" style={{ color: disabled ? undefined : tone }}>
+      {hint}
     </span>
-    <span className="block text-[11px] sm:text-xs text-slate-400 leading-snug mt-1">{note || line}</span>
   </button>
 );
 
-const Group = ({ title, children, cols = 'sm:grid-cols-3' }) => (
+// How likely he is to say yes, as a word. A row of percentages on the buttons
+// read as costs and odds and raises all at once, and it was hard to tell which
+// number was the chance it worked.
+const ODDS = [
+  { at: 0.75, word: 'Very likely', tone: '#22E748' },
+  { at: 0.55, word: 'Likely', tone: '#22E748' },
+  { at: 0.4, word: 'Coin flip', tone: '#F59E0B' },
+  { at: 0.2, word: 'Unlikely', tone: '#f97316' },
+  { at: 0, word: 'Long shot', tone: '#ef4444' }
+];
+const oddsOf = (p) => ODDS.find(o => p >= o.at) || ODDS[ODDS.length - 1];
+
+const Group = ({ title, note, children }) => (
   <div>
-    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">{title}</p>
-    <div className={`grid grid-cols-1 ${cols} gap-2`}>{children}</div>
+    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2">{title}</p>
+    <div className="grid grid-cols-2 gap-2">{children}</div>
+    {note && <p className="mt-1.5 text-[11px] text-slate-500 leading-snug">{note}</p>}
   </div>
 );
 
+// One labelled line of the deal, the same row the free agency cards use.
+const Line = ({ label, children, tone = 'text-white' }) => (
+  <p className="flex items-baseline gap-3 font-bold uppercase tracking-wider">
+    <span className="text-slate-500 shrink-0">{label}</span>
+    <span className={`ml-auto min-w-0 text-right ${tone}`}>{children}</span>
+  </p>
+);
 
 export default function NegotiationScreen() {
   const { finishNegotiation, negotiation, setNegotiation, player, setPlayer } = useAppContext();
@@ -238,7 +266,6 @@ export default function NegotiationScreen() {
   const total = n.currentSalary * n.currentYears;
   const clauseText = nmc ? 'No-movement clause' : ntc ? 'No-trade clause' : null;
 
-  const pct = (p) => `${Math.round(p * 100)}%`;
   const clauseBlocked = !clauseLeague
     ? 'Clauses are an NHL thing. Nobody here will put one in.'
     : !ufaEligible
@@ -246,74 +273,66 @@ export default function NegotiationScreen() {
       : null;
 
   return (
-    <div className="max-w-2xl mx-auto mt-2 space-y-3">
+    <div className="max-w-5xl mx-auto mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
 
-      {/* WHO */}
-      <div className="game-panel relative overflow-hidden p-4 sm:p-5">
+      {/* THE DEAL, AND THE MAN ACROSS THE DESK */}
+      <div className="game-panel relative overflow-hidden p-4 sm:p-6 md:sticky md:top-2">
         <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: accent }} />
         <div className="absolute inset-x-0 top-0 h-24 pointer-events-none opacity-[0.14]"
              style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }} />
+
         <div className="relative flex items-center gap-3">
           <TeamLogo teamId={offer.team} league={lg} isAHL={lg === 'AHL'} size="small" />
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Contract talks</p>
-            <h2 className="text-lg sm:text-2xl font-black text-white sports-font uppercase leading-tight truncate">
+            <h2 className="text-lg sm:text-2xl font-black text-white sports-font uppercase leading-tight break-words">
               {getFullTeamName(offer.team, lg)}
             </h2>
             <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: accentText }}>
               {[lg, teamData?.div, offer.role].filter(Boolean).join(' · ')}
             </p>
           </div>
-          {hasAgent && (
-            <span className="hidden sm:block shrink-0 text-[9px] font-black uppercase tracking-widest text-[#c084fc] border border-[#c084fc]/30 bg-[#c084fc]/10 rounded px-2 py-1">
-              Agent in the room
-            </span>
-          )}
         </div>
-      </div>
 
-      {/* THE DEAL */}
-      <div className="game-panel p-4 sm:p-6">
-        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">On the table</p>
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-4xl sm:text-5xl font-black text-white sports-font tracking-tighter number-font">{money(n.currentSalary)}</span>
-          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">a year</span>
-          <span className="text-xl sm:text-2xl font-black text-slate-300 sports-font">
-            × {n.currentYears} {n.currentYears === 1 ? 'year' : 'years'}
+        <div className="relative mt-5">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-4xl sm:text-5xl font-black text-white sports-font tracking-tighter number-font">{money(n.currentSalary)}</span>
+            <span className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">/YR</span>
+          </div>
+          <span className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+            {n.currentYears}-YEAR CONTRACT
           </span>
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs font-bold">
-          <span className="text-slate-400">Total <span className="text-white number-font">{money(total)}</span></span>
+
+        <div className="relative mt-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
+          <Line label="Total value">{money(total)}</Line>
           {salaryDelta !== 0 && (
-            <span className={salaryDelta > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
-              {salaryDelta > 0 ? '+' : '-'}{money(salaryDelta)} a year on his first offer
-            </span>
+            <Line label="On his first offer" tone={salaryDelta > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
+              {salaryDelta > 0 ? '+' : '-'}{money(salaryDelta)}/YR
+            </Line>
           )}
           {yearsDelta !== 0 && (
-            <span className="text-[#3b82f6]">{yearsDelta > 0 ? '+' : ''}{yearsDelta} {Math.abs(yearsDelta) === 1 ? 'year' : 'years'} of term</span>
+            <Line label="Term" tone="text-[#60a5fa]">
+              {yearsDelta > 0 ? '+' : ''}{yearsDelta} {Math.abs(yearsDelta) === 1 ? 'YEAR' : 'YEARS'}
+            </Line>
           )}
-        </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className={`text-[10px] font-black uppercase tracking-widest rounded px-2 py-1 border ${
-            clauseText ? 'text-[#c084fc] border-[#c084fc]/40 bg-[#c084fc]/10' : 'text-slate-500 border-[rgba(255,255,255,0.08)]'}`}>
-            {clauseText ? `🔒 ${clauseText}` : 'No clause'}
-          </span>
-          {sb && (
-            <span className="text-[10px] font-black uppercase tracking-widest rounded px-2 py-1 border text-[#F59E0B] border-[#F59E0B]/40 bg-[#F59E0B]/10">
-              💵 {Math.round(SB_SHARE * 100)}% as signing bonus
-            </span>
+          {clauseLeague && (
+            <>
+              <Line label="Clause" tone={clauseText ? 'text-[#c084fc]' : 'text-slate-400'}>{clauseText || 'None'}</Line>
+              <Line label="Signing bonus" tone={sb ? 'text-[#F59E0B]' : 'text-slate-400'}>
+                {sb ? `${Math.round(SB_SHARE * 100)}% of each year` : 'None'}
+              </Line>
+              {gp && (
+                <Line label="Games bonuses" tone="text-[#F59E0B]">Up to {money(bonusCeiling(veteranBonuses()))}</Line>
+              )}
+            </>
           )}
-          {gp && (
-            <span className="text-[10px] font-black uppercase tracking-widest rounded px-2 py-1 border text-[#F59E0B] border-[#F59E0B]/40 bg-[#F59E0B]/10">
-              🎯 Games bonuses, up to {money(bonusCeiling(veteranBonuses()))}
-            </span>
-          )}
+          {hasAgent && <Line label="In the room" tone="text-[#c084fc]">Your agent</Line>}
         </div>
 
         {/* ACROSS THE DESK */}
-        <div className="mt-5 pt-4 border-t border-[rgba(255,255,255,0.07)]">
+        <div className="relative mt-5 pt-4 border-t border-[rgba(255,255,255,0.07)]">
           <div className="flex items-baseline justify-between gap-2 mb-1.5">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">The GM</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">GM patience</span>
             <span className="text-[11px] font-black" style={{ color: mood.tone }}>{n.status === 'busted' ? 'Gone' : mood.word}</span>
           </div>
           <div className="h-2 w-full bg-[rgba(255,255,255,0.06)] rounded-full overflow-hidden">
@@ -328,7 +347,7 @@ export default function NegotiationScreen() {
                   h ? (h.success ? 'bg-[#22E748]/70' : 'bg-[#ef4444]/70') : 'bg-[rgba(255,255,255,0.08)]'}`} />
               );
             })}
-            <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">
+            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
               {Math.min(n.rounds, n.maxRounds)} of {n.maxRounds} asks
             </span>
           </div>
@@ -339,7 +358,7 @@ export default function NegotiationScreen() {
           {!!n.history.length && (
             <ul className="mt-2 space-y-0.5">
               {n.history.map((h, i) => (
-                <li key={i} className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+                <li key={i} className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
                   <span className={h.success ? 'text-[#22E748]' : 'text-[#ef4444]'}>{h.success ? '✓' : '✕'}</span>
                   {h.label}
                 </li>
@@ -349,49 +368,75 @@ export default function NegotiationScreen() {
         </div>
       </div>
 
-      {/* WHAT TO ASK FOR */}
-      {live && (
-        <div className="game-panel p-4 sm:p-6 space-y-4">
-          <Group title="Money">
-            <Move onPick={push} live={live} type="safe" title="A little more" line="About 3% more a year. He rarely minds." risk="Safe" riskTone="#22E748" />
-            <Move onPick={push} live={live} type="hardball" title="Push hard" line="About 8% more. He gives it, but he remembers." risk="Costly" riskTone="#F59E0B" />
-            <Move onPick={push} live={live} type="bluff" title="Bluff another offer" line={`About 15% more if he believes you. He does about ${pct(0.40 + (hasAgent ? 0.25 : 0))} of the time.`} risk="Risky" riskTone="#ef4444" />
-          </Group>
-          <Group title="Term" cols="sm:grid-cols-2">
-            <Move onPick={push} live={live} type="term_up" title="One more year" line="Security, if he will go there." risk="Costly" riskTone="#F59E0B" disabled={n.currentYears >= 8} />
-            <Move onPick={push} live={live} type="term_down" title="One year fewer" line="Back on the market sooner." risk="Safe" riskTone="#22E748" disabled={n.currentYears <= 1} />
-          </Group>
-          <Group title="Protection" cols="sm:grid-cols-2">
-            <Move onPick={push} live={live} type="ntc" title="No-trade clause" risk={clauseBlocked ? 'Locked' : pct(ntcOdds)} riskTone={clauseBlocked ? '#64748b' : '#c084fc'}
-                  line="He cannot trade you without your say. Costs about 3% of the money."
-                  note={clauseBlocked || (ntc || nmc ? 'Already in the deal.' : null)}
-                  disabled={!!clauseBlocked || ntc || nmc} />
-            <Move onPick={push} live={live} type="nmc" title="No-movement clause" risk={clauseBlocked ? 'Locked' : pct(nmcOdds)} riskTone={clauseBlocked ? '#64748b' : '#c084fc'}
-                  line="No trade, no waivers, no sending you down. Costs about 6%."
-                  note={clauseBlocked || (nmc ? 'Already in the deal.' : null)}
-                  disabled={!!clauseBlocked || nmc} />
-          </Group>
-          <Group title="Structure" cols="sm:grid-cols-2">
-            <Move onPick={push} live={live} type="sb" title="Half as signing bonuses" risk={clauseLeague ? pct(sbOdds) : 'Locked'} riskTone={clauseLeague ? '#F59E0B' : '#64748b'}
-                  line="Paid each July 1, and a buyout cannot touch it. Costs about 2%."
-                  note={!clauseLeague ? 'Only NHL deals are structured like this here.' : (sb ? 'Already in the deal.' : null)}
-                  disabled={!clauseLeague || sb} />
-            <Move onPick={push} live={live} type="gp" title="Games-played bonuses" risk={gpBlocked ? 'Locked' : pct(gpOdds)} riskTone={gpBlocked ? '#64748b' : '#F59E0B'}
-                  line={`Up to ${money(bonusCeiling(veteranBonuses()))} more if you play 10, 40 and 60 games.`}
-                  note={gpBlocked || (gp ? 'Already in the deal.' : null)}
-                  disabled={!!gpBlocked || gp} />
-          </Group>
-        </div>
-      )}
+      {/* EVERYTHING YOU CAN DO, IN ONE COLUMN */}
+      <div className="game-panel p-4 sm:p-6 flex flex-col gap-4">
+        {live ? (
+          <>
+            {/* Money asks always move the number, so the line under them is
+                what you would get. Everything else might be refused, so the
+                line is how likely he is to agree. What each one costs you in
+                goodwill or salary is in the tooltip. */}
+            <Group title="Money">
+              <Move onPick={push} live={live} type="safe" title="A bit more" hint={`+${money(round25k(offer.salary * 0.03))}`} tone="#22E748"
+                    explain="About 3% more a year. He rarely minds." />
+              <Move onPick={push} live={live} type="hardball" title="Push hard" hint={`+${money(round25k(offer.salary * 0.08))}`} tone="#F59E0B"
+                    explain="About 8% more. He gives it, but it costs a lot of his patience." />
+              <Move onPick={push} live={live} type="bluff" title="Bluff" danger wide
+                    hint={`+${money(round25k(offer.salary * 0.15))} · ${oddsOf(0.40 + (hasAgent ? 0.25 : 0)).word}`} tone="#f87171"
+                    explain="Tell him you have another offer. About 15% more if he believes you. If he doesn't, he nearly walks." />
+            </Group>
+            <Group title="Term">
+              <Move onPick={push} live={live} type="term_up" title="+1 year"
+                    hint={oddsOf(0.50 + (hasAgent ? 0.25 : 0)).word} tone={oddsOf(0.50 + (hasAgent ? 0.25 : 0)).tone}
+                    explain="One more year of security, if he will go there." disabled={n.currentYears >= 8} />
+              <Move onPick={push} live={live} type="term_down" title="-1 year"
+                    hint={oddsOf(0.60 + (hasAgent ? 0.25 : 0)).word} tone={oddsOf(0.60 + (hasAgent ? 0.25 : 0)).tone}
+                    explain="One year shorter, so you are back on the market sooner." disabled={n.currentYears <= 1} />
+            </Group>
+            {/* Clauses and bonus structure only exist on NHL deals here, so
+                anywhere else the two groups are left off. When they are locked
+                for this player, one line under the group says why. */}
+            {clauseLeague && (
+              <Group title="Protection" note={clauseBlocked}>
+                <Move onPick={push} live={live} type="ntc" title="No-trade" tone={oddsOf(ntcOdds).tone}
+                      hint={clauseBlocked ? 'Locked' : (ntc || nmc) ? 'In the deal' : oddsOf(ntcOdds).word}
+                      explain="He cannot trade you without your say. Takes about 3% off the money."
+                      disabled={!!clauseBlocked || ntc || nmc} />
+                <Move onPick={push} live={live} type="nmc" title="No-movement" tone={oddsOf(nmcOdds).tone}
+                      hint={clauseBlocked ? 'Locked' : nmc ? 'In the deal' : oddsOf(nmcOdds).word}
+                      explain="No trade, no waivers, no sending you down. Takes about 6% off the money."
+                      disabled={!!clauseBlocked || nmc} />
+              </Group>
+            )}
+            {clauseLeague && (
+              <Group title="How it's paid" note={gpBlocked && !gp ? `Games bonus: ${gpBlocked.toLowerCase()}` : null}>
+                <Move onPick={push} live={live} type="sb" title="Signing bonus" tone={oddsOf(sbOdds).tone}
+                      hint={sb ? 'In the deal' : oddsOf(sbOdds).word}
+                      explain="Half of each year paid on July 1, where a buyout cannot touch it. Takes about 2% off the money."
+                      disabled={sb} />
+                <Move onPick={push} live={live} type="gp" title="Games bonus" tone={oddsOf(gpOdds).tone}
+                      hint={gpBlocked ? 'Locked' : gp ? 'In the deal' : oddsOf(gpOdds).word}
+                      explain={`Up to ${money(bonusCeiling(veteranBonuses()))} more for playing 10, 40 and 60 games.`}
+                      disabled={!!gpBlocked || gp} />
+              </Group>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {n.status === 'busted'
+              ? 'The talks are over. You can still sign what he left on the table, or go back to your other offers.'
+              : 'He has gone as far as he will go. Sign it, or go back to your other offers.'}
+          </p>
+        )}
 
-      {/* DONE */}
-      <div className="flex flex-col sm:flex-row gap-2 pb-2">
-        <button onClick={() => finishNegotiation(true)} className="flex-1 btn-primary py-4 rounded-xl font-black sports-font text-base sm:text-lg uppercase tracking-widest cursor-pointer">
-          Sign this deal
-        </button>
-        <button onClick={() => finishNegotiation(false)} className="sm:w-48 bg-[#101410] hover:bg-[#151b15] border border-[rgba(255,255,255,0.08)] text-slate-300 py-4 rounded-xl font-black sports-font text-sm uppercase tracking-widest cursor-pointer transition-colors">
-          Back to offers
-        </button>
+        <div className={`flex flex-col gap-2 ${live ? 'pt-4 border-t border-[rgba(255,255,255,0.07)]' : ''}`}>
+          <button onClick={() => finishNegotiation(true)} className="btn-primary w-full py-4 rounded-xl font-black sports-font text-base sm:text-lg uppercase tracking-widest cursor-pointer">
+            Sign this deal
+          </button>
+          <button onClick={() => finishNegotiation(false)} className="btn-secondary w-full py-3.5 rounded-xl font-black sports-font text-sm uppercase tracking-widest cursor-pointer">
+            Back to offers
+          </button>
+        </div>
       </div>
     </div>
   );

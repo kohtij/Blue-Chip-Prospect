@@ -14,17 +14,20 @@ export const TITLE_LG = `text-3xl sm:text-5xl ${TITLE}`;
 export const TITLE_MD = `text-2xl sm:text-4xl ${TITLE}`;
 export const TITLE_SM = `text-xl sm:text-2xl ${TITLE}`;
 
-// The pill above a title. Same shape as the minigame stakes chip, so every
-// screen announces itself the same way.
+// The small line above a title, for the few screens where it says something
+// the title doesn't: the playoff round, how a series ended, a season-ending
+// injury. Plain coloured text, not a pill. Most screens don't need one at all,
+// and a label that only repeats the title ("Press room" over a press
+// conference) is left off.
 export const KICKER_TONES = {
-  neutral: 'text-slate-400 border-[rgba(255,255,255,0.10)] bg-[#0a0d0a]',
-  green: 'text-[#22E748] border-[#22E748]/35 bg-[#22E748]/[0.07]',
-  amber: 'text-[#F59E0B] border-[#F59E0B]/40 bg-[#F59E0B]/[0.07]',
-  red: 'text-[#ef4444] border-[#ef4444]/50 bg-[#ef4444]/10',
-  blue: 'text-[#60a5fa] border-[#3b82f6]/40 bg-[#3b82f6]/[0.08]'
+  neutral: 'text-slate-400',
+  green: 'text-[#22E748]',
+  amber: 'text-[#F59E0B]',
+  red: 'text-[#ef4444]',
+  blue: 'text-[#60a5fa]'
 };
 export const kickerClass = (tone = 'neutral') =>
-  `inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] ${KICKER_TONES[tone] || KICKER_TONES.neutral}`;
+  `block text-[11px] sm:text-xs font-black uppercase tracking-[0.18em] ${KICKER_TONES[tone] || KICKER_TONES.neutral}`;
 
 // The small tags that sit on a choice: risky, a cost, a boost. One shape.
 export const TAG = 'text-[10px] sm:text-xs px-2 py-1 rounded font-black tracking-widest uppercase border whitespace-nowrap';

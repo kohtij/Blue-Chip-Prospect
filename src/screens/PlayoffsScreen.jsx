@@ -307,7 +307,7 @@ export default function PlayoffsScreen() {
                </div>
             ) : isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
                <div className="w-full flex flex-col items-center pb-2 animate-fade-in">
-                  <span className={`${kickerClass('red')} mb-4`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
+                  <span className={`${kickerClass('red')} mb-2`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
                   <h2 className={`${TITLE_SM} mb-3`}>Bad blood</h2>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
                      You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
@@ -335,7 +335,6 @@ export default function PlayoffsScreen() {
               <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
                  {activeMatch.status === 'playing' ? (
                    <>
-                     <span className={`${kickerClass('red')} mb-4`}>Final</span>
                      <h2 className={`${TITLE_MD} mb-3`}>The final shift</h2>
                      <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 max-w-md mx-auto">
                         {isSingleGame

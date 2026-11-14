@@ -150,7 +150,7 @@ const handleQuickSim = () => {
          <span className={kickerClass('neutral')}>
             Live from {city}
          </span>
-         <h2 className={`mt-5 ${TITLE_LG}`}>
+         <h2 className={`mt-2 ${TITLE_LG}`}>
            {player.league === 'NCAA' ? 'All-American' : 'All-Star'} weekend
          </h2>
       </div>

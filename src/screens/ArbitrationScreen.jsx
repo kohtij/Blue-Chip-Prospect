@@ -119,7 +119,7 @@ export default function ArbitrationScreen() {
               <span className={kickerClass('red')}>
                 Binding arbitration
               </span>
-              <h2 className={`${TITLE_MD} mt-4`}>
+              <h2 className={`${TITLE_MD} mt-2`}>
                 THE HEARING
               </h2>
             </div>

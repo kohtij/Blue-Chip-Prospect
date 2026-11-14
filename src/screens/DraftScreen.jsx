@@ -100,7 +100,7 @@ export default function DraftScreen() {
       {/* RUSSIAN FACTOR PRE-DRAFT OVERLAY */}
       {isRussianFactorEligible && <RussianFactorDialog onChoose={handleRussianFactorChoice} />}
 
-      <span className={`${kickerClass('neutral')} mb-5`}>The NHL draft</span>
+      <span className={`${kickerClass('neutral')} mb-4`}>The NHL draft</span>
       
       <div className="bg-[#0d110d] border border-[rgba(255,255,255,0.08)] p-8 sm:p-12 rounded-2xl mb-10 max-w-2xl mx-auto relative overflow-hidden flex flex-col items-center">
         <div className="absolute top-0 w-full bg-[#2563eb] text-white font-black text-xs sm:text-sm py-1.5 text-center tracking-widest">
