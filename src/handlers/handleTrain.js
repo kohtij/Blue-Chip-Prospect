@@ -10,6 +10,7 @@ import { teammatesFrom } from '../utils/peers';
 import { runPostSeasonFlow } from './runPostSeasonFlow';
 import { waiverExempt } from '../utils/waivers';
 import { formTrust, inSlump, slumpEvent } from '../utils/form';
+import { affiliateOf, conditioningEvent, isCorePlayer, midSeasonMove, moveEvent } from '../utils/rosterMoves';
 
 // --- THE LEADERSHIP GROUP, MID-SEASON ---------------------------------------
 // Camp, in advanceToOffseason, is the normal way a letter gets handed out, and
@@ -36,7 +37,10 @@ export function midSeasonLetter(player, seg) {
   // mid-season route as well, or the two paths would disagree about how long
   // a club waits before putting a letter on the man it built the team around.
   const gen = !!player.isGenerational;
-  if (proSeasons < (gen ? 1 : 3) || trust < 65 || player.ovr < 80) return null;
+  // A first-round pick the club built around gets there sooner, the same as
+  // in September. See isCorePlayer.
+  const core = isCorePlayer(player);
+  if (proSeasons < (gen ? 1 : core ? 2 : 3) || trust < (core ? 60 : 65) || player.ovr < (core ? 77 : 80)) return null;
   // Thirty games of a sixty-five game stretch is the room seeing him play. A
   // player who has been hurt since October has not been in it.
   if ((seg.games || 0) < 20) return null;
@@ -53,13 +57,13 @@ export function midSeasonLetter(player, seg) {
   if ((seg.rating || 0) < 7.0) return null;
 
   const base = trust >= 80 ? 0.35 : trust >= 70 ? 0.22 : 0.12;
-  const odds = gen ? Math.min(0.70, base * 1.75) : base;
+  const odds = gen ? Math.min(0.70, base * 1.75) : core ? Math.min(0.55, base * 1.5) : base;
   if (Math.random() >= odds) return null;
 
   const clubName = withTeamArticle(getFullTeamName(player.team, player.league), player.league, true);
   const desc = newArrival
-    ? `You were not here last season, so nobody handed you anything in September. Thirty games later the room has made its mind up about you anyway. The coach caught you walking off after the morning skate: there is an "A" going spare and he would like it on your sweater for the rest of the year.`
-    : `The year is getting away from this team. ${clubName} sit ${ordinal(seg.standings)} coming out of December, and the coach has started rearranging the furniture, beginning with who he leans on. He wants a letter on the sweater of someone who has actually been playing, and in this room right now that is you.`;
+    ? `You weren't here last season, so nobody handed you anything in September. Thirty games later the room has made its mind up about you anyway. The coach caught you walking off after the morning skate: there's an "A" going spare and he would like it on your sweater for the rest of the year.`
+    : `The year is getting away from this team. ${clubName} sit ${ordinal(seg.standings)} coming out of December, and the coach has started rearranging the furniture, beginning with who he leans on. He wants a letter on the sweater of someone who has actually been playing, and in this room right now that's you.`;
 
   return {
     title: '🅰️ THE LEADERSHIP GROUP',
@@ -71,7 +75,7 @@ export function midSeasonLetter(player, seg) {
           ? 'Wear the letter for the rest of the season and make the room yours.'
           : 'Take the letter with the club in trouble, and own whatever comes next.',
         isRisky: false,
-        feedback: 'You are an alternate captain. The letter goes on the sweater for the rest of the season.',
+        feedback: 'You\'re an alternate captain. The letter goes on the sweater for the rest of the season.',
         effect: { fanStatus: 20, ovr: 1, rel: { coach: 12, teammates: 12 } },
         action: 'MAKE_ALTERNATE'
       },
@@ -201,8 +205,8 @@ export function handleTrain(ctx, t) {
       ctx.setActiveEvent({
         title: verdict.stays ? '\u2705 THEY ARE KEEPING YOU' : '\ud83d\udce9 RETURNED TO JUNIOR',
         desc: verdict.stays
-          ? `Nine games up, and you put together ${line}. Game ten burns the first year of your entry-level contract, and the club has decided you are worth it. You are staying in the NHL.`
-          : `Nine games up, and you managed ${line}. Game ten would burn the first year of your entry-level contract, and the club is not ready to spend it. You are going back to junior, where that year on your deal stays untouched.`,
+          ? `Nine games up, and you put together ${line}. Game ten burns the first year of your entry-level contract, and the club has decided you're worth it. You're staying in the NHL.`
+          : `Nine games up, and you managed ${line}. Game ten would burn the first year of your entry-level contract, and the club isn't ready to spend it. You're going back to junior, where that year on your deal stays untouched.`,
         choices: [{
           label: verdict.stays ? 'You belong here' : 'Go back and dominate',
           subLabel: verdict.stays
@@ -245,11 +249,11 @@ export function handleTrain(ctx, t) {
       ctx.setActiveEvent({
         title: '\ud83c\udfd2 NHL DEBUT',
         desc: isG
-          ? `Warm-ups are over. You scrape your crease, the anthem finishes, and you are about to take your first official start in the National Hockey League. The puck drops.`
-          : `Warm-ups are over. The anthem finishes, you step over the boards, and you are lining up across from players you grew up watching. The puck drops.`,
+          ? `Warm-ups are over. You scrape your crease, the anthem finishes, and you're about to take your first official start in the National Hockey League. The puck drops.`
+          : `Warm-ups are over. The anthem finishes, you step over the boards, and you're lining up across from players you grew up watching. The puck drops.`,
         choices: isG
           ? [
-              { label: 'Keep it simple', subLabel: 'Stick to the fundamentals and do not give up a bad one.', isRisky: false, feedback: 'A quiet, mistake-free night. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'RESOLVE_DEBUT' },
+              { label: 'Keep it simple', subLabel: 'Stick to the fundamentals and don\'t give up a bad one.', isRisky: false, feedback: 'A quiet, mistake-free night. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'RESOLVE_DEBUT' },
               { label: 'Make a statement', subLabel: 'Challenge shooters and go for the highlight save. It can backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You stood tall, stopping an early barrage including a highlight-reel glove save. The building chanted your name.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You fought the puck early and let in a soft one. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'RESOLVE_DEBUT' }
             ]
           : [
@@ -282,7 +286,6 @@ export function handleTrain(ctx, t) {
   const carriedGames = carried.reduce((n, s) => n + (s.games || 0), 0);
   const effect = season ? season.training : (trial ? trial.training : (debut ? debut.training : t?.effect));
   const baseMissed = season ? season.gamesMissed : gamesMissed;
-  const locked = !!(trial || season || debut);
 
   const partialResult = (stints) => {
     const last = stints[stints.length - 1];
@@ -316,7 +319,7 @@ export function handleTrain(ctx, t) {
   // every one of the rewrites of the season object below.
   const slumpShown = (prev) => !!(prev.season?.slumpShown || season?.slumpShown);
   const advanceTo = (stints, nextStage) => {
-    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: prev.season?.gamesMissed ?? baseMissed, stage: nextStage, injury: prev.season?.injury ?? thisYearInjury, injuryShown: !!season?.injuryShown, slumpShown: slumpShown(prev) } }));
+    setPlayer(prev => ({ ...prev, trial: null, debut: null, season: { stints, training: effect || {}, gamesMissed: prev.season?.gamesMissed ?? baseMissed, stage: nextStage, injury: prev.season?.injury ?? thisYearInjury, injuryShown: !!season?.injuryShown, slumpShown: slumpShown(prev), moves: prev.season?.moves || 0, lastMove: prev.season?.lastMove || null, conditioned: !!prev.season?.conditioned } }));
     setPendingSeasonResult(partialResult(stints));
   };
 
@@ -336,7 +339,7 @@ export function handleTrain(ctx, t) {
   const endSeasonNow = (stints) => {
     setPlayer(prev => ({
       ...prev, trial: null, debut: null,
-      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury, injuryShown: !!season?.injuryShown, slumpShown: slumpShown(prev) }
+      season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 3, over: true, injury: thisYearInjury, injuryShown: !!season?.injuryShown, slumpShown: slumpShown(prev), moves: prev.season?.moves || 0, lastMove: prev.season?.lastMove || null, conditioned: !!prev.season?.conditioned }
     }));
     setPendingSeasonResult(partialResult(stints));
   };
@@ -390,7 +393,9 @@ export function handleTrain(ctx, t) {
     const seg = simulateSeason(livePlayer, effect, baseMissed + played, {
       gamesFraction: fraction, segmentOnly: true, formCarry: nextCarry,
       ...clubFactor(livePlayer.team),
-      ...(locked ? { lockPlacement: true } : {})
+      // Where he plays is decided at camp and by the moves below, each of
+      // which he's told about. A stretch of games never moves him on its own.
+      lockPlacement: true
     })?.segment;
     if (seg && seg.games > 0) {
       if (typeof seg.teamFactor === 'number' && (typeof seasonTeamFactor !== 'number' || (factorTeam && factorTeam !== seg.team))) {
@@ -420,6 +425,28 @@ export function handleTrain(ctx, t) {
     return null;
   };
 
+  // A ROSTER MOVE, WHEN IT HAPPENS. See utils/rosterMoves.js. The club moves
+  // him, the season parks at the next stage, and he's shown the screen
+  // before another game is played.
+  const tryRosterMove = (seg, nextStage) => {
+    if (!seg) return false;
+    const move = midSeasonMove(livePlayer, seg, { movesThisYear: season?.moves || 0, lastMove: season?.lastMove || null });
+    if (!move) return false;
+    const ev = moveEvent(move, livePlayer, seg, getFullTeamName);
+    livePlayer = { ...livePlayer, team: move.team, league: move.lg };
+    advanceTo(stints, nextStage);
+    setPlayer(prev => ({
+      ...prev, team: move.team, league: move.lg,
+      teamsPlayedFor: Array.from(new Set([...(prev.teamsPlayedFor || []), move.team])),
+      // A claim is a new club, and the letter stays with the old one.
+      ...(move.type === 'CLAIMED' ? { isCaptain: false, isAlternate: false } : {}),
+      season: { ...(prev.season || {}), moves: (prev.season?.moves || 0) + 1, lastMove: move.type === 'RECALL' ? 'UP' : 'DOWN' }
+    }));
+    ctx.setActiveEvent(ev);
+    ctx.setScreen('event');
+    return true;
+  };
+
   if (stage === 0) {
     // Late December. An under-20 is released for the World Juniors, unless he is
     // a full-time NHL player, because NHL clubs do not let those go.
@@ -429,6 +456,8 @@ export function handleTrain(ctx, t) {
       return;
     }
     // Not going, so the tournament passes him by and the season runs straight on.
+
+    if (tryRosterMove(seg, 1)) return;
 
     // December, with the first third of the year on the board: the other way
     // into the leadership group, for the player camp could not consider.
@@ -458,7 +487,7 @@ export function handleTrain(ctx, t) {
         choices: [
           {
             label: 'Begin recovery',
-            subLabel: 'Start the long road back. You will miss the rest of the season and the playoffs.',
+            subLabel: 'Start the long road back. You\'ll miss the rest of the season and the playoffs.',
             isRisky: false,
             feedback: 'The surgery went well, and the rehab will be long.',
             effect: { fanStatus: 15, ovr: -3, money: 0 }
@@ -492,9 +521,9 @@ export function handleTrain(ctx, t) {
             subLabel: 'Mask the pain with medication to stay in the lineup.',
             isRisky: true,
             successChance: 0.50,
-            successFeedback: 'You played through it, and the room has not stopped talking about it.', 
+            successFeedback: 'You played through it, and the room hasn\'t stopped talking about it.', 
             successEffect: { fanStatus: 30, ovr: 1, rel: { teammates: 40, coach: 20 } }, 
-            failFeedback: 'You played through it, the fracture got worse, and your shot has not been the same since.', 
+            failFeedback: 'You played through it, the fracture got worse, and your shot hasn\'t been the same since.', 
             failEffect: { fanStatus: 10, ovr: -2, rel: { teammates: 20 } } 
           }
         ],
@@ -531,10 +560,31 @@ export function handleTrain(ctx, t) {
       if (ev) {
         setPlayer(prev => ({
           ...prev, trial: null, debut: null,
-          season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 1, injury: thisYearInjury, injuryShown: true, slumpShown: slumpShown(prev), formBoost: prev.season?.formBoost }
+          season: { stints, training: effect || {}, gamesMissed: baseMissed, stage: 1, injury: thisYearInjury, injuryShown: true, slumpShown: slumpShown(prev), formBoost: prev.season?.formBoost, moves: prev.season?.moves || 0, lastMove: prev.season?.lastMove || null, conditioned: !!prev.season?.conditioned }
         }));
         setPendingSeasonResult(partialResult(stints));
         ctx.setActiveEvent(ev);
+        ctx.setScreen('event');
+        return;
+      }
+    }
+
+    // A CONDITIONING STINT. An NHL player coming back from a long injury
+    // (six weeks or more) often plays a few games in the AHL first, to get his legs and timing
+    // back, and then rejoins the big club. Three games with the affiliate,
+    // shown, then straight back up.
+    if (thisYearInjury && season?.injuryShown && !season?.conditioned && !season?.over
+        && livePlayer.league === 'NHL' && (thisYearInjury.games || 0) >= 20
+        && Math.random() < 0.6) {
+      const ahlId = affiliateOf(livePlayer.team);
+      const condSeg = ahlId ? simulateSeason({ ...livePlayer, team: ahlId, league: 'AHL' }, effect, baseMissed + played,
+        { forceGames: 3, lockPlacement: true, segmentOnly: true, formCarry: nextCarry })?.segment : null;
+      if (condSeg && condSeg.games > 0) {
+        stints = [...stints, condSeg];
+        played += condSeg.games;
+        advanceTo(stints, 1);
+        setPlayer(prev => ({ ...prev, season: { ...(prev.season || {}), conditioned: true } }));
+        ctx.setActiveEvent(conditioningEvent(livePlayer, condSeg, getFullTeamName(ahlId, 'AHL'), getFullTeamName(livePlayer.team, 'NHL')));
         ctx.setScreen('event');
         return;
       }
@@ -544,6 +594,7 @@ export function handleTrain(ctx, t) {
     // Olympics replace the All-Star Game outright, as they do in the NHL.
     const seg = playNext(0.333);
     if (seg) {
+      if (tryRosterMove(seg, 2)) return;
       const isOlympicYear = ctx.currentYear % 4 === 2;
 
       if (isOlympicYear) {
@@ -606,7 +657,7 @@ export function handleTrain(ctx, t) {
                   label: 'Bet on yourself', 
                   subLabel: 'Decline the offer. Go to free agency this summer and try to get more.', 
                   isRisky: false, 
-                  feedback: 'You turned it down politely. The GM was not happy, and you are going to market this summer.', 
+                  feedback: 'You turned it down politely. The GM wasn\'t happy, and you\'re going to market this summer.', 
                   effect: { fanStatus: 0, ovr: 0, rel: { coach: -15 } },
                   action: 'DECLINE_EXTENSION'
                 }
@@ -654,7 +705,8 @@ export function handleTrain(ctx, t) {
     // The run-in finishes the same season, so it inherits the same club rather
     // than drawing a new one.
     {
-      ...(priorStints.length ? { priorStints, lockPlacement: true } : {}),
+      ...(priorStints.length ? { priorStints } : {}),
+      lockPlacement: true,
       formCarry: nextCarry,
       // A deadline trade fixed where the new club stands; otherwise the club
       // he has been with all year carries on from where it was.
@@ -748,6 +800,9 @@ export function handleTrain(ctx, t) {
       // club, so the recap can say nine games here and fifty there.
       stints: recap.stints,
       tradedTo: recap.tradedTo,
+      // A big year in the AHL that earned an NHL start for next season. Camp
+      // reads it, so the promotion he was promised isn't taken back in September.
+      earnedPromotion: recap.waiverEvent === 'EARNED_PROMOTION',
       gamesWithOriginal: recap.gamesWithOriginal,
       gamesWithNew: recap.gamesWithNew
   };
@@ -893,7 +948,7 @@ export function handleTrain(ctx, t) {
          ];
      } else if (!quietYear && oldNhlGames < 500 && newNhlGames >= 500 && currentLg === 'NHL') {
          moveTitle = '💯 500 CAREER GAMES';
-         moveDesc = `That is 500 NHL games. Nobody calls you a kid any more, and the rookies have started asking you where to eat on the road.`;
+         moveDesc = `That's 500 NHL games. Nobody calls you a kid any more, and the rookies have started asking you where to eat on the road.`;
          moveChoices = [
              { label: 'Acknowledge the milestone', subLabel: 'Acknowledge it and get on with the game.', isRisky: false, feedback: 'You tipped your helmet to the crowd. Halfway to the Silver Stick.', effect: { fanStatus: 50, ovr: 0, rel: { teammates: 10 } }, action: 'ROUTE_SEASON_END' }
          ];
@@ -907,7 +962,7 @@ export function handleTrain(ctx, t) {
                  subLabel: 'Sit by your phone and wait for the league deadline to pass.', 
                  isRisky: false, 
                  feedback: isWaiverClaim 
-                     ? `Your phone rang. You were claimed off waivers by ${withTeamArticle(getFullTeamName(updatedPlayer.team, 'NHL'), 'NHL', false)}, and you are heading to a new city.`
+                     ? `Your phone rang. You were claimed off waivers by ${withTeamArticle(getFullTeamName(updatedPlayer.team, 'NHL'), 'NHL', false)}, and you're heading to a new city.`
                      : `2:00 PM passed in silence. You cleared waivers and are heading to the AHL.`,
                  effect: { fanStatus: isWaiverClaim ? 10 : -10, ovr: 0, rel: { coach: -15 } },
                  action: 'ROUTE_SEASON_END' 
@@ -916,7 +971,7 @@ export function handleTrain(ctx, t) {
      } else if (wasJuniorReturn) {
          if (player.storylines?.hadNineGameTryout) {
              moveTitle = '📉 REASSIGNED TO JUNIORS';
-             moveDesc = `For the second year running, you did not make the NHL roster out of camp. You spent the season back with your junior club, using up the last of your junior eligibility.`;
+             moveDesc = `For the second year running, you didn't make the NHL roster out of camp. You spent the season back with your junior club, using up the last of your junior eligibility.`;
          } else {
              moveTitle = '📉 9-GAME TRYOUT CONCLUDED';
              moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season playing top-line minutes in juniors.`;
@@ -929,6 +984,7 @@ export function handleTrain(ctx, t) {
          moveTitle = '📉 SENT TO THE COAST';
          moveDesc = `You have been sent down to the ECHL. It stings, and the only way back up is to find your game again.`;
      } else if (player.league === 'NHL' && currentLg === 'NHL'
+                && !(season?.moves > 0) && !season?.conditioned
                 && (recap.stints || []).length > 1
                 && (recap.stints || []).some(st => st.league === 'AHL' && (st.games || 0) > 0)) {
          // SENT DOWN AND BROUGHT BACK.
@@ -947,8 +1003,8 @@ export function handleTrain(ctx, t) {
          const exempt = waiverExempt(player);
          moveTitle = '🔁 DOWN AND BACK';
          moveDesc = exempt
-             ? `It was not a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they do not need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up.`
-             : `It was not a good autumn. You were put on waivers, you cleared, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL, and you know now exactly how quickly it can go the other way.`;
+             ? `It wasn't a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they don't need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up.`
+             : `It wasn't a good autumn. You were put on waivers, you cleared, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL, and you know now exactly how quickly it can go the other way.`;
      } else if (wasAHLtoNHL) {
          const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
          moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW' : '📈 CALLED UP';
@@ -957,10 +1013,10 @@ export function handleTrain(ctx, t) {
          const forNextYear = recap.waiverEvent === 'EARNED_PROMOTION';
          moveDesc = forNextYear
              ? (isFirst
-                 ? `The GM came down to see you after the last regular-season game. You will finish the year here, playoffs and all, and when camp opens in September you will be in the NHL dressing room. Everybody you have ever played with is already texting you.`
+                 ? `The GM came down to see you after the last regular-season game. You'll finish the year here, playoffs and all, and when camp opens in September you'll be in the NHL dressing room. Everybody you have ever played with is already texting you.`
                  : `The parent club has seen enough. You finish the year with the farm team, and next season starts with you back in the NHL.`)
              : isFirst
-             ? `The call came at eight in the morning. Pack a bag, be at the airport by noon, you are in the lineup tomorrow night. Everybody you have ever played with is already texting you, and your mother is crying down the phone.`
+             ? `The call came at eight in the morning. Pack a bag, be at the airport by noon, you're in the lineup tomorrow night. Everybody you have ever played with is already texting you, and your mother is crying down the phone.`
              : `You have been recalled. You know the drill this time, and you know how quickly it goes the other way again.`;
          // This is the single biggest night in most of these careers and it used
          // to be a button that said Acknowledge. It gets a decision, like
@@ -971,7 +1027,7 @@ export function handleTrain(ctx, t) {
                    label: 'Call everyone who got you here',
                    subLabel: 'Your parents, the billet family, the junior coach who kept playing you.',
                    isRisky: false,
-                   feedback: 'You spent the whole night on the phone. Half of them could not speak. Neither could you, really.',
+                   feedback: 'You spent the whole night on the phone. Half of them couldn\'t speak. Neither could you, really.',
                    effect: { fanStatus: 40, ovr: 0, rel: { teammates: 10 } },
                    action: 'ROUTE_SEASON_END'
                  },
@@ -987,7 +1043,7 @@ export function handleTrain(ctx, t) {
              : [
                  {
                    label: 'Go up and stay up',
-                   subLabel: 'No sightseeing this time. Play like a man who is not going back.',
+                   subLabel: 'No sightseeing this time. Play like a man who isn\'t going back.',
                    isRisky: false,
                    feedback: 'You went up with a plan this time, and you played like somebody who had no intention of returning.',
                    effect: { fanStatus: 20, ovr: 0, rel: { coach: 8 } },
@@ -999,7 +1055,7 @@ export function handleTrain(ctx, t) {
          moveDesc = `The work in the ECHL paid off, and you have been called up to the AHL.`;
      } else if (wasJuniorToPro) {
          moveTitle = '🚨 TURNING PRO';
-         moveDesc = `Your amateur career is over and you are on a pro roster now. The veterans will want to see what you have.`;
+         moveDesc = `Your amateur career is over and you're on a pro roster now. The veterans will want to see what you have.`;
      }
 
      if (moveTitle) {

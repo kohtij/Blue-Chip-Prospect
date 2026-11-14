@@ -5,7 +5,7 @@ import AllStarAccuracy from '../components/AllStarAccuracy';
 import AllStarHardestShot from '../components/AllStarHardestShot';
 import AllStarFastestSkater from '../components/AllStarFastestSkater';
 import AllStarSaveStreak from '../components/AllStarSaveStreak';
-import { CHOICE_ROW, kickerClass, TAG_AMBER, TAG_GREEN, TAG_RED, TITLE_LG } from '../utils/ui';
+import { CHOICE_ROW, TAG_AMBER, TAG_GREEN, TAG_RED, TITLE_LG } from '../utils/ui';
 
 const getHostCities = (league) => {
     switch(league) {
@@ -144,16 +144,50 @@ const handleQuickSim = () => {
   const eventName = asgLeague === 'NCAA' ? 'NCAA All-American Game' : `${asgLeague} All-Star Game`;
 
   return (
-    <div className="game-panel p-6 sm:p-10 mt-2 text-center flex flex-col items-center min-h-[500px]">
-      
-      <div className="mb-8 flex flex-col items-center">
-         <span className={kickerClass('neutral')}>
+    // The weekend wears gold, not the club's colour: it's the one time of the
+    // year he isn't playing for his club.
+    <div className="game-panel p-6 sm:p-10 mt-2 text-center flex flex-col items-center min-h-[500px]" style={{ '--club': '#F59E0B' }}>
+
+      {/* THE MARQUEE.
+          The design pass left this as a grey label and a white title, the
+          same as a press conference. It's the league's showcase weekend, so
+          it gets a header that looks like one: the stars, the city, and
+          whether he's going as a captain or a selection. */}
+      <div className="mb-7 flex flex-col items-center">
+         <span aria-hidden="true" className="pop-in flex items-end gap-2 sm:gap-3 text-[#F59E0B] leading-none mb-3">
+           <span className="text-lg sm:text-2xl opacity-70">★</span>
+           <span className="text-3xl sm:text-5xl">★</span>
+           <span className="text-lg sm:text-2xl opacity-70">★</span>
+         </span>
+         <span className="text-[11px] sm:text-xs font-black uppercase tracking-[0.22em] text-[#F59E0B]">
             Live from {city}
          </span>
          <h2 className={`mt-2 ${TITLE_LG}`}>
            {player.league === 'NCAA' ? 'All-American' : 'All-Star'} weekend
          </h2>
+         <p className="mt-3 text-sm sm:text-base text-slate-300">
+           {isCaptain ? <><strong className="text-[#F59E0B]">Captain.</strong> One of the league's top vote-getters.</> : <>You're one of the league's best, and {city} wants to see it.</>}
+         </p>
       </div>
+
+      {/* The weekend, in order, with where he is in it lit up. */}
+      {['intro', 'skills-comp', 'result'].includes(phase) && (
+        <ol className="w-full max-w-3xl grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+          {[
+            { day: 'Friday', what: 'Red carpet', on: phase === 'intro' },
+            { day: 'Saturday', what: 'Skills competition', on: phase === 'skills-comp' },
+            { day: 'Sunday', what: 'The game', on: phase === 'result' }
+          ].map(st => (
+            <li key={st.day} aria-current={st.on ? 'step' : undefined}
+                className={`rounded-xl border px-2 py-3 text-center transition-colors ${st.on
+                  ? 'border-[#F59E0B]/70 bg-[#F59E0B]/[0.10]'
+                  : 'border-[rgba(255,255,255,0.08)] bg-[#0a0d0a]'}`}>
+              <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] ${st.on ? 'text-[#F59E0B]' : 'text-slate-500'}`}>{st.day}</p>
+              <p className={`mt-1 text-xs sm:text-sm font-black sports-font uppercase leading-tight ${st.on ? 'text-white' : 'text-slate-400'}`}>{st.what}</p>
+            </li>
+          ))}
+        </ol>
+      )}
 
       {phase === 'intro' && (
          <div className="max-w-3xl w-full mt-2 animate-fade-in flex flex-col gap-5">
@@ -164,26 +198,23 @@ const handleQuickSim = () => {
                result repeating it again. The invitation, the captain's call and
                the entrance all belong together: pick an entrance and you are on
                the ice. */}
-           <div className={`bg-[#101410] border p-5 sm:p-6 rounded-xl ${isCaptain ? 'border-[#F59E0B]/30' : 'border-[#3b82f6]/30'}`}>
-             <h3 className={`text-xl sm:text-2xl font-black sports-font uppercase mb-2 ${isCaptain ? 'text-[#F59E0B]' : 'text-white'}`}>
-               {isCaptain ? `\ud83c\udf96\ufe0f ${eventName} Captain` : `${player.league === 'NCAA' ? 'All-American' : 'All-Star'} Selection`}
+           {isCaptain && (
+           <div className="bg-[#101410] border border-[#F59E0B]/30 p-5 sm:p-6 rounded-xl text-left">
+             <h3 className="text-lg sm:text-xl font-black sports-font uppercase mb-1 text-[#F59E0B]">
+               Pick your team
              </h3>
-             <p className="text-slate-300 font-sans text-sm sm:text-base">
-               {isCaptain
-                 ? `One of the league's top vote-getters, so you are building a squad as well as playing in ${city}.`
-                 : `You are going to ${city} to represent your club. Put on a show.`}
+             <p className="text-slate-300 font-sans text-sm">
+               As captain of the {eventName} you draft a squad as well as play for it.
              </p>
-
-             {isCaptain && (
                <div className="mt-4">
                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
                    Draft philosophy · buffs your skills event
                  </p>
                  <div className="grid grid-cols-3 gap-2">
                    {[
-                     { key: 'speed', label: 'Speed', accent: '#22E748' },
-                     { key: 'power', label: 'Power', accent: '#22E748' },
-                     { key: 'grit', label: '200-foot', accent: '#22E748' }
+                     { key: 'speed', label: 'Speed', accent: '#F59E0B' },
+                     { key: 'power', label: 'Power', accent: '#F59E0B' },
+                     { key: 'grit', label: '200-foot', accent: '#F59E0B' }
                    ].map(opt => (
                      <button
                        key={opt.key}
@@ -199,10 +230,10 @@ const handleQuickSim = () => {
                    ))}
                  </div>
                </div>
-             )}
            </div>
+           )}
 
-           <div>
+           <div className="text-left">
              <p className="text-sm sm:text-base text-slate-300 mb-3 font-sans">
                The carpet outside the arena in {city} is swarming with media. How do you turn up?
              </p>

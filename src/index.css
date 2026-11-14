@@ -171,8 +171,16 @@ body::after {
 .panel-surface-xl    { background: var(--card-bg-elevated); border: 1px solid var(--card-border); border-radius: 0.75rem; }
 .panel-surface-2xl   { background: var(--card-bg-elevated); border: 1px solid var(--card-border); border-radius: 1rem; }
 
+/* THE CLUB'S COLOUR.
+   The design pass took the glows out, and with them most of the colour, so
+   every screen ended up the same dark grey. The colour comes back from one
+   place with a meaning: the club you play for. App.jsx sets --club on the
+   page; each panel gets a solid strip of it across the top and a faint wash
+   under that. Without a club (creating a player) it falls back to blue. */
 .game-panel {
-  background: linear-gradient(180deg, var(--card-bg-elevated) 0%, var(--card-bg) 38%);
+  background:
+    radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--club, #3b82f6) 15%, transparent) 0%, transparent 72%),
+    linear-gradient(180deg, var(--card-bg-elevated) 0%, var(--card-bg) 38%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -182,14 +190,13 @@ body::after {
   animation: bcp-fade-up .32s ease-out both;
 }
 
-/* The neon-accent bar across the top of every panel */
+/* The strip across the top of every panel, in the club's colour. */
 .game-panel::after {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
-  opacity: 0.8;
+  background: var(--club, var(--accent-blue));
   pointer-events: none;
 }
 
@@ -397,6 +404,17 @@ input:focus-visible { outline-offset: 4px; }
   100% { opacity: 1; transform: translateY(0); }
 }
 .fade-up { animation: bcp-fade-up var(--motion-fast) ease-out both; }
+
+/* The retired banner settles on its strings once when the career screen opens,
+   the one moment of movement on that page. */
+@keyframes bcp-banner-sway {
+  0%   { transform: rotate(-4deg); }
+  45%  { transform: rotate(2.2deg); }
+  75%  { transform: rotate(-0.8deg); }
+  100% { transform: rotate(0deg); }
+}
+.banner-sway { transform-origin: 50% 0; animation: bcp-banner-sway 1.6s cubic-bezier(.3,.6,.3,1) both; }
+@media (prefers-reduced-motion: reduce) { .banner-sway { animation: none; } }
 
 @keyframes bcp-pop-in {
   0%   { opacity: 0; transform: translateY(14px) scale(.97); }

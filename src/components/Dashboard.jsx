@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getTeamData, nationalities } from '../data/teams';
 import { careerTrophies, formatMoney, getActiveStat, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
@@ -44,7 +45,7 @@ const Cell = ({ value, label, tone = 'text-white', hint, children }) => (
         : String(value).length > 6 ? 'text-xs sm:text-sm'
           : String(value).length > 4 ? 'text-sm sm:text-base'
             : 'text-lg sm:text-xl'}`}>{value}</p>
-    <p className="mt-1 truncate text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+    <p className="mt-1 break-words text-[7px] md:text-[8px] font-black uppercase tracking-wide text-slate-400">{label}</p>
     {hint}
   </div>
 );
@@ -103,6 +104,7 @@ const Bar = ({ pct, color, className = '' }) => (
 );
 
 const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire, setActiveEvent, setScreen }) => {
+  const [showMore, setShowMore] = useState(false);
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
   const nextYear = currentYear + 1;
@@ -417,7 +419,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                         const proSeasons = player.stats?.seasonsPlayed || 0;
                         const isRFA = player.age < 27 && proSeasons < 7;
                         const isELC = player.contract.salary === 925000 || (isRFA && proSeasons < 3);
-                        bits.push([`${player.contract.years} yrs left`, 'text-slate-400']);
+                        bits.push([`${player.contract.years} ${player.contract.years === 1 ? 'yr' : 'yrs'} left`, 'text-slate-400']);
                         bits.push([
                           isELC ? 'ELC' : isRFA ? 'RFA' : 'UFA',
                           isELC ? 'text-[#22E748]' : isRFA ? 'text-[#F59E0B]' : 'text-[#c084fc]'
@@ -453,6 +455,37 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               </span>
             </div>
           </div>
+
+          {/* WHAT YOU ARE MADE OF */}
+          <Strip title="Attributes">
+            {[
+              { label: isGoalie ? 'Reflexes' : 'Shooting', key: 'shooting' },
+              { label: isGoalie ? 'Position' : 'Skating', key: 'skating' },
+              { label: isGoalie ? 'Agility' : 'Power', key: 'physicality' },
+              { label: 'Hockey IQ', key: 'hockeyIQ' },
+              { label: 'Stamina', key: 'stamina' }
+            ].map(attr => {
+              const change = statChanges ? statChanges[attr.key] : 0;
+              const up = change > 0, down = change < 0;
+              // The label carries the attribute's colour, the same one the
+              // training cards and the shop rows use, so the five are
+              // recognisable without reading them.
+              const hue = STAT_TEXT[statCode(attr.key, isGoalie)] || 'text-slate-400';
+              return (
+                <div key={attr.key}
+                     className={`relative px-0.5 py-2 flex flex-col justify-center items-center min-h-[48px] transition ${
+                       up ? 'bg-[#22E748]/10 shadow-[inset_0_0_8px_rgba(34,231,72,0.15)]'
+                         : down ? 'bg-[#ef4444]/10 shadow-[inset_0_0_8px_rgba(239,68,68,0.15)]' : ''}`}>
+                  {up && <span className="absolute top-1 right-1 text-[#22E748] text-[8px] font-black leading-none">▲{change}</span>}
+                  {down && <span className="absolute top-1 right-1 text-[#ef4444] text-[8px] font-black leading-none">▼{Math.abs(change)}</span>}
+                  <p className={`text-lg sm:text-xl font-black number-font leading-none ${up ? 'text-[#22E748]' : down ? 'text-[#ef4444]' : 'text-white'}`}>
+                    {getActiveStat(player, attr.key)}
+                  </p>
+                  <p className={`break-words px-0.5 mt-1 text-[7px] md:text-[8px] font-black uppercase tracking-normal ${up || down ? 'text-slate-400' : hue}`}>{attr.label}</p>
+                </div>
+              );
+            })}
+          </Strip>
 
           {/* WHAT YOU HAVE DONE THIS YEAR.
               Labelled, which it never was: the same five numbers sat under the
@@ -523,65 +556,27 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           </Strip>
 
           {/* FORM AND USAGE.
-              How the last stretch of games went, which only exists while a
-              season is being played, and where the coach is starting his
-              shifts, which a goalie does not have. Both come off the same
-              stints as the strip above. */}
+              Its own strip of four boxes, which made it look as important as
+              the season above it. It's one line under that season now: how
+              the last stretch went, and where the coach starts his shifts. */}
           {(() => {
             const segs = player.season?.stints || [];
             const lastSeg = inProgress ? segs[segs.length - 1] : null;
             const form = formOf(lastSeg);
             const stretch = form ? stretchLine(lastSeg, player.pos) : null;
             const oz = isGoalie ? null : (ls.ozPct ?? null);
-            if (!form && oz == null) return null;
+            // Penalty minutes, which decide the sportsmanship trophy and were
+            // shown nowhere in the game.
+            const pim = isGoalie || !(ls.games > 0) ? null : (ls.pim || 0);
+            if (!form && oz == null && pim == null) return null;
             return (
-              <Strip title={form ? 'Form and usage' : 'How you were used'} cols={(form ? 2 : 0) + (oz != null ? 2 : 0)}>
-                {form && (
-                  <>
-                    <Cell tone={form.tone} value={form.label} label="Form" />
-                    <Cell value={stretch.value} label={stretch.label} />
-                  </>
-                )}
-                {oz != null && (
-                  <>
-                    <Cell tone="text-sky-400" value={`${oz}%`} label="Off. zone starts" />
-                    <Cell value={deploymentLabel(oz)} label="Deployment" />
-                  </>
-                )}
-              </Strip>
+              <p className="-mt-2 px-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {pim != null && <span>PIM <span className="text-slate-300 number-font">{pim}</span></span>}
+                {form && <span>Form <span className={form.tone}>{form.label}</span>{stretch ? <span className="text-slate-400 normal-case tracking-normal"> ({stretch.value} {stretch.label.toLowerCase()})</span> : null}</span>}
+                {oz != null && <span>OZ starts <span className="text-slate-300 number-font">{oz}%</span> <span className="text-slate-400">{deploymentLabel(oz)}</span></span>}
+              </p>
             );
           })()}
-
-          {/* WHAT YOU ARE MADE OF */}
-          <Strip title="Attributes">
-            {[
-              { label: isGoalie ? 'Reflexes' : 'Shooting', key: 'shooting' },
-              { label: isGoalie ? 'Position' : 'Skating', key: 'skating' },
-              { label: isGoalie ? 'Agility' : 'Power', key: 'physicality' },
-              { label: 'Hockey IQ', key: 'hockeyIQ' },
-              { label: 'Stamina', key: 'stamina' }
-            ].map(attr => {
-              const change = statChanges ? statChanges[attr.key] : 0;
-              const up = change > 0, down = change < 0;
-              // The label carries the attribute's colour, the same one the
-              // training cards and the shop rows use, so the five are
-              // recognisable without reading them.
-              const hue = STAT_TEXT[statCode(attr.key, isGoalie)] || 'text-slate-400';
-              return (
-                <div key={attr.key}
-                     className={`relative px-0.5 py-2 flex flex-col justify-center items-center min-h-[48px] transition ${
-                       up ? 'bg-[#22E748]/10 shadow-[inset_0_0_8px_rgba(34,231,72,0.15)]'
-                         : down ? 'bg-[#ef4444]/10 shadow-[inset_0_0_8px_rgba(239,68,68,0.15)]' : ''}`}>
-                  {up && <span className="absolute top-1 right-1 text-[#22E748] text-[8px] font-black leading-none">▲{change}</span>}
-                  {down && <span className="absolute top-1 right-1 text-[#ef4444] text-[8px] font-black leading-none">▼{Math.abs(change)}</span>}
-                  <p className={`text-lg sm:text-xl font-black number-font leading-none ${up ? 'text-[#22E748]' : down ? 'text-[#ef4444]' : 'text-white'}`}>
-                    {getActiveStat(player, attr.key)}
-                  </p>
-                  <p className={`truncate px-0.5 mt-1 text-[7px] md:text-[8px] font-black uppercase tracking-normal ${up || down ? 'text-slate-400' : hue}`}>{attr.label}</p>
-                </div>
-              );
-            })}
-          </Strip>
 
           {/* WHAT YOU ARE PAID.
               A sixteen-year-old in the OHL has no salary, no market value and
@@ -613,7 +608,9 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               if (live && c.bonuses?.length) {
                 notes.push({
                   text: `Bonuses worth up to ${formatMoney(bonusCeiling(c.bonuses))} a season`,
-                  sub: bonusLabels(c.bonuses).join(', '),
+                  // The full list (eleven targets on a rookie deal) was printed
+                  // on the card. It's the tooltip now.
+                  hint: bonusLabels(c.bonuses).join(', '),
                   tone: 'text-[#F59E0B]'
                 });
               }
@@ -627,9 +624,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               return (
                 <ul className="mt-2 space-y-1 px-1">
                   {notes.map(nt => (
-                    <li key={nt.text} className="text-[10px] font-bold leading-snug">
+                    <li key={nt.text} className="text-[10px] font-bold leading-snug" title={nt.hint || undefined}>
                       <span className={nt.tone}>{nt.text}</span>
-                      {nt.sub && <span className="block text-[9px] font-semibold text-slate-500 mt-0.5">{nt.sub}</span>}
                     </li>
                   ))}
                 </ul>
@@ -692,7 +688,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                                 : passed ? 'bg-[#22E748]/60'
                                   : reachable ? 'bg-[#F59E0B]/25'
                                     : 'bg-[rgba(255,255,255,0.08)]'}`} />
-                            <p className={`text-[8px] font-black uppercase tracking-wide leading-none truncate ${
+                            <p className={`text-[8px] font-black uppercase tracking-wide leading-none break-words ${
                               here ? 'text-[#F59E0B]'
                                 : passed ? 'text-slate-300'
                                   : 'text-slate-600'}`}>
@@ -728,8 +724,64 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               {/* The three relationships were three stacked rows, each with a
                   long label of its own. Same three bars, side by side. */}
               <div className="pt-2.5 border-t border-[rgba(255,255,255,0.06)]">
-              <Heading>In the room</Heading>
+              <div className="grid grid-cols-3 gap-2.5">
+                {rels.map(r => {
+                  const v = player.relationships?.[r.key] ?? 50;
+                  return (
+                    <div key={r.key}>
+                      <div className="flex items-baseline justify-between gap-1 mb-1">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest break-words">{r.label}</span>
+                        <span className="text-[9px] font-black number-font text-slate-300 shrink-0">{v}</span>
+                      </div>
+                      <Bar pct={v} color={r.color} />
+                    </div>
+                  );
+                })}
+              </div>
+              </div>
+            </div>
+          </div>
 
+          {/* The two things you can actually do from the card. */}
+          {(canShop || showMeeting) && (
+            <div className="flex gap-2 mt-auto pt-1">
+              {canShop && (
+                <button
+                  type="button"
+                  onClick={onOpenShop}
+                  className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
+                >
+                  Shop
+                </button>
+              )}
+              {showMeeting && (
+                <button
+                  type="button"
+                  onClick={callMeeting}
+                  className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
+                >
+                  Team meeting
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* THE REST OF THE CARD.
+              Everything above is what a decision this season turns on. The
+              people in the room, the career totals and the draft class are
+              worth a look now and then, so they're one tap away rather than
+              stacked under the rest and making the card twice as long. */}
+          <div>
+            <button type="button" onClick={() => setShowMore(v => !v)} aria-expanded={showMore}
+                    className="w-full flex items-center justify-between py-2 px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 hover:text-slate-300 cursor-pointer">
+              <span>{showMore ? 'Show less' : 'The room, your career and your draft class'}</span>
+              <span aria-hidden="true" className={`transition-transform ${showMore ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {showMore && (
+              <div className="flex flex-col gap-4 pt-1">
+                {!!roomMen.length && (
+                  <div>
+                    <Heading>In the room</Heading>
               {/* THE MEN, NOT THE NUMBER.
                   "In the room" was three bars and nobody in it. The club he
                   turns up to every day now has names, and these are the four
@@ -747,8 +799,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   {roomMen.map(m => (
                     <div key={m.id} className="flex items-center gap-2">
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11px] text-slate-300 font-medium leading-tight">{m.name}</span>
-                        <span className={`block truncate text-[9px] font-bold leading-tight ${m.tagTone}`}>
+                        <span className="block break-words text-[11px] text-slate-300 font-medium leading-tight">{m.name}</span>
+                        <span className={`block break-words text-[9px] font-bold leading-tight ${m.tagTone}`}>
                           {m.tag}{m.captain && m.pos !== 'G' && m.tag !== 'Captain' ? ' · Captain' : ''}
                         </span>
                       </span>
@@ -760,8 +812,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   {!!coachHere && (
                     <div className="flex items-center gap-2 pt-1">
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11px] text-slate-300 font-medium leading-tight">{coachHere.name}</span>
-                        <span className="block truncate text-[9px] font-bold leading-tight text-sky-400">Head coach</span>
+                        <span className="block break-words text-[11px] text-slate-300 font-medium leading-tight">{coachHere.name}</span>
+                        <span className="block break-words text-[9px] font-bold leading-tight text-sky-400">Head coach</span>
                       </span>
                       <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-600 text-right">
                         {COACH_SYSTEMS[coachHere.system]?.label || ''}
@@ -771,24 +823,8 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-2.5">
-                {rels.map(r => {
-                  const v = player.relationships?.[r.key] ?? 50;
-                  return (
-                    <div key={r.key}>
-                      <div className="flex items-baseline justify-between gap-1 mb-1">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest truncate">{r.label}</span>
-                        <span className="text-[9px] font-black number-font text-slate-300 shrink-0">{v}</span>
-                      </div>
-                      <Bar pct={v} color={r.color} />
-                    </div>
-                  );
-                })}
-              </div>
-              </div>
-            </div>
-          </div>
-
+                  </div>
+                )}
           {/* WHAT THE CAREER ADDS UP TO */}
           <div>
             <Heading>{bName} career</Heading>
@@ -875,7 +911,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       r.me ? 'text-[#22E748] font-black' : 'text-slate-600 font-bold'}`}>
                       {r.rank}
                     </span>
-                    <span className={`min-w-0 flex-1 truncate text-xs ${
+                    <span className={`min-w-0 flex-1 break-words text-xs ${
                       r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
                       {r.me ? 'You' : r.name}
                       {/* Narrow enough to lose the league column and the point
@@ -943,7 +979,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                        className={`flex items-center justify-between gap-3 py-1.5 ${
                          i === 0 ? 'border-b border-[rgba(255,255,255,0.05)]' : ''}`}>
                     <div className="min-w-0">
-                      <p className={`text-xs truncate ${row.mine ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
+                      <p className={`text-xs break-words ${row.mine ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
                         {row.who}
                       </p>
                       {/* A defenceman's number is two numbers added together,
@@ -1004,29 +1040,9 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
           </div>
 
-          {/* The two things you can actually do from the card. */}
-          {(canShop || showMeeting) && (
-            <div className="flex gap-2 mt-auto pt-1">
-              {canShop && (
-                <button
-                  type="button"
-                  onClick={onOpenShop}
-                  className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
-                >
-                  Shop
-                </button>
-              )}
-              {showMeeting && (
-                <button
-                  type="button"
-                  onClick={callMeeting}
-                  className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
-                >
-                  Team meeting
-                </button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {/* Retiring ends the save. It was a full-width red button sitting
               directly under the shop, which made a permanent decision look like

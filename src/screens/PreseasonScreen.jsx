@@ -23,7 +23,7 @@ const ARCHETYPE_POOLS = {
       { id: 'arch_bfly', archetype: 'Butterfly', tag: 'POS', name: 'Butterfly Specialist', flavor: 'You rely on perfect positioning and dropping to the ice efficiently to take away the lower half of the net.', desc: '+8 POS', effect: { skating: 8 } },
       { id: 'arch_hyb', archetype: 'Hybrid', tag: 'REF', name: 'Athletic Hybrid', flavor: 'You combine technical positioning with explosive, athletic desperation saves when the play breaks down.', desc: '+8 REF', effect: { shooting: 8 } },
       { id: 'arch_trk', archetype: 'Puck Tracker', tag: 'IQ', name: 'Puck Tracker', flavor: 'You read the play early, find the puck through traffic, and are often across before the pass is made.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
-      { id: 'arch_acr', archetype: 'Reflex', tag: 'AGI', name: 'Acrobatic', flavor: 'You rely on flexibility and athleticism, and you make saves that should not be possible.', desc: '+8 AGI', effect: { physicality: 8 } }
+      { id: 'arch_acr', archetype: 'Reflex', tag: 'AGI', name: 'Acrobatic', flavor: 'You rely on flexibility and athleticism, and you make saves that shouldn\'t be possible.', desc: '+8 AGI', effect: { physicality: 8 } }
     ],
     elite: { id: 'arch_all_g', archetype: 'Hybrid', tag: 'ELITE', name: 'Fundamentally Sound', flavor: 'You do everything in the crease well enough and nothing badly, and coaches like how little changes from night to night.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
   },
@@ -40,10 +40,10 @@ const ARCHETYPE_POOLS = {
     pool: [
       { id: 'arch_snp', archetype: 'Sniper', tag: 'SHT', name: 'Pure Sniper', flavor: 'You have a quick release, and you want the puck in the net more than anyone else on the ice.', desc: '+8 SHT', effect: { shooting: 8 } },
       { id: 'arch_ply', archetype: 'Playmaker', tag: 'IQ', name: 'Elite Playmaker', flavor: 'You see the ice early and move defenders where you want them, so the passing lanes open up.', desc: '+8 IQ', effect: { hockeyIQ: 8 } },
-      { id: 'arch_spd', archetype: 'Speedster', tag: 'SKT', name: 'Speed Demon', flavor: 'You are the fastest player on the ice most nights, and defenders back off the moment you pick up the puck.', desc: '+8 SKT', effect: { skating: 8 } },
+      { id: 'arch_spd', archetype: 'Speedster', tag: 'SKT', name: 'Speed Demon', flavor: 'You\'re the fastest player on the ice most nights, and defenders back off the moment you pick up the puck.', desc: '+8 SKT', effect: { skating: 8 } },
       { id: 'arch_pwf', archetype: 'Power Forward', tag: 'PHY', name: 'Power Forward', flavor: 'You drop your shoulders, drive hard to the net, and physically overpower anyone who stands in your way.', desc: '+8 PHY', effect: { physicality: 8 } }
     ],
-    elite: { id: 'arch_all_f', archetype: 'Two-Way', tag: 'ELITE', name: 'Two-Way Forward', flavor: 'You play a complete 200-foot game. You are just as comfortable backchecking as you are leading the rush.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
+    elite: { id: 'arch_all_f', archetype: 'Two-Way', tag: 'ELITE', name: 'Two-Way Forward', flavor: 'You play a complete 200-foot game. You\'re just as comfortable backchecking as you are leading the rush.', desc: '+4 ALL', effect: { shooting: 4, skating: 4, physicality: 4, hockeyIQ: 4, stamina: 4 } }
   }
 };
 
@@ -83,7 +83,7 @@ export default function PreseasonScreen() {
           desc: `Camp broke and your name went on the waiver wire. Nobody claimed you in the twenty-four hours, so you report to the ${ahl()} to start the year.` };
       case 'DEVELOPMENT':
         return { title: 'SENT TO THE AHL', type: 'DEMOTION',
-          desc: `The club would rather you played big minutes than sat in the press box. You start the year with the ${ahl()}. You are still waiver-exempt, so no other club got the chance to claim you.` };
+          desc: `The club would rather you played big minutes than sat in the press box. You start the year with the ${ahl()}. You're still waiver-exempt, so no other club got the chance to claim you.` };
       case '9_GAME_RULE':
         return { title: 'RETURNED TO JUNIORS', type: 'DEMOTION',
           desc: `After training camp, the front office decided you need one more year of seasoning. You have been returned to the ${getFullTeamName(move.team, move.lg)}.` };
@@ -91,10 +91,10 @@ export default function PreseasonScreen() {
         // Not a demotion. He signed, he came to camp, and the club decided he
         // plays another year where he already is.
         return { title: 'BACK TO JUNIOR FOR A YEAR', type: 'ASSIGNMENT',
-          desc: `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You are back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.` };
+          desc: `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You're back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.` };
       case 'CAMP_ASSIGNMENT':
         return { title: 'ASSIGNED TO THE AHL', type: 'DEMOTION',
-          desc: `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${ahl()} to start the year, which is where they put the ones they are not finished with.` };
+          desc: `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${ahl()} to start the year, which is where they put the ones they aren't finished with.` };
       case 'ECHL_REASSIGNMENT':
         return { title: 'SENT TO THE COAST', type: 'DEMOTION',
           desc: `You have been reassigned from the AHL to the ${getFullTeamName(move.team, 'ECHL')} (ECHL). It's time to put your head down and grind your way back up the depth chart.` };
@@ -120,7 +120,11 @@ export default function PreseasonScreen() {
     if (!move) { carryOn(who); return; }
     const moved = {
       ...who, team: move.team, league: move.lg,
-      teamsPlayedFor: Array.from(new Set([...(who.teamsPlayedFor || []), move.team]))
+      teamsPlayedFor: Array.from(new Set([...(who.teamsPlayedFor || []), move.team])),
+      // Camp has already decided where he starts, so the camp events that ask
+      // how he'll handle the week ("decides where you start the season") are
+      // skipped this summer. See advanceToOffseason.
+      ...(who.offseason ? { offseason: { ...who.offseason, campMoved: true } } : {})
     };
     setPlayer(moved);
     setRosterMoveNotice({ ...move, ...noticeFor(move), next: moved });

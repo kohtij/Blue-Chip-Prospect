@@ -95,7 +95,7 @@ export default function ArbitrationScreen() {
             {
               label: 'Sign binding contract',
               isRisky: false,
-              feedback: `You are locked in for 1 year at ${formatMoney(finalSalary)}. The relationship with the front office is bruised after the hearing.`,
+              feedback: `You're locked in for 1 year at ${formatMoney(finalSalary)}. The relationship with the front office is bruised after the hearing.`,
               effect: { fanStatus: 0, ovr: 0, money: 0, rel: { coach: -15, media: 5 } },
               action: 'ACCEPT_ARBITRATION',
               actionData: { team: arbState.offerData.team, salary: finalSalary, years: 1, role: getRole(finalSalary, player) }

@@ -119,7 +119,7 @@ export default function CreaseGame({ player, onComplete, difficulty = 0 }) {
             ? flash.kind === 'save'
               ? `Turned that one aside, ${flash.label.toLowerCase()}.`
               : `That one found the ${flash.label.toLowerCase()}.`
-            : 'They are teeing up from the slot. Get a piece of everything.'
+            : 'They\'re teeing up from the slot. Get a piece of everything.'
       }
     >
       <Surface view={MOUTH_VIEW}>

@@ -343,7 +343,7 @@ const DEFENCE = [
     }
   },
   {
-    id: 'd_shot_through', name: 'Shoot through the lane', blurb: 'Find the one lane that is open and get it there low.',
+    id: 'd_shot_through', name: 'Shoot through the lane', blurb: 'Find the one lane that\'s open and get it there low.',
     diagram: {
       me: MID_POINT, puck: MID_POINT,
       opp: [{ at: [50, 30], label: 'F' }, { at: [62, 48], label: 'F' }],
@@ -573,7 +573,7 @@ const GOALIE = [
     }
   },
   {
-    id: 'g_wrap', name: 'Seal the wrap', blurb: 'He is behind the net. Get the pad to the post and stay there.',
+    id: 'g_wrap', name: 'Seal the wrap', blurb: 'He\'s behind the net. Get the pad to the post and stay there.',
     diagram: {
       me: [87, 39], puck: BEHIND_NET,
       opp: [{ at: [97, 46], label: 'F' }],

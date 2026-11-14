@@ -187,15 +187,15 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     if (!isTradeRequest && !isAmateurGraduating) {
       // If Front Office trust is toxic, you are a liability and they let you walk (unless you're an elite superstar)
       if (coachTrust < 30 && player.ovr < 88 && Math.random() < 0.75) {
-         setEventFeedback("The front office thinks you are a problem in the room, and they have told your agent there will be no extension. You are going to the open market.");
+         setEventFeedback("The front office thinks you're a problem in the room, and they have told your agent there will be no extension. You're going to the open market.");
          teamDidNotExtend = true;
       } 
       // High Front Office trust saves fringe players from being cut
       else if (player.ovr < 65 && Math.random() > (coachTrust > 75 ? 0.85 : 0.60)) {
-         setEventFeedback(isRFA ? "Your team elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent." : "Your team elected not to extend your contract. You are now a UFA.");
+         setEventFeedback(isRFA ? "Your team elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent." : "Your team elected not to extend your contract. You're now a UFA.");
          teamDidNotExtend = true;
       } else if (!isRFA && Math.random() > 0.70 && player.ovr < 85 && coachTrust < 70) {
-         setEventFeedback("Your current team has decided to move in a different direction and will not offer you an extension. You are heading to the open market.");
+         setEventFeedback("Your current team has decided to move in a different direction and won't offer you an extension. You're heading to the open market.");
          teamDidNotExtend = true;
       } else {
          // QUALIFYING OFFER MATH

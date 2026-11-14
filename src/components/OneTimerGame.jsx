@@ -94,6 +94,19 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
     }
   };
 
+  // Space or Enter takes the shot, for anybody playing on a keyboard.
+  const fireRef = useRef(fire);
+  useEffect(() => { fireRef.current = fire; });
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.repeat || !(e.key === ' ' || e.key === 'Enter')) return;
+      e.preventDefault();
+      fireRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const y = (p) => FROM[1] + (SPAN * Math.max(0, Math.min(112, p))) / 100;
   const puckY = y(firedAt ?? pct);
   const live = status === 'live';
@@ -126,8 +139,9 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
       }
       caption={
         status === 'won' || status === 'lost' ? null
-          : 'The window is your own stick blade. Swing when the puck is on it, not when it is coming.'
+          : 'The window is your own stick blade. Swing when the puck is on it, not when it\'s coming.'
       }
+      keys="Space or Enter to shoot"
     >
       <Surface view={ZONE_VIEW}>
         <ZoneSheet />

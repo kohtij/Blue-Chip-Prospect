@@ -641,6 +641,10 @@ export function roomNews(before, after, player) {
       ? `${m.name}, ${role}, retired over the summer after ${span} in the same room as you.`
       : `${m.name}, ${role}, left over the summer after ${span} in the same room as you.`;
     out.push({
+      // Which room this is about. The news is written at the start of the
+      // summer and read in next season's recap, and by then he may have
+      // signed somewhere else. The recap only shows it if he's still there.
+      club: player.team || null,
       title: '🚪 OUT OF THE ROOM',
       feedback: (m.lineYears || 0) >= 2
         ? `${why} Whoever plays beside you now starts from scratch.`
@@ -659,6 +663,7 @@ export function roomNews(before, after, player) {
       .sort((a, b) => b.ovr - a.ovr)[0];
     if (kid) {
       out.push({
+        club: player.team || null,
         title: '📈 THE KID',
         feedback: prev.has(kid.id)
           ? `${kid.name} is ${kid.age} and came back from the summer better than you. The coaches have noticed, and he goes into camp ahead of you ${AHEAD_AT[pos] || 'at your position'}.`

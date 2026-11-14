@@ -62,7 +62,7 @@ function Section({ title, meta, children, className = '' }) {
 function Stat({ label, value, strong = false }) {
   return (
     <div className="min-w-0">
-      <p className={`text-xl sm:text-2xl font-black sports-font leading-none ${strong ? 'text-white' : 'text-slate-200'}`}>{value}</p>
+      <p className={`text-xl sm:text-2xl font-black sports-font leading-none ${strong ? 'text-[color:var(--club-text,#fff)]' : 'text-slate-200'}`}>{value}</p>
       <p className="text-[10px] font-bold text-slate-500 mt-1.5">{label}</p>
     </div>
   );
@@ -82,7 +82,7 @@ function Honour({ name, count, years, img, league, champion }) {
       <span className="min-w-0 flex-1">
         <span className={`block text-[13px] font-black leading-tight ${champion ? 'text-[#F59E0B]' : 'text-white'}`}>{name}</span>
         {!!years?.length && (
-          <span className="block text-[10px] font-bold text-slate-500 mt-0.5 truncate">{years.join(', ')}</span>
+          <span className="block text-[10px] font-bold text-slate-500 mt-0.5 break-words">{years.join(', ')}</span>
         )}
       </span>
       {count > 1 && <span className="shrink-0 text-sm font-black number-font text-slate-300">×{count}</span>}
@@ -306,6 +306,15 @@ export default function RetirementScreen() {
   const bannerColor = isHex(homeData?.bg) ? homeData.bg : accent;
   const stripeColor = isHex(homeData?.color) && homeData.color.toLowerCase() !== bannerColor.toLowerCase()
     ? homeData.color : 'rgba(255,255,255,0.85)';
+  // The colour the page is lit in. A club's accent is often its light colour
+  // (white, for Toronto), which washes everything grey, so the page uses the
+  // main colour unless that's too close to black to show.
+  const lum = (hex) => {
+    if (!isHex(hex)) return 0;
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const tone = lum(bannerColor) > 0.07 ? bannerColor : accent;
   const arena = home.league === 'NHL' && NHL_ARENAS[home.team] ? NHL_ARENAS[home.team] : null;
 
   const firstYear = history[0]?.year;
@@ -367,6 +376,23 @@ export default function RetirementScreen() {
   const earnings = (player.stats?.careerEarnings || player.stats?.earnings || 0) + buyoutOwed(player);
   const hof = hallOfFame(score, history.length ? history[history.length - 1].year : null);
 
+  // The colour the tier is shown in, as a hex the page can glow with.
+  const tierHex = (String(score.color).match(/#[0-9a-f]{6}/i) || ['#94a3b8'])[0];
+  const titles = champList.reduce((n, c) => n + c.years.length, 0);
+  const awards = careerTrophies(player).individual;
+
+  // The last line of a career, in proportion to it.
+  const theClub = withTeamArticle(homeName, home.league, true);
+  const sendOff = isLegend
+    ? `${arena ? `${arena} raises` : `${theClub} raise`} your number to the rafters, and nobody's wearing it again.`
+    : score.tier === 'Franchise Cornerstone'
+      ? `You were the heart of ${withTeamArticle(homeName, home.league)} for years, and the building stood for you on your last night.`
+      : score.tier === 'Solid Pro'
+        ? 'You made a real career of it, and plenty of good players never get to say that.'
+        : score.tier === 'Journeyman'
+          ? 'You played wherever they needed you, and you never stopped showing up.'
+          : 'You never stopped chasing it. Now you hang up the skates.';
+
   // ── Saving it to the Hall of Records ───────────────────────────────────────
 
   const finish = () => {
@@ -402,88 +428,130 @@ export default function RetirementScreen() {
   const regCols = isGoalie ? 5 : 5 + (isCentre ? 1 : 0);
 
   return (
-    <div className="min-h-screen px-3 py-4 sm:p-8 bg-[#040505] text-white font-sans">
+    <div className="min-h-screen px-3 py-4 sm:p-8 bg-[#040505] text-white font-sans" style={{ '--club': tone, '--club-text': accentText }}>
       <div className="w-full max-w-4xl mx-auto space-y-3 sm:space-y-4">
 
-        {/* THE BANNER, AND WHO HE WAS. */}
-        <section className="game-panel relative overflow-hidden p-4 sm:p-6">
-          <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: accent }} />
-          <div className="absolute inset-0 pointer-events-none opacity-[0.10]"
-               style={{ background: `radial-gradient(90% 70% at 0% 0%, ${accent} 0%, transparent 70%)` }} />
+        {/* THE SEND-OFF.
+            This is the last screen of a career and it was the quietest one in
+            the game: a dark panel, a small banner in the corner and grey
+            numbers. It's lit in the club's colours now, with the banner hanging
+            from the rafters, the number behind everything, and the four things
+            people remember about a career in their own colours: the rating at
+            his best, the championships in gold, the trophies, and the money. */}
+        <section className="relative overflow-hidden rounded-2xl border"
+                 style={{
+                   borderColor: `color-mix(in srgb, ${tone} 60%, transparent)`,
+                   background: `radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, ${tone} 55%, transparent) 0%, transparent 62%),
+                                radial-gradient(90% 80% at 100% 100%, color-mix(in srgb, ${tierHex} 16%, transparent) 0%, transparent 70%),
+                                linear-gradient(180deg, color-mix(in srgb, ${bannerColor} 32%, #060908) 0%, #060908 100%)`
+                 }}>
+          {/* The rafters. */}
+          <div className="absolute inset-x-0 top-0 h-[6px]"
+               style={{ background: `linear-gradient(90deg, ${tone}, color-mix(in srgb, ${tone} 30%, transparent))` }} />
+          {/* His number, behind everything. */}
+          <span aria-hidden="true"
+                className="absolute -right-4 sm:right-2 -top-6 sm:-top-10 font-black sports-font leading-none select-none pointer-events-none"
+                style={{ fontSize: 'clamp(10rem, 34vw, 22rem)', color: `color-mix(in srgb, ${tone} 22%, transparent)` }}>
+            {player.number}
+          </span>
 
-          <div className="relative flex gap-4 sm:gap-6">
-            {/* A retired number, the way an arena hangs one. */}
-            <div className="shrink-0 w-[92px] sm:w-[132px]">
-              <div className="relative pt-3 pb-7 px-2 text-center shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+          <div className="relative flex gap-4 sm:gap-8 px-4 sm:px-8 pb-5 sm:pb-7">
+            {/* A retired number, hanging the way an arena hangs one. */}
+            <div className="shrink-0 w-[100px] sm:w-[156px] flex flex-col items-center">
+              <div className="w-[62%] flex justify-between h-5 sm:h-7">
+                <span className="w-px h-full bg-white/30" />
+                <span className="w-px h-full bg-white/30" />
+              </div>
+              <div className="relative w-full pt-3 pb-8 px-2 text-center shadow-[0_18px_40px_rgba(0,0,0,0.6)] banner-sway"
                    style={{
-                     background: `linear-gradient(180deg, color-mix(in srgb, ${bannerColor} 88%, #fff) 0%, ${bannerColor} 45%, color-mix(in srgb, ${bannerColor} 75%, #000) 100%)`,
+                     background: `linear-gradient(180deg, color-mix(in srgb, ${bannerColor} 85%, #fff) 0%, ${bannerColor} 40%, color-mix(in srgb, ${bannerColor} 70%, #000) 100%)`,
                      clipPath: 'polygon(0 0, 100% 0, 100% 86%, 50% 100%, 0 86%)'
                    }}>
                 <div className="absolute inset-x-0 top-[6px] h-[3px]" style={{ backgroundColor: stripeColor }} />
-                <div className="mx-auto mt-1 w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-black/25">
+                <div className="mx-auto mt-1 w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-black/25">
                   <TeamLogo teamId={home.team} league={home.league} isAHL={home.league === 'AHL'} size="tiny" />
                 </div>
-                <p className="mt-1 text-[44px] sm:text-[64px] font-black sports-font leading-none text-white drop-shadow-[0_2px_0_rgba(0,0,0,0.35)]">
+                <p className="mt-1 text-[50px] sm:text-[76px] font-black sports-font leading-none text-white drop-shadow-[0_3px_0_rgba(0,0,0,0.35)]">
                   {player.number}
                 </p>
-                <p className="mt-1 text-[9px] sm:text-[11px] font-black uppercase tracking-wider text-white/90 leading-tight break-words">
+                <p className="mt-1 text-[10px] sm:text-xs font-black uppercase tracking-wider text-white/90 leading-tight break-words">
                   {(player.name || '').split(' ').slice(-1)[0]}
                 </p>
-                {span && <p className="mt-0.5 text-[9px] sm:text-[10px] font-bold text-white/70 number-font">{span}</p>}
+                {span && <p className="mt-0.5 text-[9px] sm:text-[11px] font-bold text-white/70 number-font">{span}</p>}
                 <div className="mt-2 -mx-2 h-[3px]" style={{ backgroundColor: stripeColor }} />
               </div>
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] sm:text-xs font-bold text-slate-400">
-                Retired at {player.age}{span ? `, after ${history.length} ${history.length === 1 ? 'season' : 'seasons'}` : ''}
+            <div className="min-w-0 flex-1 pt-6 sm:pt-9">
+              <p className="text-[11px] sm:text-sm font-black" style={{ color: tierHex }}>
+                {score.tier}
               </p>
-              <h1 className="mt-1 text-3xl sm:text-5xl font-black sports-font uppercase leading-[0.95] text-white break-words">
+              <h1 className="mt-1 text-[2.1rem] sm:text-6xl font-black sports-font uppercase leading-[0.92] text-white break-words tracking-tight">
                 {player.name}
               </h1>
-              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] sm:text-sm font-bold text-slate-300">
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] sm:text-sm font-bold text-slate-300">
                 <span>{POS_NAME[player.pos] || player.pos}</span>
                 <span className="text-slate-600">/</span>
                 {natObj?.img && <img src={natObj.img} alt="" className="w-4 h-3 object-cover rounded-[2px]" />}
                 <span>{country}</span>
               </p>
-              <p className="mt-1 text-[12px] sm:text-sm font-bold" style={{ color: accentText }}>
+              <p className="mt-0.5 text-[12px] sm:text-sm font-bold text-slate-400">
+                Retired at {player.age}{span ? `, after ${history.length} ${history.length === 1 ? 'season' : 'seasons'}` : ''}
+              </p>
+              <p className="mt-1 text-[12px] sm:text-sm font-black" style={{ color: accentText }}>
                 {home.games} games with {withTeamArticle(homeName, home.league)}
               </p>
-              <p className="mt-3 text-[12px] sm:text-sm text-slate-400 leading-relaxed max-w-md">
-                {isLegend
-                  ? `${arena ? `${arena} raises` : `${withTeamArticle(homeName, home.league, true)} raise`} your number to the rafters.`
-                  : 'You hang up the skates.'}
+              <p className="mt-4 text-[15px] sm:text-xl font-bold text-white leading-snug max-w-lg">
+                {sendOff}
               </p>
               {hof?.inducted && (
-                <div className="mt-3 inline-flex items-center gap-2.5 rounded-lg border border-[#c084fc]/40 bg-[#c084fc]/10 px-3 py-2">
-                  <span className="text-lg leading-none" aria-hidden>🏛️</span>
+                <div className="mt-4 inline-flex items-center gap-3 rounded-xl border border-[#c084fc]/50 bg-[#c084fc]/15 px-3.5 py-2.5 shadow-[0_0_30px_-8px_rgba(192,132,252,0.6)]">
+                  <span className="text-xl leading-none" aria-hidden>🏛️</span>
                   <span className="min-w-0">
-                    <span className="block text-[12px] sm:text-sm font-black text-[#e9d5ff] leading-tight">Hockey Hall of Fame, class of {hof.classYear}</span>
-                    <span className="block text-[10px] sm:text-[11px] font-bold text-[#c084fc] mt-0.5">{hof.ballot}</span>
+                    <span className="block text-[13px] sm:text-base font-black text-[#f3e8ff] leading-tight">Hockey Hall of Fame, class of {hof.classYear}</span>
+                    <span className="block text-[10px] sm:text-[11px] font-bold text-[#d8b4fe] mt-0.5">{hof.ballot}</span>
                   </span>
                 </div>
               )}
               {hof?.nearMiss && (
-                <p className="mt-3 text-[12px] sm:text-sm text-slate-500 leading-relaxed max-w-md">
+                <p className="mt-3 text-[12px] sm:text-sm text-slate-400 leading-relaxed max-w-md">
                   You were on the Hall of Fame ballot from {hof.eligible} and never got in.
                 </p>
               )}
             </div>
           </div>
 
-          {/* The score, and what it is made of, next to the facts that sit
-              under any career. */}
-          <div className="relative mt-5 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-3">
-            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0d110d] p-4">
+          {/* What a career is remembered by, each in its own colour. */}
+          <div className="relative grid grid-cols-2 sm:grid-cols-4 border-t border-white/10 bg-black/30">
+            {[
+              { label: 'Peak rating', value: peakOvr, color: tierHex },
+              { label: titles === 1 ? 'Championship' : 'Championships', value: titles, color: titles ? '#F59E0B' : '#64748b' },
+              { label: awards === 1 ? 'Individual trophy' : 'Individual trophies', value: awards, color: awards ? '#ffffff' : '#64748b' },
+              { label: 'Career earnings', value: formatMoney(earnings), color: '#22E748' }
+            ].map((h, i) => (
+              <div key={h.label}
+                   className={`px-4 sm:px-6 py-4 sm:py-5 ${i % 2 ? 'border-l' : ''} ${i === 2 ? 'sm:border-l' : ''} ${i > 1 ? 'border-t sm:border-t-0' : ''} border-white/10`}>
+                <p className="text-3xl sm:text-[2.6rem] font-black sports-font leading-none number-font"
+                   style={{ color: h.color, textShadow: `0 0 28px color-mix(in srgb, ${h.color} 35%, transparent)` }}>
+                  {h.value}
+                </p>
+                <p className="mt-1.5 text-[10px] sm:text-[11px] font-bold text-slate-400">{h.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* The score, and what it's made of, next to the facts under any career. */}
+          <div className="relative grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-3 p-4 sm:p-6 bg-black/30">
+            <div className="rounded-xl border bg-[#0b0f0c] p-4"
+                 style={{ borderColor: `color-mix(in srgb, ${tierHex} 40%, transparent)`, boxShadow: `inset 3px 0 0 0 ${tierHex}` }}>
               <p className="text-[11px] font-bold text-slate-500">Career score</p>
               <p className="mt-1 text-5xl font-black sports-font leading-none text-white number-font">{score.total.toLocaleString()}</p>
-              <p className={`mt-1.5 text-sm font-black ${score.color}`}>{score.tier}</p>
+              <p className="mt-1.5 text-sm font-black" style={{ color: tierHex }}>{score.tier}</p>
               {!!score.breakdown?.length && (
                 <ul className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)] space-y-1">
                   {score.breakdown.map((b, i) => (
                     <li key={i} className="flex items-baseline justify-between gap-3 text-[11px]">
-                      <span className="min-w-0 truncate text-slate-400">{b.label}</span>
+                      <span className="min-w-0 break-words text-slate-400">{b.label}</span>
                       <span className={`shrink-0 font-black number-font ${b.points < 0 ? 'text-[#ef4444]' : 'text-slate-200'}`}>
                         {b.points > 0 ? '+' : ''}{b.points.toLocaleString()}
                       </span>
@@ -492,10 +560,8 @@ export default function RetirementScreen() {
                 </ul>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0d110d] p-4 content-start">
-              <Stat label="Peak rating" value={peakOvr} strong />
-              <Stat label="Draft" value={<span className="text-base sm:text-lg">{draftLine}</span>} />
-              <Stat label="Career earnings" value={formatMoney(earnings)} />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0b0f0c] p-4 content-start">
+              <Stat label="Draft" value={<span className="text-base sm:text-lg">{draftLine}</span>} strong />
               <Stat label="Peak market value" value={formatMoney(player.stats?.peakValue || player.stats?.value || 0)} />
               <Stat label="Games, every league" value={all.games} />
               <Stat label={isGoalie ? 'Wins, every league' : 'Points, every league'} value={isGoalie ? all.wins : all.goals + all.assists} />
@@ -601,7 +667,7 @@ export default function RetirementScreen() {
                             <span className="shrink-0 w-6 h-6 flex items-center justify-center">
                               <TeamLogo teamId={r.team} league={r.league} isAHL={r.league === 'AHL'} size="tiny" />
                             </span>
-                            <span className="hidden sm:inline font-bold text-white truncate max-w-[180px]" title={getFullTeamName(r.team, r.league)}>
+                            <span className="hidden sm:inline font-bold text-white break-words" title={getFullTeamName(r.team, r.league)}>
                               {getFullTeamName(r.team, r.league)}
                             </span>
                           </span>

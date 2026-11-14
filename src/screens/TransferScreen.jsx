@@ -66,13 +66,13 @@ export default function TransferScreen() {
               {freeAgencyOffers.some(o => o.type === 'TRADE')
                 ? "Your agent has several trade offers. Pick where you want to go."
                 : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type))
-                  ? "You are looking at other routes: an NCAA scholarship, or a pro contract in Europe."
+                  ? "You're looking at other routes: an NCAA scholarship, or a pro contract in Europe."
                   : freeAgencyOffers.some(o => o.type === 'QUALIFYING OFFER' || o.type === 'RFA EXTENSION')
-                    ? "You are a Restricted Free Agent. Your current club retains your rights, but rival teams can submit Offer Sheets."
+                    ? "You're a Restricted Free Agent. Your current club retains your rights, but rival teams can submit Offer Sheets."
                     : teamDidNotOffer
                         ? (['NHL', 'AHL'].includes(player.league) && player.age < 27 && (player.stats?.seasonsPlayed || 0) < 7
-                            ? `The ${owningTeamName} elected not to extend a Qualifying Offer. You are now an Unrestricted Free Agent testing the open market.`
-                            : `The ${owningTeamName} elected not to offer you a new contract. You are on the open market.`)
+                            ? `The ${owningTeamName} elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent testing the open market.`
+                            : `The ${owningTeamName} elected not to offer you a new contract. You're on the open market.`)
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
             </p>
 
@@ -229,7 +229,7 @@ export default function TransferScreen() {
                                    : fullName.length > 16 ? 'text-xs sm:text-sm'
                                      : 'text-sm sm:text-base';
                                return (
-                                 <h3 className={`${size} font-black text-white sports-font leading-tight uppercase tracking-wide break-words line-clamp-2`}
+                                 <h3 className={`${size} font-black text-white sports-font leading-tight uppercase tracking-wide break-words`}
                                      title={fullName}>{fullName}</h3>
                                );
                              })()}
@@ -262,9 +262,9 @@ export default function TransferScreen() {
                             the cards ever get, the 640px two-column layout where
                             each one is 312px wide, Compensation had four pixels
                             of slack and wrapped.
-                            Each label is pinned and each value truncates with
-                            the full text on hover, so a string nobody has
-                            written yet can cost an ellipsis but never a line. */}
+                            Each label is pinned and a long value wraps onto a
+                            second line, right-aligned. Nothing on the card is
+                            cut off with an ellipsis any more. */}
                         <div className="z-10 relative mb-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
                            {/* The role and the club's outlook used to share one
                                truncated line, so "Top 4 Defenseman · Staying Put"
@@ -277,7 +277,7 @@ export default function TransferScreen() {
                                was where the club is projected to finish. */}
                            <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                              <span className="text-slate-500 shrink-0">Role</span>
-                             <span className="ml-auto min-w-0 truncate text-right text-white" title={o.role}>{o.role}</span>
+                             <span className="ml-auto min-w-0 break-words text-right text-white" title={o.role}>{o.role}</span>
                            </p>
                            {o.standing && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
@@ -288,7 +288,7 @@ export default function TransferScreen() {
                            {dealContext && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                                <span className="text-slate-500 shrink-0">Situation</span>
-                               <span className="ml-auto min-w-0 truncate text-right text-white" title={dealContext}>{dealContext}</span>
+                               <span className="ml-auto min-w-0 break-words text-right text-white" title={dealContext}>{dealContext}</span>
                              </p>
                            )}
                            {netFans !== 0 && (
@@ -323,7 +323,7 @@ export default function TransferScreen() {
                            {o.type === 'OFFER SHEET' && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                                <span className="text-slate-500 shrink-0">Compensation</span>
-                               <span className="ml-auto min-w-0 truncate text-right text-[#c084fc]" title={compensationLong(o.salary)}>{getCompensation(o.salary)}</span>
+                               <span className="ml-auto min-w-0 break-words text-right text-[#c084fc]" title={compensationLong(o.salary)}>{getCompensation(o.salary)}</span>
                              </p>
                            )}
                         </div>
@@ -379,7 +379,7 @@ export default function TransferScreen() {
                          )}
 
                          {/* The alternatives come first and the commitment last.
-                             Signing is the one action on this card you cannot take
+                             Signing is the one action on this card you can't take
                              back, so it sits at the bottom edge of every card, in
                              the same place whether or not there is anything above
                              it. */}
@@ -452,9 +452,9 @@ export default function TransferScreen() {
                   {market.comps.map(c => (
                     <div key={c.id || c.name}
                          className="flex items-center gap-2.5 px-4 py-1.5 border-b border-[rgba(255,255,255,0.04)] last:border-0">
-                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-slate-300">{c.name}</span>
+                      <span className="min-w-0 flex-1 break-words text-[12.5px] font-medium text-slate-300">{c.name}</span>
                       <span className="hidden sm:block shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-500 w-8 text-right">{c.pos}</span>
-                      <span className="shrink-0 text-[11px] font-bold text-slate-500 w-[104px] text-right truncate">{unit(c)}</span>
+                      <span className="shrink-0 text-[11px] font-bold text-slate-500 w-[104px] text-right break-words">{unit(c)}</span>
                       <span className="shrink-0 text-[11px] font-black number-font text-slate-300 w-[62px] text-right">{formatComp(c.salary)}</span>
                     </div>
                   ))}

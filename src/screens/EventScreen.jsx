@@ -282,7 +282,7 @@ export default function EventScreen() {
                          <TeamLogo teamId={premiumTeamId} league={premiumLeague} isAHL={premiumLeague === 'AHL'} size="small" />
                        </div>
                        <div className="min-w-0 flex-1">
-                         <h3 className={`${nameSize} font-black text-white sports-font leading-tight uppercase tracking-wide break-words line-clamp-2`}
+                         <h3 className={`${nameSize} font-black text-white sports-font leading-tight uppercase tracking-wide break-words`}
                              title={fullName}>
                            {fullName}
                          </h3>
@@ -317,7 +317,7 @@ export default function EventScreen() {
                          {situation && (
                            <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                              <span className="text-slate-500 shrink-0">Situation</span>
-                             <span className="ml-auto min-w-0 truncate text-right text-white">{situation}</span>
+                             <span className="ml-auto min-w-0 break-words text-right text-white">{situation}</span>
                            </p>
                          )}
                          {fanStatus !== 0 && (

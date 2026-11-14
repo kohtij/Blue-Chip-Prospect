@@ -245,7 +245,7 @@ export default function TradeDeadlineScreen() {
                       // the paragraph, after everything else had been said. It belongs
                       // in the same sentence as the name of the club, because that is
                       // the sentence a player listens for.
-                      destLine: `You are off to the **${getFullTeamName(destTeam.id, tradeLg)}**, who sit **#${destStandings}** and in a playoff spot.`,
+                      destLine: `You're off to the **${getFullTeamName(destTeam.id, tradeLg)}**, who sit **#${destStandings}** and in a playoff spot.`,
                       seed: `${seed}|trade|${destTeam.id}`
                     });
                     let eventTitle = pickFlavor(TRADE_TITLE[assetTier], `${seed}|${destTeam.id}`, 'tradeTitle');
@@ -272,13 +272,13 @@ export default function TradeDeadlineScreen() {
                            // player to waive a clause is asking him to be the price of
                            // somebody else's arrival, which is a different question.
                            desc: isSelling
-                             ? `Your GM called you in. The season is gone and the **${getFullTeamName(destTeam.id, tradeLg)}** have put a package on the table he cannot ignore. You hold a ${clauseName}. Will you waive it?`
-                             : `Your GM called you in. The club has a deal agreed with the **${getFullTeamName(destTeam.id, tradeLg)}** for the player it has been chasing all year, and you are what they want back. You hold a ${clauseName}. Will you waive it?`,
+                             ? `Your GM called you in. The season is gone and the **${getFullTeamName(destTeam.id, tradeLg)}** have put a package on the table he can't ignore. You hold a ${clauseName}. Will you waive it?`
+                             : `Your GM called you in. The club has a deal agreed with the **${getFullTeamName(destTeam.id, tradeLg)}** for the player it has been chasing all year, and you're what they want back. You hold a ${clauseName}. Will you waive it?`,
                            choices: [
                               // showTeamCard gives this the full team card (logo, rank, perks and
                               // flaws) so the destination can be judged before waiving the clause.
                               { label: `Waive your ${clauseShort} (accept the trade)`, isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
-                              { label: `Use your ${clauseShort} (veto the trade)`, isRisky: false, feedback: `You used your ${clauseShort}. The GM was frustrated, and you are staying put.`, effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
+                              { label: `Use your ${clauseShort} (veto the trade)`, isRisky: false, feedback: `You used your ${clauseShort}. The GM was frustrated, and you're staying put.`, effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
                            ],
                            isTradeDeadlineEvent: true
                         });
@@ -292,7 +292,7 @@ export default function TradeDeadlineScreen() {
                               // just repeat the destination twice. These choices are about how you
                               // react, so they stay as plain choices with a subLabel.
                               { label: 'Embrace the fresh start', subLabel: 'Report on good terms and leave the bridge standing.', isRisky: false, feedback: feedback, effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'The fans at your new club loved it. You arrived with a chip on your shoulder.', successEffect: { fanStatus: 20, ovr: 1, money: 0 }, failFeedback: 'You came off bitter and unprofessional, which is not how anyone wants to arrive.', failEffect: { fanStatus: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'The fans at your new club loved it. You arrived with a chip on your shoulder.', successEffect: { fanStatus: 20, ovr: 1, money: 0 }, failFeedback: 'You came off bitter and unprofessional, which isn\'t how anyone wants to arrive.', failEffect: { fanStatus: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
                            ],
                            isTradeDeadlineEvent: true
                         });

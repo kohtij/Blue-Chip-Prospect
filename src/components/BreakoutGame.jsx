@@ -109,7 +109,7 @@ export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
       }
       caption={
         status !== 'live' ? null
-          : isOpen ? 'He is open now. Move it.'
+          : isOpen ? 'He\'s open now. Move it.'
             : 'Wait for a winger to actually come open. A pass to a covered man is a turnover.'
       }
     >

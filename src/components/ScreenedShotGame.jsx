@@ -109,7 +109,7 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
       caption={
         status !== 'live' ? null
           : visible ? 'There it is. Move.'
-            : 'You cannot see the release. Do not guess, or you will be leaning the wrong way when it comes.'
+            : 'You can\'t see the release. Don\'t guess, or you\'ll be leaning the wrong way when it comes.'
       }
     >
       <Surface view={MOUTH_VIEW}>

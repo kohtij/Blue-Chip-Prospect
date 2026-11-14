@@ -112,7 +112,7 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
           }
           caption={gameStarted
             ? (stumble ? 'Caught an edge. Find the rhythm again.' : null)
-            : 'One lap of the sheet from centre ice, timed. Alternate your strides and do not miss one.'}
+            : 'One lap of the sheet from centre ice, timed. Alternate your strides and don\'t miss one.'}
         >
           <Surface view="0 0 200 100">
             <FullSheet />

@@ -105,7 +105,7 @@ export default function ShootoutGame({ player, onComplete, difficulty = 0 }) {
     }
     if (zone.id === 2 && down) return 'He was already down. The five hole shut before you shot.';
     if (across && toHisSide) return 'You shot into the side he had already taken away.';
-    if (!down && zone.id <= 1) return 'He was standing tall. That is his glove, all day.';
+    if (!down && zone.id <= 1) return 'He was standing tall. That\'s his glove, all day.';
     return `He had the ${zone.label.toLowerCase()} covered and swallowed it.`;
   };
 

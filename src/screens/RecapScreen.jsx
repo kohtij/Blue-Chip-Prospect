@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '../data/teams';
@@ -7,10 +8,11 @@ import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/g
 import { deploymentLabel, rateSeason } from '../utils/production';
 import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
+import { awardsFor } from '../data/leagueAwards';
 import { TITLE_MD } from '../utils/ui';
 
 // Leagues that don't count toward a player's pro season number.
-const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA'];
+const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA', 'J20', 'U20'];
 
 // Minutes as a clock, which is how ice time is read everywhere in hockey.
 const clock = (mins) => {
@@ -100,8 +102,45 @@ function PillRow({ effect, perks, flaws, isGoalie }) {
   return <div className="flex flex-wrap items-center gap-1.5 mt-2.5">{statPills}{perkPills}</div>;
 }
 
+// WHY HE WON IT.
+//
+// The recap listed trophy names and nothing else, which is fine for a scoring
+// title and no help at all for the Lady Byng: it's decided on penalty
+// minutes, and nowhere in the game showed his. Each award is matched back to
+// the rule that hands it out (see _computeAwards in gameHelpers) and given the
+// numbers that won it.
+function awardReason(award, r, player, leagues) {
+  const kinds = leagues.map(lg => awardsFor(lg)).filter(Boolean);
+  const key = kinds.map(t => Object.keys(t).find(k => t[k] === award)).find(Boolean);
+  const gp = r.games || 0;
+  const pts = (r.g || 0) + (r.a || 0);
+  const sv = r.shots ? (r.saves / r.shots).toFixed(3).replace('0.', '.') : null;
+  const pm = `${(r.pm || 0) > 0 ? '+' : ''}${r.pm || 0}`;
+  const fo = r.fot > 0 ? `${((r.fow / r.fot) * 100).toFixed(1)}% on draws` : null;
+  switch (key) {
+    case 'scoring': return `${pts} points, the most in the league.`;
+    case 'goals': return `${r.g || 0} goals, the most in the league.`;
+    case 'mvp': return player.pos === 'G'
+      ? `A ${sv} save percentage over ${gp} games, well clear of every other goalie.`
+      : `${pts} points in ${gp} games, ahead of the scoring champion's pace.`;
+    case 'dman': return `${pts} points, ${r.blk || 0} blocked shots and ${pm} at ${clock(r.avgToi)} a night: the best all-round year by a defenceman.`;
+    case 'goalie': return `A ${sv} save percentage over ${gp} games, the best among the league's starters.`;
+    case 'rookie': return player.pos === 'G' ? `A ${sv} save percentage in your first season.` : `${pts} points in ${gp} games in your first season.`;
+    case 'players': return `Voted by the players. ${pts} points, and the room thinks the world of you.`;
+    case 'defensiveFwd': return [`${pm}`, `${r.blk || 0} blocked shots`, fo, r.ozPct != null ? `${100 - r.ozPct}% of your shifts started in your own end` : null].filter(Boolean).join(', ') + ', and you still put up ' + pts + ' points.';
+    case 'sportsman': return `${pts} points with only ${r.pim || 0} penalty minutes in ${gp} games.`;
+    case 'teamGoalie': return `Your club allowed the fewest goals in the league, and you stopped ${sv} of what came at you.`;
+    case 'perseverance': return 'A full season and a good one, a year after an injury ended the last one early.';
+    case 'community': return 'For the charity nights and hospital visits, and the city noticed.';
+    case 'leadership': return `Captain of a side that finished #${r.standings || '-'}, with the room behind you.`;
+    case 'regular': return `Your club finished first in the league.`;
+    default: return null;
+  }
+}
+
 export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
+  const [showAllMoments, setShowAllMoments] = useState(false);
   
   return (() => {
           const titles = getPlayoffTitles(player.league);
@@ -162,13 +201,13 @@ export default function RecapScreen() {
              const cupName = player.league === 'NHL' ? 'the Stanley Cup' : (titles?.cupName || 'the Championship');
              if (streak === 2) {
                  narrativeTitle = 'BACK-TO-BACK CHAMPIONS';
-                 narrative = `Twice. Winning ${cupName} once can be a good year and a hot goaltender; winning it again is the part nobody manages. This team does not have to argue about it any more.`;
+                 narrative = `Twice. Winning ${cupName} once can be a good year and a hot goaltender; winning it again is the part nobody manages. This team doesn't have to argue about it any more.`;
              } else if (streak === 3) {
                  narrativeTitle = 'THREE IN A ROW';
                  narrative = `Three straight. There are franchises a century old that have never done this once, and you have done it three years running. People have started using the word dynasty without smirking.`;
              } else {
                  narrativeTitle = `${streak} STRAIGHT`;
-                 narrative = `${streak} in a row. Whatever the rest of the league is building, it is being built to beat you, and it is not working. Nobody argues about the word dynasty any more.`;
+                 narrative = `${streak} in a row. Whatever the rest of the league is building, it's being built to beat you, and it isn't working. Nobody argues about the word dynasty any more.`;
              }
           } else if (seasonRecap?.titleWon === 1) {
              if (player.league === 'NHL') {
@@ -199,7 +238,7 @@ export default function RecapScreen() {
               } else if (pw === 0) {
                   narrativeTitle = 'SWEPT';
                   narrative = standings <= 4 
-                    ? 'Swept, after the regular season you had. The papers have not been kind.' 
+                    ? 'Swept, after the regular season you had. The papers haven\'t been kind.' 
                     : 'Swept out of the first round. You were outmatched from puck drop.';
               } else {
                   narrativeTitle = 'PLAYOFF EXIT';
@@ -215,15 +254,15 @@ export default function RecapScreen() {
               if (rivalWonTitle) {
                   narrative += ` And your arch-rivals, ${withTeamArticle(rivalName, player.league)}, lifted the trophy.`;
               } else if (hasHardware && pw > 0 && pw < maxWins - 1) {
-                  narrative += " You were brilliant, and it was not enough.";
+                  narrative += " You were brilliant, and it wasn't enough.";
               }
           } else {
               narrativeTitle = 'MISSED THE DANCE';
-              narrative = 'A disappointing year, and there is work to do in the summer.';
+              narrative = 'A disappointing year, and there\'s work to do in the summer.';
               if (rivalWonTitle) {
                   narrative = `You missed the playoffs, and your arch-rivals, ${withTeamArticle(rivalName, player.league)}, won it all.`;
               } else if (hasHardware) {
-                  narrative = 'You had a great year, and the team around you did not.';
+                  narrative = 'You had a great year, and the team around you didn\'t.';
               }
           }
 
@@ -234,6 +273,8 @@ export default function RecapScreen() {
                   0% { opacity: 0; transform: translateY(12px); }
                   100% { opacity: 1; transform: translateY(0); }
                 }
+                .moments-in { animation: subtleFadeUp 0.35s ease-out both; }
+                @media (prefers-reduced-motion: reduce) { .moments-in { animation: none; } }
                 .recap-list > li {
                   opacity: 0;
                   animation: subtleFadeUp 0.5s ease-out forwards;
@@ -258,6 +299,91 @@ export default function RecapScreen() {
                 </div>
                 <p className="text-base sm:text-lg text-slate-400 font-sans italic text-left m-0">"{narrative}"</p>
               </div>
+
+              {/* THE YEAR IN NUMBERS.
+                  This was three paragraphs: the stat line written out as a
+                  sentence, the minutes, then a line about where the coach
+                  started his shifts. Read once, it was a lot of words for a
+                  handful of numbers. The numbers are tiles now, the way the
+                  rest of the game shows a stat line, and one sentence under
+                  them says what kind of year it was. */}
+              {(() => {
+                const r = seasonRecap || {};
+                const gp = r.games || 0;
+                const isG = player.pos === 'G';
+                const isD = ['LD', 'RD'].includes(player.pos);
+                const pts = (r.g || 0) + (r.a || 0);
+                const sv = r.shots ? r.saves / r.shots : 0;
+                const sog = r.sog || 0;
+                const shPct = sog > 0 ? ((r.g || 0) / sog) * 100 : null;
+                const fot = r.fot || 0;
+                const foPct = fot > 0 ? ((r.fow || 0) / fot) * 100 : null;
+                const rating = r.rating || 5;
+
+                const main = isG
+                  ? [['GP', gp], ['Record', `${r.wins || 0}-${r.losses || 0}-${r.otl || 0}`], ['SV%', sv.toFixed(3).replace('0.', '.')], ['SO', r.sho || 0]]
+                  : isD
+                    ? [['GP', gp], ['Points', pts], ['Blocks', r.blk || 0], ['TOI', clock(r.avgToi)], ['+/-', `${(r.pm || 0) > 0 ? '+' : ''}${r.pm || 0}`]]
+                    : [['GP', gp], ['Goals', r.g || 0], ['Assists', r.a || 0], ['Points', pts], ['TOI', clock(r.avgToi)]];
+
+                const extra = [
+                  !isG && shPct != null && !isD && ['Shooting', `${shPct.toFixed(1)}%`],
+                  !isG && foPct != null && ['Faceoffs', `${foPct.toFixed(1)}%`],
+                  !isG && (r.ppToi || 0) >= 0.2 && ['PP TOI', clock(r.ppToi)],
+                  !isG && ['PIM', r.pim || 0],
+                  !isG && r.ozPct != null && ['OZ starts', `${r.ozPct}%`],
+                  isD && ['G-A', `${r.g || 0}-${r.a || 0}`]
+                ].filter(Boolean);
+
+                const verdict = isG
+                  ? (sv >= 0.920 ? 'Elite numbers in net.' : sv >= 0.905 ? 'A reliable, steady presence in the crease.' : 'You never found any consistency this year.')
+                  : isD
+                    ? (rating >= 9.0 ? 'As good a year as any defenceman in the league had.'
+                      : rating >= 8.0 ? (pts >= 55 ? 'You carried the puck out of your own end all season.' : "You shut down the other team's best line all season.")
+                        : rating >= 6.5 ? 'The coach could count on you every night.'
+                          : rating <= 4.0 ? 'You were caught out far too often.' : 'A quiet year in a sheltered role.')
+                    // Judged on the season grade, which already knows the
+                    // league and how many games were played, and on points per
+                    // game. Raw totals (40 for "solid") told a college player
+                    // with 29 points in 30 games that the points hadn't come.
+                    : (() => {
+                        const ppg = gp > 0 ? pts / gp : 0;
+                        if (pts >= 100) return 'A hundred-point season.';
+                        if ((r.g || 0) >= 50) return 'An elite goal-scoring year.';
+                        if (rating >= 9.0) return 'As good a year as any forward in the league had.';
+                        if (rating >= 8.0) return 'One of the most productive forwards in the league.';
+                        if (ppg >= 0.9) return ppg >= 1 ? 'Better than a point a game.' : 'Close to a point a game.';
+                        if (rating >= 6.5) return 'A good year, and a useful one.';
+                        if (rating >= 5.0 || ppg >= 0.5) return 'A steady year, if not a big one.';
+                        return "The points didn't come.";
+                      })();
+                const use = !isG && r.ozPct != null ? deploymentLabel(r.ozPct) : null;
+                const useLine = use === 'Shutdown' ? " The coach sent you out against the other team's best, in your own end."
+                  : use === 'Sheltered' ? ' The coach kept you away from your own net.' : '';
+
+                return (
+                  <div className="mb-6">
+                    <div className={`grid ${main.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} gap-1.5 sm:gap-2`}>
+                      {main.map(([label, value]) => (
+                        <div key={label} className="rounded-lg bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] px-1.5 py-2.5 sm:py-3 text-center">
+                          <p className="number-font font-black text-white leading-none text-xl sm:text-3xl tabular-nums">{value}</p>
+                          <p className="mt-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {extra.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
+                        {extra.map(([label, value]) => (
+                          <span key={label} className="text-slate-500">{label} <span className="text-slate-200 number-font">{value}</span></span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-3 text-sm sm:text-base text-slate-300 leading-relaxed">
+                      {verdict}{acrossClubs ? ` Those numbers are${acrossClubs}.` : ''}{useLine}
+                    </p>
+                  </div>
+                );
+              })()}
 
               <ul className="recap-list space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-base font-sans text-left leading-relaxed">
                 <li className="border-l-4 border-[#3b82f6] pl-4 pr-3 py-2.5 rounded-r-lg">
@@ -294,90 +420,6 @@ export default function RecapScreen() {
                   })()}
                 </li>
                 
-                {player.pos === 'G' ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🥅 Went <strong className="text-white">{seasonRecap?.wins || 0}&ndash;{seasonRecap?.losses || 0}&ndash;{seasonRecap?.otl || 0}</strong> with a <strong className="text-white">{(seasonRecap?.saves / seasonRecap?.shots || 0).toFixed(3).replace('0.', '.')} save percentage</strong> and <strong className="text-white">{seasonRecap?.sho || 0} shutouts</strong> in {seasonRecap?.games || 0} games{acrossClubs}. {
-                    (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.920 ? 'Elite numbers in net.' :
-                    (seasonRecap?.saves / seasonRecap?.shots || 0) >= 0.905 ? 'A reliable, steady presence in the crease.' :
-                    'Struggled to find consistency this year.'
-                  }</li>
-                ) : ['LD', 'RD'].includes(player.pos) ? (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🧱 Anchored the defense with <strong className="text-white">{seasonRecap?.g || 0}G, {seasonRecap?.a || 0}A ({(seasonRecap?.g || 0) + (seasonRecap?.a || 0)} PTS)</strong> and <strong className="text-white">{seasonRecap?.blk || 0} blocked shots</strong> in {seasonRecap?.games || 0} games{acrossClubs}, averaging <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong>
-                    {(seasonRecap?.ppToi || 0) >= 0.2
-                      ? <>, <strong className="text-white">{clock(seasonRecap.ppToi)}</strong> of it on the power play</>
-                      : <> and no power play time at all</>}
-. {
-                    /* The verdict reads off the graded season now rather than
-                       the point total alone. A defenceman who finished under
-                       forty points was told he had "focused heavily on the
-                       defensive side of the puck" whether he had been plus
-                       thirty at twenty-four minutes a night or minus twenty on
-                       the third pair: one sentence covering the best defensive
-                       year in the league and the worst. */
-                    (seasonRecap?.rating || 5) >= 9.0 ? 'As good a year as any defenceman in the league had.' :
-                    (seasonRecap?.rating || 5) >= 8.0
-                      ? (((seasonRecap?.g || 0) + (seasonRecap?.a || 0)) >= 55
-                          ? 'You carried the puck out of your own end all season.'
-                          : 'You shut down the other team’s best line all season.') :
-                    (seasonRecap?.rating || 5) >= 6.5 ? 'The coach could count on you every night.' :
-                    (seasonRecap?.rating || 5) <= 4.0 ? 'Caught out far too often.' :
-                    'A quiet year in a sheltered role.'
-                  }</li>
-                ) : (() => {
-                  /* A FORWARD'S YEAR, WITH THE PART OF IT THAT IS HIS.
-                     This was goals, assists, points and the minutes, which is
-                     the line every position used to read before the goalie and
-                     the defenceman were given their own. How often he shot and
-                     how often it went in is the thing that separates two men
-                     who both finished on thirty, and a centre's draws are the
-                     one number on a stat sheet that nobody else has. */
-                  const sog = seasonRecap?.sog || 0;
-                  const gls = seasonRecap?.g || 0;
-                  const shPct = sog > 0 ? (gls / sog) * 100 : null;
-                  const fot = seasonRecap?.fot || 0;
-                  const foPct = fot > 0 ? ((seasonRecap?.fow || 0) / fot) * 100 : null;
-                  return (
-                  <li className="border-l-4 border-[#22E748] pl-4 pr-3 py-2.5 rounded-r-lg">🏒 Potted <strong className="text-white">{gls} goals</strong> and <strong className="text-white">{seasonRecap?.a || 0} assists</strong> for <strong className="text-white">{gls + (seasonRecap?.a || 0)} PTS</strong> in {seasonRecap?.games || 0} games{acrossClubs}, playing <strong className="text-white">{clock(seasonRecap?.avgToi)} TOI</strong> a night
-                    {shPct != null
-                      ? <>, off <strong className="text-white">{sog} shots</strong> at <strong className="text-white">{shPct.toFixed(1)}%</strong></>
-                      : null}
-                    {foPct != null
-                      ? <>, and won <strong className="text-white">{foPct.toFixed(1)}%</strong> of <strong className="text-white">{fot}</strong> draws</>
-                      : null}
-. {
-                    (gls + (seasonRecap?.a || 0)) >= 100 ? 'A hundred-point season.' :
-                    (gls >= 50) ? 'An elite goal-scoring year.' :
-                    (gls + (seasonRecap?.a || 0)) >= 70 ? 'A highly productive offensive season.' :
-                    (gls + (seasonRecap?.a || 0)) >= 40 ? 'A solid middle-six contribution.' :
-                    'Struggled to consistently generate offense.'
-                  }{shPct != null && shPct >= 16 && gls >= 20
-                      ? ' Almost nothing he put on net stayed out of it.'
-                      : shPct != null && shPct <= 7.0 && sog >= 150
-                        ? ' He shot it plenty. Very little of it went in.'
-                        : ''}
-                    {foPct != null && foPct >= 57
-                      ? ' The staff sent him out for every draw that mattered.'
-                      : foPct != null && foPct <= 46
-                        ? ' He lost the circle most nights, and his line started in his own end because of it.'
-                        : ''}</li>
-                  );
-                })()}
-
-                {/* Where the coach started his shifts. A skater only, and only
-                    a season that recorded it. */}
-                {player.pos !== 'G' && seasonRecap?.ozPct != null && (() => {
-                  const use = deploymentLabel(seasonRecap.ozPct);
-                  const line = {
-                    Sheltered: 'He kept you away from your own net and sent you out when there was a goal to be had.',
-                    Offensive: 'More of your draws were in their end than yours, which is how a coach uses a scorer.',
-                    Balanced: 'An even split, about what most players get.',
-                    Defensive: 'More of your shifts began in your own end than in theirs.',
-                    Shutdown: "He sent you out in your own end against the other team's best players, all year."
-                  }[use];
-                  return (
-                    <li className="border-l-4 border-sky-500 pl-4 pr-3 py-2.5 rounded-r-lg">🧭 The coach started <strong className="text-white">{seasonRecap.ozPct}%</strong> of your shifts in the offensive zone. {line}</li>
-                  );
-                })()}
-
                 {/* Performance bonuses the year reached, if the deal had any. */}
                 {seasonRecap?.bonusLines?.length > 0 && (() => {
                   const names = seasonRecap.bonusLines.map(b => b.label);
@@ -445,12 +487,20 @@ export default function RecapScreen() {
                 
                 {seasonRecap?.awards && seasonRecap.awards.length > 0 && (
                   <RecapRow accent="#F59E0B" label="🏆 Hardware secured" tint>
-                    {/* The trophies were a row of outlined, tinted pills, which
-                        is a lot of chrome for what is a list of names. The row
-                        already has its own border and colour. */}
-                    <span className="text-[#F59E0B] font-bold">
-                      {Array.from(new Set(seasonRecap.awards)).join(' · ')}
-                    </span>
+                    {/* One line per trophy, with what won it under the name. */}
+                    <ul className="space-y-2">
+                      {Array.from(new Set(seasonRecap.awards)).map(aw => {
+                        const thisYear = player.seasonHistory?.[player.seasonHistory.length - 1];
+                        const why = awardReason(aw, seasonRecap, player,
+                          [...new Set([thisYear?.league, (thisYear?.stints || []).at(-1)?.league, player.league].filter(Boolean))]);
+                        return (
+                          <li key={aw}>
+                            <span className="block text-[#F59E0B] font-bold leading-snug">{aw}</span>
+                            {why && <span className="block text-slate-300 text-sm leading-snug mt-0.5">{why}</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </RecapRow>
                 )}
 
@@ -615,7 +665,7 @@ export default function RecapScreen() {
                             </span>
                             {/* You, not your own name, the same as every
                                 other board in the game. */}
-                            <span className={`min-w-0 flex-1 truncate text-[12.5px] sm:text-[13px] ${
+                            <span className={`min-w-0 flex-1 break-words text-[12.5px] sm:text-[13px] ${
                               r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>{r.me ? 'You' : r.name}</span>
                             {/* The position is the first thing to go on a
                                 phone. A name truncated to "Con..." is not a
@@ -706,27 +756,49 @@ export default function RecapScreen() {
                   </RecapRow>
                 )}
 
-                {/* The moments of the season, each with the thing that set it
-                    up above the thing that happened. A minigame result used to
-                    arrive as one line under "In the news": "Clean win! You
-                    snapped it straight back to your defenseman", with nothing
-                    anywhere saying what had been won, in what situation, or
-                    what it was worth. The moment travels with the result now,
-                    so the row reads as the event it was. */}
-                {seasonEvents.map((ev, i) => {
-                  if (!ev || !ev.feedback) return null;
-                  return (
-                    <RecapRow key={`event-${i}`} accent="#c084fc"
-                              label={[ev.title || '📰 In the news', ev.stakes].filter(Boolean).join(' · ')}>
-                      {ev.setup && (
-                        <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed mb-1.5">{ev.setup}</p>
-                      )}
-                      <p className="text-slate-300 leading-relaxed">{ev.feedback}</p>
-                      <PillRow effect={ev.effect} perks={ev.perks} flaws={ev.flaws} isGoalie={player.pos === 'G'} />
-                    </RecapRow>
-                  );
-                })}
               </ul>
+
+              {/* THE MOMENTS OF THE SEASON.
+                  The smaller things that happened along the way: a minigame,
+                  an endorsement, a night against a rival. They aren't the
+                  story of the season, which the summary above tells, so they
+                  sit behind one button and open underneath it, in the order
+                  they happened. Nothing above the button moves when it opens. */}
+              {(() => {
+                // News about a dressing room (who left it over the summer, who
+                // passed you in it) only belongs here if this season was played
+                // in that room. A player who moved clubs in the summer was being
+                // told about his old team's departures in his new team's recap.
+                const thisYear = player.seasonHistory?.[player.seasonHistory.length - 1];
+                const playedFor = new Set([thisYear?.team, thisYear?.tradedTo, ...((thisYear?.stints || []).map(st => st?.team))].filter(Boolean));
+                const list = seasonEvents.map((ev, i) => ({ ev, i }))
+                  .filter(({ ev }) => ev && ev.feedback && (!ev.club || !playedFor.size || playedFor.has(ev.club)));
+                if (!list.length) return null;
+                const listCls = 'space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-base font-sans text-left leading-relaxed';
+                return (
+                  <section className="mt-8 pt-6 border-t border-[rgba(255,255,255,0.05)]" aria-label="Moments of the season">
+                    <button type="button" onClick={() => setShowAllMoments(v => !v)} aria-expanded={showAllMoments}
+                            aria-controls="recap-moments"
+                            className="btn-secondary w-full py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer">
+                      {showAllMoments ? 'Hide the moments' : `Moments of the season (${list.length})`}
+                    </button>
+                    {showAllMoments && (
+                      <ul id="recap-moments" className={`${listCls} mt-4 moments-in`}>
+                        {list.map(({ ev, i }) => (
+                          <RecapRow key={`event-${i}`} accent="#c084fc"
+                                    label={[ev.title || '📰 In the news', ev.stakes].filter(Boolean).join(' · ')}>
+                            {ev.setup && (
+                              <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed mb-1.5">{ev.setup}</p>
+                            )}
+                            <p className="text-slate-300 leading-relaxed">{ev.feedback}</p>
+                            <PillRow effect={ev.effect} perks={ev.perks} flaws={ev.flaws} isGoalie={player.pos === 'G'} />
+                          </RecapRow>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                );
+              })()}
 
               <div className="w-full pt-6 mt-8 border-t border-[rgba(255,255,255,0.05)] flex flex-col sm:flex-row gap-4">
                 <button onClick={() => advanceToOffseason()} className="btn-primary flex-1 py-4 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-widest">
@@ -789,7 +861,7 @@ export default function RecapScreen() {
 
                        setActiveEvent({
                            title: 'TRANSFER PORTAL OFFERS',
-                           desc: `You entered the transfer portal. The fans you are leaving are furious (Fan Status -15), and several programmes called the same day with scholarship and NIL offers.`,
+                           desc: `You entered the transfer portal. The fans you're leaving are furious (Fan Status -15), and several programmes called the same day with scholarship and NIL offers.`,
                            choices: choices,
                            isPortalEvent: true
                        });

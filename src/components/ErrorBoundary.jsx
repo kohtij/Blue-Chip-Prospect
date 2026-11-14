@@ -58,7 +58,7 @@ export default class ErrorBoundary extends Component {
             Something Went Wrong
           </h2>
           <p className="text-sm sm:text-base text-slate-300 mb-6 font-sans leading-relaxed">
-            The screen you were on hit an error and stopped rendering. Your career progress is not lost, but the current screen can't recover on its own.
+            The screen you were on hit an error and stopped rendering. Your career progress isn't lost, but the current screen can't recover on its own.
           </p>
 
           <div className="bg-[#101410] border border-[#ef4444]/30 rounded-xl p-4 sm:p-5 mb-6 text-left overflow-hidden">

@@ -87,21 +87,21 @@ export const PRESS_QUESTIONS = [
       professional: [
         "Tracked it the whole way. You hold your depth and let it hit you.",
         "Nothing special in it. Read the release, get square, trust the position.",
-        "Stay patient and stay big. The puck finds you if you are in the right place."
+        "Stay patient and stay big. The puck finds you if you're in the right place."
       ],
       passionate: [
-        "I heard the building when it stuck in the glove. That is the reason you play.",
-        "You feel the bench come up off the boards behind you. That is what I am out there for.",
-        "That one was not going in. Not tonight, not in this building."
+        "I heard the building when it stuck in the glove. That's the reason you play.",
+        "You feel the bench come up off the boards behind you. That's what I am out there for.",
+        "That one wasn't going in. Not tonight, not in this building."
       ],
       humble: [
         "The guys boxed out and I saw it the whole way. Easy save from where I was standing.",
-        "I got a piece of it. Half of that is luck and anyone in that room will tell you so.",
+        "I got a piece of it. Half of that's luck and anyone in that room will tell you so.",
         "They cleared the front of the net all night. I only had to be there."
       ],
       cocky: [
         "I had it the second he picked his head up. He told me where he was going.",
-        "That is the save I am paid to make. It should not be a story.",
+        "That's the save I'm paid to make. It shouldn't be a story.",
         "He got one look all night and I took it off him."
       ]
     }

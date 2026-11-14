@@ -86,7 +86,7 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
       if (made >= NEEDED) {
         finish(true, 'three blocked and the puck is out of the zone');
       } else {
-        setNote('Blocked. He is loading up another one.');
+        setNote('Blocked. He\'s loading up another one.');
         setTimeout(() => { if (!doneRef.current) { setPhase('settle'); setNote(null); } }, 700);
       }
     } else {
@@ -116,7 +116,7 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
           detail={note}
         />
       }
-      caption={note && status === 'live' ? note : 'He is at the point. Pick the lane and get in front of it.'}
+      caption={note && status === 'live' ? note : 'He\'s at the point. Pick the lane and get in front of it.'}
     >
       <Surface view={SLOT_VIEW}>
         <SlotSheet />

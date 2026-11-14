@@ -20,7 +20,7 @@ function RussianFactorDialog({ onChoose }) {
           THE RUSSIAN FACTOR
         </h3>
         <p className="text-slate-300 text-sm sm:text-base font-sans mb-6 leading-relaxed">
-          Scouts and GMs at the Combine are asking whether you will commit to North America or stay in the KHL. What do you tell the media?
+          Scouts and GMs at the Combine are asking whether you'll commit to North America or stay in the KHL. What do you tell the media?
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -165,7 +165,7 @@ export default function DraftScreen() {
               ? `, and watched ${gap} ${gap === 1 ? one : many} you were ranked above go first.`
               : gap < 0
                 ? `, ${-gap} spot${gap === -1 ? '' : 's'} higher than anybody had you.`
-                : ', exactly where they said you would.'}
+                : ', exactly where they said you\'d.'}
           </p>
         );
       })()}
@@ -192,7 +192,7 @@ export default function DraftScreen() {
                   r.me ? 'bg-[#3b82f6]/[0.12]' : 'bg-[#101410]'}`}
               >
                 {/* Fixed-width columns for the pick, the crest and the flag.
-                    Crests are not all the same shape and TeamLogo falls back
+                    Crests aren't all the same shape and TeamLogo falls back
                     to a coloured disc when one will not load, so letting any
                     of the three size themselves left the whole board ragged:
                     every row started its name at a slightly different place. */}
@@ -217,13 +217,13 @@ export default function DraftScreen() {
                     {/* Your own row says You, the way it does on every other
                         board in the game. Your own name read back in a list of
                         strangers puts you among them. */}
-                    <span className={`truncate text-sm ${r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
+                    <span className={`break-words text-sm ${r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
                       {r.me ? 'You' : r.name}
                     </span>
                   </span>
                   {/* Where he is coming from. */}
                   <span className="flex items-center gap-1 min-w-0 text-[10px] text-slate-600 mt-0.5">
-                    {r.from && <span className="truncate">{getFullTeamName(r.from, r.fromLeague)}</span>}
+                    {r.from && <span className="break-words">{getFullTeamName(r.from, r.fromLeague)}</span>}
                     {r.from && r.fromLeague && <span className="shrink-0 text-slate-700">·</span>}
                     {r.fromLeague && (
                       <span className="flex shrink-0 items-center gap-1">

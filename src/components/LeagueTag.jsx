@@ -25,7 +25,7 @@ export default function LeagueTag({ league, flagClass = 'w-[14px] h-[10px]' }) {
       {flag
         ? <img src={flag} alt="" className={`${flagClass} shrink-0 object-cover rounded-[1px]`} />
         : <span className={`${flagClass} shrink-0`} aria-hidden="true" />}
-      <span className="truncate">{leagueLabel(league)}</span>
+      <span className="break-words">{leagueLabel(league)}</span>
     </>
   );
 }

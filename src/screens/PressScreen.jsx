@@ -33,7 +33,7 @@ export default function PressScreen() {
                       🎙️ {journalist?.name}
                       {journalist?.outlet && <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest font-sans">{journalist.outlet}</span>}
                     </p>
-                    <p className="text-xs sm:text-sm text-slate-500 italic">You aren't quite sure what angle they are going for...</p>
+                    <p className="text-xs sm:text-sm text-slate-500 italic">You aren't quite sure what angle they're going for...</p>
                   </>
                 ) : (
                   <>

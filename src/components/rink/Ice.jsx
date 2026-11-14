@@ -423,9 +423,14 @@ export function Move({ move, tone, stops = [], scale = 1 }) {
 }
 
 // The frame every surface sits in, so a game is one element and not a div stack.
+// The drawing's height is capped against the window. It used to scale with
+// the width alone, so the square zone views came out as tall as the stage was
+// wide, and on a desktop screen the button you play with sat below the fold:
+// you could lose a one-timer scrolling down to it. Capped, the ice and its
+// button fit on screen together, and the ice sits centred in the extra width.
 export function Surface({ view, children, className = '' }) {
   return (
-    <svg viewBox={view} className={`w-full h-auto block ${className}`} preserveAspectRatio="xMidYMid meet">
+    <svg viewBox={view} className={`w-full h-auto max-h-[min(46vh,460px)] block ${className}`} preserveAspectRatio="xMidYMid meet">
       {children}
     </svg>
   );

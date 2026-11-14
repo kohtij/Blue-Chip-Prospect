@@ -34,7 +34,7 @@ const SKATER_SCENARIOS = [
     ]
   },
   {
-    frame: 'Two on one, you are the lone defender',
+    frame: 'Two on one, you\'re the lone defender',
     question: 'What is your responsibility as the only man back?',
     diagram: {
       opp: [{ at: [40, 24], label: 'LW' }, { at: [40, 54], label: 'RW' }],
@@ -114,7 +114,7 @@ const SKATER_SCENARIOS = [
     ]
   },
   {
-    frame: 'Neutral zone, they are running the 1-3-1 trap',
+    frame: 'Neutral zone, they\'re running the 1-3-1 trap',
     question: 'How do you get through it?',
     diagram: {
       opp: [{ at: [36, 39], label: 'F' }, { at: [46, 16], label: 'W' }, { at: [46, 39], label: 'C' },
@@ -164,7 +164,7 @@ const SKATER_SCENARIOS = [
     ]
   },
   {
-    frame: 'You are F1 on the forecheck',
+    frame: 'You\'re F1 on the forecheck',
     question: 'What is the job?',
     diagram: {
       opp: [{ at: [84, 30], label: 'D' }, { at: [84, 52], label: 'D' }],
@@ -327,6 +327,11 @@ export default function FilmRoomGame({ onComplete }) {
       setShown(null);
       if (step + 1 >= scenarios.length) setFinished(true);
       else setStep(step + 1);
+      // The answers sit below the clip, so on a desktop screen the page was
+      // left scrolled down to them. The next clip, and the verdict after the
+      // third, start at the top again.
+      const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: calm ? 'auto' : 'smooth' });
     }, 1300);
   };
 

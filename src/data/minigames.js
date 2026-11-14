@@ -2,7 +2,7 @@ export const interactiveMinigames = [
   {
     id: 'shootout_snipe',
     title: 'THE SHOOTOUT SNIPE',
-    desc: 'The game is on your stick and there is nobody between you and him.',
+    desc: 'The game is on your stick and there\'s nobody between you and him.',
     read: 'Watch his depth and his feet. Down in the butterfly he seals the ice and gives you the top corners; standing tall he covers high and leaves the five hole. Take the one he has actually given you.',
     stat: 'shooting',
     accent: 'blue',
@@ -29,7 +29,7 @@ export const interactiveMinigames = [
     id: 'rapid_crease',
     title: 'RAPID FIRE SHOOTOUT',
     desc: 'They have you under siege and the shots are coming from everywhere.',
-    read: 'Five saves and the barrage is over. Three past you and it is not. Get a piece of everything.',
+    read: 'Five saves and the barrage is over. Three past you and it isn\'t. Get a piece of everything.',
     stat: 'physicality',
     accent: 'red',
     gameType: 'crease',
@@ -54,8 +54,8 @@ export const interactiveMinigames = [
   {
     id: 'tip_in',
     title: 'THE DEFLECTION',
-    desc: 'You are screening the goalie while your defenceman winds up from the point.',
-    read: 'You cannot see the puck through the bodies. Your defenceman taps his stick before he shoots, at the speed of the shot. The puck reaches you one beat after he hits it: press TIP on that beat.',
+    desc: 'You\'re screening the goalie while your defenceman winds up from the point.',
+    read: 'You can\'t see the puck through the bodies. Your defenceman taps his stick before he shoots, at the speed of the shot. The puck reaches you one beat after he hits it: press TIP on that beat.',
     stat: 'physicality',
     accent: 'emerald',
     gameType: 'deflect',
@@ -67,7 +67,7 @@ export const interactiveMinigames = [
   {
     id: 'shot_block',
     title: 'THE SHOT BLOCK',
-    desc: 'Their point man is teeing one up and you are the last body in the lane.',
+    desc: 'Their point man is teeing one up and you\'re the last body in the lane.',
     read: 'Three blocked and the puck is out of the zone. Pick the wrong lane and you have screened your own goalie.',
     stat: 'skating',
     accent: 'amber',
@@ -80,8 +80,8 @@ export const interactiveMinigames = [
   {
     id: 'breakaway_deke',
     title: 'THE BREAKAWAY',
-    desc: 'He is through everybody and coming in alone on you.',
-    read: 'Cheat to a side and you take his deke away, but you have handed him half the net. Stay square and it is all on your hands.',
+    desc: 'He\'s through everybody and coming in alone on you.',
+    read: 'Cheat to a side and you take his deke away, but you have handed him half the net. Stay square and it\'s all on your hands.',
     stat: 'hockeyIQ',
     accent: 'blue',
     gameType: 'breakaway',
@@ -94,7 +94,7 @@ export const interactiveMinigames = [
     id: 'one_timer',
     title: 'THE ONE-TIMER',
     desc: 'A pass is coming across the seam into your wheelhouse.',
-    read: 'The window is your own stick blade, and you can see it. Swing when the puck is on it, not when it is on its way.',
+    read: 'The window is your own stick blade, and you can see it. Swing when the puck is on it, not when it\'s on its way.',
     stat: 'shooting',
     accent: 'amber',
     gameType: 'onetimer',
@@ -104,6 +104,10 @@ export const interactiveMinigames = [
     failMsg: "You fanned on the shot and the puck trickled into the corner."
   },
   // ONE ROSTER SPOT, THREE DIFFERENT AUDITIONS.
+  //
+  // These three are camp-only (contexts), so the camp event is the one place
+  // they turn up. Before that they sat in the general pool and a Stanley Cup
+  // Final could hand you a fight for the last roster spot.
   //
   // This was a single event called TRAINING CAMP BATTLE, tagged for every
   // position in the game and built on the faceoff mechanic, so a goalie
@@ -122,6 +126,7 @@ export const interactiveMinigames = [
     stat: 'hockeyIQ',
     accent: 'emerald',
     gameType: 'faceoff',
+    contexts: ['camp'],
     pos: ['C', 'LW', 'RW'],
     reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
     successMsg: "You won the battle, and the coach trusts you with real minutes now.",
@@ -135,6 +140,7 @@ export const interactiveMinigames = [
     stat: 'physicality',
     accent: 'emerald',
     gameType: 'block',
+    contexts: ['camp'],
     pos: ['LD', 'RD'],
     reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
     successMsg: "You won the battle, and the coach trusts you with real minutes now.",
@@ -148,6 +154,7 @@ export const interactiveMinigames = [
     stat: 'hockeyIQ',
     accent: 'emerald',
     gameType: 'crease',
+    contexts: ['camp'],
     pos: ['G'],
     reward: { win: { fanStatus: 10, ovr: 1, rel: { coach: 25 } }, loss: { fanStatus: -5, ovr: -1, rel: { coach: -25 } } },
     successMsg: "You won the net out of camp and the staff told the room so.",
@@ -157,7 +164,7 @@ export const interactiveMinigames = [
     id: 'breakout',
     title: 'THE BREAKOUT',
     desc: 'Pinned in your own end with two forecheckers closing on you.',
-    read: 'One of your wingers will come open. Hit him while he is open: a beat early and it dies on the wall, a beat late and the lane is shut.',
+    read: 'One of your wingers will come open. Hit him while he\'s open: a beat early and it dies on the wall, a beat late and the lane is shut.',
     stat: 'hockeyIQ',
     accent: 'blue',
     gameType: 'breakout',
@@ -169,8 +176,8 @@ export const interactiveMinigames = [
   {
     id: 'screened',
     title: 'SCREENED SHOT',
-    desc: 'A point shot is on its way and there is a body in front of you.',
-    read: 'You will not see the release. When it clears the screen you get one move, and guessing before then leaves you leaning the wrong way.',
+    desc: 'A point shot is on its way and there\'s a body in front of you.',
+    read: 'You won\'t see the release. When it clears the screen you get one move, and guessing before then leaves you leaning the wrong way.',
     stat: 'shooting',
     accent: 'emerald',
     gameType: 'screened',
@@ -191,13 +198,83 @@ export const interactiveMinigames = [
     reward: { win: { fanStatus: 20, ovr: 1 }, loss: { fanStatus: -5, ovr: 0 } },
     successMsg: "You held your spot and got the tip.",
     failMsg: "You lost leverage and got pushed out of the crease."
+  },
+  {
+    id: 'penalty_shot',
+    title: 'THE PENALTY SHOT',
+    desc: 'You were hauled down from behind on a breakaway, and the referee is pointing at centre ice.',
+    read: 'Everyone else is on the bench. Watch his depth and his feet, then take what he gives you before the clock runs out.',
+    stat: 'shooting',
+    accent: 'blue',
+    gameType: 'shootout',
+    pos: ['C', 'LW', 'RW', 'LD', 'RD'],
+    reward: { win: { fanStatus: 25, ovr: 1 }, loss: { fanStatus: -10, ovr: 0 } },
+    successMsg: "You buried it, and the bench emptied onto the ice to meet you.",
+    failMsg: "He stayed with you all the way and smothered it."
+  },
+  {
+    id: 'open_ice_hit',
+    title: 'THE OPEN-ICE HIT',
+    desc: 'They keep coming over your blue line with their heads down.',
+    read: 'Three rushes. Hit a man who\'s looking at the puck. If he looks up and sees you, he\'ll step round a big hit, so hold your ground instead. Win two of the three.',
+    stat: 'physicality',
+    accent: 'red',
+    gameType: 'hit',
+    pos: ['C', 'LW', 'RW', 'LD', 'RD'],
+    reward: { win: { fanStatus: 20, ovr: 1, rel: { teammates: 10 } }, loss: { fanStatus: -5, ovr: 0, rel: { coach: -5 } } },
+    successMsg: "You caught him clean, and the whole building felt it.",
+    failMsg: "You went looking for the big hit and took yourself out of the play."
+  },
+  {
+    id: 'end_to_end',
+    title: 'END TO END',
+    desc: 'You picked it up behind your own net and there\'s nothing but ice and three of them in front of you.',
+    read: 'Each man will reach for the puck. Wait for his stick to go one way, then take it the other. Move first and he just follows you.',
+    stat: 'skating',
+    accent: 'blue',
+    gameType: 'deke',
+    pos: ['C', 'LW', 'RW'],
+    reward: { win: { fanStatus: 30, ovr: 1 }, loss: { fanStatus: -5, ovr: 0 } },
+    successMsg: "You went through all three of them and finished it yourself.",
+    failMsg: "He read you, took the puck, and they went the other way."
+  },
+  {
+    id: 'rebound_control',
+    title: 'REBOUND CONTROL',
+    desc: 'Their point man is shooting for your pads, and a forward is crashing the net for whatever comes off them.',
+    read: 'It\'s low, so you can\'t catch it. Kick it to the corner he\'s not heading for. Watch him all the way, because he likes to cut back.',
+    stat: 'hockeyIQ',
+    accent: 'emerald',
+    gameType: 'rebound',
+    pos: ['G'],
+    reward: { win: { fanStatus: 20, ovr: 1, rel: { coach: 10 } }, loss: { fanStatus: -10, ovr: 0 } },
+    successMsg: "Every rebound went where you wanted it, and they never got a second look.",
+    failMsg: "You kicked it right onto his stick, and he didn't miss."
+  },
+  {
+    id: 'six_attackers',
+    title: 'SIX ON FIVE',
+    desc: 'They\'ve pulled their goalie with a minute left, and you\'re a goal up.',
+    read: 'Six of them and every one of them is shooting. Five saves and the clock runs out. Three past you and it\'s gone.',
+    stat: 'physicality',
+    accent: 'red',
+    gameType: 'crease',
+    pos: ['G'],
+    reward: { win: { fanStatus: 30, ovr: 1, rel: { teammates: 15 } }, loss: { fanStatus: -20, ovr: 0 } },
+    successMsg: "They threw everything at you for a minute and you held the lead.",
+    failMsg: "They tied it with eleven seconds left."
   }
 ];
 
-export const getMinigamePool = (pos) => {
-  return interactiveMinigames.filter(m => !m.pos || m.pos.includes(pos));
+// A game tagged with contexts only turns up in those moments (the camp
+// battles, at camp). Everything else can turn up anywhere.
+export const getMinigamePool = (pos, context = null) => {
+  return interactiveMinigames.filter(m =>
+    (!m.pos || m.pos.includes(pos)) &&
+    (!m.contexts || m.contexts.includes(context))
+  );
 };
 
 export const findMinigame = (id) => {
   return interactiveMinigames.find(m => m.id === id);
-};
+};

@@ -53,7 +53,7 @@ export default function PlayoffsScreen() {
     return typeof label === 'string' && label.length > 3 ? label.substring(0, 3).toUpperCase() : String(label).toUpperCase(); 
   };
 
-  const renderTeamRow = (team, wins, winsNeeded, isFinal = false, hideScore = false) => {
+  const renderTeamRow = (team, wins, winsNeeded, hideScore = false) => {
     const tbd = isTbdTeam(team);
     const teamId = team?.id || team;
     const label = getTeamLabel(team);
@@ -75,7 +75,7 @@ export default function PlayoffsScreen() {
             <span className="text-[7px] font-black text-slate-500">{label.substring(0, 2)}</span>
           ) : null}
         </div>
-        <span className={`font-bold truncate text-left ${isFinal ? 'max-w-[60px] sm:max-w-[80px]' : 'max-w-[45px] sm:max-w-[60px]'} ${tbd ? 'text-slate-500 italic' : ''}`}>
+        <span className={`font-bold whitespace-nowrap text-left ${tbd ? 'text-slate-500 italic' : ''}`}>
           {label}
         </span>
         {isRival && <span className="text-[10px] ml-1 shrink-0 leading-none" title="Arch-Rival">🔥</span>}
@@ -141,17 +141,17 @@ export default function PlayoffsScreen() {
           if (isFinalRound) {
               seriesFlavor = activeMatch.status === 'won'
                 ? "One game for everything, and you took it. National champions."
-                : "Sixty minutes from a national title, and it got away. There is no next game.";
+                : "Sixty minutes from a national title, and it got away. There's no next game.";
           } else {
               seriesFlavor = activeMatch.status === 'won'
-                ? "Win or go home, and you are still here. On to the next one."
+                ? "Win or go home, and you're still here. On to the next one."
                 : "One game, one loss, and the season is over.";
           }
       } else if (isFinalRound) {
-          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep in the final. You are champions." : isMaxGames ? "You won it in the deciding game of the final." : "You won the final, and the championship with it.";
+          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep in the final. You're champions." : isMaxGames ? "You won it in the deciding game of the final." : "You won the final, and the championship with it.";
           else seriesFlavor = isSwept ? "Swept in the final. It will be a long summer." : isMaxGames ? "You lost the final in the deciding game." : "You lost in the final.";
       } else {
-          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep. On to the next round." : isMaxGames ? "It went the distance, and you won the deciding game." : "A hard series, and you are through to the next round.";
+          if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep. On to the next round." : isMaxGames ? "It went the distance, and you won the deciding game." : "A hard series, and you're through to the next round.";
           else seriesFlavor = isSwept ? "Swept out of the playoffs." : isMaxGames ? "You lost the deciding game, and the season is over." : "You lost the series. Time to clean out your stall.";
       }
   }
@@ -284,7 +284,7 @@ export default function PlayoffsScreen() {
                       <div key={run.key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0d110d] text-left">
                         <div className="min-w-0">
                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{run.roundName}</p>
-                          <p className="text-xs sm:text-sm text-slate-300 font-sans truncate">vs. {getFullTeamName(run.opponentId, playoffs.currentLg)}</p>
+                          <p className="text-xs sm:text-sm text-slate-300 font-sans break-words">vs. {getFullTeamName(run.opponentId, playoffs.currentLg)}</p>
                         </div>
                         <span className={`shrink-0 font-black sports-font text-sm ${run.won ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
                           {run.won ? 'W' : 'L'} {run.score}
@@ -595,8 +595,8 @@ export default function PlayoffsScreen() {
                       }`}
                     >
                       <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-                        {renderTeamRow(match.team1, match.wins1, rWN, true, isVsMode)}
-                        {renderTeamRow(match.team2, match.wins2, rWN, true, isVsMode)}
+                        {renderTeamRow(match.team1, match.wins1, rWN, isVsMode)}
+                        {renderTeamRow(match.team2, match.wins2, rWN, isVsMode)}
                       </div>
                       {isVsMode && (
                         <span className="font-black sports-font text-[#F59E0B] text-[10px] ml-1.5 shrink-0 tracking-wider">
@@ -667,8 +667,8 @@ export default function PlayoffsScreen() {
                           }`}
                         >
                           <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-                            {renderTeamRow(match.team1, match.wins1, rWN, isFinal, isVsMode)}
-                            {renderTeamRow(match.team2, match.wins2, rWN, isFinal, isVsMode)}
+                            {renderTeamRow(match.team1, match.wins1, rWN, isVsMode)}
+                            {renderTeamRow(match.team2, match.wins2, rWN, isVsMode)}
                           </div>
                           {isVsMode && (
                             <span className="font-black sports-font text-[#F59E0B] text-[10px] ml-1.5 shrink-0 tracking-wider">

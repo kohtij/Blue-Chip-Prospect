@@ -43,14 +43,30 @@ const INJURIES = [
 // the second person, starting lower case so it can follow "In December,".
 const HOW = {
   upper:    'you took a hit along the boards and came off holding your arm',
-  lower:    'you went into the boards awkwardly and could not put weight on the leg afterwards',
+  lower:    'you went into the boards awkwardly and couldn\'t put weight on the leg afterwards',
   hand:     'a slash caught you across the knuckles, and the X-ray showed a break',
   foot:     'you blocked a slapshot with the side of your skate',
   ankle:    'your skate caught a rut and the ankle turned right under you',
   shoulder: 'you went into the end boards shoulder first',
   groin:    'you felt something go in your groin reaching for a pass',
-  back:     'your back seized up after a morning skate and has not let go since',
-  head:     'you took an elbow to the head and do not remember the rest of the shift'
+  back:     'your back seized up after a morning skate and hasn\'t let go since',
+  head:     'you took an elbow to the head and don\'t remember the rest of the shift'
+};
+
+// What it actually is, after the how. "It is an upper-body injury" read like
+// the club's press release, because it was the club's press release. The
+// vague ones say so and then tell him what it really is; the rest describe
+// the injury the way a teammate would.
+const WHAT = {
+  upper:    "The club's calling it an upper-body injury. It's your wrist, and it's swollen to twice the size.",
+  lower:    "The club's calling it a lower-body injury, which is what clubs call a knee they don't want to talk about.",
+  hand:     "It's in a cast, and you can't close your fist around a stick.",
+  foot:     "Nothing's broken, but the foot's gone black and you can't get a skate on it.",
+  ankle:    "It's a high ankle sprain, the slow kind.",
+  shoulder: "It's a separated shoulder, and the arm's in a sling.",
+  groin:    "It's a groin strain, and those never heal as fast as you want them to.",
+  back:     "It's a back spasm, and nobody can tell you when it'll let go.",
+  head:     "It's a concussion, and the lights in the room still hurt."
 };
 
 // The event is raised after the December games, so it happened before then.
@@ -173,7 +189,8 @@ export function injuryEvent(inj) {
   const month = MONTHS[Math.floor(Math.random() * MONTHS.length)];
   const how = HOW[inj.key] || 'you got hurt';
   const who = inj.key === 'head' ? 'the doctors' : 'the staff';
-  const desc = `In ${month}, ${how}. It is ${withArticle(inj.label)}, and ${who} have you out for ${timeOut(inj.games)}.`;
+  const what = WHAT[inj.key] || `It's ${withArticle(inj.label)}.`;
+  const desc = `In ${month}, ${how}. ${what} ${who === 'the doctors' ? 'The doctors' : 'The staff'} have you out for ${timeOut(inj.games)}.`;
   const title = '🩹 OUT OF THE LINEUP';
 
   const wait = {
@@ -189,8 +206,8 @@ export function injuryEvent(inj) {
     return {
       title, desc,
       choices: [inj.key === 'head'
-        ? { ...wait, label: 'Follow the protocol', subLabel: 'There is no rushing a concussion. You go back when the doctors say so.' }
-        : { ...wait, label: 'Get back out there', subLabel: 'It is a short one. Do the work and get back in the lineup.' }],
+        ? { ...wait, label: 'Follow the protocol', subLabel: 'There\'s no rushing a concussion. You go back when the doctors say so.' }
+        : { ...wait, label: 'Get back out there', subLabel: 'It\'s a short one. Do the work and get back in the lineup.' }],
       isMidSeasonEvent: true
     };
   }
@@ -200,12 +217,12 @@ export function injuryEvent(inj) {
       wait,
       {
         label: 'Push to come back early',
-        subLabel: 'Skate before you are cleared and try to get back in the lineup sooner.',
+        subLabel: 'Skate before you\'re cleared and try to get back in the lineup sooner.',
         isRisky: true,
         successChance: 0.5,
         successFeedback: 'You were back a couple of weeks ahead of schedule, and it held up.',
         successEffect: { fanStatus: 10, ovr: 0, rel: { coach: 5 } },
-        failFeedback: 'You came back too soon and it went again in your second game. Longer out, and it has not felt right since.',
+        failFeedback: 'You came back too soon and it went again in your second game. Longer out, and it hasn\'t felt right since.',
         failEffect: { fanStatus: -5, ovr: -1 },
         action: 'INJURY_RETURN',
         actionData: { plan: 'rush' }

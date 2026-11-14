@@ -2,10 +2,10 @@ import  { useState, useEffect, useCallback, useRef } from 'react';
 
 import {
   nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, j20Teams, u20Teams, ncaaTeams, echlTeams,
-  nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds
+  nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds, getTeamData, teamAccent
 } from './data/teams';
 import { skaterTrainingPool, goalieTrainingPool } from './data/economy';
-import { getMinigamePool } from './data/minigames';
+import { getMinigamePool, findMinigame } from './data/minigames';
 import { awardsFor } from './data/leagueAwards';
 import { FO_EDGE_CAP } from './utils/production';
 import {
@@ -44,6 +44,9 @@ import ShotBlockGame from './components/ShotBlockGame';
 import BreakawayGame from './components/BreakawayGame';
 import OneTimerGame from './components/OneTimerGame';
 import ZoneBattleGame from './components/ZoneBattleGame';
+import OpenIceHitGame from './components/OpenIceHitGame';
+import DekeGame from './components/DekeGame';
+import ReboundGame from './components/ReboundGame';
 import BreakoutGame from './components/BreakoutGame';
 import ScreenedShotGame from './components/ScreenedShotGame';
 import { AppContext } from './AppContext';
@@ -64,7 +67,9 @@ import { handleGridClick as _handleGridClick } from './handlers/handleGridClick'
 import { generateOffers as _generateOffers } from './handlers/generateOffers';
 import { handleEventChoice as _handleEventChoice } from './handlers/handleEventChoice';
 import { checkPlayoffs as _checkPlayoffs } from './handlers/checkPlayoffs';
-import { waiverExempt, proSeasonsOf } from './utils/waivers';
+import { waiverExempt } from './utils/waivers';
+import { makesNhlRoster, parentOf } from './utils/rosterMoves';
+import { isNineGameCandidate } from './utils/gameHelpers';
 
 function App() {
   const [screen, setScreen] = useState('creation');
@@ -426,7 +431,7 @@ function App() {
     if (isGen) {
        setActiveEvent({
          title: '🌟 THE CHOSEN ONE',
-         desc: `Scouts have been talking about you since you were fourteen. You are sixteen now, and the names they compare you to are Crosby, McDavid and Bedard. Every game you play from here gets watched.`,
+         desc: `Scouts have been talking about you since you were fourteen. You're sixteen now, and the names they compare you to are Crosby, McDavid and Bedard. Every game you play from here gets watched.`,
          choices: [{ label: 'Embrace the expectations', isRisky: false, feedback: 'Somebody is going to build a franchise around you. You may as well get used to the cameras.', effect: { fanStatus: 200, ovr: 0, money: 50000 }, action: 'GEN_REVEAL' }],
          // Not an offseason beat. This fires at creation, before a single game has
          // been played, and tagging it as one dropped a sixteen-year-old into a
@@ -559,13 +564,13 @@ function App() {
       resultText = 'Three questions, three answers that landed. You read the room every time and gave them the quote they came for, and the write-ups the next morning were about you rather than about anything you had to walk back.';
     } else if (hits === 2) {
       fanDelta = 5; mediaDelta = 5;
-      resultText = 'Two of the three landed. One answer went somewhere the room was not expecting and a couple of them led with that, but nothing in it needed correcting and you came out of it fine.';
+      resultText = 'Two of the three landed. One answer went somewhere the room wasn\'t expecting and a couple of them led with that, but nothing in it needed correcting and you came out of it fine.';
     } else if (hits === 1) {
       fanDelta = -5; mediaDelta = -5;
       resultText = 'One of the three landed. The other two came out flat and the room stopped writing halfway through. Nothing damaging, but nobody left with anything either.';
     } else {
       fanDelta = -15; ovrDelta = -1; mediaDelta = -15; coachDelta = -10;
-      resultText = 'You misread all three. The clips went round by the evening with your name on them, the coach was asked about it before you had left the building, and you will be answering for this one for a while.';
+      resultText = 'You misread all three. The clips went round by the evening with your name on them, the coach was asked about it before you had left the building, and you\'ll be answering for this one for a while.';
     }
 
     setSeasonEvents(prevEvents => [...prevEvents, {
@@ -593,10 +598,14 @@ function App() {
 
   const triggerMinigame = (context = 'season', explicitId = null) => {
     minigameLockedRef.current = false;
-    const pool = getMinigamePool(player.pos) || [];
+    // The random pick comes from what fits this moment, so a camp battle never
+    // turns up in a final. An explicit id (the camp event asks for its own
+    // battle) only has to fit the position.
+    const pool = getMinigamePool(player.pos, context) || [];
     
     if (explicitId) {
-        const isValidForPos = pool.some(m => m.id === explicitId);
+        const asked = findMinigame(explicitId);
+        const isValidForPos = !!asked && (!asked.pos || asked.pos.includes(player.pos));
         if (isValidForPos) {
             setActiveMinigame(explicitId);
         } else {
@@ -878,8 +887,8 @@ function App() {
         setActiveEvent({
             title: 'AMATEUR GRADUATION',
             desc: isAgedOutNCAA 
-                ? `Your NCAA eligibility is used up. Your amateur career is over, and it is time to turn pro.`
-                : `You have aged out of major junior. Your amateur career is over, and it is time to turn pro.`,
+                ? `Your NCAA eligibility is used up. Your amateur career is over, and it's time to turn pro.`
+                : `You have aged out of major junior. Your amateur career is over, and it's time to turn pro.`,
             choices: [{ label: 'Enter free agency', effect: { fanStatus: 0, ovr: 0 } }],
             isOffseasonEvent: true
         });
@@ -938,13 +947,23 @@ function App() {
     const isNonELC = player.contract?.salary !== 925000 && player.contract?.salary !== 0;
     const juniorsEligible = isUnder20 && !played10NhlGames && !isNonELC;
 
-    const demoteThresh = player.pos === 'G' ? 71 : 64;
     const lastSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
     const wonRecentTitle = lastSeason?.titleWon === true || (lastSeason?.awards || []).some(a => a.includes('Cup') || a.includes('Championship'));
-    if (wonRecentTitle) return null;
 
-    const proSeasons = proSeasonsOf(player);
-    const needsAHLDevelopment = player.league === 'NHL' && player.ovr < 78 && player.age < 24 && proSeasons < 3 && Math.random() < (isTop10Pick ? 0.25 : 0.85);
+    // CAMP DECIDES WHERE HE STARTS, AND IT'S THE ONLY THING THAT DOES.
+    //
+    // This used to send a player down only. Promotion out of the AHL happened
+    // later, without a word, when the first stretch of the season re-rolled his
+    // placement. That re-roll is gone (see utils/rosterMoves.js), so camp
+    // makes the call both ways now, on one rule: whether he's good enough for
+    // an NHL job at his age and with his record, which is nhlBar. A young
+    // player usually needs a year or two in the AHL first, as in real life.
+    if (player.league === 'AHL') {
+      const parent = parentOf(player.team);
+      if (parent && makesNhlRoster(player)) return { team: parent.id, lg: 'NHL', reason: 'PROMOTION' };
+    }
+    if (wonRecentTitle) return null;
+    const needsAHLDevelopment = player.league === 'NHL' && !makesNhlRoster(player);
     
     const echlDemoteThresh = player.pos === 'G' ? 65 : 59;
     if (player.league === 'AHL' && player.ovr < echlDemoteThresh && Math.random() < 0.70) {
@@ -953,7 +972,7 @@ function App() {
         return { team: echlTeamId, lg: 'ECHL', reason: 'ECHL_REASSIGNMENT' };
     }
 
-    if (player.league === 'NHL' && (player.ovr < demoteThresh || needsAHLDevelopment)) {
+    if (player.league === 'NHL' && needsAHLDevelopment) {
       
       // 🛡️ VETERAN & LEGEND PROTECTIONS 🛡️
       
@@ -964,14 +983,18 @@ function App() {
       if (player.fanStatus >= 600) return null;
       
       // 3. Veteran Contract Grace: Teams rarely waive high-earning vets just for dropping a few OVR points below the threshold.
-      if (player.age >= 32 && (player.contract?.salary || 0) >= 2000000 && player.ovr >= demoteThresh - 4) return null;
+      if (player.age >= 32 && (player.contract?.salary || 0) >= 2000000 && player.ovr >= (player.pos === 'G' ? 71 : 64) - 4) return null;
 
-      if (isTop10Pick && isUnder20) return null; 
-      // A prospect who still has a junior club to go back to is NOT sent down at
-      // camp any more. He makes the roster, plays his nine games, and the club
-      // decides on what it actually saw. That is the nine-game rule, and it now
-      // runs inside the season rather than as a coin flip before it.
-      if (juniorsEligible && hasCHLHistory) return null;
+      // A prospect who still has a junior club to go back to gets his nine
+      // games first if he hasn't had them, and the club decides on what it saw.
+      // If he has, camp decides: the NHL or back to junior. Never the AHL, which
+      // a CHL player can't join before he's twenty.
+      if (juniorsEligible && hasCHLHistory) {
+        if (isNineGameCandidate(player)) return null;
+        if (isTop10Pick && isUnder20 && Math.random() < 0.5) return null;
+        return { team: chlSeason.team, lg: chlSeason.league, reason: 'JUNIOR_ASSIGNMENT' };
+      }
+      if (isTop10Pick && isUnder20) return null;
       else {
          const parentNhlTeam = nhlTeams.find(t => t.id === player.team);
          const ahlTeamId = parentNhlTeam ? parentNhlTeam.ahlId : 'UNK';
@@ -1215,7 +1238,7 @@ function App() {
     if (rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team)) unlockAchievement('betrayal');
     if (player.draftTeam === o.team && player.team !== o.team) {
        unlockAchievement('return_home');
-       setSeasonEvents(prev => [...prev, { feedback: `You are back with ${getFullTeamName(o.team, o.league)}, the team that drafted you.`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
+       setSeasonEvents(prev => [...prev, { feedback: `You're back with ${getFullTeamName(o.team, o.league)}, the team that drafted you.`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
     }
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
@@ -1278,6 +1301,10 @@ function App() {
         earnings: (p.stats?.earnings || 0) + (bonus.money || 0) + firstLump,
         careerEarnings: (p.stats?.careerEarnings || p.stats?.earnings || 0) + (bonus.money || 0) + firstLump
       },
+      // How he got here, so the first camp can say so. A July signing walks
+      // into a room he's never seen; a draftee or a trade doesn't arrive the
+      // same way. See "A new room" in advanceToOffseason.
+      ...(isNewTeam ? { arrivedVia: { how: 'signed', team: o.team, season: p.stats?.seasonsPlayed || 0 } } : {}),
       // FIX: Strip captaincy if moving to a new team
       isCaptain: isNewTeam ? false : p.isCaptain,
       isAlternate: isNewTeam ? false : p.isAlternate,
@@ -1557,6 +1584,7 @@ function App() {
   const contextValue = {
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame,
     FilmRoomGame, OneTimerGame, ScreenedShotGame, ShootoutGame, ShotBlockGame, ZoneBattleGame,
+    OpenIceHitGame, DekeGame, ReboundGame,
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
     checkEarlyDemotion, combineColor, combinePhase, combineScore, currentYear,
@@ -1624,7 +1652,12 @@ function App() {
         />
       )}
 
-      <div className={`w-full mx-auto pb-10 flex-1 ${screen !== 'creation' && screen !== 'retirement' ? 'max-w-7xl flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch' : 'max-w-5xl'}`}>
+      {/* The club's colour, for every panel on the page. See .game-panel in
+          index.css: a strip across the top and a faint wash under it, so a
+          season with one club looks like that club, and a trade or a call-up
+          changes the room you're standing in. */}
+      <div className={`w-full mx-auto pb-10 flex-1 ${screen !== 'creation' && screen !== 'retirement' ? 'max-w-7xl flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch' : 'max-w-5xl'}`}
+           style={player?.team ? { '--club': teamAccent(getTeamData(player.team, player.league)) } : undefined}>
         {screen !== 'creation' && screen !== 'retirement' && (
           <aside aria-label="Your player" className="w-full lg:w-[440px] shrink-0 z-40 flex flex-col lg:sticky lg:top-6 lg:self-start">
             <Dashboard

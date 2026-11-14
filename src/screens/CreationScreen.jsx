@@ -553,7 +553,7 @@ export default function CreationScreen() {
                              
                              <div className="min-w-0 flex-1">
                                <div className="flex justify-between items-start mb-1">
-                                 <h4 className="text-base sm:text-lg font-black text-white sports-font uppercase leading-none truncate">
+                                 <h4 className="text-base sm:text-lg font-black text-white sports-font uppercase leading-none break-words">
                                    {c.name}
                                  </h4>
                                  <div className="flex items-center gap-2 ml-2 shrink-0">
@@ -570,7 +570,7 @@ export default function CreationScreen() {
                                  </div>
                                </div>
                                
-                               <p className="text-[10px] text-slate-400 font-bold uppercase font-sans truncate mb-2">
+                               <p className="text-[10px] text-slate-400 font-bold uppercase font-sans break-words mb-2">
                                  {c.pos} · {c.team}
                                </p>
                                
@@ -592,4 +592,4 @@ export default function CreationScreen() {
             </div>
           </div>
         );
-}
+}

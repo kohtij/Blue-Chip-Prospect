@@ -96,7 +96,7 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
           successChance: 0.35,
           successFeedback: 'The GM panicked and moved you for almost nothing, just to get you out of the room.',
           successEffect: { fanStatus: -50, ovr: 0 },
-          failFeedback: 'The GM called your bluff. You missed camp, lost your conditioning, and your reputation will not recover.',
+          failFeedback: 'The GM called your bluff. You missed camp, lost your conditioning, and your reputation won\'t recover.',
           failEffect: { fanStatus: -125, ovr: -3 },
           action: 'TRADE_HOLDOUT'
         }

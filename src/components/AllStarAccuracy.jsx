@@ -103,7 +103,7 @@ export default function AllStarAccuracy({ onComplete, strategy }) {
               detail={result?.msg}
             />
           }
-          caption={gameStarted ? null : 'They are hung in the four corners. Shoot them out as fast as you can.'}
+          caption={gameStarted ? null : 'They\'re hung in the four corners. Shoot them out as fast as you can.'}
         >
           <Surface view={MOUTH_VIEW}>
             <NetMouth>

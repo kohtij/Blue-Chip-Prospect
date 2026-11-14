@@ -42,7 +42,7 @@ export const EURO_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZ
 
 export const SUBTITLE = {
   contender: [
-    'Twenty-four hours to the deadline. The phones in the GM\'s office have not stopped all week.',
+    'Twenty-four hours to the deadline. The phones in the GM\'s office haven\'t stopped all week.',
     'One day out, and your club is shopping like everyone else in a playoff spot.',
     'The deadline is tomorrow. Everything anyone is talking about here is who might be coming in.',
     'A day left. Your club is in a playoff spot and the staff have been in meetings since Monday.',
@@ -53,7 +53,7 @@ export const SUBTITLE = {
   fringe: [
     'Twenty-four hours to the deadline, and nobody here knows which way this club is leaning.',
     'One day out. Close enough to the race to dream about it, far enough back that the GM takes every call.',
-    'The deadline is tomorrow. This club still has not worked out what it is.',
+    'The deadline is tomorrow. This club still hasn\'t worked out what it is.',
     'A day left, and the next three results will probably decide it for them.',
     'Twenty-four hours to go. A team sitting this close to the line can go either way by three o\'clock.'
   ],
@@ -67,20 +67,20 @@ export const SUBTITLE = {
   // College has no deadline, but it does have a door. These point at the
   // decision the screen actually offers rather than insisting nothing happens.
   college: [
-    'There is no trade deadline in college hockey, but the portal is open.',
+    'There\'s no trade deadline in college hockey, but the portal is open.',
     'The pros spend today on the phone. Your season just carries on, unless you decide otherwise.',
-    'Deadline day belongs to the NHL. Here it is a normal Monday with a game on Friday.',
-    'Nothing moves today. The tournament is weeks out and the portal does not open until spring.',
-    'There is a season to finish. Whether you finish it here is up to you.'
+    'Deadline day belongs to the NHL. Here it\'s a normal Monday with a game on Friday.',
+    'Nothing moves today. The tournament is weeks out and the portal doesn\'t open until spring.',
+    'There\'s a season to finish. Whether you finish it here is up to you.'
   ],
   // The national program picks its players and keeps them. Nobody here is
   // getting a phone call, so the screen should not offer one.
   program: [
-    'Nobody gets traded out of a national programme. You are here until the staff say otherwise.',
-    'The deadline belongs to the pros. The programme does not deal its players.',
+    'Nobody gets traded out of a national programme. You\'re here until the staff say otherwise.',
+    'The deadline belongs to the pros. The programme doesn\'t deal its players.',
     'No calls today. The programme runs on its own schedule.',
-    'Clubs across the league are buying and selling. Here it is a normal training day.',
-    'There is no market for you to be on. The next game is still Friday.'
+    'Clubs across the league are buying and selling. Here it\'s a normal training day.',
+    'There\'s no market for you to be on. The next game is still Friday.'
   ]
 };
 
@@ -89,7 +89,7 @@ export const OUTLOOK = {
   // and cap talk so it reads the same way in Stockholm as it does in Toronto.
   contender: [
     'The club likes this group enough to pay up and make it better.',
-    'They are buying. Somebody is arriving, and somebody is losing their spot.',
+    'They\'re buying. Somebody is arriving, and somebody is losing their spot.',
     'A playoff spot and a GM willing to spend. The staff have made that much clear.',
     'The window is open and nobody wants to be the one who wasted it.',
     'Good teams get greedy in March. This one is no different.'
@@ -106,7 +106,7 @@ export const OUTLOOK = {
   seller: [
     'The GM has spent the week taking calls rather than making them.',
     'The season is written off. What is left is working out what the roster is worth in picks.',
-    'There is nothing to play for, so everybody is available.',
+    'There\'s nothing to play for, so everybody is available.',
     'This far out of it, the staff are already planning for next season.',
     'Whatever comes back this week will be draft picks.'
   ],
@@ -138,9 +138,9 @@ export const SEASON = {
     'Steady work, no headlines. The staff have noticed even if nobody else has.'
   ],
   quiet: [
-    'It has been a quiet year. The points just have not come.',
-    'The points have not come, and today is when that starts to matter.',
-    'You have not given anyone much to talk about.',
+    'It has been a quiet year. The points just haven\'t come.',
+    'The points haven\'t come, and today is when that starts to matter.',
+    'You haven\'t given anyone much to talk about.',
     'A season to forget so far, with time left to fix it.',
     'The numbers are thin. Nobody has been asking.'
   ]
@@ -167,9 +167,9 @@ export const SEASON_AMATEUR = {
     'Steady work, no headlines. Coaches notice that.'
   ],
   quiet: [
-    'It has been a quiet year, and eligibility does not wait.',
-    'The points have not come. There is a season and a half left to change that.',
-    'You have not given anyone much to talk about yet.',
+    'It has been a quiet year, and eligibility doesn\'t wait.',
+    'The points haven\'t come. There\'s a season and a half left to change that.',
+    'You haven\'t given anyone much to talk about yet.',
     'A season to forget so far, with time left to fix it.',
     'The numbers are thin. Nobody has been recruiting on them.'
   ]
@@ -184,31 +184,31 @@ export const CONTRACT = {
   // two of his ELC that "term on the deal makes you harder to move, and easier
   // to build around" described somebody else's career entirely.
   elc: [
-    'You are on an entry-level deal. Cheap, short, and easy for anyone to take on.',
+    'You\'re on an entry-level deal. Cheap, short, and easy for anyone to take on.',
     'Entry-level money for another year yet.',
     'The number is small and the term was never yours to negotiate.',
-    'At this number you are the easiest contract on the roster to fit anywhere.',
+    'At this number you\'re the easiest contract on the roster to fit anywhere.',
     'An entry-level contract is the cheapest thing in the room.'
   ],
   elcExpiring: [
     'Last year of the entry-level deal. The next one is the one that pays.',
     'The rookie deal runs out this summer and you become a restricted free agent.',
-    'You are playing for your second contract from here.',
+    'You\'re playing for your second contract from here.',
     'Your deal expires in the summer, but the club keeps your rights.',
     'Final year of the entry-level contract.'
   ],
   expiring: [
     'An expiring deal in March is the easiest thing in hockey to trade.',
-    'You are out of contract in the summer, and every club has the date.',
+    'You\'re out of contract in the summer, and every club has the date.',
     'Rentals move at the deadline. Most of the day is spent on them.',
-    'Last year of the deal. It is the first line on your file right now.',
+    'Last year of the deal. It\'s the first line on your file right now.',
     'Nobody lets a player walk for nothing if they can avoid it.'
   ],
   signed: [
     'Term on the deal makes you harder to move.',
     'Anyone trading for you is trading for more than a few months.',
-    'You are signed past this season, so this is not a rental conversation.',
-    'There is time left on the deal.',
+    'You\'re signed past this season, so this isn\'t a rental conversation.',
+    'There\'s time left on the deal.',
     'Signed past the summer, so the club can plan around you.'
   ]
 };
@@ -225,7 +225,7 @@ export const RUMOUR = {
     { label: 'LINKED IN THE RUMOURS', note: 'An expiring deal on a selling club. The calls are being made.' },
     { label: 'ON THE MARKET', note: 'Your name keeps turning up halfway down every report.' },
     { label: 'QUIETLY AVAILABLE', note: "Nobody has said it out loud, but the club is listening." },
-    { label: 'IN THE CONVERSATION', note: 'Your agent has taken three calls this week he was not expecting.' },
+    { label: 'IN THE CONVERSATION', note: 'Your agent has taken three calls this week he wasn\'t expecting.' },
     { label: 'A NAME BEING FLOATED', note: 'Contenders looking for depth have been told to call about you.' }
   ],
   cool: [
@@ -239,7 +239,7 @@ export const RUMOUR = {
     { label: 'NOBODY IS TALKING', note: 'Nothing in the rumour mill points anywhere near you.' },
     { label: 'NOT A WORD', note: "Your name hasn't come up once all week." },
     { label: 'OFF THE RADAR', note: "Whatever happens today, it's happening to somebody else." },
-    { label: 'STAYING PUT', note: 'No calls and no links. You will not be packing a bag.' },
+    { label: 'STAYING PUT', note: 'No calls and no links. You won\'t be packing a bag.' },
     { label: 'NOT FOR SALE', note: "Nobody has asked about you, and the club isn't listening anyway." }
   ]
 };
@@ -253,7 +253,7 @@ export const STAKES = {
     { label: 'IN THE HUNT', note: 'Hold this spot and the postseason looks after itself.' },
     { label: 'CONTROL YOUR OWN FATE', note: 'Nobody else has to lose for this to work out.' },
     { label: 'THE RUN IN', note: 'A handful of games between here and the part that counts.' },
-    { label: 'WELL PLACED', note: 'Barring a collapse you are in. The draw is what is left to play for.' }
+    { label: 'WELL PLACED', note: 'Barring a collapse you\'re in. The draw is what is left to play for.' }
   ],
   outOfRace: [
     { label: 'PLAYING FOR PRIDE', note: "The standings say it's over. The games get played anyway." },
@@ -315,7 +315,7 @@ const TRADE_CALL = {
     solid: [
       "Your GM called you into the office and got to it quickly. The season was gone, and your name kept coming up on other people's lists.",
       "He thanked you for the year before he said anything else, and you knew then.",
-      "The call came with twenty minutes left on the clock, and it did not take long."
+      "The call came with twenty minutes left on the clock, and it didn't take long."
     ],
     piece: [
       "Your GM called you in, glanced at a sheet of paper, and told you you had been moved.",
@@ -327,8 +327,8 @@ const TRADE_CALL = {
   buying: {
     prize: [
       "Your GM did the explaining for once. The club had a real chance this year, the player it wanted had a price, and you were most of that price.",
-      "He told you the other side had asked for you by name and would not do the deal without you. Then he said he was sorry, and meant it.",
-      "You were told you are the reason this club could do something this big. It was not much comfort, but he wasn't wrong."
+      "He told you the other side had asked for you by name and wouldn't do the deal without you. Then he said he was sorry, and meant it.",
+      "You were told you're the reason this club could do something this big. It wasn't much comfort, but he wasn't wrong."
     ],
     solid: [
       "Your GM admitted the deal had been agreed since lunchtime and that he had been avoiding you since. The other side wouldn't sign it off without you in it.",
@@ -366,7 +366,7 @@ const TRADE_PACKAGE = {
   sellingEuro: {
     prize: [
       'The fee set a club record, and half the league had been on the phone about you since November.',
-      'They sold you for the kind of money this club does not normally see, and the board had been waiting for it.',
+      'They sold you for the kind of money this club doesn\'t normally see, and the board had been waiting for it.',
       'The fee was large enough that nobody pretended this was a hockey decision.'
     ],
     solid: [
@@ -376,25 +376,25 @@ const TRADE_PACKAGE = {
     ],
     piece: [
       'The fee barely covered the paperwork.',
-      'The money involved would not have bought the bus.',
+      'The money involved wouldn\'t have bought the bus.',
       'There was a fee. Nobody has said what it was and nobody has asked.'
     ]
   },
   buying: {
     prize: [
-      'Coming the other way is a name everybody in the league knows. You are the reason the deal could be done at all.',
-      'The club got the player it has wanted for two years. You are what that player cost.',
+      'Coming the other way is a name everybody in the league knows. You\'re the reason the deal could be done at all.',
+      'The club got the player it has wanted for two years. You\'re what that player cost.',
       'The man arriving has his own trophy case. So does the GM who gave you up to get him.'
     ],
     solid: [
-      'A top-six forward is arriving, and you are most of what paid for him.',
+      'A top-six forward is arriving, and you\'re most of what paid for him.',
       'The club brought in the piece it was missing. You and a pick went out to get it.',
       'The club brought in a better player than you and sent you the other way to get him.'
     ],
     piece: [
       'You were the salary that made the money work.',
       'The deal was built around somebody else. You went in the same envelope.',
-      'Your contract fit a hole in the cap. That is why the call came.'
+      'Your contract fit a hole in the cap. That\'s why the call came.'
     ]
   }
 };
@@ -404,7 +404,7 @@ const TRADE_PACKAGE = {
 // contract changing hands in March.
 const TRADE_REACTION = {
   prize: [
-    'The phone-in shows were still going at midnight.',
+    'Sports radio was still taking calls about it at midnight.',
     'Your jersey was in three shop windows that morning and out of all of them by the evening.',
     'Two reporters were waiting in the car park before you had finished clearing out your stall.'
   ],

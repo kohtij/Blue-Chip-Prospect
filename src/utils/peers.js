@@ -1660,7 +1660,7 @@ export function classNews(peers, player) {
   if (ahead && mine > 0 && how(ahead.p)) {
     candidates.push({
       weight: 3, id: ahead.p.id, kind: 'passed',
-      line: `${ahead.p.name}, ${how(ahead.p)}, went past you this season. He is on ${peerStatLine(ahead.p, player?.pos || 'C')} for his career, you are on ${myLine}.`
+      line: `${ahead.p.name}, ${how(ahead.p)}, went past you this season. He's on ${peerStatLine(ahead.p, player?.pos || 'C')} for his career, you're on ${myLine}.`
     });
   }
 
@@ -1730,7 +1730,7 @@ export function classPressQuestion(peers, player) {
       passionate: [
         `Of course it registers. I've been chasing ${who} since we were seventeen.`,
         'I know exactly where he is. I have since draft day.',
-        'You keep a list in your head. He is on mine.'
+        'You keep a list in your head. He\'s on mine.'
       ],
       humble: [
         `${who} has had a terrific career. I'm pleased for him.`,
@@ -1739,8 +1739,8 @@ export function classPressQuestion(peers, player) {
       ],
       cocky: [
         'Ask me again in three years.',
-        `${who} has had a nice run. It is a long career.`,
-        'He is ahead today. Today is not the part I care about.'
+        `${who} has had a nice run. It's a long career.`,
+        'He\'s ahead today. Today isn\'t the part I care about.'
       ]
     }
   };

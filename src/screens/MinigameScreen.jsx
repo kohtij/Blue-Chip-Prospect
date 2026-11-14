@@ -1,4 +1,4 @@
-import 'react';
+import { useEffect, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { findMinigame } from '../data/minigames';
 import { getStakes } from '../utils/stakes';
@@ -16,6 +16,7 @@ export default function MinigameScreen() {
   const {
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, FilmRoomGame,
     OneTimerGame, ScreenedShotGame, ShootoutGame, ShotBlockGame, ZoneBattleGame,
+    OpenIceHitGame, DekeGame, ReboundGame,
     activeMinigame, handleInteractiveResult, minigameContext, minigameStarted,
     player, setMinigameStarted
   } = useAppContext();
@@ -25,7 +26,9 @@ export default function MinigameScreen() {
   // What this moment is worth and how hard it should be. Every game reads its
   // challenge off the player's ratings, so meeting him with a sterner opponent
   // is what makes a final bite for all of them at once.
-  const stakes = getStakes(minigameContext, player.intlRound, player.intlOppTier);
+  // A game that only belongs to one moment (the camp battles) is graded as
+  // that moment, whatever context the event that sent you here was in.
+  const stakes = getStakes(mg?.contexts?.length === 1 ? mg.contexts[0] : minigameContext, player.intlRound, player.intlOppTier);
 
   // The moment travels with the result. Without it the season recap showed the
   // outcome line on its own under a generic "In the news" heading, so "Clean
@@ -37,6 +40,16 @@ export default function MinigameScreen() {
     gameId: mg?.id, title: mg?.title, setup: mg?.desc, stakes: stakes.label
   });
   const common = { player, difficulty: stakes.difficulty, onComplete: done };
+
+  // When the game starts, bring it to the top of the screen. On a phone the
+  // player card sits above it, and on any screen the brief above can leave the
+  // play button below the fold.
+  const playRef = useRef(null);
+  useEffect(() => {
+    if (!minigameStarted || !playRef.current) return;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    playRef.current.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+  }, [minigameStarted]);
 
   return (
     <div className="game-panel p-5 sm:p-8 mt-2 flex flex-col">
@@ -50,7 +63,7 @@ export default function MinigameScreen() {
           onStart={() => setMinigameStarted(true)}
         />
       ) : (
-        <div className="w-full fade-up">
+        <div ref={playRef} className="w-full fade-up scroll-mt-3">
           <div className="flex items-center justify-center gap-3 mb-5">
             <span className="h-px flex-1 max-w-16 bg-[rgba(255,255,255,0.08)]" />
             <h2 className="text-base sm:text-lg font-black text-slate-400 sports-font tracking-[0.2em] uppercase text-center">
@@ -70,6 +83,9 @@ export default function MinigameScreen() {
           {mg?.gameType === 'breakout' && <BreakoutGame {...common} />}
           {mg?.gameType === 'screened' && <ScreenedShotGame {...common} />}
           {mg?.gameType === 'zone_battle' && <ZoneBattleGame {...common} />}
+          {mg?.gameType === 'hit' && <OpenIceHitGame {...common} />}
+          {mg?.gameType === 'deke' && <DekeGame {...common} />}
+          {mg?.gameType === 'rebound' && <ReboundGame {...common} />}
         </div>
       )}
     </div>

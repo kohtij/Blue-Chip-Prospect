@@ -21,7 +21,7 @@ import PlayCard from '../components/PlayCard';
 const GAME_TYPE_TO_KEY = {
   breakaway: 'breakaway', faceoff: 'faceoff', deflect: 'deflection', shootout: 'shootout',
   onetimer: 'onetimer', crease: 'crease', block: 'shotblock', breakout: 'breakout',
-  screened: 'screened', zone_battle: 'zone_battle'
+  screened: 'screened', zone_battle: 'zone_battle', hit: 'hit', deke: 'deke', rebound: 'rebound'
 };
 
 const MEDAL_STYLE = {
@@ -67,7 +67,7 @@ function RunLine({ run }) {
             <span className={`relative z-10 w-3 h-3 rounded-full border-2 transition-all ${dot} ${
               now ? 'animate-pulse' : ''
             }`} />
-            <span className={`mt-1.5 text-[7px] sm:text-[9px] font-black uppercase tracking-widest truncate max-w-full ${
+            <span className={`mt-1.5 text-[7px] sm:text-[9px] font-black uppercase tracking-widest break-words max-w-full leading-tight ${
               lost ? 'text-[#ef4444]' : won ? 'text-[#22E748]' : now ? 'text-[#F59E0B]' : 'text-slate-600'
             }`}>
               {r.short}
@@ -93,6 +93,7 @@ export default function IntlTournamentScreen() {
   const {
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame,
     ShotBlockGame, OneTimerGame, ZoneBattleGame, ScreenedShotGame,
+    OpenIceHitGame, DekeGame, ReboundGame,
     activeEvent, minigameContext, player, proceedToNextScreen, safeNationalities,
     setPlayer, setSeasonEvents, unlockAchievement
   } = useAppContext();
@@ -204,10 +205,10 @@ export default function IntlTournamentScreen() {
         <div className="flex items-center gap-3 min-w-0">
           <Flag nation={nat} className="w-8 h-6 sm:w-10 sm:h-7" />
           <div className="min-w-0">
-            <h2 className="text-xl sm:text-3xl font-black text-white sports-font tracking-tighter uppercase leading-none truncate">
+            <h2 className="text-xl sm:text-3xl font-black text-white sports-font tracking-tighter uppercase leading-none break-words">
               {TITLE[minigameContext] || 'WORLD CHAMPIONSHIP'}
             </h2>
-            <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 truncate">
+            <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 break-words">
               {countryName} · {run.division} · {run.year}
             </p>
             {/* The federation names its own leaders, and it is not the club's
@@ -239,7 +240,7 @@ export default function IntlTournamentScreen() {
           part to find. One rule per line instead. */}
       <div className="border-y border-[rgba(255,255,255,0.065)] py-3 mb-4 space-y-1.5">
         <p className="text-[11px] sm:text-xs text-slate-300 font-sans leading-snug">
-          Every game is one read: pick a play, and hope their video staff has not already picked it apart.
+          Every game is one read: pick a play, and hope their video staff hasn't already picked it apart.
         </p>
         {/* Only the stage you are standing in.
             All four rules used to sit here at once, so a group game told you
@@ -252,10 +253,10 @@ export default function IntlTournamentScreen() {
             : round.kind === 'group'
               ? ['This game', `A group game. Bank ${PTS_TO_ADVANCE} points to get out: read them cleanly for 3, scrape through for 1.`]
               : medal
-                ? ['This game', 'A medal game. Get read and it is over, and there is no escape in one of these.']
+                ? ['This game', 'A medal game. Get read and it\'s over, and there\'s no escape in one of these.']
                 : ['This game', run?.escapeUsed
-                    ? 'A knockout. Get read and you are out, and your escape is already spent.'
-                    : 'A knockout. Get read and you are out, unless you spend your one escape.'];
+                    ? 'A knockout. Get read and you\'re out, and your escape is already spent.'
+                    : 'A knockout. Get read and you\'re out, unless you spend your one escape.'];
           return [
             stage,
             ['On tape', 'Every play you run gets watched. They look there first next time.']
@@ -349,7 +350,7 @@ export default function IntlTournamentScreen() {
               <p className="text-xs sm:text-sm text-slate-300 font-sans mt-1 leading-snug">
                 {run.letter === 'C'
                   ? `The federation has given you the C. You lead ${countryName} at this tournament.`
-                  : `The federation has given you an A. You are part of the leadership group for ${countryName}.`}
+                  : `The federation has given you an A. You're part of the leadership group for ${countryName}.`}
               </p>
             </div>
           )}
@@ -365,12 +366,12 @@ export default function IntlTournamentScreen() {
               </p>
               <div className="flex items-center gap-2 min-w-0">
                 <Flag nation={nat} />
-                <span className="text-sm sm:text-lg font-black text-white sports-font uppercase truncate">
+                <span className="text-sm sm:text-lg font-black text-white sports-font uppercase break-words">
                   {nat?.id || player.nat}
                 </span>
                 <span className="text-[10px] font-black text-slate-600 uppercase">vs</span>
                 <Flag nation={round?.opponent} />
-                <span className="text-sm sm:text-lg font-black text-slate-300 sports-font uppercase truncate">
+                <span className="text-sm sm:text-lg font-black text-slate-300 sports-font uppercase break-words">
                   {round?.opponent?.name || round?.opponent?.id}
                 </span>
               </div>
@@ -406,6 +407,9 @@ export default function IntlTournamentScreen() {
                 {lastChance === 'breakout' && <BreakoutGame {...mgProps} />}
                 {lastChance === 'screened' && <ScreenedShotGame {...mgProps} />}
                 {lastChance === 'zone_battle' && <ZoneBattleGame {...mgProps} />}
+                {lastChance === 'hit' && <OpenIceHitGame {...mgProps} />}
+                {lastChance === 'deke' && <DekeGame {...mgProps} />}
+                {lastChance === 'rebound' && <ReboundGame {...mgProps} />}
               </div>
             </div>
           ) : outcome ? (
@@ -468,7 +472,7 @@ export default function IntlTournamentScreen() {
                     arrow on it needs saying once. */}
                 {run.seesFavourite && (
                   <p className="text-[10px] sm:text-[11px] text-[#38bdf8] font-sans mt-1.5">
-                    This group has run one of these a thousand times together. It does not matter if they know it is coming.
+                    This group has run one of these a thousand times together. It doesn't matter if they know it's coming.
                   </p>
                 )}
                 <div className="flex items-center justify-center gap-3 mt-2 flex-wrap text-[8px] sm:text-[9px] font-black uppercase tracking-widest">
@@ -571,7 +575,7 @@ export default function IntlTournamentScreen() {
                   <div key={`${r.key}-${i}`} className="flex items-center gap-2 bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-lg px-2.5 py-1.5">
                     <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 w-10 sm:w-14 shrink-0">{r.short}</span>
                     <Flag nation={r.opponent} className="w-4 h-3" />
-                    <span className="text-[10px] sm:text-xs font-bold text-slate-300 truncate min-w-0">{r.opponent?.name || r.opponent?.id}</span>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-300 break-words min-w-0">{r.opponent?.name || r.opponent?.id}</span>
                     <span className={`ml-auto shrink-0 text-[9px] sm:text-[10px] font-black sports-font px-2 py-0.5 rounded border ${
                       r.won ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'
                     }`}>

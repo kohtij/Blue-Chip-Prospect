@@ -37,4 +37,6 @@ export const TAG_GREEN = `${TAG} bg-[#22E748]/10 text-[#22E748] border-[#22E748]
 
 // A choice the player makes on an event or a decision screen: one row, a
 // title, a line under it, tags on the right.
-export const CHOICE_ROW = 'relative overflow-hidden group p-4 sm:p-5 rounded-xl text-left transition-colors flex flex-col justify-center h-full border bg-[#101410] text-white border-[rgba(255,255,255,0.08)] hover:bg-[#151b15] hover:border-[rgba(255,255,255,0.22)] cursor-pointer';
+// Content starts at the top of the box. Centred vertically, two choices side
+// by side with different amounts of text had their titles at different heights.
+export const CHOICE_ROW = 'relative overflow-hidden group p-4 sm:p-5 rounded-xl text-left transition-colors flex flex-col justify-start h-full border bg-[#101410] text-white border-[rgba(255,255,255,0.08)] hover:bg-[#151b15] hover:border-[rgba(255,255,255,0.22)] cursor-pointer';

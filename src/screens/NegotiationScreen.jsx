@@ -7,14 +7,10 @@ import { bonusCeiling, SB_SHARE, veteranBonuses } from '../utils/bonuses';
 
 // CONTRACT TALKS.
 //
-// Two columns. On the left, the deal as it stands, written the way a free
-// agency card writes it (a salary "/YR", the term under it, labelled rows),
-// and the GM across the desk. On the right, every ask you can make, one under
-// another, grouped by what it changes, and the two ways out at the bottom.
-// It used to be one long column with the asks laid out in grids of two and
-// three inside it, so the eye zigzagged between columns of buttons and the
-// deal it was changing was a scroll away. On a phone the two columns stack:
-// the deal first, then the asks.
+// One column: the deal as it stands, written the way a free agency card
+// writes it (a salary "/YR", the term under it, labelled rows), the GM's
+// patience under that, and then the asks as compact buttons, grouped by what
+// they change, with the two ways out at the bottom.
 //
 // Protection is new. A no-trade clause stops the club trading him without his
 // say. A no-movement clause goes further: no trade, no waivers, no sending
@@ -40,22 +36,22 @@ const MOOD = [
   { at: 70, word: 'Patient', tone: '#22E748' },
   { at: 45, word: 'Getting short with you', tone: '#F59E0B' },
   { at: 20, word: 'Close to walking out', tone: '#f97316' },
-  { at: 0, word: 'One more push and he is gone', tone: '#ef4444' }
+  { at: 0, word: 'One more push and he\'s gone', tone: '#ef4444' }
 ];
 const moodOf = (p) => MOOD.find(m => p > m.at) || MOOD[MOOD.length - 1];
 
 // What the GM says back, by move and outcome. One line each, in his voice.
 const REPLY = {
   safe: ['He wrote a slightly bigger number down without much argument.'],
-  hardball: ['He did not like it, and he moved anyway.'],
+  hardball: ['He didn\'t like it, and he moved anyway.'],
   bluff_ok: ['He believed you had another offer. The number went up a long way.'],
   bluff_no: ['He asked to see the other offer. There was no other offer.'],
   term_up_ok: ['He agreed to add a year.'],
-  term_up_no: ['He would not go a year longer, and it cost you some goodwill asking.'],
+  term_up_no: ['He wouldn\'t go a year longer, and it cost you some goodwill asking.'],
   term_down_ok: ['He took a year off the deal.'],
   term_down_no: ['He wants the term he offered, and said so.'],
   ntc_ok: ['He agreed to a no-trade clause, and took a little off the money for it.'],
-  ntc_no: ['He will not give up the right to trade you, at least not yet.'],
+  ntc_no: ['He won\'t give up the right to trade you, at least not yet.'],
   nmc_ok: ['He gave you a full no-movement clause, took real money off for it, and still looked like he regretted it.'],
   nmc_no: ['He laughed, then saw you were serious, and stopped laughing.'],
   sb_ok: ['He agreed to pay half of it as signing bonuses, and shaved a little off for the trouble.'],
@@ -238,7 +234,7 @@ export default function NegotiationScreen() {
       setNegotiation(prev => ({
         ...prev, gmPatience: 0, currentSalary: Math.max(850000, prev.currentSalary - penalty),
         status: 'busted', history: [...prev.history, { label, success: false }],
-        msg: `He walked out of the room, and the offer he left on the table is ${money(penalty)} a year lower. Word is getting round the league that you are greedy.`
+        msg: `He walked out of the room, and the offer he left on the table is ${money(penalty)} a year lower. Word is getting round the league that you're greedy.`
       }));
       return;
     }
@@ -256,7 +252,7 @@ export default function NegotiationScreen() {
       rounds: nextRound,
       history: [...prev.history, { label, success: ok }],
       status: nextRound >= prev.maxRounds ? 'maxed' : 'playing',
-      msg: nextRound >= prev.maxRounds ? `${reply} That is as far as he will go.` : reply
+      msg: nextRound >= prev.maxRounds ? `${reply} That's as far as he'll go.` : reply
     }));
   };
 
@@ -269,14 +265,19 @@ export default function NegotiationScreen() {
   const clauseBlocked = !clauseLeague
     ? 'Clauses are an NHL thing. Nobody here will put one in.'
     : !ufaEligible
-      ? 'Not until you are UFA-eligible: 27, or seven pro seasons.'
+      ? 'Not until you\'re UFA-eligible: 27, or seven pro seasons.'
       : null;
 
   return (
-    <div className="max-w-5xl mx-auto mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+    // The talks are with the club making the offer, so the page wears its
+    // colour rather than the colour of the club you're leaving.
+    // w-full: with auto side margins and no width of its own, the page sized
+    // itself to its content and got narrower or wider as the GM's reply and
+    // the list of asks changed length.
+    <div className="w-full max-w-2xl mx-auto mt-2 flex flex-col gap-3" style={{ '--club': accent }}>
 
       {/* THE DEAL, AND THE MAN ACROSS THE DESK */}
-      <div className="game-panel relative overflow-hidden p-4 sm:p-6 md:sticky md:top-2">
+      <div className="game-panel relative overflow-hidden p-4 sm:p-6">
         <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: accent }} />
         <div className="absolute inset-x-0 top-0 h-24 pointer-events-none opacity-[0.14]"
              style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }} />
@@ -368,8 +369,14 @@ export default function NegotiationScreen() {
         </div>
       </div>
 
-      {/* EVERYTHING YOU CAN DO, IN ONE COLUMN */}
+      {/* EVERYTHING YOU CAN DO, UNDER THE DEAL IT CHANGES */}
       <div className="game-panel p-4 sm:p-6 flex flex-col gap-4">
+        {/* Signing comes first: it's the decision every ask is working
+            towards, and it shouldn't sit below a screen of buttons. Going
+            back to the other offers stays at the very bottom. */}
+        <button onClick={() => finishNegotiation(true)} className={`btn-primary w-full py-4 rounded-xl font-black sports-font text-base sm:text-lg uppercase tracking-widest cursor-pointer ${live ? 'mb-1' : ''}`}>
+          Sign this deal
+        </button>
         {live ? (
           <>
             {/* Money asks always move the number, so the line under them is
@@ -388,10 +395,10 @@ export default function NegotiationScreen() {
             <Group title="Term">
               <Move onPick={push} live={live} type="term_up" title="+1 year"
                     hint={oddsOf(0.50 + (hasAgent ? 0.25 : 0)).word} tone={oddsOf(0.50 + (hasAgent ? 0.25 : 0)).tone}
-                    explain="One more year of security, if he will go there." disabled={n.currentYears >= 8} />
+                    explain="One more year of security, if he'll go there." disabled={n.currentYears >= 8} />
               <Move onPick={push} live={live} type="term_down" title="-1 year"
                     hint={oddsOf(0.60 + (hasAgent ? 0.25 : 0)).word} tone={oddsOf(0.60 + (hasAgent ? 0.25 : 0)).tone}
-                    explain="One year shorter, so you are back on the market sooner." disabled={n.currentYears <= 1} />
+                    explain="One year shorter, so you're back on the market sooner." disabled={n.currentYears <= 1} />
             </Group>
             {/* Clauses and bonus structure only exist on NHL deals here, so
                 anywhere else the two groups are left off. When they are locked
@@ -400,7 +407,7 @@ export default function NegotiationScreen() {
               <Group title="Protection" note={clauseBlocked}>
                 <Move onPick={push} live={live} type="ntc" title="No-trade" tone={oddsOf(ntcOdds).tone}
                       hint={clauseBlocked ? 'Locked' : (ntc || nmc) ? 'In the deal' : oddsOf(ntcOdds).word}
-                      explain="He cannot trade you without your say. Takes about 3% off the money."
+                      explain="He can't trade you without your say. Takes about 3% off the money."
                       disabled={!!clauseBlocked || ntc || nmc} />
                 <Move onPick={push} live={live} type="nmc" title="No-movement" tone={oddsOf(nmcOdds).tone}
                       hint={clauseBlocked ? 'Locked' : nmc ? 'In the deal' : oddsOf(nmcOdds).word}
@@ -412,7 +419,7 @@ export default function NegotiationScreen() {
               <Group title="How it's paid" note={gpBlocked && !gp ? `Games bonus: ${gpBlocked.toLowerCase()}` : null}>
                 <Move onPick={push} live={live} type="sb" title="Signing bonus" tone={oddsOf(sbOdds).tone}
                       hint={sb ? 'In the deal' : oddsOf(sbOdds).word}
-                      explain="Half of each year paid on July 1, where a buyout cannot touch it. Takes about 2% off the money."
+                      explain="Half of each year paid on July 1, where a buyout can't touch it. Takes about 2% off the money."
                       disabled={sb} />
                 <Move onPick={push} live={live} type="gp" title="Games bonus" tone={oddsOf(gpOdds).tone}
                       hint={gpBlocked ? 'Locked' : gp ? 'In the deal' : oddsOf(gpOdds).word}
@@ -425,14 +432,11 @@ export default function NegotiationScreen() {
           <p className="text-sm text-slate-300 leading-relaxed">
             {n.status === 'busted'
               ? 'The talks are over. You can still sign what he left on the table, or go back to your other offers.'
-              : 'He has gone as far as he will go. Sign it, or go back to your other offers.'}
+              : 'He has gone as far as he\'ll go. Sign it, or go back to your other offers.'}
           </p>
         )}
 
         <div className={`flex flex-col gap-2 ${live ? 'pt-4 border-t border-[rgba(255,255,255,0.07)]' : ''}`}>
-          <button onClick={() => finishNegotiation(true)} className="btn-primary w-full py-4 rounded-xl font-black sports-font text-base sm:text-lg uppercase tracking-widest cursor-pointer">
-            Sign this deal
-          </button>
           <button onClick={() => finishNegotiation(false)} className="btn-secondary w-full py-3.5 rounded-xl font-black sports-font text-sm uppercase tracking-widest cursor-pointer">
             Back to offers
           </button>

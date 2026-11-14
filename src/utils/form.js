@@ -58,10 +58,10 @@ export function slumpEvent(player, seg) {
   const sv = seg.shots > 0 ? (seg.saves / seg.shots).toFixed(3).replace('0.', '.') : '.000';
 
   const desc = isGoalie
-    ? `A ${sv} save percentage over your last ${gp} games. The goals that are beating you are not the hard ones, and you can hear the crowd go quiet every time a shot comes in from the point. The goalie coach wants to talk.`
+    ? `A ${sv} save percentage over your last ${gp} games. The goals that are beating you aren't the hard ones, and you can hear the crowd go quiet every time a shot comes in from the point. The goalie coach wants to talk.`
     : goals === 0
-      ? `No goals in your last ${gp} games and ${pts} point${pts === 1 ? '' : 's'} in total. You are getting chances, and every one of them is finding a pad, a post or a stick. The reporters have started counting.`
-      : `${goals} goal${goals === 1 ? '' : 's'} and ${pts} point${pts === 1 ? '' : 's'} in your last ${gp} games. You are getting chances, and every one of them is finding a pad, a post or a stick. The reporters have started counting.`;
+      ? `No goals in your last ${gp} games and ${pts} point${pts === 1 ? '' : 's'} in total. You're getting chances, and every one of them is finding a pad, a post or a stick. The reporters have started counting.`
+      : `${goals} goal${goals === 1 ? '' : 's'} and ${pts} point${pts === 1 ? '' : 's'} in your last ${gp} games. You're getting chances, and every one of them is finding a pad, a post or a stick. The reporters have started counting.`;
 
   const choices = isGoalie ? [
     {
@@ -111,9 +111,9 @@ export function slumpEvent(player, seg) {
       label: 'Change your sticks and your routine',
       subLabel: 'New curve, new tape job, a different pregame meal. It might shake something loose.',
       isRisky: true, successChance: 0.5,
-      successFeedback: 'New curve, new tape and a different drive to the rink, and you scored twice in the first game. You are not changing back.',
+      successFeedback: 'New curve, new tape and a different drive to the rink, and you scored twice in the first game. You aren\'t changing back.',
       successEffect: { fanStatus: 10, ovr: 0, rel: { media: 5 } },
-      failFeedback: 'You changed everything and spent three weeks fighting a curve you did not trust. The slump went on.',
+      failFeedback: 'You changed everything and spent three weeks fighting a curve you didn\'t trust. The slump went on.',
       failEffect: { fanStatus: -10, ovr: 0, rel: { coach: -5 } },
       action: 'SLUMP_RESPONSE', actionData: { successBoost: 1.15, failBoost: 0.93 }
     }

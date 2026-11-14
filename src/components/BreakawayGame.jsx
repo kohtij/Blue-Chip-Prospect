@@ -105,7 +105,7 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
     return (
       <div className="w-full max-w-xl mx-auto fade-up">
         <p className="text-center text-sm sm:text-base text-slate-300 leading-relaxed">
-          He is coming in alone. You can take the deke away by committing to a side early, or you
+          He's coming in alone. You can take the deke away by committing to a side early, or you
           can stay on your feet and back yourself to get there.
         </p>
         <div className="mt-6 flex flex-col gap-2.5">

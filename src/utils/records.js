@@ -199,5 +199,5 @@ export function recordLine(rec, clubName) {
     : rec.previousHolder
       ? ` You took it off ${rec.previousHolder}, who had held it since ${rec.previousYear}.`
       : '';
-  return `${what.charAt(0).toUpperCase()}${what.slice(1)}. That is ${where}.${taken}`;
+  return `${what.charAt(0).toUpperCase()}${what.slice(1)}. That's ${where}.${taken}`;
 }

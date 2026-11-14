@@ -28,7 +28,7 @@ export default function PerkChip({ perk, isFlaw = false, inline = false }) {
       className={`flex items-center gap-1 text-[9px] sm:text-[10px] px-1.5 py-1 rounded font-black tracking-normal uppercase border leading-none ${inline ? 'w-auto gap-2' : 'w-full'} ${tone}`}
       title={effect ? `${name} (${effect})` : name}
     >
-      <span className={inline ? 'whitespace-nowrap' : 'truncate min-w-0'}>{name}</span>
+      <span className={inline ? 'whitespace-nowrap' : 'break-words min-w-0 leading-tight'}>{name}</span>
       {effect && <span className={`shrink-0 whitespace-nowrap opacity-95 ${inline ? '' : 'ml-auto'}`}>{effect}</span>}
     </span>
   );

@@ -62,7 +62,7 @@ export default function MemorialCupScreen() {
                        : 'bg-[#0a0d0a] border-[rgba(255,255,255,0.04)] text-slate-500'
                  }`}>
                     <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">STAGE 1: SEMI-FINAL</p>
-                    <p className="text-[10px] sm:text-xs font-bold truncate">VS {semiOpponent}</p>
+                    <p className="text-[10px] sm:text-xs font-bold break-words">VS {semiOpponent}</p>
                     {(memCup.status === 'semi_won' || isFinal) && <span className="text-[9px] font-black">✓ WON</span>}
                  </div>
 
@@ -76,7 +76,7 @@ export default function MemorialCupScreen() {
                        : 'bg-[#0a0d0a] border-[rgba(255,255,255,0.04)] opacity-50 text-slate-500'
                  }`}>
                     <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">STAGE 2: FINAL</p>
-                    <p className="text-[10px] sm:text-xs font-bold truncate">VS {finalOpponent}</p>
+                    <p className="text-[10px] sm:text-xs font-bold break-words">VS {finalOpponent}</p>
                     {memCup.status === 'won' && <span className="text-[9px] font-black">🏆 CHAMPION</span>}
                  </div>
               </div>

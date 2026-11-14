@@ -1,11 +1,14 @@
-import { getOpponentPool, getTeamData, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
+import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
 import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { buyoutTerms, salaryParts } from '../utils/bonuses';
-import { COACH_SYSTEMS, coachOpening, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
+import { coachOpening, ensureClub, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
+import { teammatesFrom } from '../utils/peers';
+import { arrivalIntro, arrivalKind, coachBackground, coachIntro } from '../utils/lore';
+import { isCorePlayer } from '../utils/rosterMoves';
 import { teamStrengthOf } from '../utils/leagueState';
 
 export function advanceToOffseason(ctx) {
@@ -144,7 +147,7 @@ export function advanceToOffseason(ctx) {
           label: 'Soak it in',
           subLabel: 'Ride the parade route, then get off your feet and let the body heal.',
           isRisky: false,
-          feedback: `A day you will tell your grandchildren about. Now the body gets its summer.`,
+          feedback: `A day you'll tell your grandchildren about. Now the body gets its summer.`,
           effect: { fanStatus: 60, ovr: 1, rel: { teammates: 20 } }
       };
 
@@ -153,7 +156,7 @@ export function advanceToOffseason(ctx) {
           subLabel: 'Three days with the trophy and no sleep, for better or worse.',
           isRisky: true,
           successChance: 0.70,
-          successFeedback: 'The stories from those three days still go round the room. You will be close with these men for life.',
+          successFeedback: 'The stories from those three days still go round the room. You\'ll be close with these men for life.',
           successEffect: { fanStatus: 30, ovr: 0, money: -25000, rel: { teammates: 45 } },
           failFeedback: 'You went too far and ended up on the local news looking like a fool.',
           failEffect: { fanStatus: -25, ovr: -1, money: -25000, rel: { media: -25 } }
@@ -190,8 +193,8 @@ export function advanceToOffseason(ctx) {
       ctx.setActiveEvent({
           title: wonMemCup ? '🏆 MEMORIAL CUP CHAMPIONS' : '🏆 CHAMPIONSHIP PARADE',
           desc: wonMemCup
-            ? `You beat the best junior teams in the country and the ${trophyName} is coming home with you. The city shut down the main street for the parade, and you are on the lead fire truck holding it over your head.`
-            : `The city shut down the main street for your ${trophyName} parade. You are on the lead fire truck with the trophy over your head and thousands of people chanting your name.`,
+            ? `You beat the best junior teams in the country and the ${trophyName} is coming home with you. The city shut down the main street for the parade, and you're on the lead fire truck holding it over your head.`
+            : `The city shut down the main street for your ${trophyName} parade. You're on the lead fire truck with the trophy over your head and thousands of people chanting your name.`,
           choices: [soakItIn, partyHard],
           isOffseasonEvent: true
       });
@@ -215,11 +218,11 @@ export function advanceToOffseason(ctx) {
       setPlayer(p => ({ ...p, storylines: { ...p.storylines, netRift: true } }));
       setActiveEvent({
         title: '🥅 THE MAN AT THE OTHER END',
-        desc: `You have taken the net off ${partner.name} for ${partner.years === 2 ? 'two years' : `${partner.years} years`} now, and he has spent them in a ball cap at the end of the bench. Goalies are supposed to be the closest two men in a room and you have not had a real conversation since training camp. His agent has been briefing reporters about a club that would actually play him.`,
+        desc: `You have taken the net off ${partner.name} for ${partner.years === 2 ? 'two years' : `${partner.years} years`} now, and he has spent them in a ball cap at the end of the bench. Goalies are supposed to be the closest two men in a room and you haven't had a real conversation since training camp. His agent has been briefing reporters about a club that would actually play him.`,
         choices: [
           { label: 'Go and talk to him', subLabel: 'Say the thing nobody in the room wants to say out loud.', isRisky: false, feedback: 'You drove to his place in July and the two of you had it out over three hours. The depth chart stayed the same, and the two of you have been fine since.', effect: { fanStatus: 0, ovr: 0, rel: { teammates: 18 } } },
           { label: 'Let him have the net for a stretch', subLabel: 'Tell the coach to run him for a month and take the games back after.', isRisky: true, successChance: 0.5, successFeedback: 'He played six weeks, went 11-4, and signed his extension in March. He has told anyone who will listen whose idea it was.', successEffect: { fanStatus: 10, ovr: 0, rel: { teammates: 25, coach: -8 } }, failFeedback: 'He played six weeks and the coach liked what he saw rather more than you intended. You spent February earning your own net back.', failEffect: { fanStatus: -10, ovr: 0, rel: { coach: -12 } } },
-          { label: 'It is a job', subLabel: 'He knew what it was when he signed. Say nothing.', isRisky: false, feedback: 'You said nothing. He was traded in November and did not shake your hand on the way out.', effect: { fanStatus: 0, ovr: 1, rel: { teammates: -20 } } }
+          { label: 'It\'s a job', subLabel: 'He knew what it was when he signed. Say nothing.', isRisky: false, feedback: 'You said nothing. He was traded in November and didn\'t shake your hand on the way out.', effect: { fanStatus: 0, ovr: 1, rel: { teammates: -20 } } }
         ],
         isOffseasonEvent: true
       });
@@ -243,7 +246,7 @@ export function advanceToOffseason(ctx) {
           desc: `The rehab has taken the whole summer. Your physios have given you two options: the team's standard recovery plan, which the club pays for, or an experimental treatment in Germany that you pay for yourself.`,
           choices: [
               { label: 'Experimental rehab ($100k)', subLabel: 'Fly to Germany and pay for the treatment yourself.', isRisky: true, successChance: 0.75, successFeedback: 'It worked. You came back feeling quicker and stronger than before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'It did nothing. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
-              { label: 'Standard rehab (free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You are cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+              { label: 'Standard rehab (free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You\'re cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
           ],
           isOffseasonEvent: true
       });
@@ -299,9 +302,9 @@ export function advanceToOffseason(ctx) {
           title: '📻 THE CITY HAS FOUND ITS NAME',
           desc: `${barrenYears} springs in a row now, and every one of them has ended the same way. The callers have stopped blaming the coach. They have your cap hit memorised, they have a shift of yours from a Tuesday in November on a loop, and for the first time there are people in this city who would rather watch somebody else wear your number.`,
           choices: [
-              { label: 'Wear it', subLabel: 'Stand at your stall and say the losing is on you before anyone asks.', isRisky: false, feedback: 'You took it all on yourself in front of the cameras. The room will not forget that. The callers were back the next morning anyway.', effect: { fanStatus: -10, ovr: 0, rel: { teammates: 25, media: 20, coach: 10 } } },
-              { label: 'Point at the roster', subLabel: 'Say out loud that one player cannot be the whole problem.', isRisky: true, successChance: 0.40, successFeedback: 'You said what everyone in that room was thinking, and the front office spent a week answering for it instead of you.', successEffect: { fanStatus: 25, ovr: 0, rel: { media: 10, coach: -25, teammates: -10 } }, failFeedback: 'It came out as a franchise player blaming his teammates. The clip ran for four days.', failEffect: { fanStatus: -70, ovr: -1, rel: { teammates: -35, media: -25 } } },
-              { label: 'Say nothing', subLabel: 'Stop doing any media that is not mandatory and let it burn out.', isRisky: false, feedback: 'You went quiet. In this city silence reads as an admission, and the summer was long.', effect: { fanStatus: -35, ovr: 1, rel: { media: -20 } } }
+              { label: 'Wear it', subLabel: 'Stand at your stall and say the losing is on you before anyone asks.', isRisky: false, feedback: 'You took it all on yourself in front of the cameras. The room won\'t forget that. The callers were back the next morning anyway.', effect: { fanStatus: -10, ovr: 0, rel: { teammates: 25, media: 20, coach: 10 } } },
+              { label: 'Point at the roster', subLabel: 'Say out loud that one player can\'t be the whole problem.', isRisky: true, successChance: 0.40, successFeedback: 'You said what everyone in that room was thinking, and the front office spent a week answering for it instead of you.', successEffect: { fanStatus: 25, ovr: 0, rel: { media: 10, coach: -25, teammates: -10 } }, failFeedback: 'It came out as a franchise player blaming his teammates. The clip ran for four days.', failEffect: { fanStatus: -70, ovr: -1, rel: { teammates: -35, media: -25 } } },
+              { label: 'Say nothing', subLabel: 'Stop doing any media that isn\'t mandatory and let it burn out.', isRisky: false, feedback: 'You went quiet. In this city silence reads as an admission, and the summer was long.', effect: { fanStatus: -35, ovr: 1, rel: { media: -20 } } }
           ],
           isOffseasonEvent: true
       });
@@ -325,7 +328,7 @@ export function advanceToOffseason(ctx) {
       setPlayer(p => ({ ...p, storylines: { ...p.storylines, fanSour: 2 } }));
       setActiveEvent({
           title: '🧨 THE FRONT OFFICE HAS RUN OUT OF ROAD',
-          desc: `The GM asked you to come in before the draft. He did not want to do this and he said so twice. But the building is half empty by the third period, the season-ticket renewals are the worst they have been in a decade, and ownership has decided that something has to visibly change. ${sourDestName} have an offer on the table and he is asking you to let it happen.`,
+          desc: `The GM asked you to come in before the draft. He didn't want to do this and he said so twice. But the building is half empty by the third period, the season-ticket renewals are the worst they have been in a decade, and ownership has decided that something has to visibly change. ${sourDestName} have an offer on the table and he's asking you to let it happen.`,
           choices: [
               { label: 'Let it happen', subLabel: `Waive your protection and report to ${sourDestName}.`, isRisky: false, feedback: `You signed off on it. The statement went out at nine the next morning and by lunchtime half the city was thanking you and the other half was arguing about who they just lost.`, effect: { fanStatus: -30, ovr: 0, rel: { media: 10, coach: -5 } }, action: 'TRADE_REQUEST_ACCEPTED', actionData: { teamObj: sourDest, lg: 'NHL' } },
               { label: 'Refuse', subLabel: 'You have the protection in your deal. Make them live with the room they built.', isRisky: true, successChance: 0.45, successFeedback: 'You told him no and then you went out and had the best year of your life. By Christmas they were chanting your name again.', successEffect: { fanStatus: 60, ovr: 2, rel: { coach: -15, teammates: 15 } }, failFeedback: 'You told him no, and the whole miserable business followed you into the season. The boos started in the home opener.', failEffect: { fanStatus: -90, ovr: -2, rel: { coach: -30, media: -20 } } }
@@ -360,11 +363,11 @@ export function advanceToOffseason(ctx) {
         const terms = buyoutTerms(c, player.age);
         const clubName = getFullTeamName(player.team, 'NHL');
         const bonusNote = (c.sbShare || 0) > 0
-          ? ' Your signing bonuses are not part of it. Those are paid in full, on the dates in the contract.'
+          ? ' Your signing bonuses aren\'t part of it. Those are paid in full, on the dates in the contract.'
           : '';
         setActiveEvent({
           title: '✂️ BOUGHT OUT',
-          desc: `The GM called the morning the buyout window opened. The ${clubName} are buying out the last ${yearsLeft === 1 ? 'year' : `${yearsLeft} years`} of your contract. You will be paid ${terms.fractionWord} of what was left, ${formatMoney(terms.perYear)} a year for the next ${terms.seasons} years, and on July 1 you are a free agent.${bonusNote}`,
+          desc: `The GM called the morning the buyout window opened. The ${clubName} are buying out the last ${yearsLeft === 1 ? 'year' : `${yearsLeft} years`} of your contract. You'll be paid ${terms.fractionWord} of what was left, ${formatMoney(terms.perYear)} a year for the next ${terms.seasons} years, and on July 1 you're a free agent.${bonusNote}`,
           choices: [
             {
               label: 'Thank the fans and move on',
@@ -378,7 +381,7 @@ export function advanceToOffseason(ctx) {
               label: 'Say what you think of it',
               subLabel: 'Tell the reporters the club has given up on you, and train like it.',
               isRisky: false,
-              feedback: 'You told the reporters exactly what you thought of the decision. It made the papers in every city you might sign in, and you have not trained this hard in years.',
+              feedback: 'You told the reporters exactly what you thought of the decision. It made the papers in every city you might sign in, and you haven\'t trained this hard in years.',
               effect: { fanStatus: 0, ovr: 1, rel: { media: -15 } },
               action: 'BUYOUT', actionData: { team: player.team, ...terms }
             }
@@ -418,6 +421,8 @@ export function advanceToOffseason(ctx) {
   setPlayer(p => {
     const next = { ...p, rooms: summer.rooms, coaches: summer.coaches };
     if (myFiring) {
+      // Introduced here, so camp doesn't introduce him a second time.
+      next.storylines = { ...(p.storylines || {}), metCoaches: [...(p.storylines?.metCoaches || []), `${p.team}:${summer.coaches[p.team]?.name}`] };
       // A new voice, and a new opinion of him formed from scratch. The system
       // he plays decides most of where it starts.
       next.relationships = {
@@ -430,18 +435,13 @@ export function advanceToOffseason(ctx) {
 
   if (myFiring) {
     const incoming = summer.coaches[player.team];
-    const sys = COACH_SYSTEMS[incoming?.system]?.label || 'Balanced';
     const mine = playerArchetype(player);
-    const fits = incoming && COACH_SYSTEMS[incoming.system]?.likes.includes(mine);
-    const clashes = incoming && COACH_SYSTEMS[incoming.system]?.dislikes.includes(mine);
     setActiveEvent({
       title: '📋 A NEW VOICE BEHIND THE BENCH',
-      desc: `${myFiring.out} was let go on the first Monday of the summer. ${myFiring.in} has the job, and he arrives talking about a ${sys.toLowerCase()} game. `
-        + (fits
-            ? 'Everything he said in that first press conference described the way you already play.'
-            : clashes
-              ? 'Everything he said in that first press conference described a player who is not you.'
-              : 'Nobody in the room knows yet what that means for them.'),
+      // Who the new man actually is, which the event never said: where he
+      // played, how he coaches, what his last players thought of him. See
+      // utils/lore.js.
+      desc: `${myFiring.out} was let go on the first Monday of the summer. ${myFiring.in} has the job. ${coachBackground(incoming, mine)}`,
       choices: [
         { label: 'Go and see him', subLabel: 'Get in front of the new man before camp and find out where you stand.', isRisky: false, feedback: 'You went to the rink in July and sat in his office for an hour. Whatever else happens, he knows your name and what you want.', effect: { fanStatus: 0, ovr: 0, rel: { coach: 10 } } },
         { label: 'Wait for camp like everybody else', subLabel: 'Let the work do the talking in September.', isRisky: false, feedback: 'You stayed away all summer and turned up in September with everyone else.', effect: { fanStatus: 0, ovr: 1 } }
@@ -462,7 +462,7 @@ export function advanceToOffseason(ctx) {
        const hasContract = (player.contract?.years || 0) > 0;
 
        if (hasContract) {
-           choices.push({ label: 'Play out current contract', subLabel: 'Honour the deal and give it one more year.', isRisky: false, feedback: 'You will play out the last year of your contract.', effect: { fanStatus: 10, ovr: -2, money: 0 } });
+           choices.push({ label: 'Play out current contract', subLabel: 'Honour the deal and give it one more year.', isRisky: false, feedback: 'You\'ll play out the last year of your contract.', effect: { fanStatus: 10, ovr: -2, money: 0 } });
        } else {
            if (player.ovr >= 76 && player.league === 'NHL') {
                choices.push({ label: 'Push for one more NHL season', subLabel: 'Sign a short veteran extension to chase one more shot.', isRisky: false, feedback: 'You signed a one-year extension for one more run at it.', effect: { fanStatus: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
@@ -494,7 +494,7 @@ export function advanceToOffseason(ctx) {
 
        setActiveEvent({
          title: 'CAREER CROSSROADS',
-         desc: `You are ${player.age} years old. The miles are adding up and the league keeps getting younger. Is this the year you stop?`,
+         desc: `You're ${player.age} years old. The miles are adding up and the league keeps getting younger. Is this the year you stop?`,
          choices: choices,
          isOffseasonEvent: true
        });
@@ -519,7 +519,7 @@ export function advanceToOffseason(ctx) {
 
         setActiveEvent({
             title: '🇨🇦 THE CHL IMPORT DRAFT',
-            desc: `The ${fullTeamName} (${randomLg}) took you in the CHL Import Draft. They want you to leave Europe and play major junior in North America, on the smaller ice you would play on as a pro.`,
+            desc: `The ${fullTeamName} (${randomLg}) took you in the CHL Import Draft. They want you to leave Europe and play major junior in North America, on the smaller ice you'd play on as a pro.`,
             choices: [
                 {
                     label: 'Pack your bags for North America',
@@ -593,7 +593,7 @@ export function advanceToOffseason(ctx) {
             const newOvr = recomputeOvr(tempPlayer);
             const ovrDiff = newOvr - player.ovr;
 
-            const declineMsg = `You are not as quick as you were. Something went over the summer, and you felt it in the first week of skating.`;
+            const declineMsg = `You aren't as quick as you were. Something went over the summer, and you felt it in the first week of skating.`;
 
             // FIX: Pass the calculated ovr drop and raw stat drops into the effect object
             setSeasonEvents(prev => [...prev, {
@@ -687,8 +687,8 @@ export function advanceToOffseason(ctx) {
         setActiveEvent({
           title: '⬆️ THE MEN’S TEAM WANTS YOU AT CAMP',
           desc: ownClub
-            ? `${seniorName} have asked for you in the senior squad. It is a professional league and you would be the youngest man in the room, playing against grown men for a place you are not guaranteed to keep.`
-            : `Your club has no men's team, so the call came from somewhere else: ${seniorName} want you in their senior squad. It is a professional league and you would be the youngest man in the room, playing against grown men for a place you are not guaranteed to keep.`,
+            ? `${seniorName} have asked for you in the senior squad. It's a professional league and you'd be the youngest man in the room, playing against grown men for a place you aren't guaranteed to keep.`
+            : `Your club has no men's team, so the call came from somewhere else: ${seniorName} want you in their senior squad. It's a professional league and you'd be the youngest man in the room, playing against grown men for a place you aren't guaranteed to keep.`,
           choices: [
             {
               label: `Go up to ${seniorName}`,
@@ -894,7 +894,7 @@ export function advanceToOffseason(ctx) {
            if (teamWantsYou) {
                setActiveEvent({
                    title: 'AMATEUR GRADUATION',
-                   desc: `Your development window has closed. The ${teamName} still hold your draft rights and have offered you an Entry-Level Contract. If you decline, your rights will expire and you will become an Unrestricted Free Agent.`,
+                   desc: `Your development window has closed. The ${teamName} still hold your draft rights and have offered you an Entry-Level Contract. If you decline, your rights will expire and you'll become an Unrestricted Free Agent.`,
                    choices: [
                        { label: `Sign ELC with ${teamName}`, subLabel: 'Turn pro immediately on your entry-level deal.', isRisky: false, feedback: 'You signed your entry-level contract and are heading to pro camp.', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
                        { label: 'Test free agency', subLabel: 'Let your rights expire and look for a better opportunity elsewhere.', isRisky: false, feedback: 'You let your draft rights expire to test the open market.', effect: { fanStatus: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
@@ -904,7 +904,7 @@ export function advanceToOffseason(ctx) {
            } else {
                setActiveEvent({
                    title: 'RIGHTS EXPIRED',
-                   desc: `Your development window has closed. The ${teamName} have decided not to offer you a contract. Your draft rights have expired and you are now an Unrestricted Free Agent.`,
+                   desc: `Your development window has closed. The ${teamName} have decided not to offer you a contract. Your draft rights have expired and you're now an Unrestricted Free Agent.`,
                    choices: [
                        { label: 'Enter free agency', subLabel: 'Look for a team willing to take a chance on you.', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                    ],
@@ -916,7 +916,7 @@ export function advanceToOffseason(ctx) {
                title: 'AMATEUR GRADUATION',
                desc: `You have aged out of amateur hockey as an undrafted free agent. It's time to see if any pro teams are interested in signing you.`,
                choices: [
-                   { label: 'Enter free agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You are looking for your first pro contract.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+                   { label: 'Enter free agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You\'re looking for your first pro contract.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
                ],
                isOffseasonEvent: true
            });
@@ -935,7 +935,7 @@ export function advanceToOffseason(ctx) {
        if (player.ovr >= 65) {
            setActiveEvent({
              title: 'PRO CONTRACT OFFER',
-             desc: `The ${teamName} believe you are ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${leagueWithArticle(currentLeague)} for another year of development.`,
+             desc: `The ${teamName} believe you're ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${leagueWithArticle(currentLeague)} for another year of development.`,
              choices: [
                { label: 'Sign your entry-level contract', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your entry-level contract and are off to your first NHL training camp.', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
                { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: 'Spend one more year developing before turning pro.', isRisky: false, feedback: 'You chose to develop for another year.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
@@ -945,9 +945,9 @@ export function advanceToOffseason(ctx) {
        } else {
            setActiveEvent({
              title: 'NOT READY FOR PRO',
-             desc: `The ${teamName} still hold your rights, but their front office does not believe you are ready for pro hockey yet. You must return to ${leagueWithArticle(currentLeague)} for another season.`,
+             desc: `The ${teamName} still hold your rights, but their front office doesn't believe you're ready for pro hockey yet. You must return to ${leagueWithArticle(currentLeague)} for another season.`,
              choices: [
-               { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: "Keep developing until the organization believes you're ready.", isRisky: false, feedback: 'You are determined to prove them wrong next season.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+               { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: "Keep developing until the organization believes you're ready.", isRisky: false, feedback: 'You\'re determined to prove them wrong next season.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
              ],
              isOffseasonEvent: true
            });
@@ -986,7 +986,7 @@ export function advanceToOffseason(ctx) {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, endLocal: true } }));
           setActiveEvent({
               title: '🤝 LOCAL SPONSORSHIP',
-              desc: `A local car dealership wants you for a TV commercial. It is easy money, and your teammates will never let you hear the end of it.`,
+              desc: `A local car dealership wants you for a TV commercial. It's easy money, and your teammates will never let you hear the end of it.`,
               choices: [
                   // The money used to live inside the label text. Every other
                   // event in the game shows what a choice is worth as a chip,
@@ -995,7 +995,7 @@ export function advanceToOffseason(ctx) {
                   { label: 'Do the commercial', subLabel: 'Easy money, but expect some ribbing in the room.', isRisky: false,
                     perks: [{ name: '\ud83d\udcb0 Appearance Fee', effect: '$50K', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
                     flaws: [{ name: '\u26a0\ufe0f Locker Room', effect: '-10 TEAM' }],
-                    feedback: 'You shot the dealership commercial and cashed the cheque. The boys have not stopped quoting your acting since.', effect: { fanStatus: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
+                    feedback: 'You shot the dealership commercial and cashed the cheque. The boys haven\'t stopped quoting your acting since.', effect: { fanStatus: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
                   { label: 'Pass on it', subLabel: 'Skip the payday and stay out of the group chat.', isRisky: false,
                     feedback: 'You turned the dealership commercial down. No cheque, but no clip of you in a bad suit either.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
               ],
@@ -1015,7 +1015,7 @@ export function advanceToOffseason(ctx) {
                   { label: 'Sign the deal', subLabel: 'Become a household name, at the cost of some ice time this summer.', isRisky: false,
                     perks: [{ name: '\ud83d\udcb0 Endorsement', effect: '$250K', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
                     flaws: [{ name: '\u26a0\ufe0f Lost Training', effect: '-1 OVR' }],
-                    feedback: 'You signed the stick deal and spent the summer on billboards. The shoots ate the training time you would normally have had.', effect: { fanStatus: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
+                    feedback: 'You signed the stick deal and spent the summer on billboards. The shoots ate the training time you\'d normally have had.', effect: { fanStatus: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
                   { label: 'Focus on hockey', subLabel: 'Turn the campaign down and keep the summer for your game.', isRisky: false,
                     perks: [{ name: '\ud83d\udcc8 Full Summer', effect: '+1 OVR', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }],
                     feedback: 'You turned the stick campaign down and spent the summer training instead. No billboards, a better player.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
@@ -1043,7 +1043,7 @@ export function advanceToOffseason(ctx) {
           setPlayer(p => ({ ...p, storylines: { ...p.storylines, hadBreakout: true } }));
           setActiveEvent({
               title: '🔥 LATE BLOOMER BREAKOUT',
-              desc: `Something clicked over the summer. The game has slowed down, you feel strong, and you are running the informal scrimmages. The papers are predicting a breakout year.`,
+              desc: `Something clicked over the summer. The game has slowed down, you feel strong, and you're running the informal scrimmages. The papers are predicting a breakout year.`,
               choices: [
                   { label: 'Embrace the spotlight', subLabel: 'Lean into the hype for a bigger immediate boost.', isRisky: false, feedback: 'You told everyone who asked that this is your year.', effect: { fanStatus: 50, ovr: 4, money: 0 } },
                   { label: 'Keep your head down', subLabel: 'Stay humble and let your game do the talking.', isRisky: false, feedback: 'You kept quiet and got on with it.', effect: { fanStatus: 10, ovr: 5, money: 0 } }
@@ -1114,18 +1114,26 @@ export function advanceToOffseason(ctx) {
     // has to have the coach, the room and a season in it behind him, and the
     // two-year head start is what the status is worth.
     const gen = !!player.isGenerational;
+    // A first-round pick the club drafted and has built around. Clubs put a
+    // letter on that player early (mid-twenties, often sooner), and this rule
+    // used to wait for 82 OVR and three pro seasons whoever he was, so most
+    // players got their first letter after thirty. Two seasons in the room
+    // and a core player's rating is enough for him.
+    const core = isCorePlayer(player);
     const base = trust >= 80 ? 0.45 : trust >= 70 ? 0.30 : 0.18;
-    const odds = gen ? Math.min(0.80, base * 1.75) : base;
-    const minSeasons = gen ? 1 : 3;
+    const odds = gen ? Math.min(0.80, base * 1.75) : core ? Math.min(0.65, base * 1.5) : base;
+    const minSeasons = gen ? 1 : core ? 2 : 3;
+    const minOvr = core ? 78 : 82;
+    const minTrust = core ? 60 : 65;
 
-    if (player.league === 'NHL' && proSeasons >= minSeasons && trust >= 65 && player.ovr >= 82
+    if (player.league === 'NHL' && proSeasons >= minSeasons && trust >= minTrust && player.ovr >= minOvr
         && sameRoom && earnedIt && Math.random() < odds) {
       setPlayer(p => ({ ...p, storylines: { ...p.storylines, alternateGiven: true } }));
       setActiveEvent({
         title: '🅰️ THE LEADERSHIP GROUP',
         desc: `Camp opened this morning and the coach pulled you into his office before the first skate. He likes your work in the room and the way the young guys follow you around. He wants an "A" on your sweater for the season ahead.`,
         choices: [
-          { label: 'Accept the responsibility', subLabel: 'Wear the letter and set the tone from the first day of camp.', isRisky: false, feedback: 'You are an alternate captain. The letter goes on the sweater before the opener.', effect: { fanStatus: 25, ovr: 1, rel: { coach: 15, teammates: 15 } }, action: 'MAKE_ALTERNATE' },
+          { label: 'Accept the responsibility', subLabel: 'Wear the letter and set the tone from the first day of camp.', isRisky: false, feedback: 'You\'re an alternate captain. The letter goes on the sweater before the opener.', effect: { fanStatus: 25, ovr: 1, rel: { coach: 15, teammates: 15 } }, action: 'MAKE_ALTERNATE' },
           { label: 'Tell him to give it to someone else', subLabel: 'Pass it to a teammate who has waited longer for it.', isRisky: false, feedback: 'You turned the letter down and told him to give it to someone who had waited longer. The room noticed that too.', effect: { fanStatus: 10, ovr: 0, rel: { teammates: 20 } } }
         ],
         isOffseasonEvent: true
@@ -1149,7 +1157,72 @@ export function advanceToOffseason(ctx) {
     }
   }
 
-  if (done < CAMP_DONE) {
+  // Sent down or called up out of camp: the decision those events lead up to
+  // has been made and he's been told, so they don't run after it.
+  // THE PEOPLE AROUND HIM. Now and then, at camp, one of them gets a proper
+  // introduction: the coach at a club he's just joined, or a notable new face
+  // in a room he stayed in. One at most a summer. See utils/lore.js.
+  if (done < CAMP_DONE && !marks.lore) {
+    mark('lore');
+    const team = currentTeam;
+    const lg = player.league;
+    // The club's room and coach, built now if he's never been there, the same
+    // way the season builds them, so the man introduced at camp is the man
+    // behind the bench in October.
+    let rooms = player.rooms || {};
+    let coaches = player.coaches || {};
+    let openingCoach = null;
+    if (team && (!rooms[team] || !coaches[team])) {
+      const club = ensureClub(player, { teamId: team, league: lg, strength: teamStrengthOf(player.leagueState, team), classmates: teammatesFrom(player.peers, team) });
+      if (club?.fresh) {
+        rooms = club.rooms; coaches = club.coaches;
+        openingCoach = coachOpening(coaches[team], playerArchetype(player));
+      }
+    }
+    const coach = coaches[team];
+    const lastYear = player.seasonHistory?.[player.seasonHistory.length - 1];
+    const stayed = lastYear?.team === team;
+    const met = player.storylines?.metCoaches || [];
+    const metMen = player.storylines?.metMen || [];
+    const coachKey = coach ? `${team}:${coach.name}` : null;
+    const clubName = getFullTeamName(team, lg);
+    const archetype = playerArchetype(player);
+
+    let lore = null;
+    const newMet = coachKey && !met.includes(coachKey) ? [coachKey] : [];
+    let newMen = [];
+    if (newMet.length && !stayed && Math.random() < 0.55) {
+      lore = coachIntro(coach, { clubName, archetype });
+    } else if (stayed) {
+      const room = rooms[team];
+      const arrivals = (room?.men || []).filter(m => (m.years || 0) === 0 && (m.gp || 0) === 0 && !metMen.includes(m.id));
+      newMen = arrivals.map(m => m.id);
+      const order = ['star', 'problem', 'veteran', 'kid'];
+      const notable = arrivals.map(m => ({ m, kind: arrivalKind(m, room, player) })).filter(x => x.kind)
+        .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))[0];
+      if (notable && Math.random() < 0.4) {
+        const pool = (getOpponentPool(lg) || []).filter(t => t.id !== team);
+        const from = pool.length ? pool[(notable.m.name.length * 31) % pool.length] : null;
+        lore = arrivalIntro(notable.m, notable.kind, {
+          clubName, fromName: from ? getFullTeamName(from.id, lg) : null, samePos: notable.m.pos === player.pos
+        });
+      }
+    }
+    setPlayer(p => ({
+      ...p, rooms, coaches,
+      ...(openingCoach != null ? { relationships: { ...(p.relationships || {}), coach: openingCoach } } : {}),
+      storylines: { ...(p.storylines || {}), metCoaches: [...met, ...newMet], metMen: [...metMen, ...newMen].slice(-60) }
+    }));
+    if (lore) {
+      setActiveEvent(lore);
+      setScreen('event');
+      return;
+    }
+  }
+
+  if (done < CAMP_DONE && off.campMoved) {
+    enterStage(CAMP_DONE);
+  } else if (done < CAMP_DONE) {
     // Camp in reality turns on your situation far more than your rating: whether
     // you are walking into a room where you know nobody, playing out the last year
     // of a deal, or wearing the C and setting the tone. The chain only knew
@@ -1162,8 +1235,25 @@ export function advanceToOffseason(ctx) {
     // history starts here. The two arrivals are not the same experience, though:
     // a player traded at the deadline has already played games in this building,
     // while a July signing has never pulled the sweater on, so the copy differs.
+    // It also has to be a room you have never been part of. A prospect sent
+    // back to junior, or a player who spent a year with the AHL affiliate, is
+    // not new when he comes back to the big club: he has been to this camp, so
+    // the event fired every time he came back up. An NHL club and its AHL
+    // affiliate count as one organisation, and once the event has run for an
+    // organisation it does not run for it again.
     const lastCampSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
-    const isNewRoom = !!lastCampSeason && lastCampSeason.team !== currentTeam && !isCurrentlyAmateur;
+    const orgOf = (id) => (nhlTeams.find(t => t.id === id || t.ahlId === id)?.id) || id;
+    const knownOrgs = new Set([
+      ...(player.storylines?.newRooms || []),
+      // Every season before last. Last season is judged on its own below, so a
+      // player traded here at the deadline still gets his first full camp.
+      ...(player.seasonHistory || []).slice(0, -1)
+        .flatMap(s => [s.team, s.tradedTo, ...((s.stints || []).map(x => x?.team))])
+    ].filter(Boolean).map(orgOf));
+    const isNewRoom = !!lastCampSeason && lastCampSeason.team !== currentTeam && !isCurrentlyAmateur
+      && !(player.storylines?.newRooms || []).includes(orgOf(currentTeam))
+      && !knownOrgs.has(orgOf(currentTeam))
+      && orgOf(lastCampSeason.team) !== orgOf(currentTeam);
     const arrivedMidSeason = !!lastCampSeason && lastCampSeason.tradedTo === currentTeam;
     const isContractYear = (updatedContract?.years || 0) === 1 && player.ovr >= 76 && !isCurrentlyAmateur;
     const isHoldingOut = updatedContract?.role === 'Holdout';
@@ -1209,11 +1299,22 @@ export function advanceToOffseason(ctx) {
     }
 
     if (isNewRoom) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, newRooms: [...(p.storylines?.newRooms || []), orgOf(currentTeam)] } }));
         ctx.setActiveEvent({
             title: '⛺ A NEW ROOM',
-            desc: arrivedMidSeason
-              ? `You came over at the deadline and finished the year here, but a handful of games is not the same as a camp. This is the first time you get the system from day one, with the room watching how you handle it.`
-              : `You signed here in July and you have never pulled this sweater on. You walk into a room where you know nobody, and the system on the whiteboard is not the one you spent years learning. How you carry yourself this week decides where you start the season.`,
+            // How he got here. "You signed here in July" was said to everyone,
+            // including a draftee at his first pro camp and a player traded
+            // over the summer. It's only said now when it's true.
+            desc: (() => {
+              const via = player.arrivedVia;
+              const signedThisSummer = via?.how === 'signed' && via.team === currentTeam && via.season === (player.stats?.seasonsPlayed || 0);
+              const drafted = [player.draftTeam, player.rights].includes(currentTeam);
+              const club = getFullTeamName(currentTeam, player.league);
+              if (arrivedMidSeason) return `You came over at the deadline and finished the year here, but a handful of games isn't the same as a camp. This is the first time you get the system from day one, with the room watching how you handle it.`;
+              if (signedThisSummer) return `You signed here in July and you've never pulled this sweater on. You walk into a room where you know nobody, and the system on the whiteboard isn't the one you spent years learning. How you carry yourself this week decides where you start the season.`;
+              if (drafted) return `The ${club} drafted you, and this is your first camp as one of their players. The veterans know your name and not much else. How you carry yourself this week decides where you start the season.`;
+              return `It's your first camp with the ${club}. You walk into a room where you know nobody, and the system on the whiteboard isn't the one you're used to. How you carry yourself this week decides where you start the season.`;
+            })(),
             choices: [
                 {
                   label: 'Keep your head down and learn the system',
@@ -1278,7 +1379,7 @@ export function advanceToOffseason(ctx) {
             choices: [
                 {
                   label: 'Lean on what got you here',
-                  subLabel: 'Play your game, show them the player they already know they are paying for.',
+                  subLabel: 'Play your game, show them the player they already know they\'re paying for.',
                   isRisky: false,
                   feedback: 'No surprises, no mistakes. You looked exactly like the player your next contract is based on.',
                   effect: { fanStatus: 10, ovr: 0, rel: { coach: 10 } }
@@ -1290,7 +1391,7 @@ export function advanceToOffseason(ctx) {
                   successChance: 0.55,
                   successFeedback: 'You showed them something nobody knew you had. Your agent\'s phone started ringing before camp even broke.',
                   successEffect: { fanStatus: 40, ovr: 1, rel: { coach: 20, media: 15 } },
-                  failFeedback: 'You looked uncomfortable all week doing something that is not your game, and the staff noticed.',
+                  failFeedback: 'You looked uncomfortable all week doing something that isn\'t your game, and the staff noticed.',
                   failEffect: { fanStatus: -15, ovr: -1, rel: { coach: -15 } }
                 }
             ],
@@ -1334,7 +1435,7 @@ export function advanceToOffseason(ctx) {
 
         if (player.pos === 'G') {
             campTitle = '⛺ CREASE BATTLE';
-            campDesc = 'Camp has opened with two goalies and one starting job, and you are one of the two.';
+            campDesc = 'Camp has opened with two goalies and one starting job, and you\'re one of the two.';
             riskyLabel = 'Battle for the Starting Job';
             riskySubLabel = 'Push hard to win the starting net outright.';
             riskySuccess = 'You outplayed him in camp and won the starting job.';
@@ -1344,7 +1445,7 @@ export function advanceToOffseason(ctx) {
             safeFeedback = 'You played a quiet, mistake-free camp and accepted the backup role behind the veteran.';
         } else if (['LD', 'RD'].includes(player.pos)) {
             campTitle = '⛺ BLUE LINE BATTLE';
-            campDesc = 'Training camp has opened, and there is an open spot in the top-4 defensive pairings. You are locked in a fierce battle for those crucial minutes.';
+            campDesc = 'Training camp has opened, and there\'s an open spot in the top-4 defensive pairings. You\'re locked in a fierce battle for those crucial minutes.';
             riskyLabel = 'Battle for a Top-4 Spot';
             riskySubLabel = 'Push hard to crack the top-4 pairing.';
             riskySuccess = 'You were the best defenceman in camp and earned a top-four spot.';
@@ -1354,7 +1455,7 @@ export function advanceToOffseason(ctx) {
             safeFeedback = 'You played a quiet, mistake-free camp and slotted into a safe, third-pairing role.';
         } else {
             campTitle = '⛺ TRAINING CAMP BATTLE';
-            campDesc = 'Training camp has opened, and the coach is looking for someone to step up into a top-6 scoring role. You are locked in a fierce roster battle.';
+            campDesc = 'Training camp has opened, and the coach is looking for someone to step up into a top-6 scoring role. You\'re locked in a fierce roster battle.';
             riskyLabel = 'Battle for a Top-6 Spot';
             riskySubLabel = 'Push hard to crack the top-6 lineup.';
             riskySuccess = 'You clicked with the top-six forwards in camp and earned a place among them.';
@@ -1377,7 +1478,10 @@ export function advanceToOffseason(ctx) {
                   successEffect: { fanStatus: 20, ovr: 1, rel: { coach: 20 } },
                   failFeedback: riskyFail,
                   failEffect: { fanStatus: -10, ovr: -1, rel: { coach: -15 } },
-                  action: 'ROUTE_MINIGAME'
+                  action: 'ROUTE_MINIGAME',
+                  // The camp battle for his position, which is the only place
+                  // the camp battles are played.
+                  actionData: player.pos === 'G' ? 'camp_battle_g' : (player.pos === 'LD' || player.pos === 'RD') ? 'camp_battle_d' : 'camp_battle'
                 },
                 {
                   label: safeLabel,

@@ -76,7 +76,7 @@ export default function PlayCard({ play, state = 'open', disabled, onPick, myLab
         <Rink diagram={play.diagram} tone={tone} myLabel={myLabel} view={view} />
       </div>
       <div className="mt-1.5 px-0.5 pb-0.5">
-        <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-300 leading-tight truncate">
+        <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-300 leading-tight break-words">
           {play.name}
         </p>
         {state === 'tape' && (

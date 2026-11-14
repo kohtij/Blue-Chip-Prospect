@@ -71,7 +71,7 @@ export function droughtLine(ledger, teamId, year, league = 'NHL') {
   if (t.gap === 0) return 'won it this season';
   if (t.gap === 1) return 'won it last season';
   if (t.gap <= 3) return `last won it ${t.gap} seasons ago`;
-  return `has not won since ${t.year}, ${t.gap} years ago`;
+  return `hasn't won since ${t.year}, ${t.gap} years ago`;
 }
 
 /**

@@ -641,7 +641,7 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
     case 'GROUP_EXIT': {
       fanDelta = Math.round(-14 * prestige);
       headline = 'Out in the group';
-      detail = `${countryName} did not get out of the group. Nobody goes home from one of these happy.`;
+      detail = `${countryName} didn't get out of the group. Nobody goes home from one of these happy.`;
       break;
     }
     case 'PROMOTED': {
@@ -678,7 +678,7 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
       } else {
         fanDelta = Math.round(-12 * prestige);
         headline = 'Beaten';
-        detail = `A loss, but there is no division below this one to fall into.`;
+        detail = `A loss, but there's no division below this one to fall into.`;
       }
       break;
     }

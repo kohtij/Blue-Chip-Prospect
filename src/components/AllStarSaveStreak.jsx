@@ -135,7 +135,7 @@ export default function AllStarSaveStreak({ onComplete, strategy }) {
             />
           }
           caption={
-            !gameStarted ? 'They come down one at a time. Get to the puck before it is behind you.'
+            !gameStarted ? 'They come down one at a time. Get to the puck before it\'s behind you.'
               : last === true ? 'Turned that one aside.'
                 : last === false ? 'That one beat you.'
                   : 'Here comes the next one.'

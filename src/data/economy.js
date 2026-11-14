@@ -26,7 +26,7 @@ export const shopItems = [
   { id: 'hyperbaric', type: 'luxury', name: 'Hyperbaric Chamber', cost: 120000, desc: 'An hour under pressure in your own basement, every day, for the rest of your career.', effect: { stamina: 3 } },
 
   // The "Millionaire" Legacy Tier
-  { id: 'penthouse', type: 'luxury', name: 'City Penthouse', cost: 2500000, desc: 'Top floor, downtown, walking distance from the rink. You are a resident now, not a rental.', effect: { fanStatus: 800 } },
+  { id: 'penthouse', type: 'luxury', name: 'City Penthouse', cost: 2500000, desc: 'Top floor, downtown, walking distance from the rink. You\'re a resident now, not a rental.', effect: { fanStatus: 800 } },
   { id: 'junior_team', type: 'luxury', name: 'Own a Junior Team', cost: 8000000, desc: 'You buy the club, sit in on the draft, and learn more about the game than you did playing it.', effect: { hockeyIQ: 4, fanStatus: 1500 } }
 ];
 
@@ -74,7 +74,7 @@ export const goalieTrainingPool = [
   { id: 'tg8', name: 'Goalie Guru', desc: '+5 IQ', effect: { hockeyIQ: 5 }, rarity: 'Rare', tag: 'MIND', flavor: 'A summer with a famous goalie coach on when to freeze it and when to play it.' },
   { id: 'tg9', name: 'Yoga Retreat', desc: '+3 AGI, +2 STM', effect: { physicality: 3, stamina: 2 }, rarity: 'Rare', tag: 'FLEX', flavor: 'A month of yoga for hips and knees that have to last a career.' },
   { id: 'tg10', name: 'European Butterfly Camp', desc: '+3 POS, +2 REF', effect: { skating: 3, shooting: 2 }, rarity: 'Rare', tag: 'SKL', flavor: 'Learning the reverse-VH from Finnish goalie coaches.' },
-  { id: 'tg19', name: 'Mobility Specialist', desc: '+5 AGI', effect: { physicality: 5 }, rarity: 'Rare', tag: 'AGI', flavor: 'A hip specialist buys you four inches of reach you did not have.' },
+  { id: 'tg19', name: 'Mobility Specialist', desc: '+5 AGI', effect: { physicality: 5 }, rarity: 'Rare', tag: 'AGI', flavor: 'A hip specialist buys you four inches of reach you didn\'t have.' },
   { id: 'tg20', name: 'Shot Volume Camp', desc: '+3 REF, +2 STM', effect: { shooting: 3, stamina: 2 }, rarity: 'Rare', tag: 'REF', flavor: 'Nine hundred shots a session until reacting stops being a decision.' },
   { id: 'tg21', name: 'Angle Charting', desc: '+3 IQ, +2 POS', effect: { hockeyIQ: 3, skating: 2 }, rarity: 'Rare', tag: 'MIND', flavor: 'Mapping every shooter in the league onto a single sheet of ice.' },
   { id: 'tg22', name: 'Goalie Skating Coach', desc: '+3 POS, +2 AGI', effect: { skating: 3, physicality: 2 }, rarity: 'Rare', tag: 'EDGE', flavor: 'Edges first. Everything a goalie does badly starts in the feet.' },
@@ -109,7 +109,7 @@ export const eventDeck = [
     title: 'Trade Rumors',
     desc: 'Your name is popping up on the trade block. The GM wants to know where your head is at.',
     choices: [
-      { label: 'Demand to stay', subLabel: "Tell the GM to his face that you are not going anywhere.", isRisky: true, successChance: 0.6, successFeedback: 'The GM respected your loyalty. The fans adore you.', successEffect: { fanStatus: 30, ovr: 0, money: 0 }, failFeedback: "The GM told you it's a business. You have not felt the same about the place since.", failEffect: { fanStatus: -15, ovr: -1, money: 0 } },
+      { label: 'Demand to stay', subLabel: "Tell the GM to his face that you aren't going anywhere.", isRisky: true, successChance: 0.6, successFeedback: 'The GM respected your loyalty. The fans adore you.', successEffect: { fanStatus: 30, ovr: 0, money: 0 }, failFeedback: "The GM told you it's a business. You haven't felt the same about the place since.", failEffect: { fanStatus: -15, ovr: -1, money: 0 } },
       { label: 'Let your agent handle it', subLabel: "Stay out of it and let the business run its course.", isRisky: false, feedback: 'You tuned out the noise and focused on hockey.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
     ]
   },
@@ -164,7 +164,7 @@ export const eventDeck = [
   },
   {
     title: 'The Captaincy Vote',
-    desc: 'The team is choosing a new captain. A veteran quietly asks if you would step aside so he can wear the "C" one last year.',
+    desc: 'The team is choosing a new captain. A veteran quietly asks if you\'d step aside so he can wear the "C" one last year.',
     choices: [
       { label: 'Campaign for yourself', subLabel: "Make your case for the C and risk looking selfish.", isRisky: true, successChance: 0.55, successFeedback: 'You won the vote and the fan base loves the young leader.', successEffect: { fanStatus: 30, ovr: 1, money: 0 }, failFeedback: 'It came off as selfish and split the locker room.', failEffect: { fanStatus: -20, ovr: -1, money: 0 } },
       { label: 'Defer to the veteran', subLabel: "Let him have his last year with the letter.", isRisky: false, feedback: 'The room noticed, and so did management.', effect: { fanStatus: 10, ovr: 1, money: 0 } }
@@ -174,7 +174,7 @@ export const eventDeck = [
     title: 'The Endorsement Fork', proOnly: true,
     desc: 'Two offers on the table: a safe local dealership deal, or a bold national campaign that could flop spectacularly.',
     choices: [
-      { label: 'Chase the national spotlight', subLabel: "Bigger cheque, bigger audience, bigger way to flop.", isRisky: true, successChance: 0.5, successFeedback: 'The campaign was a smash. You are a household name now.', successEffect: { fanStatus: 40, ovr: 0, money: 80000 }, failFeedback: 'The ad was mocked for weeks, and people still quote it at you.', failEffect: { fanStatus: -25, ovr: 0, money: 80000 } },
+      { label: 'Chase the national spotlight', subLabel: "Bigger cheque, bigger audience, bigger way to flop.", isRisky: true, successChance: 0.5, successFeedback: 'The campaign was a smash. You\'re a household name now.', successEffect: { fanStatus: 40, ovr: 0, money: 80000 }, failFeedback: 'The ad was mocked for weeks, and people still quote it at you.', failEffect: { fanStatus: -25, ovr: 0, money: 80000 } },
       { label: 'Take the safe local deal', subLabel: "Smaller money, no downside.", isRisky: false, feedback: 'Steady money, no drama. The hometown appreciates the loyalty.', effect: { fanStatus: 10, ovr: 0, money: 40000 } }
     ]
   },
@@ -189,9 +189,9 @@ export const eventDeck = [
   // NEW: OFF-ICE / PERSONAL LIFE EVENTS
   {
     title: 'The High-Profile Romance', minAge: 20,
-    desc: 'You have started dating a very famous pop star. The paparazzi are swarming your house and following you to the arena. It is starting to get in the way of the hockey.',
+    desc: 'You have started dating a very famous pop star. The paparazzi are swarming your house and following you to the arena. It\'s starting to get in the way of the hockey.',
     choices: [
-      { label: 'Embrace the limelight', subLabel: "Go public and let the attention follow you to the rink.", isRisky: true, successChance: 0.5, successFeedback: 'You leaned into it. You are half of the most photographed couple in the country, and your jersey is selling everywhere.', successEffect: { fanStatus: 150, ovr: 0, money: 45000, rel: { media: 20 } }, failFeedback: 'It got to you. You looked lost on the ice, and the coach sat you to protect the team.', failEffect: { fanStatus: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
+      { label: 'Embrace the limelight', subLabel: "Go public and let the attention follow you to the rink.", isRisky: true, successChance: 0.5, successFeedback: 'You leaned into it. You\'re half of the most photographed couple in the country, and your jersey is selling everywhere.', successEffect: { fanStatus: 150, ovr: 0, money: 45000, rel: { media: 20 } }, failFeedback: 'It got to you. You looked lost on the ice, and the coach sat you to protect the team.', failEffect: { fanStatus: 50, ovr: -2, money: 0, rel: { coach: -25, teammates: -10 } } },
       { label: 'Keep it private', subLabel: "Set hard boundaries with the press.", isRisky: false, feedback: 'You kept the press at a distance and your mind on hockey. Your coach noticed.', effect: { fanStatus: 10, ovr: 1, money: 0, rel: { coach: 15 } } }
     ]
   },
@@ -199,7 +199,7 @@ export const eventDeck = [
     title: 'Family Investment Opportunity', proOnly: true, minAge: 22,
     desc: 'Your brother wants you to invest heavily in his new "revolutionary" tech startup. Your financial advisor strongly advises against it.',
     choices: [
-      { label: 'Fund the startup', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'The company took off. You doubled your money, and your brother has not stopped mentioning it.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
+      { label: 'Fund the startup', subLabel: "Back your brother against your advisor's judgement.", isRisky: true, successChance: 0.35, successFeedback: 'The company took off. You doubled your money, and your brother hasn\'t stopped mentioning it.', successEffect: { fanStatus: 0, ovr: 0, money: 250000 }, failFeedback: 'The company went bankrupt in six months. You lost millions, and Thanksgiving dinner is going to be awkward.', failEffect: { fanStatus: 0, ovr: -1, money: -125000 } },
       { label: 'Trust the advisor (pass)', subLabel: "Say no and accept the awkward family dinners.", isRisky: false, feedback: 'You politely declined. Your brother is angry, but your bank account is safe.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
     ]
   },
@@ -221,9 +221,9 @@ export const eventDeck = [
   },
   {
     title: 'Off-Ice Controversy',
-    desc: 'A teammate was filmed at a bar saying things he should not have. Reporters want a statement from you, as one of the leaders in the room.',
+    desc: 'A teammate was filmed at a bar saying things he shouldn\'t have. Reporters want a statement from you, as one of the leaders in the room.',
     choices: [
-      { label: 'Condemn the comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You condemned it publicly. The media praised you for it, and part of the room has not forgiven you.', effect: { fanStatus: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
+      { label: 'Condemn the comments', subLabel: "Say the right thing publicly and wear it in the room.", isRisky: false, feedback: 'You condemned it publicly. The media praised you for it, and part of the room hasn\'t forgiven you.', effect: { fanStatus: 20, ovr: 0, money: 0, rel: { media: 30, teammates: -25 } } },
       { label: 'Protect the room', subLabel: 'Give the media nothing and wear whatever follows.', isRisky: true, successChance: 0.50, successFeedback: 'You gave the media nothing. The story died within a few days, and the room respected that you kept it inside.', successEffect: { fanStatus: -10, ovr: 0, money: 0, rel: { media: -10, teammates: 30 } }, failFeedback: 'The media accused you of protecting a toxic room, and your silence became the story.', failEffect: { fanStatus: -60, ovr: -1, money: 0, rel: { media: -40, teammates: 10 } } }
     ]
   },

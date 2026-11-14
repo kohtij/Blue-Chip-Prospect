@@ -436,7 +436,7 @@ export function handleEventChoice(ctx, choice) {
       } else {
           setActiveEvent({
               title: 'HOLDOUT RESOLVED: STALEMATE',
-              desc: `Management called your bluff. No one met their asking price, and the GM has demanded a face-to-face meeting. You are staying put.`,
+              desc: `Management called your bluff. No one met their asking price, and the GM has demanded a face-to-face meeting. You're staying put.`,
               isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent, // <-- Keeps the routing intact!
               choices: [
                   { label: 'Apologize and return to the team', effect: { fanStatus: -25, ovr: 0, money: 0, rel: { coach: -20, teammates: -15 } } },

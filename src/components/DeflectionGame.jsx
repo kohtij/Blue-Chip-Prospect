@@ -159,7 +159,7 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
                 ? (shot.telegraphed ? `${shot.typeLabel} · now` : 'Shot away · now')
                 : phase === 'winding'
                   ? `Tap ${Math.min(beat, shot.beats)} of ${shot.beats}`
-                  : phase === 'ready' ? 'He is loading it up' : '--'}
+                  : phase === 'ready' ? 'He\'s loading it up' : '--'}
             </span>
           }
         />
@@ -174,7 +174,7 @@ export default function DeflectionGame({ player, onComplete, difficulty = 0 }) {
             ? 'He has shot it. Press TIP on the next beat.'
             : phase === 'winding'
               ? 'Count along with his taps.'
-              : 'You cannot see the puck through the bodies, so your defenceman taps his stick before he shoots. The taps are the speed of the shot: the puck reaches you one beat after he hits it. Press TIP on that beat.'
+              : 'You can\'t see the puck through the bodies, so your defenceman taps his stick before he shoots. The taps are the speed of the shot: the puck reaches you one beat after he hits it. Press TIP on that beat.'
       }
     >
       <Surface view={SLOT_VIEW}>
