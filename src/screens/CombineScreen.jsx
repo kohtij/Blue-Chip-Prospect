@@ -392,7 +392,8 @@ export default function CombineScreen() {
              return (
                <div className={PANEL}>
                  <h2 className={TITLE_LG}>NHL Draft Combine</h2>
-                 <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">
+                 {/* Balanced, so the last line isn't one word on its own. */}
+                 <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed" style={{ textWrap: 'balance' }}>
                    This is the Draft Combine, your last chance to impress the general managers before draft day. The physical testing comes first. Then the interviews, where they find out how you think and what you are like.
                  </p>
                  <button onClick={() => setShowIntro(false)} className={`mt-7 ${START_BTN}`}>
@@ -599,4 +600,4 @@ export default function CombineScreen() {
 
           return null;
         })();
-}
+}

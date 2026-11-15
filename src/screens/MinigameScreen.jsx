@@ -41,14 +41,15 @@ export default function MinigameScreen() {
   });
   const common = { player, difficulty: stakes.difficulty, onComplete: done };
 
-  // When the game starts, bring it to the top of the screen. On a phone the
-  // player card sits above it, and on any screen the brief above can leave the
-  // play button below the fold.
+  // When the game starts, scroll only as far as it takes to have the whole game
+  // on screen. If it's already in view, nothing moves. It used to pull the
+  // game to the very top every time, which on a desktop sent a short game like
+  // the camp battle further down the page than it needed to go.
   const playRef = useRef(null);
   useEffect(() => {
     if (!minigameStarted || !playRef.current) return;
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    playRef.current.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+    playRef.current.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
   }, [minigameStarted]);
 
   return (

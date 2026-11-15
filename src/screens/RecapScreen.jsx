@@ -5,7 +5,7 @@ import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '.
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
-import { deploymentLabel, rateSeason } from '../utils/production';
+import { rateSeason } from '../utils/production';
 import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
 import { awardsFor } from '../data/leagueAwards';
@@ -160,13 +160,6 @@ export default function RecapScreen() {
   return (() => {
           const titles = getPlayoffTitles(player.league);
 
-          // A season played for more than one club. The first line of the
-          // report gives the games with each club, and the stat line below it
-          // counts the whole year, so it has to say so: "50 GP" with Sarnia
-          // above "in 59 games" read as two numbers that disagreed.
-          const lastYear = player.seasonHistory?.[player.seasonHistory.length - 1];
-          const clubCount = Math.max(lastYear?.stints?.length || 0, lastYear?.tradedTo ? 2 : 0);
-          const acrossClubs = clubCount > 2 ? ` across all ${clubCount} clubs` : clubCount === 2 ? ' across both clubs' : '';
 
           let narrative;
           let narrativeTitle;
@@ -400,7 +393,6 @@ export default function RecapScreen() {
                 const shPct = sog > 0 ? ((r.g || 0) / sog) * 100 : null;
                 const fot = r.fot || 0;
                 const foPct = fot > 0 ? ((r.fow || 0) / fot) * 100 : null;
-                const rating = r.rating || 5;
 
                 const main = isG
                   ? [['GP', gp], ['Record', `${r.wins || 0}-${r.losses || 0}-${r.otl || 0}`], ['SV%', sv.toFixed(3).replace('0.', '.')], ['SO', r.sho || 0]]
@@ -417,31 +409,6 @@ export default function RecapScreen() {
                   isD && ['G-A', `${r.g || 0}-${r.a || 0}`]
                 ].filter(Boolean);
 
-                const verdict = isG
-                  ? (sv >= 0.920 ? 'Elite numbers in net.' : sv >= 0.905 ? 'A reliable, steady presence in the crease.' : 'You never found any consistency this year.')
-                  : isD
-                    ? (rating >= 9.0 ? 'As good a year as any defenceman in the league had.'
-                      : rating >= 8.0 ? (pts >= 55 ? 'You carried the puck out of your own end all season.' : "You shut down the other team's best line all season.")
-                        : rating >= 6.5 ? 'The coach could count on you every night.'
-                          : rating <= 4.0 ? 'You were caught out far too often.' : 'A quiet year in a sheltered role.')
-                    // Judged on the season grade, which already knows the
-                    // league and how many games were played, and on points per
-                    // game. Raw totals (40 for "solid") told a college player
-                    // with 29 points in 30 games that the points hadn't come.
-                    : (() => {
-                        const ppg = gp > 0 ? pts / gp : 0;
-                        if (pts >= 100) return 'A hundred-point season.';
-                        if ((r.g || 0) >= 50) return 'An elite goal-scoring year.';
-                        if (rating >= 9.0) return 'As good a year as any forward in the league had.';
-                        if (rating >= 8.0) return 'One of the most productive forwards in the league.';
-                        if (ppg >= 0.9) return ppg >= 1 ? 'Better than a point a game.' : 'Close to a point a game.';
-                        if (rating >= 6.5) return 'A good year, and a useful one.';
-                        if (rating >= 5.0 || ppg >= 0.5) return 'A steady year, if not a big one.';
-                        return "The points didn't come.";
-                      })();
-                const use = !isG && r.ozPct != null ? deploymentLabel(r.ozPct) : null;
-                const useLine = use === 'Shutdown' ? " The coach sent you out against the other team's best, in your own end."
-                  : use === 'Sheltered' ? ' The coach kept you away from your own net.' : '';
 
                 return (
                   <div className="mb-6">
@@ -463,9 +430,6 @@ export default function RecapScreen() {
                         ))}
                       </div>
                     )}
-                    <p className="mt-3 text-sm sm:text-base text-slate-300 leading-relaxed">
-                      {verdict}{acrossClubs ? ` Those numbers are${acrossClubs}.` : ''}{useLine}
-                    </p>
                   </div>
                 );
               })()}
@@ -861,12 +825,22 @@ export default function RecapScreen() {
                 if (!list.length) return null;
                 const listCls = 'space-y-3 sm:space-y-4 text-slate-300 text-sm sm:text-base font-sans text-left leading-relaxed';
                 return (
-                  <section className="mt-8 pt-6 border-t border-[rgba(255,255,255,0.05)]" aria-label="Moments of the season">
-                    <button type="button" onClick={() => setShowAllMoments(v => !v)} aria-expanded={showAllMoments}
-                            aria-controls="recap-moments"
-                            className="btn-secondary w-full py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer">
-                      {showAllMoments ? 'Hide the moments' : `Moments of the season (${list.length})`}
-                    </button>
+                  <section className="mt-3 sm:mt-4" aria-label="Moments of the season">
+                    {/* Laid out like every other line of the report, with its
+                        own coloured rule and label, so it reads as part of the
+                        list. It was a full-width grey button sitting under it. */}
+                    <ul className={listCls}>
+                      <RecapRow accent="#c084fc" label="📰 Moments of the Season">
+                        <button type="button" onClick={() => setShowAllMoments(v => !v)} aria-expanded={showAllMoments}
+                                aria-controls="recap-moments"
+                                className="inline-flex items-center gap-1.5 text-left text-slate-300 hover:text-white underline decoration-[#c084fc]/50 underline-offset-4 cursor-pointer">
+                          {showAllMoments
+                            ? 'Hide them'
+                            : `${list.length} ${list.length === 1 ? 'moment' : 'moments'} from the year. Show them`}
+                          <span aria-hidden="true" className={`text-[#c084fc] transition-transform ${showAllMoments ? 'rotate-180' : ''}`}>▾</span>
+                        </button>
+                      </RecapRow>
+                    </ul>
                     {showAllMoments && (
                       <ul id="recap-moments" className={`${listCls} mt-4 moments-in`}>
                         {list.map(({ ev, i }) => (

@@ -294,6 +294,27 @@ export function advanceToOffseason(ctx) {
   const isTheGuy = player.league === 'NHL' && player.ovr >= 84
       && (player.contract?.salary || 0) >= capFor(sourYearNum) * 0.055;
 
+  // THE PATIENCE RUNNING OUT, A SUMMER AT A TIME.
+  // The two events below used to arrive out of a clear sky: fans fine one
+  // year, the city calling for a trade the next. Every barren spring from the
+  // second on now costs him with the fans, a little more each time, and the
+  // recap says so, so by the time the radio has his name the slide is already
+  // there in his numbers.
+  if (isTheGuy && barrenYears >= 2 && sourStage < 2 && !marks.sourDrip) {
+      const drop = Math.min(45, 10 * (barrenYears - 1));
+      setPlayer(p => ({ ...p, fanStatus: Math.max(0, (p.fanStatus || 0) - drop) }));
+      setSeasonEvents(prev => [...prev, {
+          title: '📻 THE CALLERS',
+          feedback: barrenYears === 2
+            ? 'Two springs in a row ended early, and the radio shows have started asking what the big contract is buying.'
+            : barrenYears === 3
+              ? 'Another early exit. Your name comes up on the radio before the coach\'s does now.'
+              : `${barrenYears} springs in a row now. Some people in this city have stopped buying your jersey.`,
+          effect: { fanStatus: -drop }
+      }]);
+      mark('sourDrip');
+  }
+
   // A deep run buys the goodwill back, and so does a change of address. The
   // arc can run again somewhere else, from the beginning.
   if (sourStage > 0 && barrenYears === 0) {
@@ -512,6 +533,15 @@ export function advanceToOffseason(ctx) {
     // an import: he comes back through the ordinary CHL route, not this one.
     const isImportEligible = !['CAN', 'USA'].includes(player.nat);
 
+    // Where he went in the import draft. It's two rounds, one pick a club a
+    // round, so about 120 picks; a better prospect goes earlier. The event
+    // used to say only that a club "took you".
+    const importPick = () => {
+      const n = Math.max(1, Math.min(120, Math.round((84 - (player.ovr || 60)) * 3 + Math.random() * 24)));
+      const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+      return `${n}${tail}`;
+    };
+
     if (isImportEligible && !player.storylines?.importDraft && !player.chlRights && (player.age === 16 || player.age === 17) && safeEuroLeagues.includes(player.league) && Math.random() > 0.4) {
         setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), importDraft: 1 } }));
         const chlLeagues = ['OHL', 'WHL', 'QMJHL'];
@@ -523,7 +553,7 @@ export function advanceToOffseason(ctx) {
 
         setActiveEvent({
             title: '🇨🇦 THE CHL IMPORT DRAFT',
-            desc: `The ${fullTeamName} (${randomLg}) took you in the CHL Import Draft. They want you to leave Europe and play major junior in North America, on the smaller ice you'd play on as a pro.`,
+            desc: `The ${fullTeamName} (${randomLg}) selected you with the ${importPick()} pick in the CHL Import Draft. They want you to leave Europe and play major junior in North America, on the smaller ice you'd play on as a pro.`,
             choices: [
                 {
                     label: 'Pack your bags for North America',
@@ -641,7 +671,7 @@ export function advanceToOffseason(ctx) {
          if (chlTeam) {
            setActiveEvent({
              title: 'CHL IMPORT DRAFT',
-             desc: `The ${getFullTeamName(chlTeam, 'OHL')} took you in the CHL Import Draft. Will you leave Europe to play major junior in North America?`,
+             desc: `The ${getFullTeamName(chlTeam, 'OHL')} selected you with the ${importPick()} pick in the CHL Import Draft. Will you leave Europe to play major junior in North America?`,
              choices: [
                { label: 'Move to Canada (join the OHL)', subLabel: 'Leave Europe to prepare for your draft year in the OHL.', isRisky: false, feedback: 'You packed your bags for North America to prepare for your draft year.', effect: { fanStatus: 5, ovr: 2, money: 0 }, action: 'JOIN_CHL', actionData: chlTeam.id },
                { label: 'Stay in Europe', subLabel: 'Stay close to home for now.', isRisky: false, feedback: 'You decided to stay close to home.', effect: { fanStatus: 0, ovr: 1, money: 0 } }

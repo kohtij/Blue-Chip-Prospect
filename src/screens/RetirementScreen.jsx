@@ -58,7 +58,6 @@ const TIERS = [
 
 const sv3 = (saves, shots) => (shots > 0 ? (saves / shots).toFixed(3).replace('0.', '.') : '.000');
 const gaa2 = (saves, shots, gp) => (gp > 0 ? ((shots - saves) / gp).toFixed(2) : '0.00');
-const pct1 = (a, b) => (b > 0 ? ((a / b) * 100).toFixed(1) : null);
 const seasonLabel = (y) => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
 const Dash = () => <span className="text-slate-600">-</span>;
 
@@ -255,7 +254,6 @@ export default function RetirementScreen() {
   const isLegend = score.tier === 'Generational Icon' || score.tier === 'Hall of Famer';
   const isGoalie = player.pos === 'G';
   const isDman = isDefence(player.pos);
-  const isCentre = player.pos === 'C';
   const history = player.seasonHistory || [];
   const peakOvr = player.stats?.peakOvr || player.ovr;
 
@@ -543,7 +541,10 @@ export default function RetirementScreen() {
          ...(isDman ? [['Blocks', t.blocks]] : [])];
   };
 
-  const regCols = isGoalie ? 5 : 5 + (isCentre ? 1 : 0);
+  // Every skater gets the same four: games, goals, assists, points. Shooting
+  // percentage, faceoffs and blocks were extra columns that made the table
+  // wider without telling the story of a season any better.
+  const regCols = isGoalie ? 5 : 4;
 
   return (
     <div className="min-h-screen px-3 py-4 sm:p-8 bg-[#040505] text-white font-sans" style={{ '--club': tone }}>
@@ -887,8 +888,6 @@ export default function RetirementScreen() {
                       <th className="px-2 py-2 text-right font-bold">G</th>
                       <th className="px-2 py-2 text-right font-bold">A</th>
                       <th className="px-2 py-2 text-right font-bold">Pts</th>
-                      <th className="px-2 py-2 text-right font-bold">{isDman ? 'BLK' : 'S%'}</th>
-                      {isCentre && <th className="px-2 py-2 text-right font-bold">FO%</th>}
                     </>)}
                     <th className="px-2 py-2 text-right font-bold border-l border-[rgba(255,255,255,0.06)]">GP</th>
                     <th className="px-2 py-2 text-right font-bold">{isGoalie ? 'SV%' : 'G'}</th>
@@ -951,8 +950,6 @@ export default function RetirementScreen() {
                           <td className={cell}>{r.goals}</td>
                           <td className={cell}>{r.assists}</td>
                           <td className={`${cell} text-white font-black`}>{r.goals + r.assists}</td>
-                          <td className={cell}>{isDman ? r.blocks : (pct1(r.goals, r.sog) ?? <Dash />)}</td>
-                          {isCentre && <td className={cell}>{pct1(r.fow, r.fot) ?? <Dash />}</td>}
                         </>)}
                         <td className={`${cell} border-l border-[rgba(255,255,255,0.06)]`}>{po ? r.playoffGames : <Dash />}</td>
                         <td className={cell}>{po ? (isGoalie ? sv3(r.playoffSaves, r.playoffShots) : r.playoffGoals) : <Dash />}</td>
@@ -987,8 +984,6 @@ export default function RetirementScreen() {
                           <td className={cell}>{t.goals}</td>
                           <td className={cell}>{t.assists}</td>
                           <td className={`${cell} text-white`}>{t.goals + t.assists}</td>
-                          <td className={cell}>{isDman ? t.blocks : (pct1(t.goals, t.sog) ?? <Dash />)}</td>
-                          {isCentre && <td className={cell}>{pct1(t.fow, t.fot) ?? <Dash />}</td>}
                         </>)}
                         <td className={`${cell} border-l border-[rgba(255,255,255,0.06)]`}>{po ? t.poGames : <Dash />}</td>
                         <td className={cell}>{po ? (isGoalie ? sv3(t.poSaves, t.poShots) : t.poGoals) : <Dash />}</td>

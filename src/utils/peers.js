@@ -1679,7 +1679,8 @@ export function classNews(peers, player) {
   if (champ) {
     candidates.push({
       weight: 2, id: champ.p.id, kind: 'cup',
-      line: `${champ.p.name}, ${champ.how}, won the Cup this year.`
+      // Only NHL classmates are given titles (see above), so it's the Stanley Cup.
+      line: `${champ.p.name}, ${champ.how}, won the Stanley Cup this year.`
     });
   }
 

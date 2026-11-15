@@ -267,7 +267,7 @@ export default function TradeDeadlineScreen() {
                     const clauseShort = player.contract?.nmc ? 'NMC' : 'NTC';
                     if (player.contract?.nmc || player.contract?.ntc) {
                         setActiveEvent({
-                           title: `WAIVE YOUR ${clauseShort}?`,
+                           title: `🔒 WAIVE YOUR ${clauseName.toUpperCase()}?`,
                            // The club is not always struggling. A contender asking a
                            // player to waive a clause is asking him to be the price of
                            // somebody else's arrival, which is a different question.
@@ -277,8 +277,8 @@ export default function TradeDeadlineScreen() {
                            choices: [
                               // showTeamCard gives this the full team card (logo, rank, perks and
                               // flaws) so the destination can be judged before waiving the clause.
-                              { label: `Waive your ${clauseShort} (accept the trade)`, isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
-                              { label: `Use your ${clauseShort} (veto the trade)`, isRisky: false, feedback: `You used your ${clauseShort}. The GM was frustrated, and you're staying put.`, effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
+                              { label: `Waive your ${clauseName}`, subLabel: 'Accept the trade and report to your new club.', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
+                              { label: 'Veto the trade', subLabel: `Use your ${clauseName}. You're not going anywhere.`, isRisky: false, feedback: `You used your ${clauseShort}. The GM was frustrated, and you're staying put.`, effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
                            ],
                            isTradeDeadlineEvent: true
                         });

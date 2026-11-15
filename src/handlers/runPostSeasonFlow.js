@@ -89,14 +89,33 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // ==========================================
     // STORYLINE 1.5: THE FRANCHISE DUO
     // ==========================================
-    const duoStage = player.storylines?.franchiseDuo || 0;
+    let duoStage = player.storylines?.franchiseDuo || 0;
     const teammateTrust = player.relationships?.teammates || 50;
+
+    // The duo belongs to the club it formed at. Asking him to defer salary
+    // for "your best friend on the team" made no sense after he'd been traded
+    // away from that friend, twice in one case. Once he's left, the arc is
+    // over, and a new one can start at the new club. Older saves never
+    // recorded the club, so for those he has to have stayed put for the last
+    // two seasons.
+    if (duoStage === 1) {
+        const home = player.storylines?.duoTeam;
+        const recent = (player.seasonHistory || []).slice(-2);
+        const stayed = home
+            ? home === currentTeam
+            : recent.length > 0 && recent.every(s => s.team === currentTeam && !s.tradedTo);
+        if (!stayed) {
+            setPlayer(p => ({ ...p, storylines: { ...p.storylines, franchiseDuo: 0, duoTeam: null } }));
+            // Not this summer, though: a new duo needs a season together first.
+            duoStage = -1;
+        }
+    }
 
     // Organic Trigger: Good teammate relations early in NHL career
     if (duoStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && teammateTrust > 75 && player.stats?.seasonsPlayed >= 2 && Math.random() < 0.15) {
         setPlayer(p => ({ 
             ...p, 
-            storylines: { ...p.storylines, franchiseDuo: 1 },
+            storylines: { ...p.storylines, franchiseDuo: 1, duoTeam: currentTeam },
             duoName: 'your linemate'
         }));
         setActiveEvent({
