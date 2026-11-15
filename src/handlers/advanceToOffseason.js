@@ -88,6 +88,10 @@ export function advanceToOffseason(ctx) {
   let isCurrentlyAmateur = safeJuniorLeagues.includes(currentLeague) || currentLeague === 'NCAA';
 
   const opening = done === FRESH && !marks.opened;
+  // Bought out this summer: he's a free agent and the market is the only thing
+  // left to happen before he signs. The club that just cut him firing its
+  // coach, or a talk about retiring, isn't his business any more.
+  const boughtOut = !!player.offseason?.boughtOut;
   if (opening) setSeasonEvents([]);
 
   // B1: Longevity Tick - Building chemistry by staying with the same org
@@ -433,7 +437,7 @@ export function advanceToOffseason(ctx) {
     return next;
   });
 
-  if (myFiring) {
+  if (myFiring && !boughtOut) {
     const incoming = summer.coaches[player.team];
     const mine = playerArchetype(player);
     setActiveEvent({
@@ -454,7 +458,7 @@ export function advanceToOffseason(ctx) {
   }
 
   // VETERAN CAREER CROSSROADS
-    if (player.age >= 37 || (player.age >= 34 && player.ovr < 76)) {
+    if (!boughtOut && (player.age >= 37 || (player.age >= 34 && player.ovr < 76))) {
        const choices = [
          { label: 'Hang up the skates', subLabel: 'End your career on your own terms.', isRisky: false, feedback: 'You announced your retirement to a standing ovation.', effect: { fanStatus: 50, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
        ];

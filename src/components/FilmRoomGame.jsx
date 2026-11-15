@@ -329,9 +329,12 @@ export default function FilmRoomGame({ onComplete }) {
       else setStep(step + 1);
       // The answers sit below the clip, so on a desktop screen the page was
       // left scrolled down to them. The next clip, and the verdict after the
-      // third, start at the top again.
-      const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: 0, behavior: calm ? 'auto' : 'smooth' });
+      // third, start at the top again. Not on a phone: the top of the page
+      // there is the player card, and the next clip is already in view.
+      if (window.matchMedia?.('(min-width: 1024px)').matches) {
+        const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top: 0, behavior: calm ? 'auto' : 'smooth' });
+      }
     }, 1300);
   };
 

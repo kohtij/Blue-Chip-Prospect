@@ -602,6 +602,12 @@ function App() {
     // turns up in a final. An explicit id (the camp event asks for its own
     // battle) only has to fit the position.
     const pool = getMinigamePool(player.pos, context) || [];
+
+    // A game that belongs to one moment is played in that moment, whatever the
+    // caller said. The camp battle was sent here as 'season', so when it ended
+    // the game routed as if a season were under way and skipped the preseason.
+    const askedFor = explicitId ? findMinigame(explicitId) : null;
+    if (askedFor?.contexts?.length === 1) context = askedFor.contexts[0];
     
     if (explicitId) {
         const asked = findMinigame(explicitId);

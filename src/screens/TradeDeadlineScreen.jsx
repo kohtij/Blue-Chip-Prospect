@@ -424,19 +424,25 @@ export default function TradeDeadlineScreen() {
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
               YOUR SEASON SO FAR
             </p>
-            <div className="flex gap-2">
+            {/* Each tile is as wide as what's in it, and the spare width is
+                shared out after that. They used to be five equal tiles, so on
+                a phone a goalie's record (12-9-3, under a W-L-OTL label) broke
+                over two lines while the GP tile beside it sat half empty.
+                Nothing in the row wraps, and a row of five sets its numbers a
+                size smaller on a phone. */}
+            <div className="flex gap-1.5 sm:gap-2">
               {seasonStats.map(s => (
                 <div
                   key={s.label}
-                  className={`flex-1 rounded-lg border px-2 py-2 text-center ${s.lead
+                  className={`flex-auto rounded-lg border px-1.5 sm:px-2 py-2 text-center ${s.lead
                     ? 'bg-[rgba(255,255,255,0.08)] border-[rgba(255,255,255,0.22)]'
                     : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.07)]'}`}
                 >
-                  <p className={`font-black sports-font leading-none text-white tracking-tight ${
-                    String(s.value).length > 6 ? 'text-sm sm:text-base' : 'text-lg sm:text-xl'}`}>
+                  <p className={`font-black sports-font leading-none text-white tracking-tight whitespace-nowrap ${
+                    String(s.value).length > 6 ? 'text-[15px] sm:text-base' : seasonStats.length >= 5 ? 'text-base sm:text-xl' : 'text-lg sm:text-xl'}`}>
                     {s.value}
                   </p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1.5 leading-none">
+                  <p className="text-[9px] font-black uppercase tracking-wider sm:tracking-widest text-slate-400 mt-1.5 leading-none whitespace-nowrap">
                     {s.label}
                   </p>
                 </div>

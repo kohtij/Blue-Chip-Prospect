@@ -35,19 +35,39 @@ export function computeCareerScore(player) {
   // stats.awards holds the Stanley Cups and the international medals; every
   // season award the game hands out, the Hart, the Conn Smythe, the Vezina, the
   // Norris, the Art Ross, the Rocket, the Calder and every All-Star Team, is
-  // written onto that season's history entry and never copied up. So the whole
-  // awards section below was scoring an array that only ever contained Cups, and
-  // a long, decorated career still came out a Franchise Cornerstone with the top
-  // two tiers unreachable. The two sources are disjoint, so reading both counts
-  // each trophy exactly once.
+  // written onto that season's history entry and never copied up.
+  //
+  // The two lists aren't disjoint, though. A cup and a medal are written to
+  // both ("2032 Calder Cup" on the season and on the career list), so reading
+  // both counted every championship and every medal twice: two Calder Cups for
+  // one, four Olympic golds for two. Each trophy is kept once, by its year and
+  // its name, however the two lists happen to word it.
+  const keyOf = (a) => {
+    const str = String(a).toLowerCase();
+    const year = (str.match(/\b(?:19|20)\d{2}\b/) || [''])[0];
+    const words = str.replace(/\b(?:19|20)\d{2}\b/g, '').match(/[a-z]+/g) || [];
+    return `${year}:${[...new Set(words)].sort().join(' ')}`;
+  };
+  const seen = new Set();
   const awards = [
     ...(player.stats?.awards || []),
     ...history.flatMap(s => s.awards || [])
-  ];
+  ].filter(a => {
+    // The NHL First All-Star Team is gone from the game; older saves still
+    // carry it, and it no longer scores.
+    if (/1st team all-star/i.test(String(a))) return false;
+    const k = keyOf(a);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
   const teams = player.teamsPlayedFor || [];
 
   // 1. AWARDS & CHAMPIONSHIPS
   const countMatch = (str) => awards.filter(a => a.includes(str)).length;
+
+  // "Hart Trophy" for one, "Hart Trophy ×2" for more.
+  const times = (k, name) => (k === 1 ? name : `${name} ×${k}`);
 
   const hart = countMatch('Hart');
   const smythe = countMatch('Conn Smythe');
@@ -65,21 +85,21 @@ export function computeCareerScore(player) {
   const wjcGold = awards.filter(a => a.includes('Gold') && a.includes('World Juniors')).length;
   const minorAwards = countMatch('Player of the Year') + countMatch('Red Tilson') + countMatch('All-American');
 
-  if (hart > 0) addPoints(hart * 400, `${hart}x Hart Trophy`);
-  if (smythe > 0) addPoints(smythe * 400, `${smythe}x Conn Smythe`);
-  if (vezina > 0) addPoints(vezina * 300, `${vezina}x Vezina Trophy`);
-  if (norris > 0) addPoints(norris * 300, `${norris}x Norris Trophy`);
-  if (ross > 0) addPoints(ross * 300, `${ross}x Art Ross`);
-  if (rocket > 0) addPoints(rocket * 300, `${rocket}x Rocket Richard`);
-  if (calder > 0) addPoints(calder * 200, `${calder}x Calder Trophy`);
-  if (allStar > 0) addPoints(allStar * 75, `${allStar}x All-Star`);
-  if (stanleyCup > 0) addPoints(stanleyCup * 600, `${stanleyCup}x Stanley Cup`);
-  if (calderCup > 0) addPoints(calderCup * 100, `${calderCup}x Calder Cup`);
-  if (memCup > 0) addPoints(memCup * 100, `${memCup}x Memorial Cup`);
-  if (ncaaTitle > 0) addPoints(ncaaTitle * 100, `${ncaaTitle}x NCAA Title`);
-  if (olyGold > 0) addPoints(olyGold * 250, `${olyGold}x Olympic Gold`);
-  if (wjcGold > 0) addPoints(wjcGold * 100, `${wjcGold}x WJC Gold`);
-  if (minorAwards > 0) addPoints(minorAwards * 50, `${minorAwards}x Minor Award`);
+  if (hart > 0) addPoints(hart * 400, times(hart, 'Hart Trophy'));
+  if (smythe > 0) addPoints(smythe * 400, times(smythe, 'Conn Smythe'));
+  if (vezina > 0) addPoints(vezina * 300, times(vezina, 'Vezina Trophy'));
+  if (norris > 0) addPoints(norris * 300, times(norris, 'Norris Trophy'));
+  if (ross > 0) addPoints(ross * 300, times(ross, 'Art Ross'));
+  if (rocket > 0) addPoints(rocket * 300, times(rocket, 'Rocket Richard'));
+  if (calder > 0) addPoints(calder * 200, times(calder, 'Calder Trophy'));
+  if (allStar > 0) addPoints(allStar * 75, times(allStar, 'All-Star Team'));
+  if (stanleyCup > 0) addPoints(stanleyCup * 600, times(stanleyCup, 'Stanley Cup'));
+  if (calderCup > 0) addPoints(calderCup * 100, times(calderCup, 'Calder Cup'));
+  if (memCup > 0) addPoints(memCup * 100, times(memCup, 'Memorial Cup'));
+  if (ncaaTitle > 0) addPoints(ncaaTitle * 100, times(ncaaTitle, 'NCAA title'));
+  if (olyGold > 0) addPoints(olyGold * 250, times(olyGold, 'Olympic gold'));
+  if (wjcGold > 0) addPoints(wjcGold * 100, times(wjcGold, 'World Juniors gold'));
+  if (minorAwards > 0) addPoints(minorAwards * 50, times(minorAwards, 'Junior or college award'));
 
   // 2. LONGEVITY & SEASONAL MILESTONES
   let nhlSeasons = 0, otherSeasons = 0, hundredPtSeasons = 0, fiftyGoalSeasons = 0, demotions = 0;
@@ -97,17 +117,18 @@ export function computeCareerScore(player) {
     prevLg = s.league;
   });
 
-  if (nhlSeasons > 0) addPoints(nhlSeasons * 75, `${nhlSeasons} NHL Seasons`);
-  if (otherSeasons > 0) addPoints(otherSeasons * 15, `${otherSeasons} Amateur/Minor Seasons`);
-  if (hundredPtSeasons > 0) addPoints(hundredPtSeasons * 150, `${hundredPtSeasons}x 100-Pt Seasons`);
-  if (fiftyGoalSeasons > 0) addPoints(fiftyGoalSeasons * 150, `${fiftyGoalSeasons}x 50-Goal Seasons`);
+  const n = (k, one, many) => (k === 1 ? `One ${one}` : `${k} ${many}`);
+  if (nhlSeasons > 0) addPoints(nhlSeasons * 75, n(nhlSeasons, 'NHL season', 'NHL seasons'));
+  if (otherSeasons > 0) addPoints(otherSeasons * 15, n(otherSeasons, 'season outside the NHL', 'seasons outside the NHL'));
+  if (hundredPtSeasons > 0) addPoints(hundredPtSeasons * 150, n(hundredPtSeasons, '100-point season', '100-point seasons'));
+  if (fiftyGoalSeasons > 0) addPoints(fiftyGoalSeasons * 150, n(fiftyGoalSeasons, '50-goal season', '50-goal seasons'));
 
   // 3. CAREER MILESTONES
   const nhlGames = player.stats?.nhl?.games || 0;
   const nhlGoals = player.stats?.nhl?.goals || 0;
-  if (nhlGames >= 1000) addPoints(400, `1000+ NHL Games`);
-  else if (nhlGames >= 500) addPoints(150, `500+ NHL Games`);
-  if (nhlGoals >= 500) addPoints(400, `500+ NHL Goals`);
+  if (nhlGames >= 1000) addPoints(400, '1,000 NHL games');
+  else if (nhlGames >= 500) addPoints(150, '500 NHL games');
+  if (nhlGoals >= 500) addPoints(400, '500 NHL goals');
 
   // 3b. WHAT KIND OF PLAYER HE ACTUALLY WAS
   //
@@ -173,10 +194,10 @@ export function computeCareerScore(player) {
   }
 
   // 4. MODIFIERS
-  if (player.isGenerational) addPoints(250, `Generational Talent`);
-  if (teams.length >= 5) addPoints(150, `Journeyman Bonus`);
-  if (nhlSeasons >= 10 && teams.length <= 2) addPoints(300, `Franchise Loyalty`); 
-  if (demotions > 0) addPoints(demotions * -25, `Demoted ${demotions}x`);
+  if (player.isGenerational) addPoints(250, 'Generational talent');
+  if (teams.length >= 5) addPoints(150, 'Played for five or more clubs');
+  if (nhlSeasons >= 10 && teams.length <= 2) addPoints(300, 'Ten NHL seasons with one organisation'); 
+  if (demotions > 0) addPoints(demotions * -25, demotions === 1 ? 'Sent down from the NHL' : `Sent down from the NHL ${demotions} times`);
 
   // 5. CALCULATE TIER
   //
@@ -229,7 +250,7 @@ export function hallOfFame(score, lastSeasonYear) {
     return {
       inducted: true,
       classYear: eligible + wait,
-      ballot: wait === 0 ? 'First ballot' : wait === 1 ? 'Second year on the ballot' : `${wait + 1} years on the ballot`
+      ballot: wait === 0 ? 'First Ballot' : wait === 1 ? 'Second year on the ballot' : `${wait + 1} years on the ballot`
     };
   }
   if (score.tier === 'Franchise Cornerstone' && score.total >= 2400) {

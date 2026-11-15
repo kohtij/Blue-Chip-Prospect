@@ -1,4 +1,19 @@
 import { gaussianNoise } from './production';
+import { juniorLeagues } from '../data/teams';
+
+// HOW OLD A ROOM CAN BE.
+//
+// Rooms were drawn from 19 to 38 whatever the league, so a junior club could
+// trade for a twenty-two-year-old goalie. Junior hockey stops at twenty (a
+// club can carry a few twenty-year-old overagers and nobody older) and college
+// runs about eighteen to twenty-four. Anyone who ages past his league's limit
+// leaves in the summer, which also clears the older men out of saves made
+// before this.
+function ageBand(league) {
+  if (juniorLeagues.includes(league)) return { lo: 16, hi: 20, spread: 1.4, fresh: () => 16 + Math.floor(Math.random() * 3) };
+  if (league === 'NCAA') return { lo: 18, hi: 24, spread: 1.8, fresh: () => 18 + Math.floor(Math.random() * 3) };
+  return { lo: 19, hi: 38, spread: 4.5, fresh: () => Math.random() < 0.55 ? 19 + Math.floor(Math.random() * 4) : 24 + Math.floor(Math.random() * 7) };
+}
 
 // THE ROOM.
 //
@@ -169,6 +184,7 @@ export function advanceRoom(room, { strength = 0.5, league = 'NHL' } = {}) {
   if (!room || !Array.isArray(room.men)) return room;
   const size = room.men.length;
   let seed = room.seed || size;
+  const band = ageBand(league);
 
   const men = [];
   const left = [];
@@ -178,7 +194,8 @@ export function advanceRoom(room, { strength = 0.5, league = 'NHL' } = {}) {
     // Old and finished, or simply moved on. One in nine leaves in a summer,
     // which turns a room over across about a decade.
     const done = (m.age >= 36 && m.ovr < 62) || m.age >= 41;
-    if (done || Math.random() < 0.11) {
+    const agedOut = m.age > band.hi;
+    if (done || agedOut || Math.random() < 0.11) {
       left.push({ ...raw, retired: done });
       seed += 1;
       const slot = men.length;
@@ -186,7 +203,8 @@ export function advanceRoom(room, { strength = 0.5, league = 'NHL' } = {}) {
         pos: m.pos, strength, slot, size, league,
         // A replacement is usually young, because that is who clubs replace
         // people with, and a young one is the arriving kid this room needs.
-        age: Math.random() < 0.55 ? 19 + Math.floor(Math.random() * 4) : 24 + Math.floor(Math.random() * 7)
+        // In junior and college that means the youngest the league takes.
+        age: band.fresh()
       }));
     } else {
       men.push(m);
@@ -254,7 +272,8 @@ export function makeRoom({ teamId, league = 'NHL', playerPos = 'C', playerAge = 
       return;
     }
     // Ages spread around the player's own, so a room is not a year group.
-    const age = clamp(Math.round(playerAge + gaussianNoise() * 4.5 + (slot < 2 ? 2 : 0)), 19, 38);
+    const band = ageBand(league);
+    const age = clamp(Math.round(playerAge + gaussianNoise() * band.spread + (slot < 2 ? (band.hi <= 24 ? 1 : 2) : 0)), band.lo, band.hi);
     men.push(makeMan(slot, { pos, strength, slot, size, league, age }));
   });
 

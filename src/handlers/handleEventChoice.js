@@ -15,7 +15,17 @@ export function handleEventChoice(ctx, choice) {
   let outcomeEffect;
   let outcomeFeedback;
 
-  if (choice.isRisky) {
+  // A choice that starts a minigame is decided by the game, not by a roll.
+  // These used to roll first anyway: the camp battle flipped a coin, applied
+  // and logged "the coach named you the backup" with its -1 and -10, and only
+  // then started the game, whose own result came on top of it. So a player saw
+  // an outcome for a battle he hadn't fought yet.
+  const playsGame = /MINIGAME|INTL_RISKY/.test(choice.action || '');
+
+  if (playsGame) {
+    outcomeEffect = {};
+    outcomeFeedback = null;
+  } else if (choice.isRisky) {
     const success = Math.random() < (choice.successChance || 0.5);
     outcomeEffect = success ? choice.successEffect : choice.failEffect;
     outcomeFeedback = success ? choice.successFeedback : choice.failFeedback;
@@ -34,7 +44,7 @@ export function handleEventChoice(ctx, choice) {
   // your dignity." arrived with nothing to say which of the season's dozen
   // events it belonged to. The event's own title is the context, and it is
   // right here, so it travels with the line.
-  setSeasonEvents(prev => [...prev, {
+  if (!playsGame) setSeasonEvents(prev => [...prev, {
     title: activeEvent?.title || null,
     feedback: outcomeFeedback,
     effect: outcomeEffect || {},
@@ -82,6 +92,8 @@ export function handleEventChoice(ctx, choice) {
       team: d.team, perYear: d.perYear || 0, seasonsLeft: d.seasons || 0, total: d.total || 0
     }];
     updated.rightsLapsedBy = d.team || null;
+    // The rest of the summer waits for the market (see advanceToOffseason).
+    updated.offseason = { ...(updated.offseason || {}), boughtOut: true };
   } else if (actionStr === 'SLUMP_RESPONSE') {
     // The form he carries into the next stretch, in place of the cold one.
     const d = choice.actionData || {};

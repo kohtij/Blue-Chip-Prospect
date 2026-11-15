@@ -10,6 +10,7 @@ import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
 import { awardsFor } from '../data/leagueAwards';
 import { TITLE_MD } from '../utils/ui';
+import TrophyImage from '../components/TrophyImage';
 
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA', 'J20', 'U20'];
@@ -92,6 +93,20 @@ function PillRow({ effect, perks, flaws, isGoalie }) {
       </span>
     );
   };
+
+  // Standing with the coach, the room and the press. Most of the summer's
+  // introductions (the new coach, a star walking in) move only these, and the
+  // recap never showed them, so those choices looked like they did nothing.
+  const relPills = [['coach', 'COACH'], ['teammates', 'ROOM'], ['media', 'MEDIA']].map(([key, label]) => {
+    const v = Number(effect?.rel?.[key]);
+    if (!Number.isFinite(v) || v === 0) return null;
+    return (
+      <span key={`rel-${key}`} className={`${base} ${v > 0 ? 'text-[#c084fc] bg-[#c084fc]/10 border-[#c084fc]/30' : tone.bad}`}>
+        {`${v > 0 ? '+' : ''}${v} ${label}`}
+      </span>
+    );
+  }).filter(Boolean);
+  statPills.push(...relPills);
 
   const perkPills = [
     ...(perks || []).map((pk, i) => chip(pk, i, false)),
@@ -212,7 +227,9 @@ export default function RecapScreen() {
           } else if (seasonRecap?.titleWon === 1) {
              if (player.league === 'NHL') {
                  narrativeTitle = 'STANLEY CUP CHAMPIONS';
-                 narrative = `You won the Stanley Cup, and your name goes on it.`;
+                 narrative = player.isCaptain
+                   ? 'Your name goes on the Stanley Cup. You wore the C, so you were the first one to lift it.'
+                   : 'Your name goes on the Stanley Cup. It came down the line from the captain, and then it was in your hands.';
              } else if (isJunior) {
                  if (seasonRecap?.memCupStatus === 'won') {
                      narrativeTitle = 'MEMORIAL CUP CHAMPIONS';
@@ -222,11 +239,11 @@ export default function RecapScreen() {
                          narrative = `You won the ${titles?.cupName || 'Championship'} and came up just short at the Memorial Cup. A great season that ended one game too early.`;
                      } else {
                          narrativeTitle = `${formatLeagueName(player.league)} CHAMPIONS`;
-                         narrative = `You won the ${titles?.cupName || 'Championship'}.`;
+                         narrative = `You won the ${titles?.cupName || 'championship'}, and the whole town turned out to see it.`;
                      }
                  } else {
-                     narrativeTitle = 'CHAMPIONS';
-                     narrative = `You won the ${titles?.cupName || 'Championship'}.`;
+                     narrativeTitle = titles?.cupName ? `${titles.cupName.toUpperCase()} CHAMPIONS` : 'CHAMPIONS';
+                     narrative = `You won the ${titles?.cupName || 'championship'}, and you skated it around the ice in front of a full building.`;
                  }
           } else if (madePlayoffsForNarrative) {
               if (pw === maxWins - 1) {
@@ -274,6 +291,17 @@ export default function RecapScreen() {
                   100% { opacity: 1; transform: translateY(0); }
                 }
                 .moments-in { animation: subtleFadeUp 0.35s ease-out both; }
+                @keyframes trophyRise {
+                  0% { opacity: 0; transform: translateY(18px) scale(.9); }
+                  100% { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @keyframes champSheen {
+                  0% { transform: translateX(-130%) skewX(-18deg); }
+                  100% { transform: translateX(260%) skewX(-18deg); }
+                }
+                .trophy-rise { animation: trophyRise 0.8s cubic-bezier(.2,.8,.2,1) both; }
+                .champ-sheen { animation: champSheen 1.8s ease-out 0.35s both; }
+                @media (prefers-reduced-motion: reduce) { .trophy-rise, .champ-sheen { animation: none; } .champ-sheen { display: none; } }
                 @media (prefers-reduced-motion: reduce) { .moments-in { animation: none; } }
                 .recap-list > li {
                   opacity: 0;
@@ -291,6 +319,59 @@ export default function RecapScreen() {
                 </p>
               </div>
 
+              {/* A CHAMPIONSHIP.
+                  It used to get the same grey headline and one-line quote as a
+                  first-round exit. Winning it is the best thing that can happen
+                  in a season, so it gets the trophy, in gold, rising into the
+                  panel, and the playoff line that won it. */}
+              {seasonRecap?.titleWon === 1 ? (() => {
+                const yr = player.seasonHistory?.[player.seasonHistory.length - 1] || {};
+                const isG = player.pos === 'G';
+                const smythe = (yr.awards || []).some(a => /conn smythe|playoff mvp|most valuable player in the playoffs/i.test(String(a)));
+                const poTiles = isG
+                  ? [['Playoff games', yr.playoffGames || 0],
+                     ['Save %', yr.playoffShots ? (yr.playoffSaves / yr.playoffShots).toFixed(3).replace('0.', '.') : '.000'],
+                     ['Shutouts', yr.playoffShutouts || 0]]
+                  : [['Playoff games', yr.playoffGames || 0], ['Goals', yr.playoffGoals || 0],
+                     ['Assists', yr.playoffAssists || 0], ['Points', (yr.playoffGoals || 0) + (yr.playoffAssists || 0)]];
+                return (
+                  <div className="relative overflow-hidden rounded-2xl border border-[#F59E0B]/50 mb-8"
+                       style={{ background: 'radial-gradient(120% 110% at 15% 0%, rgba(245,158,11,0.34), rgba(245,158,11,0.07) 55%, transparent 85%), linear-gradient(180deg, #1c1405, #0b0906)' }}>
+                    <span aria-hidden="true" className="champ-sheen absolute inset-y-0 left-0 w-1/3 pointer-events-none"
+                          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,236,179,0.22), transparent)' }} />
+                    <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-7 p-5 sm:p-7">
+                      <div className="trophy-rise shrink-0 w-14 h-16 sm:w-24 sm:h-32 flex items-end justify-center">
+                        <TrophyImage league={player.league} className="max-w-full max-h-full object-contain drop-shadow-[0_0_26px_rgba(245,158,11,0.6)]" />
+                      </div>
+                      <div className="min-w-0">
+                        {yr.year && (
+                          <p className="text-[11px] sm:text-xs font-black text-[#fcd34d]/80">
+                            {yr.year}-{String((yr.year + 1) % 100).padStart(2, '0')} {formatLeagueName(player.league)}
+                          </p>
+                        )}
+                        <h2 className="mt-1 text-[1.75rem] sm:text-5xl font-black sports-font uppercase leading-[0.95] tracking-tight text-[#F59E0B]"
+                            style={{ textShadow: '0 0 30px rgba(245,158,11,0.35)' }}>
+                          {narrativeTitle}
+                        </h2>
+                        <p className="mt-3 text-sm sm:text-lg font-bold text-[#fef3c7] leading-snug max-w-xl">{narrative}</p>
+                        {smythe && (
+                          <p className="mt-2 text-[12px] sm:text-sm font-black text-[#fcd34d]">You were named playoff MVP as well.</p>
+                        )}
+                      </div>
+                    </div>
+                    {(yr.playoffGames || 0) > 0 && (
+                      <div className={`relative grid ${isG ? 'grid-cols-3' : 'grid-cols-4'} border-t border-[#F59E0B]/25 bg-black/25`}>
+                        {poTiles.map(([label, value], i) => (
+                          <div key={label} className={`px-3 sm:px-6 py-3 sm:py-4 ${i ? 'border-l border-[#F59E0B]/15' : ''}`}>
+                            <p className="text-xl sm:text-3xl font-black sports-font leading-none text-white number-font">{value}</p>
+                            <p className="mt-1 text-[10px] sm:text-[11px] font-bold text-[#fcd34d]/70">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (
               <div className="w-full mb-8">
                 <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-2">
                   <h2 className={`${TITLE_MD} text-left m-0`}>
@@ -299,6 +380,7 @@ export default function RecapScreen() {
                 </div>
                 <p className="text-base sm:text-lg text-slate-400 font-sans italic text-left m-0">"{narrative}"</p>
               </div>
+              )}
 
               {/* THE YEAR IN NUMBERS.
                   This was three paragraphs: the stat line written out as a
@@ -366,7 +448,10 @@ export default function RecapScreen() {
                     <div className={`grid ${main.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} gap-1.5 sm:gap-2`}>
                       {main.map(([label, value]) => (
                         <div key={label} className="rounded-lg bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] px-1.5 py-2.5 sm:py-3 text-center">
-                          <p className="number-font font-black text-white leading-none text-xl sm:text-3xl tabular-nums">{value}</p>
+                          {/* A long value (a goalie's 38-20-6) is set smaller rather
+                              than broken across two lines. */}
+                          <p className={`number-font font-black text-white leading-none tabular-nums whitespace-nowrap ${
+                            String(value).length > 5 ? 'text-[15px] sm:text-2xl' : 'text-xl sm:text-3xl'}`}>{value}</p>
                           <p className="mt-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
                         </div>
                       ))}
@@ -489,7 +574,7 @@ export default function RecapScreen() {
                   <RecapRow accent="#F59E0B" label="🏆 Hardware secured" tint>
                     {/* One line per trophy, with what won it under the name. */}
                     <ul className="space-y-2">
-                      {Array.from(new Set(seasonRecap.awards)).map(aw => {
+                      {Array.from(new Set(seasonRecap.awards)).filter(aw => !/1st team all-star/i.test(String(aw))).map(aw => {
                         const thisYear = player.seasonHistory?.[player.seasonHistory.length - 1];
                         const why = awardReason(aw, seasonRecap, player,
                           [...new Set([thisYear?.league, (thisYear?.stints || []).at(-1)?.league, player.league].filter(Boolean))]);

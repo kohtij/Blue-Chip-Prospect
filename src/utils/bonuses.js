@@ -56,6 +56,8 @@ export const BONUS_TABLE = {
   b_norris:  { kind: 'B', label: 'Norris Trophy', amount: 1000000, test: s => has(s.awards, 'Norris Trophy') },
   b_vezina:  { kind: 'B', label: 'Vezina Trophy', amount: 1000000, test: s => has(s.awards, 'Vezina Trophy') },
   b_lindsay: { kind: 'B', label: 'Ted Lindsay Award', amount: 500000, test: s => has(s.awards, 'Ted Lindsay Award') },
+  // No longer offered (the First All-Star Team was removed). Kept so a deal
+  // signed before that still reads.
   b_team1:   { kind: 'B', label: 'First All-Star Team', amount: 500000, test: s => has(s.awards, '1st Team All-Star') },
   // A veteran's one-year deal.
   v_gp10:    { kind: 'GP', label: '10 games',                test: s => s.games >= 10 },
@@ -77,10 +79,10 @@ export function elcBonuses(pos) {
       ? ['d_goals', 'd_assists', 'd_points', 'd_toi', 'd_blocks', 'd_pm', 'allstar']
       : ['f_goals', 'f_assists', 'f_points', 'f_ppg', 'f_toi', 'f_pm', 'allstar'];
   const b = pos === 'G'
-    ? ['b_calder', 'b_vezina', 'b_hart', 'b_team1']
+    ? ['b_calder', 'b_vezina', 'b_hart']
     : (pos === 'LD' || pos === 'RD')
-      ? ['b_calder', 'b_norris', 'b_hart', 'b_team1']
-      : ['b_calder', 'b_hart', 'b_ross', 'b_richard', 'b_lindsay', 'b_team1'];
+      ? ['b_calder', 'b_norris', 'b_hart']
+      : ['b_calder', 'b_hart', 'b_ross', 'b_richard', 'b_lindsay'];
   return [...a, ...b];
 }
 

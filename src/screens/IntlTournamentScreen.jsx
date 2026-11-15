@@ -14,7 +14,7 @@ import { getMinigamePool } from '../data/minigames';
 import { getStakes } from '../utils/stakes';
 import { isDefence } from '../utils/production';
 import {
-  prepareRound, resolvePick, advanceRun, commitRun, PTS_TO_ADVANCE
+  prepareRound, resolvePick, advanceRun, commitRun, PTS_TO_ADVANCE, sitsOut, resolveSat
 } from '../utils/intlRun';
 import PlayCard from '../components/PlayCard';
 
@@ -66,7 +66,7 @@ function RunLine({ run }) {
             )}
             <span className={`relative z-10 w-3 h-3 rounded-full border-2 transition-all ${dot} ${
               now ? 'animate-pulse' : ''
-            }`} />
+            } ${entry?.sat ? 'opacity-50' : ''}`} />
             <span className={`mt-1.5 text-[7px] sm:text-[9px] font-black uppercase tracking-widest break-words max-w-full leading-tight ${
               lost ? 'text-[#ef4444]' : won ? 'text-[#22E748]' : now ? 'text-[#F59E0B]' : 'text-slate-600'
             }`}>
@@ -167,6 +167,19 @@ export default function IntlTournamentScreen() {
     settle(play.id, null);
     lockRef.current = false;
   };
+
+  // A game he's out of the lineup for. Nothing to pick: he watches it.
+  const sitting = !!round && !outcome && !lastChance && !done && sitsOut(run, round);
+  const handleWatch = () => {
+    if (lockRef.current || outcome) return;
+    lockRef.current = true;
+    const res = resolveSat(run);
+    const advanced = advanceRun(res.nextRun, { survived: res.survived });
+    setOutcome({ ...res, advanced });
+    setRun(res.nextRun);
+    lockRef.current = false;
+  };
+  const isG = player.pos === 'G';
 
   const handleLastChance = (isWin) => {
     if (lockRef.current) return;
@@ -355,6 +368,20 @@ export default function IntlTournamentScreen() {
             </div>
           )}
 
+          {/* Where he stands on this roster, said once, before the first game. */}
+          {run.depth && !run.promoted && run.road.length === 0 && !outcome && (
+            <div className="rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#101410] px-4 py-3 mt-3 fade-up">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                {isG ? 'The backup goalie' : 'The extra man'}
+              </p>
+              <p className="text-xs sm:text-sm text-slate-300 font-sans mt-1 leading-snug">
+                {isG
+                  ? `You made the team as ${countryName}'s backup. The starter has the net, and you'll get one group game.`
+                  : `You made the team as the extra ${isDefence(player.pos) ? 'defenceman' : 'forward'}, so you'll sit out some of the group games.`}
+              </p>
+            </div>
+          )}
+
           {/* The matchup owns the gap under itself, so everything that can
               follow it sits the same distance away. The three branches below
               each carried their own top margin and one of them carried none, so
@@ -424,14 +451,24 @@ export default function IntlTournamentScreen() {
                   {outcome.entry.score} {outcome.survived ? 'WIN' : 'LOSS'}
                 </p>
                 <p className="text-xs sm:text-sm text-slate-300 font-sans mt-2 leading-relaxed">
-                  {outcome.clean
+                  {outcome.sat
+                    ? (outcome.survived
+                      ? (isG ? 'The starter got it done, and you watched it from the end of the bench.' : 'They won it without you. You watched from the press box.')
+                      : outcome.advanced.finish
+                        ? (isG ? 'You watched from the bench as the tournament ended.' : 'You watched from the press box as the tournament ended.')
+                        : (isG ? "They lost, and the coach found you after the game. You're starting the next one." : "They lost, and you're back in the lineup for the next one."))
+                  : outcome.clean
                     ? `${picked.name} worked. They had no answer for it all night.`
                     : outcome.entry.rescued
                       ? `They had ${picked.name.toLowerCase()} scouted and took it away, and you dragged the game out of the fire anyway.`
                       : `They had ${picked.name.toLowerCase()} scouted. Every time you went to it there were two of them waiting.`}
                 </p>
                 <div className="flex justify-center gap-2 flex-wrap mt-4 text-[10px] font-black sports-font tracking-widest">
-                  {player.pos === 'G' ? (
+                  {outcome.sat ? (
+                    <span className="px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] text-slate-400">
+                      Didn't play
+                    </span>
+                  ) : player.pos === 'G' ? (
                     <span className="px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] text-slate-300">
                       {outcome.entry.line.saves}/{outcome.entry.line.shots} SAVES
                       {' · '}{Math.max(0, (outcome.entry.line.shots || 0) - (outcome.entry.line.saves || 0))} GA
@@ -454,6 +491,25 @@ export default function IntlTournamentScreen() {
               </div>
               <button onClick={handleContinue} className="btn-primary w-full py-3.5 rounded-xl mt-4 sports-font tracking-widest cursor-pointer">
                 {outcome.advanced.finish ? 'SEE HOW IT ENDED' : 'NEXT GAME'}
+              </button>
+            </div>
+          ) : sitting ? (
+            /* OUT OF THE LINEUP */
+            <div className="max-w-xl mx-auto fade-up text-center">
+              <div className="rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#101410] p-5 sm:p-6">
+                <p className="text-lg sm:text-2xl font-black sports-font uppercase tracking-tight text-slate-200">
+                  {isG ? "You're the backup tonight" : "You're scratched tonight"}
+                </p>
+                <p className="text-xs sm:text-sm text-slate-400 font-sans mt-2 leading-relaxed">
+                  {isG
+                    ? (round.kind === 'knockout'
+                      ? 'The starter has the net for the knockout games. You open the door at the end of the bench and wait for your chance.'
+                      : 'The coaches went with the starter. You get a group game of your own, and a loss here would be your way in.')
+                    : "You're the extra man on this roster, and tonight you watch from the press box. If they lose, you're the first one back in."}
+                </p>
+              </div>
+              <button onClick={handleWatch} className="btn-primary w-full py-3.5 rounded-xl mt-4 sports-font tracking-widest cursor-pointer">
+                WATCH THE GAME
               </button>
             </div>
           ) : (

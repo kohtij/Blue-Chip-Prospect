@@ -178,6 +178,71 @@ function nationalLetter(player, nation) {
   return null;
 }
 
+// WHERE HE SITS ON THE DEPTH CHART.
+//
+// Everybody who went to a tournament played every game of it, which is true
+// of a starting goalie and nobody else. A national team carries three goalies
+// and a couple of extra skaters, and the man at the bottom of the chart
+// watches more than he plays. So the run works out where he stands against
+// the level of the room he's in: a goalie short of it is the backup and gets
+// one group game, a skater well short of it is the extra man and sits two of
+// them. If the team loses a game he watched, the staff puts him in for the
+// next one and he keeps the spot.
+//
+// The bar is the rating a regular in that room has: higher for the strongest
+// nations, lower at the Worlds (half the best players are in the playoffs),
+// and a junior scale at the World Juniors. A man with a letter is never at
+// the bottom of the chart.
+function squadRole(player, me, context, letter) {
+  if (letter) return null;
+  const rank = me?.iihfRank ?? 20;
+  const senior = rank <= 4 ? 86 : rank <= 7 ? 82 : rank <= 12 ? 76 : 70;
+  const bar = context === 'wjc' ? senior - 10 : context === 'worlds' ? senior - 3 : senior;
+  const ovr = player.ovr || 60;
+  if (player.pos === 'G') {
+    // He plays the second group game, and the fourth in a lower division.
+    return ovr < bar ? { role: 'backup', dress: ['G2', 'G4'] } : null;
+  }
+  return ovr < bar - 4 ? { role: 'extra', bench: ['G1', 'G3'] } : null;
+}
+
+// Whether he's out of the lineup for this round.
+export function sitsOut(run, round) {
+  const d = run?.depth;
+  if (!d || run.promoted || !round) return false;
+  if (d.dress) return !d.dress.includes(round.key);
+  return (d.bench || []).includes(round.key);
+}
+
+// A game he watched. The team's result comes from how the two nations
+// compare, since nothing he does tonight touches it.
+export function resolveSat(run) {
+  const round = run.rounds[run.index];
+  // By world ranking where both have one, which separates Canada from Latvia
+  // inside the same tier, and by tier where they don't.
+  const oppRank = round.opponent?.iihfRank;
+  const edge = oppRank != null && run.myRank != null
+    ? (oppRank - run.myRank) * 0.03
+    : ((round.opponent?.tier || 3) - (run.myTier || 2)) * 0.17;
+  const chance = 0.52 + Math.max(-0.38, Math.min(0.38, edge));
+  const won = Math.random() < chance;
+  const pts = round.kind === 'group' ? (won ? 3 : 1) : 0;
+  const line = { g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, saves: 0, shots: 0, sho: 0 };
+  const entry = {
+    key: round.key, label: round.label, short: round.short, opponent: round.opponent,
+    won, clean: won, rescued: false, ot: false, score: scoreline(won, won, false), line, pts, sat: true
+  };
+  return {
+    sat: true,
+    survived: won,
+    clean: won,
+    entry,
+    // A loss he watched gets him in the next one.
+    promotedNow: !won,
+    nextRun: { ...run, points: run.points + pts, promoted: run.promoted || !won, road: [...run.road, entry] }
+  };
+}
+
 export function buildRun({ player, safeNationalities, context, division, year }) {
   const isTopDiv = division === 'Top Division';
   const isOlympics = context === 'olympics';
@@ -250,8 +315,14 @@ export function buildRun({ player, safeNationalities, context, division, year })
     !!letter || (player.hockeyIQ || 50) >= 82
   );
 
+  const depth = squadRole(player, me, context, letter);
+
   return {
     context,
+    depth,
+    promoted: false,
+    myTier: me?.tier || 2,
+    myRank: me?.iihfRank ?? null,
     tournamentName: TOURNEY_NAME[context] || 'World Championship',
     year,
     division,

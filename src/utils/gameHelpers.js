@@ -640,17 +640,16 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // All-Star" trophy for a game that never appeared in his season. The flag is
   // set when the game is played, and cleared at season end.
   //
-  // The First Team is genuinely a post-season vote and stays below on merit.
+  // There's no NHL First All-Star Team any more. It sat beside the Hart and
+  // the Art Ross as one more line for the same great season, so a big year
+  // read as a pile of near-duplicates.
   if (player.storylines?.allStarSelected && ['NHL', 'AHL'].includes(player.league)) {
     awards.push(player.league === 'NHL' ? 'NHL All-Star' : 'AHL All-Star');
   }
 
   if (rating >= 8.5) {
     if (player.league === 'NHL') {
-      // 1st Team All-Star is for the absolute best of the best
-      if (rating >= 9.2 && player.ovr >= 85) {
-          awards.push('1st Team All-Star');
-      }
+      // Nothing extra: see above.
     } else if (['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
       awards.push(`${player.league} 1st All-Star Team`);
     } else if (player.league === 'NCAA') {
@@ -773,10 +772,16 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
              // two outcomes that keep him in the building.
              const high = pick <= 15;
              const roll = Math.random();
-             const wJunior = high ? 0.38 : 0.52;
-             const wAhl    = high ? 0.27 : 0.22;
-             const wNhl    = high ? 0.23 : 0.13;
-             // whatever is left is the nine-game return: 0.12 high, 0.13 late
+             // A goalie doesn't get the nine-game look. He'd sit behind the
+             // starter and take months to play nine, so a club sends a teenage
+             // goalie back to junior to play every night, or now and then to
+             // the AHL, and almost never keeps him.
+             const isG = p.pos === 'G';
+             const wJunior = isG ? 0.78 : high ? 0.38 : 0.52;
+             const wAhl    = isG ? 0.19 : high ? 0.27 : 0.22;
+             const wNhl    = isG ? 0.03 : high ? 0.23 : 0.13;
+             // whatever is left is the nine-game return: 0.12 high, 0.13 late,
+             // and none for a goalie
 
              const toLastCHL = () => {
                const lastCHL = (p.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
@@ -1839,6 +1844,9 @@ export const hasProContract = (p) => {
 // the AHL instead and never sees this.
 export const isNineGameCandidate = (p) => {
   if (!p || p.league !== 'NHL') return false;
+  // Goalies are never given the look (see the camp placement): nine starts
+  // would take a backup half the season.
+  if (p.pos === 'G') return false;
   if ((p.age ?? 99) > 19) return false;
   if ((p.contract?.salary || 0) !== 925000) return false;
   const hasJuniorRights = !!p.chlRights

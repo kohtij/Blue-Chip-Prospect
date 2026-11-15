@@ -184,7 +184,13 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     const coachTrust = player.relationships?.coach || 50; // B2: Front Office Consumer
     let teamDidNotExtend = false;
 
-    if (!isTradeRequest && !isAmateurGraduating) {
+    // The club that just bought him out isn't bidding to have him back. Its
+    // extension used to sit at the top of the market as if nothing had
+    // happened.
+    const cutBy = player.rightsLapsedBy && player.rightsLapsedBy === actingTeam;
+    if (cutBy && !isTradeRequest) teamDidNotExtend = true;
+
+    if (!isTradeRequest && !isAmateurGraduating && !cutBy) {
       // If Front Office trust is toxic, you are a liability and they let you walk (unless you're an elite superstar)
       if (coachTrust < 30 && player.ovr < 88 && Math.random() < 0.75) {
          setEventFeedback("The front office thinks you're a problem in the room, and they have told your agent there will be no extension. You're going to the open market.");
