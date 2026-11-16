@@ -166,7 +166,7 @@ export const eventDeck = [
     title: 'The Captaincy Vote',
     desc: 'The team is choosing a new captain. A veteran quietly asks if you\'d step aside so he can wear the "C" one last year.',
     choices: [
-      { label: 'Campaign for yourself', subLabel: "Make your case for the C and risk looking selfish.", isRisky: true, successChance: 0.55, successFeedback: 'You won the vote and the fan base loves the young leader.', successEffect: { fanStatus: 30, ovr: 1, money: 0 }, failFeedback: 'It came off as selfish and split the locker room.', failEffect: { fanStatus: -20, ovr: -1, money: 0 } },
+      { label: 'Campaign for yourself', subLabel: "Make your case for the C and risk looking selfish.", isRisky: true, successChance: 0.55, successFeedback: 'You won the vote and the fan base loves the young leader.', successEffect: { fanStatus: 30, ovr: 1, money: 0 }, successAction: 'MAKE_CAPTAIN', failFeedback: 'It came off as selfish and split the locker room.', failEffect: { fanStatus: -20, ovr: -1, money: 0 } },
       { label: 'Defer to the veteran', subLabel: "Let him have his last year with the letter.", isRisky: false, feedback: 'The room noticed, and so did management.', effect: { fanStatus: 10, ovr: 1, money: 0 } }
     ]
   },

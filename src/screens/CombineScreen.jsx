@@ -125,6 +125,55 @@ const Readout = ({ items }) => (
 // over a bar that drains, and both turn red for the last two seconds, the same
 // as the shot clock in the minigames. The count sits beside it.
 const TICK_MS = 100;
+// THE BIKE.
+//
+// The NHL combine's VO2 max test is ridden on a stationary bike, and the game
+// showed nothing but a button. This draws the bike side-on, with the crank and
+// the flywheel turning a little with every press, so mashing the button reads
+// as pedalling. Nothing here changes the scoring.
+const ExerciseBike = ({ strokes = 0, active = false }) => {
+  const crank = strokes * 40;
+  const wheel = strokes * 95;
+  const ink = 'rgba(255,255,255,0.78)';
+  const dim = 'rgba(255,255,255,0.28)';
+  return (
+    <svg viewBox="0 0 220 150" className="w-full max-w-[260px] mx-auto mb-5" aria-hidden="true">
+      {/* floor */}
+      <line x1="12" y1="138" x2="208" y2="138" stroke={dim} strokeWidth="2" strokeLinecap="round" />
+      {/* base feet */}
+      <line x1="30" y1="136" x2="78" y2="136" stroke={ink} strokeWidth="6" strokeLinecap="round" />
+      <line x1="138" y1="136" x2="192" y2="136" stroke={ink} strokeWidth="6" strokeLinecap="round" />
+      {/* frame: rear post to seat, down tube to crank, front fork to the bars */}
+      <path d="M54 136 L74 62" stroke={ink} strokeWidth="6" strokeLinecap="round" fill="none" />
+      <path d="M74 62 L112 104" stroke={ink} strokeWidth="5" strokeLinecap="round" fill="none" />
+      <path d="M160 136 L150 52" stroke={ink} strokeWidth="6" strokeLinecap="round" fill="none" />
+      <path d="M112 104 L156 100" stroke={ink} strokeWidth="5" strokeLinecap="round" fill="none" />
+      {/* seat and handlebars */}
+      <path d="M58 58 L90 58" stroke={ink} strokeWidth="7" strokeLinecap="round" />
+      <path d="M150 52 L176 44 L182 52" stroke={ink} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      {/* console on the bars, lit while the test runs */}
+      <rect x="138" y="36" width="20" height="12" rx="2" fill={active ? '#22E748' : '#1f2a1f'} opacity={active ? 0.85 : 1} />
+      {/* flywheel */}
+      <g transform={`rotate(${wheel} 160 104)`} style={{ transition: 'transform 140ms ease-out' }}>
+        <circle cx="160" cy="104" r="26" fill="#101410" stroke={ink} strokeWidth="5" />
+        <line x1="160" y1="80" x2="160" y2="128" stroke={dim} strokeWidth="3" />
+        <line x1="136" y1="104" x2="184" y2="104" stroke={dim} strokeWidth="3" />
+      </g>
+      <circle cx="160" cy="104" r="5" fill={ink} />
+      {/* chain from crank to flywheel */}
+      <path d="M112 96 L158 80 M112 112 L158 128" stroke={dim} strokeWidth="2" />
+      {/* crank and pedals */}
+      <g transform={`rotate(${crank} 112 104)`} style={{ transition: 'transform 140ms ease-out' }}>
+        <line x1="112" y1="104" x2="112" y2="82" stroke="#22E748" strokeWidth="5" strokeLinecap="round" />
+        <line x1="112" y1="104" x2="112" y2="126" stroke="#22E748" strokeWidth="5" strokeLinecap="round" />
+        <rect x="103" y="78" width="18" height="6" rx="2" fill="#22E748" />
+        <rect x="103" y="124" width="18" height="6" rx="2" fill="#22E748" />
+      </g>
+      <circle cx="112" cy="104" r="8" fill="#101410" stroke={ink} strokeWidth="4" />
+    </svg>
+  );
+};
+
 const CombineClock = ({ msLeft, msTotal, countLabel, count }) => {
   const pct = Math.max(0, Math.min(100, (msLeft / msTotal) * 100));
   const urgent = msLeft <= 2000 && msLeft < msTotal;
@@ -250,7 +299,7 @@ export default function CombineScreen() {
     else if (score >= 10) { pts = 0; msg = "Average cardio. Better hit the bike this summer."; }
     else { pts = -1; msg = "You gassed out completely. Scouts are concerned."; }
     setCombineScore(s => s + pts);
-    setVo2Result({ pts, msg, finalScore: score, unit: 'STRIDES' });
+    setVo2Result({ pts, msg, finalScore: score, unit: 'PEDAL STROKES' });
   }, [setCombineScore]);
 
   // EFFECT 1: Pure timer tick (uninterrupted by button mashing)
@@ -457,17 +506,18 @@ export default function CombineScreen() {
              if (posGroup === 'D') {
                 return (
                   <div className={PANEL}>
-                   <h2 className={TITLE_MD}>VO2 max treadmill</h2>
+                   <h2 className={TITLE_MD}>VO2 max bike</h2>
                    <p className="mt-4 mb-6 text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
-                     Press <strong className="text-white">STRIDE</strong> as fast as you can until the five seconds run out.
+                     Press <strong className="text-white">PEDAL</strong> as fast as you can until the five seconds run out.
                    </p>
-                   <CombineClock msLeft={vo2Ms} msTotal={VO2_MS} countLabel="Strides" count={vo2Score} />
+                   <ExerciseBike strokes={vo2Score} active={vo2Active} />
+                   <CombineClock msLeft={vo2Ms} msTotal={VO2_MS} countLabel="Pedal strokes" count={vo2Score} />
                    {vo2Lead > 0 ? (
                       <LeadIn n={vo2Lead} />
                    ) : !vo2Active ? (
                       <button onClick={startVo2} className={START_BTN}>Start the test</button>
                    ) : (
-                      <button onClick={() => setVo2Score(s => s + 1)} className={`${PLAY_BTN} w-48 h-32 sm:w-56 text-4xl active:scale-95`}>Stride</button>
+                      <button onClick={() => setVo2Score(s => s + 1)} className={`${PLAY_BTN} w-48 h-32 sm:w-56 text-4xl active:scale-95`}>Pedal</button>
                    )}
                  </div>
                 );

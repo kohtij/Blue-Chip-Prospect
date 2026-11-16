@@ -416,6 +416,20 @@ input:focus-visible { outline-offset: 4px; }
 .banner-sway { transform-origin: 50% 0; animation: bcp-banner-sway 1.6s cubic-bezier(.3,.6,.3,1) both; }
 @media (prefers-reduced-motion: reduce) { .banner-sway { animation: none; } }
 
+/* A championship: the trophy rises into its panel and a light sweeps across
+   it once. Used by the season recap and by the playoff grid's final panel. */
+@keyframes trophyRise {
+  0% { opacity: 0; transform: translateY(18px) scale(.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes champSheen {
+  0% { transform: translateX(-130%) skewX(-18deg); }
+  100% { transform: translateX(260%) skewX(-18deg); }
+}
+.trophy-rise { animation: trophyRise 0.8s cubic-bezier(.2,.8,.2,1) both; }
+.champ-sheen { animation: champSheen 1.8s ease-out 0.35s both; }
+@media (prefers-reduced-motion: reduce) { .trophy-rise, .champ-sheen { animation: none; } .champ-sheen { display: none; } }
+
 @keyframes bcp-pop-in {
   0%   { opacity: 0; transform: translateY(14px) scale(.97); }
   70%  { opacity: 1; transform: translateY(-2px) scale(1.01); }

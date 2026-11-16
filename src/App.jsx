@@ -414,6 +414,9 @@ function App() {
         ...p, team: startTeam.id, league: lg, nat: currentNat, startLeague: lg, teamsPlayedFor: [startTeam.id],
         shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta,
         isGenerational: isGen, archetype: arch, storylines: { ...p.storylines, mediaNemesis: isGen ? 1 : 0 },
+        // Hidden. Tilts every risky choice a little, for the whole career.
+        // See withLuck in gameHelpers.
+        luck: Math.floor(Math.random() * 101),
         nemesisName: isGen ? `${randomReporter.name} (${randomReporter.outlet})` : null,
         // The rest of your year group, created once, here, and aged alongside
         // you for the next twenty seasons. Until now the hockey world had one
@@ -478,7 +481,9 @@ function App() {
 
     if (overallPick === 1) unlockAchievement('first_overall');
     if (overallPick <= 32) unlockAchievement('first_round_pick');
-    if (who.league === 'NCAA') unlockAchievement('ncaa_champ');
+    // Nothing here for the NCAA. This line used to hand out the National
+    // Champion achievement to anyone drafted out of college, whether or not
+    // his team had won anything. The title is awarded where it's won.
 
     setSeasonRecap(r => ({ ...r, draftPick: overallPick, draftRound: round, draftedBy: draftedBy, juniorTeam: who.team, juniorLeague: who.league }));
     setScreen('draft');
@@ -1289,6 +1294,10 @@ function App() {
 
     const updatedPlayer = {
       ...withPerks, team: o.team, league: o.league || 'NHL',
+      // A letter belongs to the room that gave it. He kept wearing the C at a
+      // club he'd just signed with, and was offered the captain's speech in a
+      // playoff run there.
+      ...(isNewTeam ? { isCaptain: false, isAlternate: false } : {}),
       fanStatus: fanGain(p.fanStatus || 0, (o.fanHit || 0) + (bonus.fanStatus || 0)),
       // isScholarship marks this as eligibility rather than a signed pro deal.
       // Without it a scholarship is indistinguishable from a contract once it

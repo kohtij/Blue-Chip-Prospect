@@ -1,4 +1,4 @@
-import { capFanStatus, fanGain, recomputeOvr, applyOvrDelta } from '../utils/gameHelpers';
+import { capFanStatus, fanGain, recomputeOvr, applyOvrDelta, withLuck } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { getOpponentPool, JUNIOR_PARENT_LEAGUE } from '../data/teams';
 import { elcBonuses, veteranBonuses } from '../utils/bonuses';
@@ -14,6 +14,7 @@ export function handleEventChoice(ctx, choice) {
 
   let outcomeEffect;
   let outcomeFeedback;
+  let rolledSuccess = false;
 
   // A choice that starts a minigame is decided by the game, not by a roll.
   // These used to roll first anyway: the camp battle flipped a coin, applied
@@ -26,7 +27,9 @@ export function handleEventChoice(ctx, choice) {
     outcomeEffect = {};
     outcomeFeedback = null;
   } else if (choice.isRisky) {
-    const success = Math.random() < (choice.successChance || 0.5);
+    // The player's hidden luck tilts the odds a little (see withLuck).
+    const success = Math.random() < withLuck(choice.successChance || 0.5, player);
+    rolledSuccess = success;
     outcomeEffect = success ? choice.successEffect : choice.failEffect;
     outcomeFeedback = success ? choice.successFeedback : choice.failFeedback;
     if (success && activeEvent?.title?.includes('RIVALRY NIGHT')) unlockAchievement('rival_slayer');
@@ -53,7 +56,9 @@ export function handleEventChoice(ctx, choice) {
   }]);
   
   let updated = { ...player };
-  const actionStr = choice.action || ''; 
+  // A risky choice can carry an action that only happens if it comes off: the
+  // captaincy vote makes him captain when he wins it, not whatever happens.
+  const actionStr = (rolledSuccess && choice.successAction) || choice.action || ''; 
   
   if (actionStr === 'SIGN_EXTENSION') {
     if (choice.actionData) {
@@ -92,6 +97,9 @@ export function handleEventChoice(ctx, choice) {
       team: d.team, perYear: d.perYear || 0, seasonsLeft: d.seasons || 0, total: d.total || 0
     }];
     updated.rightsLapsedBy = d.team || null;
+    // Cut loose, so the letter stays behind with the club that bought him out.
+    updated.isCaptain = false;
+    updated.isAlternate = false;
     // The rest of the summer waits for the market (see advanceToOffseason).
     updated.offseason = { ...(updated.offseason || {}), boughtOut: true };
   } else if (actionStr === 'SLUMP_RESPONSE') {

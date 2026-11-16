@@ -5,12 +5,20 @@ import { readableOn } from '../utils/a11y';
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) => {
   const [imgError, setImgError] = useState(false);
+  // Which NHL.com version of the crest to ask for. NHL.com draws each crest
+  // twice: one for light pages and one for dark. The game asked for the light
+  // one, which is fine for a club with a white or bright crest and close to
+  // invisible for Tampa Bay, whose light version is a navy bolt on our near
+  // black. The dark version is tried first, and the light one stays as the
+  // fallback if it fails to load, so a crest can't go missing.
+  const [nhlVariant, setNhlVariant] = useState('dark');
   const [prevTeamId, setPrevTeamId] = useState(teamId);
 
   // RESET ERROR STATE WHEN CHANGING TEAMS (React 18+ safe pattern)
   if (teamId !== prevTeamId) {
     setPrevTeamId(teamId);
     setImgError(false);
+    setNhlVariant('dark');
   }
 
   const isNHL = league === 'NHL' && !isAHL && (nhlTeams || []).some(t => t.id === teamId);  
@@ -68,10 +76,13 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
       <div className={`relative ${containerSize} flex items-center justify-center shrink-0 overflow-visible ${className}`}>
         {/* scale-[1.28] counteracts built-in SVG viewBox padding from NHL.com */}
         <img
-          src={`https://assets.nhle.com/logos/nhl/svg/${teamId}_light.svg`}
+          src={`https://assets.nhle.com/logos/nhl/svg/${teamId}_${nhlVariant}.svg`}
           alt={altName}
           className="w-full h-full object-contain drop-shadow-lg scale-[1.28] transform-gpu"
-          onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
+          onError={(e) => {
+            if (nhlVariant === 'dark') { setNhlVariant('light'); return; }
+            e.target.style.display = 'none'; setImgError(true);
+          }}
         />
       </div>
     );
@@ -104,4 +115,4 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
   );
 };
 
-export default TeamLogo;
+export default TeamLogo;

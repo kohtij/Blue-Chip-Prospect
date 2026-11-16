@@ -3,7 +3,7 @@ import { useAppContext } from '../AppContext';
 import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../utils/appHelpers';
 import { cap, recomputeOvr } from '../utils/gameHelpers';
 import { statPillClass } from '../utils/statColors';
-import { kickerClass, TITLE_LG, TITLE_MD } from '../utils/ui';
+import { CHOICE_ROW, kickerClass, TITLE_MD, TITLE_SM } from '../utils/ui';
 
 // Your identity, chosen before your first game.
 //
@@ -76,33 +76,33 @@ export default function PreseasonScreen() {
     const ahl = () => getFullTeamName(move.team, 'AHL');
     switch (move.reason) {
       case 'CLAIMED':
-        return { title: 'CLAIMED OFF WAIVERS', type: 'DEMOTION',
+        return { title: '⏳ CLAIMED OFF WAIVERS', type: 'DEMOTION', label: 'Fresh start', sub: 'A club that wanted you badly enough to claim you.',
           desc: `Your GM put you on waivers to send you down, and another club put in a claim before the deadline. You play for the ${getFullTeamName(move.team, 'NHL')} now.` };
       case 'WAIVERS':
-        return { title: 'CLEARED WAIVERS', type: 'DEMOTION',
+        return { title: '📉 CLEARED WAIVERS', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `Camp broke and your name went on the waiver wire. Nobody claimed you in the twenty-four hours, so you report to the ${ahl()} to start the year.` };
       case 'DEVELOPMENT':
-        return { title: 'SENT TO THE AHL', type: 'DEMOTION',
+        return { title: '📉 SENT DOWN TO THE AHL', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `The club would rather you played big minutes than sat in the press box. You start the year with the ${ahl()}. You're still waiver-exempt, so no other club got the chance to claim you.` };
       case '9_GAME_RULE':
-        return { title: 'RETURNED TO JUNIORS', type: 'DEMOTION',
+        return { title: '📉 RETURNED TO JUNIOR', type: 'DEMOTION', label: 'Head down, work', sub: 'Go back and make it impossible to send you down again.',
           desc: `After training camp, the front office decided you need one more year of seasoning. You have been returned to the ${getFullTeamName(move.team, move.lg)}.` };
       case 'JUNIOR_ASSIGNMENT':
         // Not a demotion. He signed, he came to camp, and the club decided he
         // plays another year where he already is.
-        return { title: 'BACK TO JUNIOR FOR A YEAR', type: 'ASSIGNMENT',
+        return { title: '🏒 BACK TO JUNIOR FOR A YEAR', type: 'ASSIGNMENT', label: 'Go and dominate it', sub: 'One more year as the best player in the league.',
           desc: `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You're back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.` };
       case 'CAMP_ASSIGNMENT':
-        return { title: 'ASSIGNED TO THE AHL', type: 'DEMOTION',
+        return { title: '📉 ASSIGNED TO THE AHL', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${ahl()} to start the year, which is where they put the ones they aren't finished with.` };
       case 'ECHL_REASSIGNMENT':
-        return { title: 'SENT TO THE COAST', type: 'DEMOTION',
+        return { title: '📉 SENT DOWN TO THE ECHL', type: 'DEMOTION', label: 'Head down, work', sub: 'Grind your way back up the depth chart.',
           desc: `You have been reassigned from the AHL to the ${getFullTeamName(move.team, 'ECHL')} (ECHL). It's time to put your head down and grind your way back up the depth chart.` };
       case 'PROMOTION':
-        return { title: 'MADE THE ROSTER', type: 'PROMOTION',
+        return { title: '📈 MADE THE ROSTER', type: 'PROMOTION', label: 'Hit the ice', sub: 'Now keep the spot.',
           desc: `You had a great camp and forced the coach's hand. You start the season on the ${getFullTeamName(move.team, move.lg)} roster.` };
       default:
-        return { title: 'SENT DOWN', type: 'DEMOTION',
+        return { title: '📉 SENT DOWN TO THE AHL', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `The front office has assigned you to the ${ahl()} (AHL) to start the season.` };
     }
   };
@@ -145,27 +145,27 @@ export default function PreseasonScreen() {
   return (
           <div className="game-panel mt-2 relative z-20">
             {rosterMoveNotice ? (
-              /* A DEMOTION SHOULD NOT BE THE SAME COLOUR AS EVERYTHING ELSE.
-                 Every move but a promotion came out in the same neutral grey,
-                 so being sent to the American League looked exactly like being
-                 told which junior club to report to. Three tones now: green up,
-                 amber down, slate for an assignment that is neither. */
-              <div className="p-6 sm:p-10 bg-gradient-to-br from-[#0f1115] to-[#050608] relative overflow-hidden flex flex-col justify-center items-center text-center min-h-[400px]">
+              /* THE SAME SCREEN AS EVERY OTHER ROSTER MOVE.
+                 Being sent down at the end of camp had a screen of its own, a
+                 big centred title and one large green button, while being sent
+                 down in December came through the event screen with the GM's
+                 message and a choice row. Same news, two looks. This draws the
+                 camp notice the way the event screen draws a move: the title
+                 with its icon, the message, and a row to answer it with. */
+              <div className="p-4 sm:p-10 relative overflow-hidden bg-gradient-to-br from-[#0f1115] to-[#050608]">
                  <div className="bluechip-foil-overlay opacity-30 mix-blend-overlay grayscale absolute inset-0 pointer-events-none"></div>
-                 <div className="relative z-10 w-full max-w-xl mx-auto flex flex-col items-center">
-                   <h2 className={`mb-4 ${TITLE_LG}`}>
+                 <div className="relative z-10">
+                   <h2 className={`${TITLE_SM} mb-3 sm:mb-4 text-left`}>
                       {rosterMoveNotice.title}
                    </h2>
-                   <p className="text-base sm:text-lg text-slate-300 mb-8 leading-relaxed">
+                   <p className="text-sm sm:text-lg text-slate-300 mb-6 sm:mb-8 text-left leading-relaxed pr-2 sm:pr-4">
                       {rosterMoveNotice.desc}
                    </p>
-                   <button
-                      onClick={handleAcknowledgeMove}
-                      className="btn-primary py-4 px-10 rounded-xl text-lg sm:text-xl cursor-pointer sports-font tracking-[0.18em]"
-                   >
-                      {rosterMoveNotice.type === 'PROMOTION' ? 'HIT THE ICE'
-                        : rosterMoveNotice.type === 'ASSIGNMENT' ? 'GO AND DOMINATE IT'
-                        : 'HEAD DOWN AND WORK'}
+                   <button type="button" onClick={handleAcknowledgeMove} className={`${CHOICE_ROW} w-full`}>
+                      <span className="font-bold leading-tight text-sm sm:text-base text-white">{rosterMoveNotice.label}</span>
+                      {rosterMoveNotice.sub && (
+                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">{rosterMoveNotice.sub}</span>
+                      )}
                    </button>
                  </div>
               </div>

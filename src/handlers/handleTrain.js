@@ -258,7 +258,7 @@ export function handleTrain(ctx, t) {
             ]
           : [
               { label: 'Play it safe', subLabel: 'Keep your first shift simple and avoid a costly mistake.', isRisky: false, feedback: 'A quiet, mistake-free night. The coach gave you an approving nod.', effect: { fanStatus: 15, ovr: 0, rel: { coach: 15 } }, action: 'RESOLVE_DEBUT' },
-              { label: 'Make a statement', subLabel: 'Force the issue early and go looking for a moment. It can backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You ran a veteran on your first shift and put up a point. The arena went up.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'RESOLVE_DEBUT' }
+              { label: 'Make a statement', subLabel: 'Force the issue early and go looking for a moment. It can backfire.', isRisky: true, successChance: 0.5, successFeedback: 'You ran a veteran on your first shift and put up a point. The arena went wild.', successEffect: { fanStatus: 50, ovr: 1, rel: { teammates: 20 } }, failFeedback: 'You tried to do too much and got caught out of position for a goal against. Welcome to the NHL.', failEffect: { fanStatus: 0, ovr: -1, rel: { coach: -15 } }, action: 'RESOLVE_DEBUT' }
             ],
         isDebutEvent: true
       });
@@ -580,7 +580,8 @@ export function handleTrain(ctx, t) {
       const condSeg = ahlId ? simulateSeason({ ...livePlayer, team: ahlId, league: 'AHL' }, effect, baseMissed + played,
         { forceGames: 3, lockPlacement: true, segmentOnly: true, formCarry: nextCarry })?.segment : null;
       if (condSeg && condSeg.games > 0) {
-        stints = [...stints, condSeg];
+        // Marked, so the recap can say what these three games were.
+        stints = [...stints, { ...condSeg, conditioning: true }];
         played += condSeg.games;
         advanceTo(stints, 1);
         setPlayer(prev => ({ ...prev, season: { ...(prev.season || {}), conditioned: true } }));

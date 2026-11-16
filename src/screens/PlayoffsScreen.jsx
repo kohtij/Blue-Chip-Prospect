@@ -117,6 +117,8 @@ export default function PlayoffsScreen() {
 
 // Dynamic Series Flavor Text
   let seriesFlavor = "";
+  // The final, once it's decided, gets a panel of its own (see below).
+  let finalResult = null;
   if (isSidelined) {
       seriesFlavor = playoffs.overallStatus === 'won_cup'
         ? "Your team won it all without you. You were still part of the parade."
@@ -147,6 +149,30 @@ export default function PlayoffsScreen() {
                 ? "Win or go home, and you're still here. On to the next one."
                 : "One game, one loss, and the season is over.";
           }
+      }
+      if (isFinalRound) {
+          const cup = getPlayoffTitles(playoffs.currentLg)?.cupName || 'championship';
+          const theCup = /^the /i.test(cup) ? cup : `the ${cup}`;
+          const won = activeMatch.status === 'won';
+          const games = isSingleGame ? null : totalGames;
+          finalResult = {
+            won,
+            cup,
+            score: isSingleGame ? null : `${won ? 'Won' : 'Lost'} the final ${playerWins}-${oppWins}`,
+            line: won
+              ? (isSingleGame ? `One game for everything, and you took it. ${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.`
+                : isSweep ? `${['', 'One', 'Two', 'Three', 'Four'][wN] || wN} straight, and ${theCup} is yours. Nobody laid a glove on you.`
+                : isMaxGames ? `It went to a deciding game, and you won it. ${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.`
+                : `You won the final in ${games}. ${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.`)
+              : (isSingleGame ? `Sixty minutes from ${theCup}, and it got away.`
+                : isSwept ? `Swept in the final. You watched them lift ${theCup}.`
+                : isMaxGames ? `One game from ${theCup}, and it went the other way. You watched them lift it.`
+                : `You lost the final in ${games}, and watched them lift ${theCup}.`)
+          };
+      }
+      // The one-game rounds were written above; this is every series.
+      if (isSingleGame) {
+          // nothing more to say
       } else if (isFinalRound) {
           if (activeMatch.status === 'won') seriesFlavor = isSweep ? "A sweep in the final. You're champions." : isMaxGames ? "You won it in the deciding game of the final." : "You won the final, and the championship with it.";
           else seriesFlavor = isSwept ? "Swept in the final. It will be a long summer." : isMaxGames ? "You lost the final in the deciding game." : "You lost in the final.";
@@ -268,12 +294,45 @@ export default function PlayoffsScreen() {
                   <p className={`font-sans font-bold text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in ${activeMatch.status === 'won' ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
                     {activeMatch.badBloodFeedback}
                   </p>
-                ) : seriesFlavor ? (
+                ) : seriesFlavor && !finalResult ? (
                   <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in">
                     {seriesFlavor}
                   </p>
                 ) : null}
               </div>
+
+              {/* THE FINAL, DECIDED.
+                  Winning it used to get the same one grey line as winning a first
+                  round series. It gets the trophy now, rising into a gold panel,
+                  and losing it gets a panel too, in red. */}
+              {finalResult && !activeMatch.badBloodFeedback && (
+                <div className={`relative w-full overflow-hidden rounded-2xl border mt-2 ${finalResult.won ? 'border-[#F59E0B]/50' : 'border-[#ef4444]/35'}`}
+                     style={{ background: finalResult.won
+                       ? 'radial-gradient(120% 110% at 50% 0%, rgba(245,158,11,0.34), rgba(245,158,11,0.07) 55%, transparent 85%), linear-gradient(180deg, #1c1405, #0b0906)'
+                       : 'radial-gradient(120% 110% at 50% 0%, rgba(239,68,68,0.18), transparent 70%), linear-gradient(180deg, #140909, #0a0707)' }}>
+                  {finalResult.won && (
+                    <span aria-hidden="true" className="champ-sheen absolute inset-y-0 left-0 w-1/3 pointer-events-none"
+                          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,236,179,0.22), transparent)' }} />
+                  )}
+                  <div className="relative flex flex-col items-center text-center px-4 sm:px-8 py-5 sm:py-7">
+                    {finalResult.won && (
+                      <div className="trophy-rise w-16 h-20 sm:w-24 sm:h-28 flex items-end justify-center mb-3">
+                        <TrophyImage league={playoffs.currentLg} className="max-w-full max-h-full object-contain drop-shadow-[0_0_26px_rgba(245,158,11,0.6)]" />
+                      </div>
+                    )}
+                    <h3 className={`text-[1.7rem] sm:text-4xl font-black sports-font uppercase leading-[0.95] tracking-tight ${finalResult.won ? 'text-[#F59E0B]' : 'text-slate-200'}`}
+                        style={finalResult.won ? { textShadow: '0 0 30px rgba(245,158,11,0.35)' } : undefined}>
+                      {finalResult.won ? `${finalResult.cup} Champions` : `${finalResult.cup} Final`}
+                    </h3>
+                    {finalResult.score && (
+                      <p className={`mt-2 text-[12px] sm:text-sm font-black ${finalResult.won ? 'text-[#fcd34d]' : 'text-[#f87171]'}`}>{finalResult.score}</p>
+                    )}
+                    <p className={`mt-2 text-sm sm:text-base font-bold leading-snug max-w-md ${finalResult.won ? 'text-[#fef3c7]' : 'text-slate-300'}`}>
+                      {finalResult.line}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
            {isSidelined ? (
@@ -441,7 +500,9 @@ export default function PlayoffsScreen() {
                       })()}
 
                       {/* CAPTAINCY ACTION */}
-                      {player.storylines?.lockerRoom === 2 && !speechUsed && (
+                      {/* Only the captain gives it. It used to follow a storyline flag,
+                          which stayed set after he'd left the club that named him. */}
+                      {player.isCaptain && !speechUsed && (
                         <div className="w-full mt-1">
                             <button 
                               onClick={() => {

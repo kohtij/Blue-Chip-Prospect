@@ -734,8 +734,32 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
             deck = deck.filter(e => !(e.choices || []).some(c => c.action === 'ACCEPT_TRADE_DEADLINE' || c.action === 'TRADE_HOLDOUT'));
         }
 
+        // The deck's own tags. minAge and proOnly were written on the cards
+        // and never read, so a sixteen-year-old could be offered a Vegas trip
+        // and a junior an endorsement deal.
+        const pro = !['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'J20', 'U20', 'BCHL', 'NAHL'].includes(currentLg);
+        deck = deck.filter(e => (!e.minAge || (player.age || 0) >= e.minAge) && (!e.proOnly || pro));
+        // A captain isn't in a captaincy vote.
+        if (player.isCaptain) deck = deck.filter(e => e.title !== 'The Captaincy Vote');
+
         if (deck.length > 0) {
-           const randomEvt = deck[Math.floor(Math.random() * deck.length)];
+           let randomEvt = deck[Math.floor(Math.random() * deck.length)];
+           // The vote as it looks to a veteran. A thirty-year-old isn't asked to
+           // step aside for an older man; he's the older man, and the other name
+           // on the ballot is the kid.
+           if (randomEvt.title === 'The Captaincy Vote' && (player.age || 0) >= 30) {
+             randomEvt = {
+               ...randomEvt,
+               desc: 'The captain has retired and the room is choosing his replacement. It\'s between you and a young star the club has built its plans around.',
+               choices: [
+                 { label: 'Put your name forward', subLabel: "You've been here longest. Ask the room for it.", isRisky: true, successChance: 0.6,
+                   successFeedback: 'You won the vote. The room wanted the man who has seen it all.', successEffect: { fanStatus: 25, ovr: 0, rel: { teammates: 10 } }, successAction: 'MAKE_CAPTAIN',
+                   failFeedback: 'The room went with the kid. You were the first to shake his hand.', failEffect: { fanStatus: 0, ovr: 0, rel: { teammates: 5 } } },
+                 { label: 'Back the kid', subLabel: 'Tell the coaches he is ready, and stay in his corner.', isRisky: false,
+                   feedback: 'You told the coaches he was ready. He asked you to keep the stall next to his.', effect: { fanStatus: 10, ovr: 0, rel: { teammates: 15, coach: 5 } } }
+               ]
+             };
+           }
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });
            setScreen('event');
         } else {

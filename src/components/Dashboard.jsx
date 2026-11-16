@@ -299,7 +299,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
       .filter(m => m.pos === player.pos && m.ovr > (player.ovr || 0))
       .sort((a, b) => a.ovr - b.ovr)[0];
     add(rival, isG ? 'Ahead of you for the net' : 'Ahead of you on the depth chart', 'text-[#ef4444]');
-    add(myRoom.men.find(m => m.captain && m.pos !== 'G'), 'Captain', 'text-slate-400');
+    // When he wears the C himself there's no other captain to name: the room
+    // kept the man it had picked before, and the card showed him as captain
+    // beside a player who was.
+    if (!player.isCaptain) add(myRoom.men.find(m => m.captain && m.pos !== 'G'), 'Captain', 'text-slate-400');
     return out.slice(0, 4);
   })();
 
@@ -709,10 +712,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       {atTop ? (
                         <span className="text-[#F59E0B]">Nothing left to prove.</span>
                       ) : gated ? (
-                        <>
-                          <span className="text-slate-300">You have the fans for {tier.nextLabel}. </span>
-                          {tier.need}.
-                        </>
+                        <span className="text-slate-300">{tier.need}.</span>
                       ) : (
                         `${Math.round(tier.req)} more fans to reach ${tier.nextLabel}.`
                       )}
@@ -751,7 +751,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   onClick={onOpenShop}
                   className="btn-secondary flex-1 py-2.5 rounded-lg sports-font tracking-[0.16em] text-xs cursor-pointer"
                 >
-                  Shop
+                  🛒 Shop
                 </button>
               )}
               {showMeeting && (
@@ -801,7 +801,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       <span className="min-w-0 flex-1">
                         <span className="block break-words text-[11px] text-slate-300 font-medium leading-tight">{m.name}</span>
                         <span className={`block break-words text-[9px] font-bold leading-tight ${m.tagTone}`}>
-                          {m.tag}{m.captain && m.pos !== 'G' && m.tag !== 'Captain' ? ' · Captain' : ''}
+                          {m.tag}{m.captain && !player.isCaptain && m.pos !== 'G' && m.tag !== 'Captain' ? ' · Captain' : ''}
                         </span>
                       </span>
                       <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-600 w-7 text-right">{m.pos}</span>

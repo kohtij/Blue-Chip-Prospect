@@ -275,7 +275,7 @@ export const getFanTier = (pts, player = null) => {
   if (!iconWorthy) {
     return {
       label: 'Loved', next: 600, req: 0, nextLabel: 'Icon',
-      need: 'A cup, a major trophy or a gold medal makes you an icon'
+      need: 'You have enough of a fan base to be considered an Icon, but you need a cup, a major trophy or a gold medal to back it up'
     };
   }
   // Said before the points are counted, so a player the résumé rules out is not
@@ -283,7 +283,7 @@ export const getFanTier = (pts, player = null) => {
   if (legendWeight < 2) {
     return {
       label: 'Icon', next: 900, req: 0, nextLabel: 'Legend',
-      need: 'The rafters want more than this. Legends won more than one thing'
+      need: 'You have enough of a fan base to be considered a Legend, but you need to back it up with more hardware'
     };
   }
   if (pts < 900) return { label: 'Icon', next: 900, req: 900 - pts, nextLabel: 'Legend' };
@@ -481,7 +481,10 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     // his seasons, which is five times what the whole NHL has managed since
     // Chris Pronger.
     if (dGrade >= 9.97 && pts >= field.total * 0.95) awards.push(trophy.mvp);
-    if (wonScoring) awards.push(trophy.scoring);
+    // The USHL's scoring award is its Forward of the Year, which a defenceman
+    // can't win however many points he puts up. He gets the scoring title
+    // itself instead.
+    if (wonScoring) awards.push(/forward of the year/i.test(trophy.scoring) ? `${player.league} Scoring Champion` : trophy.scoring);
     if (wonGoals) awards.push(trophy.goals);
   } else {
     if (mvpPace) awards.push(trophy.mvp);
@@ -2062,3 +2065,20 @@ export function careerMilestones(before = {}, after = {}, pos = 'C') {
   }
   return out;
 }
+
+// LUCK.
+//
+// A hidden number from 0 to 100, never shown anywhere, that tilts every risky
+// choice a little. At the extremes it's worth eight points of success chance
+// either way: a lucky player's 50/50 lands 58 times in a hundred, an unlucky
+// one's 42. It's rolled once when a career starts. A save from before it
+// existed gets one worked out from the player's name, so it never changes
+// between sessions.
+export const luckOf = (p) => {
+  if (typeof p?.luck === 'number') return p.luck;
+  let h = 2166136261;
+  for (const ch of String(p?.name || '')) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return Math.abs(h) % 101;
+};
+export const withLuck = (chance, p) =>
+  Math.max(0.05, Math.min(0.95, chance + ((luckOf(p) - 50) / 50) * 0.08));

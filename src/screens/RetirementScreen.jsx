@@ -466,7 +466,7 @@ export default function RetirementScreen() {
   // The last line of a career, in proportion to it.
   const theClub = withTeamArticle(homeName, home.league, true);
   const sendOff = isLegend
-    ? `${arena ? `${arena} raises` : `${theClub} raise`} your number to the rafters, and nobody's wearing it again.`
+    ? `${arena ? `${arena} raises` : `${theClub} raise`} your number to the rafters, never to be worn again.`
     : score.tier === 'Franchise Cornerstone'
       ? `You were the heart of ${withTeamArticle(homeName, home.league)} for years, and the building stood for you on your last night.`
       : score.tier === 'Solid Pro'

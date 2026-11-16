@@ -284,17 +284,7 @@ export default function RecapScreen() {
                   100% { opacity: 1; transform: translateY(0); }
                 }
                 .moments-in { animation: subtleFadeUp 0.35s ease-out both; }
-                @keyframes trophyRise {
-                  0% { opacity: 0; transform: translateY(18px) scale(.9); }
-                  100% { opacity: 1; transform: translateY(0) scale(1); }
-                }
-                @keyframes champSheen {
-                  0% { transform: translateX(-130%) skewX(-18deg); }
-                  100% { transform: translateX(260%) skewX(-18deg); }
-                }
-                .trophy-rise { animation: trophyRise 0.8s cubic-bezier(.2,.8,.2,1) both; }
-                .champ-sheen { animation: champSheen 1.8s ease-out 0.35s both; }
-                @media (prefers-reduced-motion: reduce) { .trophy-rise, .champ-sheen { animation: none; } .champ-sheen { display: none; } }
+                /* trophy-rise and champ-sheen live in index.css, shared with the playoff grid. */
                 @media (prefers-reduced-motion: reduce) { .moments-in { animation: none; } }
                 .recap-list > li {
                   opacity: 0;
@@ -443,14 +433,36 @@ export default function RecapScreen() {
                      // produces: nine games up top, the rest back in junior. A trade
                      // moves clubs inside one league and is handled below.
                      const stints = currentHistory?.stints || [];
-                     if (stints.length > 1 && stints[0].league !== stints[1].league) {
-                        const first = stints[0];
-                        const rest = stints.slice(1);
-                        return (
-                          <>🏅 Played <strong className="text-white">{first.games}</strong> game{first.games === 1 ? '' : 's'} in {leagueWithArticle(first.league)} with <strong className="text-white">{getFullTeamName(first.team, first.league)}</strong>, then spent the rest of the year {rest.map((s, i) => (
-                            <span key={`${s.team}-${i}`}>in {leagueWithArticle(s.league)} with <strong className="text-white">{getFullTeamName(s.team, s.league)}</strong> ({s.games} GP)</span>
-                          ))}.</>
-                        );
+                     // Every stop in order, joined into one sentence. This used to
+                     // say "then spent the rest of the year" and list every later
+                     // stint after it with no separator, so a three-game
+                     // conditioning loan in the middle of an NHL season read as
+                     // "(3 GP)in the NHL with Tampa Bay Lightning (28 GP)". Back-to-back
+                     // stints at the same club are one stop, and a return to a
+                     // club already named says "back with".
+                     if (stints.length > 1 && stints.some(s => s.league !== stints[0].league)) {
+                        const stops = [];
+                        stints.forEach(s => {
+                          const last = stops[stops.length - 1];
+                          if (last && last.team === s.team && last.league === s.league) last.games += s.games || 0;
+                          else stops.push({ team: s.team, league: s.league, games: s.games || 0, conditioning: !!s.conditioning });
+                        });
+                        const club = (s) => <strong className="text-white">{withTeamArticle(getFullTeamName(s.team, s.league), s.league)}</strong>;
+                        const seen = new Set();
+                        const parts = stops.map((s, i) => {
+                          const gp = <strong className="text-white">{s.games}</strong>;
+                          const again = seen.has(`${s.league}:${s.team}`);
+                          seen.add(`${s.league}:${s.team}`);
+                          const games = s.games === 1 ? 'game' : 'games';
+                          const body = i === 0
+                            ? <>Played {gp} {games} in {leagueWithArticle(s.league)} with {club(s)}</>
+                            : again
+                              ? <>{gp} more back with {club(s)}</>
+                              : <>{gp} {s.conditioning ? `on a conditioning stint with` : `in ${leagueWithArticle(s.league)} with`} {club(s)}{s.conditioning ? ` in ${leagueWithArticle(s.league)}` : ''}</>;
+                          const joint = i === 0 ? '' : i === stops.length - 1 ? ', and then ' : ', then ';
+                          return <span key={`${s.team}-${i}`}>{joint}{body}</span>;
+                        });
+                        return <>🏅 {parts}.</>;
                      }
 
                      if (currentHistory?.tradedTo) {
@@ -833,7 +845,7 @@ export default function RecapScreen() {
                       <RecapRow accent="#c084fc" label="📰 Moments of the Season">
                         <button type="button" onClick={() => setShowAllMoments(v => !v)} aria-expanded={showAllMoments}
                                 aria-controls="recap-moments"
-                                className="inline-flex items-center gap-1.5 text-left text-slate-300 hover:text-white underline decoration-[#c084fc]/50 underline-offset-4 cursor-pointer">
+                                className="inline-flex items-center gap-1.5 text-left text-slate-300 hover:text-white cursor-pointer">
                           {showAllMoments
                             ? 'Hide them'
                             : `${list.length} ${list.length === 1 ? 'moment' : 'moments'} from the year. Show them`}

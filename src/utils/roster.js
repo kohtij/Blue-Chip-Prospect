@@ -218,8 +218,12 @@ export function advanceRoom(room, { strength = 0.5, league = 'NHL' } = {}) {
   if (!men.some(m => m.captain)) {
     const skaters = men.filter(m => m.pos !== 'G');
     const eligible = skaters.filter(m => m.age >= 25 && m.ovr >= 60);
-    const next = [...(eligible.length ? eligible : skaters)]
-      .sort((a, b) => (b.years - a.years) || (b.ovr - a.ovr))[0];
+    // With nobody old and good enough, the best player takes it. This used to
+    // fall back to the longest-serving man whatever his rating, which is how a
+    // 41 OVR ended up wearing the C.
+    const next = eligible.length
+      ? [...eligible].sort((a, b) => (b.years - a.years) || (b.ovr - a.ovr))[0]
+      : [...skaters].sort((a, b) => b.ovr - a.ovr)[0];
     if (next) next.captain = true;
   }
 
@@ -477,9 +481,14 @@ export function coachOpening(coach, archetype) {
  * fans have turned costs him most of all. Nothing fires a coach in his first
  * season, because clubs do not do that to a man they have just hired.
  */
-export function coachSurvives(coach, { barrenYears = 0, roomTrust: trust = 50, fanPressure = false } = {}) {
+export function coachSurvives(coach, { barrenYears = 0, roomTrust: trust = 50, fanPressure = false, recentTitles = 0 } = {}) {
   if (!coach) return false;
   if ((coach.years || 0) < 1) return true;
+  // Nobody fires the man who just won it. With a title in the last three
+  // seasons he stays, unless he decides to go himself (the caller reports
+  // that as leaving, not as a firing). Three Cups in five years used to be
+  // followed by the coach being let go that summer.
+  if (recentTitles > 0) return Math.random() > 0.05;
   // A voice goes stale. Even a good coach at a good club is usually gone
   // inside half a dozen years, which is what the real numbers say: the base
   // rate alone had winning clubs keeping the same man for seventeen seasons.
@@ -587,7 +596,7 @@ export function recordSeason(room, { pos = 'C', games = 0, scheduleGames = 82, w
  * spend two years being the wrong sort of player for the man behind the bench
  * and then have that man replaced by someone who likes him.
  */
-export function summerAtClubs(player, { strengthOf = () => 0.5, barrenYears = 0, fanPressure = false } = {}) {
+export function summerAtClubs(player, { strengthOf = () => 0.5, barrenYears = 0, fanPressure = false, recentTitles = 0 } = {}) {
   const rooms = { ...(player?.rooms || {}) };
   const coaches = { ...(player?.coaches || {}) };
   const here = player?.team || null;
@@ -608,7 +617,8 @@ export function summerAtClubs(player, { strengthOf = () => 0.5, barrenYears = 0,
     const survived = coachSurvives(c, {
       barrenYears: mine ? barrenYears : 0,
       roomTrust: mine ? (roomTrust(rooms[id]) ?? 50) : 50,
-      fanPressure: mine && fanPressure
+      fanPressure: mine && fanPressure,
+      recentTitles: mine ? recentTitles : 0
     });
     if (survived) coaches[id] = { ...c, years: (c.years || 0) + 1 };
     else {
@@ -616,7 +626,8 @@ export function summerAtClubs(player, { strengthOf = () => 0.5, barrenYears = 0,
         strength: strengthOf(id),
         avoid: Object.values(coaches).map(x => x?.name)
       });
-      fired.push({ teamId: id, out: c.name, in: coaches[id].name, mine });
+      // A coach who'd just won is never fired; if he's gone, he chose to go.
+      fired.push({ teamId: id, out: c.name, in: coaches[id].name, mine, left: mine && recentTitles > 0 });
     }
   }
 

@@ -7,7 +7,7 @@
 // matchup sits under it, and the only thing you ever do is pick a play out of
 // your own book while the pool gets smaller.
 
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getPlaybook, PICK_PROMPT, viewFor } from '../data/intlPlaybook';
 import { getMinigamePool } from '../data/minigames';
@@ -170,6 +170,17 @@ export default function IntlTournamentScreen() {
 
   // A game he's out of the lineup for. Nothing to pick: he watches it.
   const sitting = !!round && !outcome && !lastChance && !done && sitsOut(run, round);
+
+  // When a last-chance game starts, scroll as far as it takes to have all of
+  // it on screen, the same as the season minigames do. The tournament draws
+  // its own games and never got that, so the one-timer's button could sit
+  // below the fold while the puck was already on its way.
+  const lastChanceRef = useRef(null);
+  useEffect(() => {
+    if (!lastChance || !lastChanceRef.current) return;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    lastChanceRef.current.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+  }, [lastChance]);
   const handleWatch = () => {
     if (lockRef.current || outcome) return;
     lockRef.current = true;
@@ -423,7 +434,7 @@ export default function IntlTournamentScreen() {
                   {round.label} and your play went nowhere. One moment left to save the tournament.
                 </p>
               </div>
-              <div className="bg-[#101410] border border-[#ef4444]/40 p-4 sm:p-6 rounded-xl shadow-2xl">
+              <div ref={lastChanceRef} className="bg-[#101410] border border-[#ef4444]/40 p-4 sm:p-6 rounded-xl shadow-2xl scroll-mt-3">
                 {lastChance === 'breakaway' && <BreakawayGame {...mgProps} />}
                 {lastChance === 'faceoff' && <FaceoffGame {...mgProps} />}
                 {lastChance === 'deflection' && <DeflectionGame {...mgProps} />}

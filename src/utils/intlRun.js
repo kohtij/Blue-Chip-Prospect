@@ -87,9 +87,30 @@ function drawField(player, safeNationalities, division, count) {
 // for his club and has been to three of these is exactly who a national staff
 // names. It is its own thing: the club letter helps, but what the federation
 // is really picking is the man who has been here before and can play.
-function nationalLetter(player, nation) {
+function nationalLetter(player, nation, context) {
   const hist = player.seasonHistory || [];
   const tournaments = hist.filter(s => s.intlData).length;
+
+  // THE WORLD JUNIORS PICK FROM A DIFFERENT ROOM.
+  //
+  // The senior rule below scores a teenager in junior hockey so far down
+  // (minus sixteen for the league, minus fourteen for his age) that nobody in
+  // the tournament could ever be given a letter, the best player in the
+  // country included. A junior staff names its captain from the players who
+  // already lead their own clubs and have been to one of these before, and
+  // the obvious star of the group gets a letter whatever his age.
+  if (context === 'wjc') {
+    if (player.pos === 'G') return null;
+    const before = hist.filter(s => s.intlData && /junior/i.test(String(s.intlData.tournamentName || ''))).length;
+    const gen = !!player.isGenerational;
+    const elite = (nation?.iihfRank ?? 99) <= 7;
+    const bar = elite ? 74 : 66;
+    const ovr = player.ovr || 60;
+    if ((player.isCaptain || gen) && before >= 1 && ovr >= bar) return 'C';
+    if ((player.isCaptain || player.isAlternate || gen) && ovr >= bar - 2) return 'A';
+    if (!elite && ovr >= bar + 4) return 'A';
+    return null;
+  }
 
   // How a federation picks its captain.
   //
@@ -303,7 +324,7 @@ export function buildRun({ player, safeNationalities, context, division, year })
   // Whether you can see it. A letter means you are in the meetings where this
   // gets talked about; otherwise it takes a genuinely high read of the game.
   const me = (safeNationalities || []).find(n => n.id === player.nat) || null;
-  const letter = nationalLetter(player, me);
+  const letter = nationalLetter(player, me, context);
   // Whether this is the first time. The federation naming you is a moment and
   // the tournament screen never said a word about it.
   const previousLetter = [...(player.seasonHistory || [])]
