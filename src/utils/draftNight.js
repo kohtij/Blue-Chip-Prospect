@@ -3,7 +3,7 @@ import { draftOrder, teamStrengthOf } from './leagueState';
 import { gaussianNoise } from './production';
 import {
   boardOrderPicks, classSalt, DRAFT_DAY_NOISE, LAST_PICK, peerBoardScore,
-  playerBoardScore, projectedPeak, roomProspect, TAIL_SPAN
+  playerBoardScore, projectedPeak, roomProspect
 } from './peers';
 import { addToPool, ensureFrontOffices, poolGroup, routeOf } from './frontOffice';
 
@@ -24,7 +24,9 @@ import { addToPool, ensureFrontOffices, poolGroup, routeOf } from './frontOffice
 // draft screen and the retirement screen read the same room twenty years apart.
 
 const ROUND = 32;
-const SIM_ROUNDS = 2;
+// Every round, pick by pick. It was the first two, with everything after
+// that guessed from a curve.
+const SIM_ROUNDS = 7;
 
 // The odds for the sixteen clubs that miss the playoffs, worst first, in
 // percent. These are the NHL's own numbers.
@@ -100,12 +102,13 @@ export function runLottery(order) {
  * move: nobody trades a chance at the best player in the draft.
  */
 function pickOwners(round1, standard, office, leagueState) {
+  // Picks change hands in the first two rounds; the later ones stay home.
   const strength = (id) => teamStrengthOf(leagueState, id);
   const takers = standard.map(id => ({
     id, weight: Math.pow(1 - strength(id), 2) * (0.6 + (1 - (office[id]?.gm?.dealer ?? 0.5)) * 0.4)
   }));
   const owners = [];
-  [round1, standard].forEach((order, r) => {
+  [round1, ...Array.from({ length: SIM_ROUNDS - 1 }, () => standard)].forEach((order, r) => {
     order.forEach((teamId, i) => {
       const pick = r * ROUND + i + 1;
       const s = strength(teamId);
@@ -114,7 +117,7 @@ function pickOwners(round1, standard, office, leagueState) {
       if (r === 1) p *= 1.25;
       if (pick <= 5) p *= 0.15;
       let owner = teamId;
-      if (Math.random() < Math.min(0.55, p)) {
+      if (r <= 1 && Math.random() < Math.min(0.55, p)) {
         const pool = takers.filter(t => t.id !== teamId);
         const total = pool.reduce((a, t) => a + t.weight, 0);
         let roll = Math.random() * total;
@@ -203,8 +206,12 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
   for (let n = 1; n <= SIM_ROUNDS * ROUND + 24; n++) {
     if (held.has(n)) continue;
     const r = roomProspect(salt, n, taken);
+    // About one in ten of a real draft is a goalie. The rest of the room was
+    // all skaters, so the only goalies on draft night were the two or three
+    // in his class.
+    const pos = n % 10 === 7 ? 'G' : r.pos;
     cands.push({
-      key: `room${n}`, name: r.name, nat: r.nat, pos: r.pos,
+      key: `room${n}`, name: r.name, nat: r.nat, pos,
       juniorTeam: r.juniorTeam, juniorLeague: r.juniorLeague, route: routeOf(r.juniorLeague),
       score: scoreAt(n), gap: avgGap + (r.gap - 0.5) * 8
     });
@@ -223,6 +230,9 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
       const v = c.score + t.total + gaussianNoise() * TASTE_NOISE;
       if (!best || v > best.v) best = { c, v, t };
     }
+    // The game has no undrafted path off draft night, so a player nobody has
+    // taken by the last pick is taken with it, as the old curve did.
+    if (slot.pick === LAST_PICK && available.includes(me)) best = { c: me, v: 0, t: taste(o, me, avgGap) };
     if (!best) break;
     available = available.filter(c => c !== best.c);
     office = addToPool(office, slot.team, best.c.pos, slot.round);
@@ -237,47 +247,19 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
     if (best.c.me) mine = { ...row, parts: best.t.parts };
   }
 
-  // AFTER THE SECOND ROUND.
+  // AFTER THE LAST PICK.
   //
-  // The game doesn't run rounds three to seven pick by pick. Anyone still on
-  // the board goes where his score says, in standard order, the lottery only
-  // touching the first round.
-  const cutoff = picks.length ? Math.min(...picks.map(r => cands.find(c => c.name === r.name)?.score ?? 99)) : 60;
-  const tailPick = (score) => {
-    const t = Math.min(1, Math.max(0, cutoff - score) / TAIL_SPAN);
-    return Math.min(LAST_PICK, Math.round(SIM_ROUNDS * ROUND + 1 + (LAST_PICK - SIM_ROUNDS * ROUND - 1) * Math.pow(t, 0.75)));
-  };
-  const usedTail = new Set();
-  const tailRow = (c, score) => {
-    let n = tailPick(score);
-    while (usedTail.has(n) && n < LAST_PICK) n++;
-    usedTail.add(n);
-    const team = standard.length ? standard[(n - 1) % standard.length] : null;
-    if (team) {
-      office = addToPool(office, team, c.pos, Math.ceil(n / ROUND));
-      adds.push({ team, pos: c.pos, round: Math.ceil(n / ROUND) });
-    }
-    return {
-      pick: n, round: Math.ceil(n / ROUND), team, from: null,
-      name: c.name, nat: c.nat, pos: c.pos, juniorTeam: c.juniorTeam, juniorLeague: c.juniorLeague,
-      peerId: c.peerId || null, me: !!c.me
-    };
-  };
+  // Every round is played now, so anyone in the class still on the board went
+  // undrafted, as most of a birth year does.
   const late = [];
-  if (!mine) {
-    mine = { ...tailRow(me, myScore), parts: null };
-    late.push(mine);
-  }
-  for (const c of available.filter(x => x.peerId)) {
-    // A goalie is scored with the usual reluctance to take one.
-    late.push(tailRow(c, c.score - (c.pos === 'G' ? GOALIE_PENALTY.normal : 0)));
-  }
 
   // The class, with the night written onto it.
   const byPeer = new Map([...picks, ...late].filter(r => r.peerId).map(r => [r.peerId, r]));
   const nextPeers = (player.peers || []).map(p => {
     const r = byPeer.get(p.id);
-    return r ? { ...p, pick: r.pick, draftedBy: r.team } : p;
+    if (r) return { ...p, pick: r.pick, draftedBy: r.team };
+    // In the class and not taken.
+    return p.pick && !p.retired ? { ...p, pick: null, draftedBy: null } : p;
   });
 
   return {

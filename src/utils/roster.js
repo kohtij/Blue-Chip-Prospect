@@ -717,3 +717,33 @@ export function playerArchetype(player) {
   if (/Two-Way/i.test(r)) return 'Two-Way';
   return null;
 }
+
+/**
+ * Whether he's at the top of his club's lineup: a first- or second-line
+ * forward, a top-four defenceman or the starting goalie.
+ *
+ * Read off the room where there is one (at most one man ahead of him at his
+ * own position, none for a goalie) and off the role his rating and contract
+ * say he has where there isn't. Used by training camp, which doesn't send
+ * these players into the fight for the last spot, and by the national team,
+ * which doesn't scratch them.
+ */
+const TOP_ROLES = ['Franchise Centerpiece', 'Top 6 Forward', 'Franchise Defenseman', 'Top 4 Defenseman',
+  'Franchise Starter', '1A/1B Starter', 'Top Line Star', 'Top Pair Prospect', 'Top 4 Defender',
+  'Top Pair Anchor', 'Starting Goalie', 'Elite Starter', 'Elite Prospect'];
+export function inTopOfLineup(player, roleOf = null) {
+  const room = roomFor(player?.rooms, player?.team);
+  const ahead = room ? depthAhead(room, player.pos, player.ovr) : null;
+  if (ahead != null) return ahead <= (player.pos === 'G' ? 0 : 1);
+  return roleOf ? TOP_ROLES.includes(roleOf(player.contract?.salary || 0, player)) : false;
+}
+
+/**
+ * A regular in the NHL: in the league now, with a full season behind him or
+ * a hundred and twenty games over his career.
+ */
+export function nhlRegular(player) {
+  if (player?.league !== 'NHL') return false;
+  const last = [...(player.seasonHistory || [])].reverse().find(s => s.league === 'NHL');
+  return (player.stats?.nhl?.games || 0) >= 120 || (last?.games || 0) >= 50;
+}

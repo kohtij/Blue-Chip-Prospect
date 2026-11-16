@@ -19,6 +19,8 @@
 import { getPlaybook } from '../data/intlPlaybook';
 import { PRESTIGE } from './stakes';
 import { fanGain, applyOvrDelta, recomputeOvr } from './gameHelpers';
+import { inTopOfLineup, nhlRegular } from './roster';
+import { getRole } from './appHelpers';
 
 const TOURNEY_NAME = {
   wjc: 'World Juniors',
@@ -328,6 +330,12 @@ function nationalLetter(player, nation, context) {
 // the bottom of the chart.
 function squadRole(player, me, context, letter) {
   if (letter) return null;
+  // An established NHL player is not the extra man. A first- or second-line
+  // forward, a top-four defenceman or a starting goalie in the NHL plays every
+  // game for anybody, at the Olympics included; any NHL regular plays every
+  // game at the Worlds and the World Juniors. The bar below is for everybody
+  // else, which is most of all the junior years.
+  if (nhlRegular(player) && (inTopOfLineup(player, getRole) || context !== 'olympics')) return null;
   const rank = me?.iihfRank ?? 20;
   const senior = rank <= 4 ? 86 : rank <= 7 ? 82 : rank <= 12 ? 76 : 70;
   const bar = context === 'wjc' ? senior - 10 : context === 'worlds' ? senior - 3 : senior;

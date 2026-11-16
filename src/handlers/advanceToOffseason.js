@@ -5,7 +5,7 @@ import { rollOfferPerks } from '../data/offerPerks';
 import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { buyoutTerms, salaryParts } from '../utils/bonuses';
-import { coachOpening, depthAhead, ensureClub, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
+import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
 import { teammatesFrom } from '../utils/peers';
 import { arrivalIntro, arrivalKind, coachBackground, coachIntro } from '../utils/lore';
 import { isCorePlayer } from '../utils/rosterMoves';
@@ -1598,15 +1598,8 @@ export function advanceToOffseason(ctx) {
     // until he reached 85. Read off the room where there is one (at most one
     // man ahead of him at his own position, none for a goalie) and off the
     // role his rating and contract say he has where there isn't.
-    const room = roomFor(player.rooms, player.team);
-    const ahead = room ? depthAhead(room, player.pos, player.ovr) : null;
-    const TOP_ROLES = ['Franchise Centerpiece', 'Top 6 Forward', 'Franchise Defenseman', 'Top 4 Defenseman',
-      'Franchise Starter', '1A/1B Starter', 'Top Line Star', 'Top Pair Prospect', 'Top 4 Defender',
-      'Top Pair Anchor', 'Starting Goalie', 'Elite Starter', 'Elite Prospect'];
-    const inTopOfLineup = ahead != null
-      ? ahead <= (player.pos === 'G' ? 0 : 1)
-      : TOP_ROLES.includes(getRole(player.contract?.salary || 0, player));
-    const isEstablished = isVeteran || player.ovr >= 85 || inTopOfLineup;
+    const topOfLineup = inTopOfLineup(player, getRole);
+    const isEstablished = isVeteran || player.ovr >= 85 || topOfLineup;
 
     if (isEstablished) {
         ctx.setActiveEvent({

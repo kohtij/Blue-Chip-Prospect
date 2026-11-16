@@ -204,10 +204,13 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
     .sort((a, b) => b.score - a.score)
     .map(e => e.p);
 
-  // Spread across the first two rounds rather than packed into the top
-  // twenty-eight, so the player's own pick, wherever it lands, slots in
-  // among them instead of sitting in a gap below the whole class.
-  const span = Math.max(1, (order.length || 32) * 2);
+  // Spread across the whole draft, all seven rounds. They used to fill the
+  // first two, which made the class the sixty-four best players of the year:
+  // beating the middle of it was a first-round pick, and a decent prospect
+  // went in the first round nearly every time. Across the whole draft the
+  // middle of the class is the fourth round, which is where the middle of a
+  // drafted year actually goes.
+  const span = Math.max(1, (order.length || 32) * DRAFT_ROUNDS);
   board.forEach((p, i) => {
     p.pick = Math.max(1, Math.min(span, Math.round(1 + i * ((span - 2) / Math.max(1, board.length - 1)))));
   });
@@ -243,12 +246,14 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
     return open;
   };
   goalies.forEach((g, i) => {
+    // The best of the class's goalies has a real chance at the first round,
+    // the next two land in the second or third, and the rest go late.
     let window;
-    if (i === 0 && Math.random() < 0.62) window = freeIn(Math.round(roundOne * 0.38), roundOne);
-    else if (i <= 2) window = freeIn(roundOne + 1, span);
-    else window = freeIn(span + 1, span + roundOne * 3);
-    if (!window.length) window = freeIn(span + 1, span + roundOne * 3);
-    const chosen = window.length ? window[Math.floor(Math.random() * window.length)] : span + 1 + i;
+    if (i === 0 && Math.random() < 0.45) window = freeIn(Math.round(roundOne * 0.38), roundOne);
+    else if (i <= 2) window = freeIn(roundOne + 1, roundOne * 3);
+    else window = freeIn(roundOne * 3 + 1, span);
+    if (!window.length) window = freeIn(roundOne + 1, span);
+    const chosen = window.length ? window[Math.floor(Math.random() * window.length)] : Math.min(span, roundOne * 3 + 1 + i);
     g.pick = chosen;
     takenPicks.add(chosen);
   });
@@ -1241,6 +1246,7 @@ export const TAIL_SPAN = 18;
 
 // The draft the game runs: seven rounds of thirty-two.
 export const LAST_PICK = 224;
+const DRAFT_ROUNDS = 7;
 
 // What drawPeak averages across a class, which is what an unknown prospect is
 // regressed toward below.
@@ -1497,8 +1503,22 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
  * draft them.
  */
 export function boardOrderPicks(peers) {
-  const drafted = (peers || []).filter(p => p.pick);
-  if (!drafted.length) return peers;
+  const drafted0 = (peers || []).filter(p => p.pick);
+  if (!drafted0.length) return peers;
+  // A class built before the draft used all seven rounds sits in the first
+  // two (goalies a little further down). Its slots are stretched over the
+  // whole draft in the same proportions, so an older save drafts the same way
+  // a new one does.
+  const skaterMax = Math.max(0, ...drafted0.filter(p => p.pos !== 'G').map(p => p.pick));
+  if (skaterMax > 0 && skaterMax <= 70) {
+    const last = 32 * DRAFT_ROUNDS;
+    const k = (last - 1) / 63;
+    const stretch = (n) => n <= 64
+      ? Math.round(1 + (n - 1) * k)
+      : Math.round(97 + (n - 65) * ((last - 97) / 95));   // the old late goalies
+    peers = peers.map(p => p.pick ? { ...p, pick: Math.max(1, Math.min(last, stretch(p.pick))) } : p);
+  }
+  const drafted = peers.filter(p => p.pick);
   const slotted = new Map();
   for (const group of [drafted.filter(p => p.pos !== 'G'), drafted.filter(p => p.pos === 'G')]) {
     const slots = group.map(p => p.pick).sort((a, b) => a - b);
