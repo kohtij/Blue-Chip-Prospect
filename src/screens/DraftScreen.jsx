@@ -1,104 +1,76 @@
-import { useRef, useState } from 'react';
-import { useDialog } from '../utils/a11y';
+import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { ordinal } from '../utils/gameHelpers';
-import { draftBoard, flagFor, groupName, positionDraftSlot } from '../utils/peers';
+import { ordinal, withTeamArticle } from '../utils/gameHelpers';
+import { classSalt, draftBoard, flagFor, groupName, positionDraftSlot, roomProspect } from '../utils/peers';
 import LeagueTag from '../components/LeagueTag';
 import { kickerClass, TITLE_LG } from '../utils/ui';
 
-// The question before the draft, as a real dialog: the rest of the screen is
-// behind it, so focus goes into it and stays there until it is answered.
-function RussianFactorDialog({ onChoose }) {
-  const ref = useRef(null);
-  useDialog(ref, null);
-  return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="russian-factor-title" className="bg-[#101410] border-2 border-[#ef4444]/60 p-6 sm:p-8 rounded-2xl max-w-xl w-full text-center shadow-2xl animate-fade-in">
-        <div className="text-5xl mb-3" aria-hidden="true">🇷🇺</div>
-        <h3 id="russian-factor-title" className="text-3xl font-black text-white sports-font uppercase mb-2">
-          THE RUSSIAN FACTOR
-        </h3>
-        <p className="text-slate-300 text-sm sm:text-base font-sans mb-6 leading-relaxed">
-          Scouts and GMs at the Combine are asking whether you'll commit to North America or stay in the KHL. What do you tell the media?
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => onChoose('NHL')}
-            className="bg-[#151b15] hover:bg-[#1c241c] border border-[#3b82f6]/40 p-5 rounded-xl text-left transition-transform hover:scale-105 cursor-pointer"
-          >
-            <span className="text-xs font-black text-[#3b82f6] tracking-widest uppercase block mb-1">
-              COMMIT TO NHL
-            </span>
-            <span className="text-base font-bold text-white sports-font block uppercase mb-1">
-              "My Dream is the Stanley Cup"
-            </span>
-            <span className="text-xs text-slate-400 font-sans block">
-              📈 Draft stock rises (+15). NHL GMs feel safe selecting you higher.
-            </span>
-          </button>
-
-          <button
-            onClick={() => onChoose('KHL')}
-            className="bg-[#151b15] hover:bg-[#1c241c] border border-[#ef4444]/40 p-5 rounded-xl text-left transition-transform hover:scale-105 cursor-pointer"
-          >
-            <span className="text-xs font-black text-[#ef4444] tracking-widest uppercase block mb-1">
-              LEVERAGE THE KHL
-            </span>
-            <span className="text-base font-bold text-white sports-font block uppercase mb-1">
-              "I Keep My Options Open"
-            </span>
-            <span className="text-xs text-slate-400 font-sans block">
-              📉 Draft stock drops (-25), but guarantees lucrative KHL contract offers later.
-            </span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function DraftScreen() {
-  const { TeamLogo, handleDraftChoice, player, setPlayer, seasonRecap } = useAppContext();
-
-  // Russian Factor Eligibility Check
-  const isRussianFactorEligible = 
-    (player.nationality === 'RUS' || player.league === 'KHL') && 
-    !player.storylines?.russianFactorHandled;
-
-  const handleRussianFactorChoice = (choice) => {
-    if (choice === 'NHL') {
-      setPlayer(p => ({
-        ...p,
-        draftBonus: (p.draftBonus || 0) + 15,
-        fanStatus: Math.min(100, (p.fanStatus || 0) + 20),
-        storylines: { ...p.storylines, russianFactorHandled: true, russianFactorChoice: 'NHL' }
-      }));
-    } else {
-      setPlayer(p => ({
-        ...p,
-        draftBonus: (p.draftBonus || 0) - 25,
-        fanStatus: Math.min(100, (p.fanStatus || 0) + 35),
-        storylines: { ...p.storylines, russianFactorHandled: true, russianFactorChoice: 'KHL' }
-      }));
-    }
-  };
+  const { TeamLogo, handleDraftChoice, player, seasonRecap } = useAppContext();
 
   const isFirstRound = seasonRecap?.draftPick <= 32;
 
-  // Drawn once. draftBoard puts noise on the scouting order, so recomputing
-  // it on every render would reshuffle the room while the player read it.
-  const [board] = useState(() =>
-    seasonRecap?.draftPick
-      ? draftBoard(player.peers, seasonRecap.draftPick, player.name, 3, player.leagueState)
-      : null);
+  // The night as it was run (see utils/draftNight.js). A save drafted before
+  // the room was simulated has none, and falls back to the old board.
+  const night = player.draftNight && player.draftNight.myPick === seasonRecap?.draftPick ? player.draftNight : null;
+
+  // Drawn once, so the room doesn't reshuffle while the player reads it.
+  const [board] = useState(() => {
+    if (!seasonRecap?.draftPick) return null;
+    if (!night) return draftBoard(player.peers, seasonRecap.draftPick, player.name, 3, player.leagueState, seasonRecap.draftedBy?.id);
+    // Past the second round the game doesn't run the room pick by pick, so
+    // the picks around a late one are the rest of the room, in standard order.
+    const byPick = new Map(night.picks.map(r => [r.pick, r]));
+    const salt = classSalt(player.peers);
+    const taken = new Set(night.picks.map(r => r.name));
+    const at = (n) => {
+      if (n < 1) return null;
+      const r = byPick.get(n);
+      if (r) return { name: r.name, pick: n, pos: r.pos, flag: flagFor(r.nat), team: r.team, via: r.from, from: r.juniorTeam, fromLeague: r.juniorLeague };
+      const x = roomProspect(salt, n, taken);
+      return { name: x.name, pick: n, pos: x.pos, flag: flagFor(x.nat), team: night.standard?.[(n - 1) % (night.standard?.length || 32)] || null, from: x.juniorTeam, fromLeague: x.juniorLeague };
+    };
+    const me = night.myPick;
+    return {
+      before: [me - 3, me - 2, me - 1].map(at).filter(Boolean),
+      after: [me + 1, me + 2, me + 3].map(at).filter(Boolean),
+      via: night.myFrom
+    };
+  });
+
+  // The night around him: the lottery, and why the club that took him did.
+  const clubName = (id) => withTeamArticle(getFullTeamName(id, 'NHL'), 'NHL');
+  const ClubName = (id) => withTeamArticle(getFullTeamName(id, 'NHL'), 'NHL', true);
+  const lotteryLine = night?.lottery?.length
+    ? night.lottery.map(w => {
+      const drew = w.draw === 2 ? 'the second draw' : 'the draft lottery';
+      return w.capped
+        ? `${ClubName(w.teamId)} won ${drew} from ${ordinal(w.from)}, but a club can only move up ten places, so they pick ${ordinal(w.to)}.`
+        : `${ClubName(w.teamId)} won ${drew} and moved up from ${ordinal(w.from)} to ${ordinal(w.to)}.`;
+    }).join(' ')
+    : null;
+  const reasonLine = (() => {
+    if (!night?.reason) return null;
+    const gm = night.reason.gm;
+    const said = [];
+    for (const l of night.reason.lines || []) {
+      if (l.kind === 'traded') said.push(`${ClubName(night.myTeam)} made this pick with one they got from ${clubName(l.from)}.`);
+      if (!gm) continue;
+      const who = `${gm}, their general manager,`;
+      if (l.kind === 'need') said.push(`${who} came into the night short of ${l.group} in the system.`);
+      if (l.kind === 'likes') said.push(`${who} has always liked ${l.group}.`);
+      if (l.kind === 'nation') said.push(`${who} leans on his ${l.adj} scouts more than most.`);
+      if (l.kind === 'route') said.push(`${who} likes ${l.text}.`);
+      if (l.kind === 'upside') said.push(`${who} drafts for ceiling over certainty.`);
+      if (l.kind === 'safe') said.push(`${who} prefers prospects he's sure about.`);
+    }
+    return said.length ? said.join(' ') : null;
+  })();
 
   return (
     <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
       
-      {/* RUSSIAN FACTOR PRE-DRAFT OVERLAY */}
-      {isRussianFactorEligible && <RussianFactorDialog onChoose={handleRussianFactorChoice} />}
 
       <span className={`${kickerClass('neutral')} mb-4`}>The NHL draft</span>
       
@@ -170,6 +142,13 @@ export default function DraftScreen() {
         );
       })()}
 
+      {(lotteryLine || reasonLine) && (
+        <div className="max-w-xl mx-auto -mt-4 mb-8 px-2 space-y-1.5 text-[11px] sm:text-xs font-bold text-slate-400">
+          {reasonLine && <p>{reasonLine}</p>}
+          {lotteryLine && <p className="text-slate-500">{lotteryLine}</p>}
+        </div>
+      )}
+
       {board && (board.before.length > 0 || board.after.length > 0) && (
         <div className="max-w-xl mx-auto mb-10 text-left">
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 px-1">
@@ -181,7 +160,7 @@ export default function DraftScreen() {
               {
                 name: player.name, pick: seasonRecap?.draftPick, me: true,
                 pos: player.pos, flag: flagFor(player.nat),
-                team: seasonRecap?.draftedBy?.id,
+                team: seasonRecap?.draftedBy?.id, via: board.via,
                 from: seasonRecap?.juniorTeam, fromLeague: seasonRecap?.juniorLeague
               },
               ...board.after
@@ -230,6 +209,9 @@ export default function DraftScreen() {
                         <LeagueTag league={r.fromLeague} flagClass="w-[12px] h-[9px]" />
                       </span>
                     )}
+                    {/* A pick that changed hands says whose it was. */}
+                    {r.via && <span className="shrink-0 text-slate-700">·</span>}
+                    {r.via && <span className="shrink-0 text-slate-500">Pick from {r.via}</span>}
                   </span>
                 </span>
 

@@ -10,6 +10,7 @@ import { teammatesFrom } from '../utils/peers';
 import { arrivalIntro, arrivalKind, coachBackground, coachIntro } from '../utils/lore';
 import { isCorePlayer } from '../utils/rosterMoves';
 import { teamStrengthOf } from '../utils/leagueState';
+import { advanceFrontOffices, ensureFrontOffices } from '../utils/frontOffice';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -422,7 +423,47 @@ export function advanceToOffseason(ctx) {
   // The rest of the summer runs once. The aging curve, the ELC slide and the
   // contract application all sit inside this block, so coming back for camp can
   // never age the player twice or slide his contract twice.
+  // The front offices as they stand this summer. Kept here as well as on the
+  // player because an over-ager is drafted further down this same pass, before
+  // setPlayer has landed.
+  let officeNow = player.frontOffice;
+
   if (done < SUMMER_DONE) {
+
+  // THE FRONT OFFICES.
+  //
+  // Every NHL club's prospect pool turns over a little, and every owner looks
+  // at his season and decides whether the general manager keeps his job. The
+  // player only hears about the clubs that matter to him: the one he plays for
+  // and the one holding his rights. See utils/frontOffice.js.
+  if (!marks.offices) {
+    const year = 2026 + (player.stats?.seasonsPlayed || 0);
+    const summerOffice = advanceFrontOffices(
+      ensureFrontOffices(player.frontOffice, player.leagueState, year),
+      player.leagueState, year
+    );
+    officeNow = summerOffice.office;
+    mark('offices');
+    setPlayer(p => ({ ...p, frontOffice: summerOffice.office }));
+    const mineNow = new Set([player.league === 'NHL' ? player.team : null, player.rights].filter(Boolean));
+    const news = summerOffice.changes.filter(ch => mineNow.has(ch.teamId)).map(ch => {
+      const club = withTeamArticle(getFullTeamName(ch.teamId, 'NHL'), 'NHL', true);
+      const seasons = `${ch.tenure} ${ch.tenure === 1 ? 'season' : 'seasons'}`;
+      const what = ch.fired
+        ? `${club} fired their general manager, ${ch.out}, after ${seasons} in charge. ${ch.in} takes over.`
+        : `${ch.out} stepped down as general manager of ${withTeamArticle(getFullTeamName(ch.teamId, 'NHL'), 'NHL')} after ${seasons}. ${ch.in} takes over.`;
+      const drafter = ch.teamId === player.rights && player.team !== player.rights && player.draftNight?.gm === ch.out
+        ? ` ${ch.out} was the one who drafted you. Your rights now belong to a general manager who didn't.`
+        : '';
+      return {
+        club: player.league === 'NHL' && ch.teamId === player.team ? ch.teamId : null,
+        title: '🗂️ THE FRONT OFFICE',
+        feedback: what + drafter,
+        effect: { fanStatus: 0, ovr: 0, money: 0 }
+      };
+    });
+    if (news.length) setSeasonEvents(prev => [...prev, ...news]);
+  }
 
   // THE SUMMER, AT EVERY CLUB HE KNOWS.
   //
@@ -910,6 +951,30 @@ export function advanceToOffseason(ctx) {
     // route all over again. Having a professional contract now ends it.
     if (isDraftEligibleAge && !hasSignedDeal
         && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
+      // THE RUSSIAN FACTOR.
+      //
+      // Asked here, before the combine and the draft. It used to be a dialog
+      // on the draft screen, which only appears once the draft has been run, so
+      // the answer moved a pick that had already been made and did nothing.
+      // The check also read player.nationality, which the player doesn't have,
+      // so a Russian was only ever asked if he happened to be playing in the KHL.
+      if ((player.nat === 'RUS' || currentLeague === 'KHL') && !player.storylines?.russianFactorHandled) {
+        setActiveEvent({
+          title: '🇷🇺 THE RUSSIAN FACTOR',
+          desc: 'Every club that sits down with you before the draft asks the same thing: will you come over to North America, or stay home and play in the KHL? What do you tell them?',
+          choices: [
+            { label: 'Commit to the NHL', subLabel: 'Clubs feel safer spending a high pick on you.', isRisky: false,
+              feedback: 'You told every club the Stanley Cup is the dream. They wrote it down, and your stock went up.',
+              effect: { fanStatus: 20, ovr: 0, money: 0 }, action: 'RUSSIAN_FACTOR', actionData: { choice: 'NHL' } },
+            { label: 'Keep the KHL open', subLabel: 'You\'ll drop down boards, but KHL clubs will come calling with big offers later.', isRisky: false,
+              feedback: 'You told them you were keeping your options open. A few clubs crossed you off their lists, and the KHL took note.',
+              effect: { fanStatus: 35, ovr: 0, money: 0 }, action: 'RUSSIAN_FACTOR', actionData: { choice: 'KHL' } }
+          ],
+          isOffseasonEvent: true
+        });
+        setScreen('event');
+        return;
+      }
       // 18-year-olds go to the Combine. Over-agers skip directly to the draft with a penalty.
       if (player.age === 18) {
           setScreen('combine');
@@ -921,7 +986,7 @@ export function advanceToOffseason(ctx) {
           // on the penalised player, since setPlayer has not landed yet. He skips
           // the combine, so he tests at neutral.
           const agePenalty = (player.age - 18) * -30;
-          const penalised = { ...player, draftBonus: (player.draftBonus || 0) + agePenalty };
+          const penalised = { ...player, frontOffice: officeNow, draftBonus: (player.draftBonus || 0) + agePenalty };
           setPlayer(p => ({ ...p, draftBonus: (p.draftBonus || 0) + agePenalty }));
           if (ctx.handleDraftDay) ctx.handleDraftDay(0, penalised);
           else setScreen('draft');

@@ -1209,20 +1209,20 @@ const COMBINE_BOARD_WEIGHT = 0.5;
 // Draft day is not the consensus board. Clubs reach, clubs pass, and a man
 // ranked eighth goes fourth or twelfth. One standard deviation is worth about
 // two places in the middle of the class.
-const DRAFT_DAY_NOISE = 1.6;
+export const DRAFT_DAY_NOISE = 1.6;
 
 // How far below the worst man in the class a prospect has to score to land at
 // the very end of the draft.
-const TAIL_SPAN = 18;
+export const TAIL_SPAN = 18;
 
 // The draft the game runs: seven rounds of thirty-two.
-const LAST_PICK = 224;
+export const LAST_PICK = 224;
 
 // What drawPeak averages across a class, which is what an unknown prospect is
 // regressed toward below.
 const CLASS_MEAN_PEAK = 72;
 
-const projectedPeak = (ovr, age) => {
+export const projectedPeak = (ovr, age) => {
   const f = 0.35 + 0.65 * Math.min(1, Math.max(0, (age - 17) / 8));
   const raw = 52 + (ovr - 52) / f;
   // And regressed toward what a draft class averages, by how much of him is
@@ -1256,7 +1256,7 @@ const nameBias = (name) => {
 // The board a player follows every winter and the order the room actually
 // picks in were two unrelated calculations, which is how he could be the best
 // centre in his class on the board and come off it fortieth.
-const peerBoardScore = (p) => {
+export const peerBoardScore = (p) => {
   const produced = p.season && isDefence(p.pos)
     ? defenceProduction(p.season)
     : p.season && p.pos !== 'G'
@@ -1271,7 +1271,7 @@ const peerBoardScore = (p) => {
 // think he becomes. draftBonus is the only part of the second he can move, and
 // it is what the combine and every interview question since have been feeding
 // into.
-const playerBoardScore = (player, ownSeason = null, combine = null) => {
+export const playerBoardScore = (player, ownSeason = null, combine = null) => {
   const last = ownSeason || (player?.seasonHistory || [])[(player?.seasonHistory || []).length - 1] || null;
   const myGp = last ? (last.gp ?? last.games ?? 0) : 0;
   const myPts = last ? (last.pts != null ? last.pts : (last.goals || 0) + (last.assists || 0)) : null;
@@ -1322,7 +1322,7 @@ const playerBoardScore = (player, ownSeason = null, combine = null) => {
  * went before him, and the score that put him there.
  */
 export function draftSlotFromBoard(peers, player, { combine = 0, ownSeason = null, noise = true } = {}) {
-  const field = (peers || []).filter(p => p.pick);
+  const field = boardOrderPicks((peers || []).filter(p => p.pick));
   if (!field.length) return null;
 
   // The combine rides inside the board score, so it is passed through rather
@@ -1331,19 +1331,31 @@ export function draftSlotFromBoard(peers, player, { combine = 0, ownSeason = nul
   const myScore = playerBoardScore(player, ownSeason, combine)
     + (noise ? gaussianNoise() * DRAFT_DAY_NOISE : 0);
 
-  const scores = field.map(p => peerBoardScore(p));
-  const ahead = scores.filter(s => s > myScore).length;
-  const slots = field.map(p => p.pick).sort((a, b) => a - b);
+  // Measured against the skaters, because they are the ones who go in board
+  // order. Goalies are taken late whatever the board says (see
+  // createDraftClass), so a goalie classmate scored above him still isn't
+  // drafted before him. With the class in board order the skaters' picks run
+  // the same way as their scores, so the man in front of him on the board is
+  // also the man in front of him in the draft.
+  const skaters = field.filter(p => p.pos !== 'G');
+  const ladder = skaters.length ? skaters : field;
+  const scores = ladder.map(p => peerBoardScore(p));
+  const above = scores.filter(s => s > myScore).length;
+  const slots = ladder.map(p => p.pick).sort((a, b) => a - b);
+  const result = (pick) => ({
+    pick, ahead: field.filter(p => p.pick < pick).length, total: field.length + 1, score: myScore
+  });
 
-  if (ahead === 0) return { pick: 1, ahead, total: field.length + 1, score: myScore };
+  if (above === 0) return result(1);
 
-  if (ahead < slots.length) {
+  if (above < slots.length) {
     // Between the man in front of him and the man behind him. The class sits
-    // every two or three picks, so there is always a number in the gap.
-    const before = slots[ahead - 1];
-    const after = slots[ahead];
+    // every two or three picks, so there is usually a number in the gap, and
+    // where there isn't, seatPlayerPick moves the man behind him down one.
+    const before = slots[above - 1];
+    const after = slots[above];
     const pick = after - before > 1 ? Math.round((before + after) / 2) : before + 1;
-    return { pick, ahead, total: field.length + 1, score: myScore };
+    return result(pick);
   }
 
   // Below the whole class. The tail runs from the last classmate's pick out to
@@ -1353,10 +1365,7 @@ export function draftSlotFromBoard(peers, player, { combine = 0, ownSeason = nul
   const worst = Math.min(...scores);
   const gap = Math.max(0, worst - myScore);
   const t = Math.min(1, gap / TAIL_SPAN);
-  return {
-    pick: Math.min(LAST_PICK, Math.round(last + 1 + (LAST_PICK - last - 1) * Math.pow(t, 0.75))),
-    ahead, total: field.length + 1, score: myScore
-  };
+  return result(Math.min(LAST_PICK, Math.round(last + 1 + (LAST_PICK - last - 1) * Math.pow(t, 0.75))));
 }
 
 export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
@@ -1450,6 +1459,85 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
 }
 
 /**
+ * The class, drafted in the order the final board has it.
+ *
+ * Picks were handed out when the class was created, two years before the
+ * draft, by hidden ceiling and a little noise. The player's own pick came from
+ * the scouting board on the day, so he was drafted off a board his classmates
+ * weren't: a classmate who climbed to second over two junior seasons still
+ * went at whatever number he'd been given at sixteen.
+ *
+ * Now the slots stay where they are and the board decides who fills them, the
+ * best-scored skater taking the earliest skater slot and so on down. Goalies
+ * are sorted among the goalie slots, which keeps them late, the way real teams
+ * draft them.
+ */
+export function boardOrderPicks(peers) {
+  const drafted = (peers || []).filter(p => p.pick);
+  if (!drafted.length) return peers;
+  const slotted = new Map();
+  for (const group of [drafted.filter(p => p.pos !== 'G'), drafted.filter(p => p.pos === 'G')]) {
+    const slots = group.map(p => p.pick).sort((a, b) => a - b);
+    [...group]
+      .sort((a, b) => peerBoardScore(b) - peerBoardScore(a))
+      .forEach((p, i) => slotted.set(p, slots[i]));
+  }
+  return peers.map(p => {
+    const n = slotted.get(p);
+    return n != null && n !== p.pick ? { ...p, pick: n } : p;
+  });
+}
+
+// The order of the room on his draft night, with his club holding his pick.
+//
+// The club that takes him is drawn at random, and the rest of the room picks in
+// standings order, so his club could also turn up at its own slot in the same
+// round and pick twice. Treated as a trade: his club and the club that owned
+// his slot swap places in the order.
+function roomOrder(leagueState, playerPick, teamId) {
+  const order = [...draftOrder(leagueState, nhlTeams || [])];
+  if (!order.length || !playerPick || !teamId) return order;
+  const slot = (playerPick - 1) % order.length;
+  const at = order.indexOf(teamId);
+  if (at >= 0 && at !== slot) [order[slot], order[at]] = [order[at], order[slot]];
+  return order;
+}
+
+/**
+ * Seat the player at his own pick.
+ *
+ * The class was given its picks when the career started, two years before he
+ * was drafted, and his own pick comes from the board on the day. Nothing ever
+ * moved the classmate already sitting at that number, so two players could go
+ * first overall in the same draft. Whoever holds his pick, and anyone directly
+ * behind them, slides down one.
+ *
+ * On draft night (reteam) every club is read off that night's order. Later,
+ * for a career drafted before this was fixed, only the classmates who move
+ * change clubs: each takes the club of the slot he moves into, which is the
+ * club the next man in the chain was taken by.
+ */
+export function seatPlayerPick(peers, playerPick, teamId, leagueState = null, { reteam = false } = {}) {
+  if (!playerPick || !peers?.length) return peers;
+  const byPick = new Map(peers.filter(p => p.pick).map(p => [p.pick, p]));
+  if (!byPick.has(playerPick) && !reteam) return peers;
+
+  const order = roomOrder(leagueState, playerPick, teamId);
+  const clubAt = (n) => order.length ? order[(n - 1) % order.length] : null;
+  const moved = new Map();
+  for (let n = playerPick; byPick.has(n); n++) {
+    moved.set(byPick.get(n), { pick: n + 1, club: byPick.get(n + 1)?.draftedBy ?? clubAt(n + 1) });
+  }
+
+  return peers.map(p => {
+    if (!p.pick) return p;
+    const m = moved.get(p);
+    if (reteam) return { ...p, pick: m ? m.pick : p.pick, draftedBy: clubAt(m ? m.pick : p.pick) ?? p.draftedBy };
+    return m ? { ...p, pick: m.pick, draftedBy: m.club ?? p.draftedBy } : p;
+  });
+}
+
+/**
  * Who went around you on draft night.
  *
  * The class is created when the career starts, so the names exist before the
@@ -1457,13 +1545,13 @@ export function scoutingBoard(peers, player, limit = 10, ownSeason = null) {
  * peak ability with some noise, because scouts are not oracles, and then the
  * player is slotted in at his own pick.
  */
-export function draftBoard(peers, playerPick, playerName, count = 2, leagueState = null) {
+export function draftBoard(peers, playerPick, playerName, count = 2, leagueState = null, teamId = null) {
   const pool = (peers || []).filter(p => p.pick);
   if (!pool.length) return { before: [], after: [] };
 
-  // The picks were settled when the class was created and are kept for the
-  // life of the career, so the board here is the same board the retirement
-  // screen prints twenty years later.
+  // The picks are settled on draft night (boardOrderPicks, then
+  // seatPlayerPick) and kept for the life of the career, so the board here is
+  // the same board the retirement screen prints twenty years later.
   const byPick = new Map();
   pool.forEach(p => {
     if (p.pick === playerPick) return;
@@ -1484,7 +1572,7 @@ export function draftBoard(peers, playerPick, playerName, count = 2, leagueState
   // the pick number and the class, so they are the same every time it draws
   // and after a reload, without being carried around in the save.
   const salt = hash(pool.slice(0, 4).map(p => p.name).join('|'));
-  const order = draftOrder(leagueState, nhlTeams || []);
+  const order = roomOrder(leagueState, playerPick, teamId);
   const taken = new Set(pool.map(p => p.name));
 
   const filler = (pickNo) => {
@@ -1524,6 +1612,35 @@ export function draftBoard(peers, playerPick, playerName, count = 2, leagueState
   }
 
   return { before, after };
+}
+
+/**
+ * One of the rest of the room: a prospect outside the player's year group
+ * file, who exists for draft night and nowhere else. Generated from the pick
+ * number and the class, so the same pick gives the same name every time.
+ */
+export function classSalt(peers) {
+  return hash((peers || []).filter(p => p.pick).slice(0, 4).map(p => p.name).join('|'));
+}
+
+export function roomProspect(salt, n, taken = new Set()) {
+  const rnd = rngFrom(salt ^ Math.imul(n, 2654435761));
+  const nat = NATS[Math.floor(rnd() * NATS.length)];
+  let name = '';
+  for (let tries = 0; tries < 6; tries++) {
+    name = `${FIRST[nat][Math.floor(rnd() * FIRST[nat].length)]} ${LAST[nat][Math.floor(rnd() * LAST[nat].length)]}`;
+    if (!taken.has(name)) break;
+  }
+  taken.add(name);
+  const route = routeFrom(nat, rnd);
+  return {
+    name, nat,
+    pos: SKATER_POS[Math.floor(rnd() * SKATER_POS.length)],
+    juniorTeam: route.juniorTeam, juniorLeague: route.juniorLeague,
+    // How far his ceiling sits above where he is now, for the general managers
+    // who draft for one or the other.
+    gap: rnd()
+  };
 }
 
 /**

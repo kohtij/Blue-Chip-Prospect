@@ -219,6 +219,13 @@ export function handleEventChoice(ctx, choice) {
     if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < 750000)) {
       updated.contract = { salary: 750000, years: 1, role: 'Depth' };
     }
+  } else if (actionStr === 'RUSSIAN_FACTOR') {
+    // Asked before the draft is run, so the answer moves the board the room
+    // drafts off. draftBonus is in draft slots: fifteen up for committing,
+    // twenty-five down for keeping the KHL open.
+    const toNhl = choice.actionData?.choice !== 'KHL';
+    updated.draftBonus = (updated.draftBonus || 0) + (toNhl ? 15 : -25);
+    updated.storylines = { ...(updated.storylines || {}), russianFactorHandled: true, russianFactorChoice: toNhl ? 'NHL' : 'KHL' };
   } else if (actionStr === 'MAKE_CAPTAIN') {
     updated.isCaptain = true;
     updated.isAlternate = false;

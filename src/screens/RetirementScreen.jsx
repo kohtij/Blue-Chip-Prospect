@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { careerTrophies, formatMoney, withTeamArticle } from '../utils/gameHelpers';
-import { classTable, compGroup, groupName, leagueLabel, peerUnit, peerValue, playerCareerValue } from '../utils/peers';
+import { classTable, compGroup, groupName, leagueLabel, peerUnit, peerValue, playerCareerValue, seatPlayerPick } from '../utils/peers';
 import { isDefence } from '../utils/production';
 import { careerRecords, formatRecord, RECORD_LABEL } from '../utils/records';
 import { computeCareerScore, hallOfFame } from '../utils/careerScore';
@@ -856,14 +856,14 @@ export default function RetirementScreen() {
                 ))}
                 {skyline.some(b => b.title) && (
                   <span className="inline-flex items-center gap-1.5 text-[#F59E0B]">
-                    <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />Champions
+                    <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />Champion
                   </span>
                 )}
                 {/* The white dot over a bar: a year he won an individual
                     trophy. It was on the chart with nothing to say so. */}
                 {skyline.some(b => b.award && !b.title) && (
                   <span className="inline-flex items-center gap-1.5 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-white" />Trophy season
+                    <span className="w-2 h-2 rounded-full bg-white" />Award Received
                   </span>
                 )}
               </div>
@@ -1089,7 +1089,9 @@ export default function RetirementScreen() {
 
         {/* THE DRAFT CLASS. */}
         {(() => {
-          const table = classTable(player.peers, 8, player.pos);
+          // A career drafted before the class was moved aside for him can still
+          // have a classmate at his own pick. Seat him here too.
+          const table = classTable(seatPlayerPick(player.peers, player.draftPick, player.draftTeam), 8, player.pos);
           if (!table.length) return null;
           const unit = peerUnit(player.pos);
           const rows = [

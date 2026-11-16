@@ -12,10 +12,11 @@ import {
   cap, fanGain, getFanTier, applyOvrDelta, recomputeOvr
 } from './utils/gameHelpers';
 import { createDraftClass, scoutingBoard } from './utils/peers';
+import { runDraftNight } from './utils/draftNight';
+import { addToPool } from './utils/frontOffice';
 import { recordTitle } from './utils/titles';
 import { elcBonuses, salaryParts, SB_SHARE, veteranBonuses } from './utils/bonuses';
 import { withOfferPerks } from './data/offerPerks';
-import { projectDraftPick } from './utils/draftScouting';
 import { getStakes, applyStakesToReward } from './utils/stakes';
 import {
   makeInitialPlayer, getRole, getWinsNeeded,
@@ -458,19 +459,32 @@ function App() {
     // is made, so "the final board had you third" is the board he was actually
     // taken off.
     const scouted = { ...who, combineRaw: rawCombine };
-    const { pick: overallPick, round } = projectDraftPick(scouted, rawCombine);
     const finalBoard = scoutingBoard(scouted.peers, scouted, 30);
+
+    // The room decides. The lottery, the picks that have changed hands and
+    // every club's own list, built from its prospect pool and its general
+    // manager's habits. See utils/draftNight.js.
+    const draftYear = 2026 + (who.stats?.seasonsPlayed || 0);
+    const result = runDraftNight(scouted, { combine: rawCombine, year: draftYear });
+    const overallPick = result.night.myPick;
+    const round = Math.ceil(overallPick / 32);
+    const draftedBy = (nhlTeams || []).find(t => t.id === result.night.myTeam) || null;
 
     // Going early is a bigger story than going late.
     const fanBoost = overallPick === 1 ? 25 : overallPick <= 10 ? 20 : overallPick <= 32 ? 15 : overallPick <= 96 ? 8 : 5;
-
-    const pool = nhlTeams || [];
-    const draftedBy = pool[Math.floor(Math.random() * pool.length)];
 
     setPlayer(p => ({
       ...p,
       rights: draftedBy?.id,
       draftTeam: draftedBy?.id || null,
+      peers: result.peers,
+      // The night's picks go into each club's pool. Laid on top of the offices
+      // as they are now, so a summer's changes made since the night was run
+      // aren't lost.
+      frontOffice: p.frontOffice && Object.keys(p.frontOffice).length
+        ? result.adds.reduce((o, a) => addToPool(o, a.team, a.pos, a.round), p.frontOffice)
+        : result.office,
+      draftNight: result.night,
       draftLeague: p.league,
       draftPick: overallPick,
       draftRound: round,

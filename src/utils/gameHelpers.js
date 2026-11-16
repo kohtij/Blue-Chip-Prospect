@@ -1434,10 +1434,14 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   });
 
   // Every club the player had anything to do with this year is now a club the
-  // save tracks, and then the whole league moves on a year.
+  // save tracks, and then the whole league moves on a year. Every NHL club is
+  // tracked from the start: the draft order and the front offices read all
+  // thirty-two, and a club nobody had played for used to sit on the same
+  // strength for a whole career, so the bottom of the league was the same
+  // handful of clubs every year and the lottery always drew from them.
   const nextLeagueState = advanceLeagueState(
     p.leagueState,
-    stints.map(st => st.team).filter(Boolean)
+    [...stints.map(st => st.team).filter(Boolean), ...(nhlTeams || []).map(t => t.id)]
   );
 
   // THE RECORD BOOK.
