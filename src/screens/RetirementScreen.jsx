@@ -4,7 +4,7 @@ import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { careerTrophies, formatMoney, withTeamArticle } from '../utils/gameHelpers';
 import { classTable, compGroup, groupName, leagueLabel, peerUnit, peerValue, playerCareerValue } from '../utils/peers';
 import { isDefence } from '../utils/production';
-import { formatRecord, RECORD_LABEL, recordsHeld } from '../utils/records';
+import { careerRecords, formatRecord, RECORD_LABEL } from '../utils/records';
 import { computeCareerScore, hallOfFame } from '../utils/careerScore';
 import { buyoutOwed } from '../utils/bonuses';
 import { getAwardImage } from '../data/awards';
@@ -453,7 +453,7 @@ export default function RetirementScreen() {
     saves: a.saves + t.saves, shots: a.shots + t.shots, shutouts: a.shutouts + t.shutouts, wins: a.wins + t.wins
   }), { games: 0, goals: 0, assists: 0, saves: 0, shots: 0, shutouts: 0, wins: 0 });
 
-  const heldRecords = recordsHeld(player.recordBook);
+  const brokenRecords = careerRecords(player.recordBook, history);
   // What he was paid, and what an old club still owes him on a buyout.
   const earnings = (player.stats?.careerEarnings || player.stats?.earnings || 0) + buyoutOwed(player);
   const hof = hallOfFame(score, history.length ? history[history.length - 1].year : null);
@@ -859,6 +859,13 @@ export default function RetirementScreen() {
                     <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />Champions
                   </span>
                 )}
+                {/* The white dot over a bar: a year he won an individual
+                    trophy. It was on the chart with nothing to say so. */}
+                {skyline.some(b => b.award && !b.title) && (
+                  <span className="inline-flex items-center gap-1.5 text-slate-300">
+                    <span className="w-2 h-2 rounded-full bg-white" />Trophy season
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -1043,27 +1050,41 @@ export default function RetirementScreen() {
           )}
         </Section>
 
-        {/* THE PEOPLE AND THE BOOK. */}
-        {heldRecords.length > 0 && (
-          <div>
-            {heldRecords.length > 0 && (
-              <Section title="Records you still hold" meta={heldRecords.length}>
-                <ul className="space-y-2">
-                  {heldRecords.map((r, i) => (
-                    <li key={i} className="flex items-baseline gap-3 text-[12.5px]">
-                      <span className="shrink-0 w-12 text-right font-black number-font text-white">{formatRecord(r.key, r.value)}</span>
-                      <span className="min-w-0 flex-1 text-slate-300">
-                        {RECORD_LABEL[r.key]}
-                        <span className="text-slate-500">
-                          {r.scope === 'club' ? `, ${getFullTeamName(r.club, r.league)}` : `, ${r.league} record`}, {r.year}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-          </div>
+        {/* THE RECORD BOOK.
+            Every record he broke, with the man he took it off. Nobody in the
+            simulated league can take one back, so each of these still stands. */}
+        {brokenRecords.length > 0 && (
+          <Section title="Records Broken"
+                   meta={brokenRecords.length === 1 ? 'Still standing' : `${brokenRecords.length}, all still standing`}>
+            <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+              {brokenRecords.map((r, i) => {
+                const label = RECORD_LABEL[r.key];
+                const where = r.scope === 'league' ? `${r.league} record` : `${getFullTeamName(r.club, r.league)} record`;
+                const more = r.times - 1;
+                const raised = more === 1 ? 'once more' : more === 2 ? 'twice more' : `${more} more times`;
+                const o = r.original;
+                // A season wraps at its hyphen on a phone and leaves "32" alone on a line.
+                const nb = (y) => String(y).replace(/-/g, '\u2011');
+                const taken = o
+                  ? more > 0 && r.firstYear != null
+                    ? `You took it off ${o.holder} (${o.value} in ${nb(o.year)}) in ${nb(seasonLabel(r.firstYear))}, then raised it ${raised}.`
+                    : `You took it off ${o.holder}, who had ${o.value} in ${nb(o.year)}.`
+                  : null;
+                return (
+                  <li key={i} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <span className={`shrink-0 w-12 text-right text-xl sm:text-2xl leading-none font-black number-font ${r.scope === 'league' ? 'text-[#F59E0B]' : 'text-white'}`}>
+                      {formatRecord(r.key, r.value)}
+                    </span>
+                    <div className="min-w-0 flex-1 text-[12.5px] leading-snug">
+                      <p className="font-bold text-white">{label.charAt(0).toUpperCase() + label.slice(1)}</p>
+                      <p className="text-slate-500">{where}, set in {nb(seasonLabel(r.year))}</p>
+                      {taken && <p className="mt-0.5 text-slate-300">{taken}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
         )}
 
         {/* THE DRAFT CLASS. */}

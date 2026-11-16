@@ -184,6 +184,42 @@ export function recordsHeld(book) {
 }
 
 /**
+ * Every record he broke over the career, one line per record, for the
+ * retirement screen.
+ *
+ * The book says what he holds now. The season history says when each one fell
+ * and how often he raised it after that. Older saves have no history of
+ * breaks, so for those a record shows as broken once, in the season the book
+ * has it. The man he took it from always comes from the published record,
+ * because nothing else in the game can hold one: the first break of any record
+ * is always off the real holder.
+ */
+export function careerRecords(book, history = []) {
+  const breaks = (history || []).flatMap(s =>
+    (s.recordsBroken || []).map(r => ({ ...r, year: s.year })));
+
+  return recordsHeld(book).map(rec => {
+    const src = rec.scope === 'league'
+      ? LEAGUE_RECORDS[rec.league]?.[rec.key]
+      : CLUB_RECORDS[rec.league]?.[rec.club]?.[rec.key];
+    const mine = breaks
+      .filter(b => b.scope === rec.scope && b.key === rec.key && b.league === rec.league
+        && (rec.scope === 'league' || b.club === rec.club))
+      .sort((a, b) => a.year - b.year);
+    // A save that started logging breaks partway through a career can open on
+    // him beating his own mark. Then the first break is lost, and the screen
+    // says who he took it from without claiming when or how often.
+    const known = !mine.length || !mine[0].previousMine;
+    return {
+      ...rec,
+      original: src ? { value: src[0], holder: src[1], year: src[2] } : null,
+      firstYear: known ? (mine[0]?.year ?? rec.year) : null,
+      times: known ? Math.max(1, mine.length) : 1
+    };
+  });
+}
+
+/**
  * A record as a sentence, for the recap and the retirement screen.
  *
  * The previous holder is a real person who really held it, so the line says who

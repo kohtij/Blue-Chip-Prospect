@@ -805,7 +805,15 @@ export function handleTrain(ctx, t) {
       // reads it, so the promotion he was promised isn't taken back in September.
       earnedPromotion: recap.waiverEvent === 'EARNED_PROMOTION',
       gamesWithOriginal: recap.gamesWithOriginal,
-      gamesWithNew: recap.gamesWithNew
+      gamesWithNew: recap.gamesWithNew,
+      // The records this season took. The book only keeps the latest mark, so
+      // without this the retirement screen couldn't say when a record first
+      // fell or how many times he raised it afterwards.
+      recordsBroken: (recap.recordsBroken || []).map(r => ({
+        scope: r.scope, key: r.key, value: r.value, league: r.league, club: r.club || null,
+        previous: r.previous, previousHolder: r.previousHolder, previousYear: r.previousYear,
+        previousMine: !!r.previousMine
+      }))
   };
 
   updatedPlayer.seasonHistory = [...(player.seasonHistory || []), historyEntry];
