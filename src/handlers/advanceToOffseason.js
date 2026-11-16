@@ -1,16 +1,17 @@
 import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
-import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
+import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
 import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { buyoutTerms, salaryParts } from '../utils/bonuses';
-import { coachOpening, ensureClub, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
+import { coachOpening, depthAhead, ensureClub, goaliePartner, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
 import { teammatesFrom } from '../utils/peers';
 import { arrivalIntro, arrivalKind, coachBackground, coachIntro } from '../utils/lore';
 import { isCorePlayer } from '../utils/rosterMoves';
 import { teamStrengthOf } from '../utils/leagueState';
 import { advanceFrontOffices, ensureFrontOffices } from '../utils/frontOffice';
+import { careerEndingVerdict, endingLabel } from '../utils/injuries';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -206,6 +207,28 @@ export function advanceToOffseason(ctx) {
       enterStage(CELEBRATED);
       ctx.setScreen('event');
       return;
+  }
+
+  // THE DOCTORS' VERDICT.
+  //
+  // A career-ending injury is a season-ending one in December and a verdict in
+  // June, straight after any parade. Nothing else in the summer happens: no
+  // offers, no camp, no new coach to meet. See utils/injuries.js.
+  const lastInjury = (player.injuryHistory || []).slice(-1)[0];
+  if (lastInjury?.careerEnding && lastInjury.season === (player.stats?.seasonsPlayed ?? 0) - 1) {
+    setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), endedByInjury: { key: lastInjury.key, label: endingLabel(lastInjury), age: lastInjury.age } } }));
+    setActiveEvent({
+      title: '🩺 THE DOCTORS\' VERDICT',
+      desc: careerEndingVerdict(lastInjury),
+      choices: [
+        { label: 'Announce your retirement', subLabel: 'Walk away while you still can.', isRisky: false,
+          feedback: 'You told the room first, then everybody else. Nobody knew what to say, and neither did you.',
+          effect: { fanStatus: 40, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
+      ],
+      isOffseasonEvent: true
+    });
+    setScreen('event');
+    return;
   }
 
   // THE OTHER GOALTENDER.
@@ -876,12 +899,12 @@ export function advanceToOffseason(ctx) {
                  ovr: acc.ovr + (x.ovr || 0), fans: acc.fans + (x.fanStatus || 0), money: acc.money + (x.money || 0)
                }), { ovr: 0, fans: 0, money: 0 });
                choices.push({
-                 label: `Report to ${getFullTeamName(t.id, t.lg)}`,
+                 label: `Report to ${withTeamArticle(getFullTeamName(t.id, t.lg), t.lg)}`,
                  subLabel: `They hold your ${t.lg} rights. A full junior schedule, and your college eligibility goes with it.`,
                  perks: cPerks,
                  flaws: cFlaws,
                  isRisky: false,
-                 feedback: `You signed with ${getFullTeamName(t.id, t.lg)} and gave up your NCAA eligibility.`,
+                 feedback: `You signed with ${withTeamArticle(getFullTeamName(t.id, t.lg), t.lg)} and gave up your NCAA eligibility.`,
                  effect: { fanStatus: tot.fans + 10, ovr: Math.max(0, tot.ovr + 1), money: tot.money },
                  action: 'JOIN_CHL',
                  actionData: { id: t.id, league: t.lg }
@@ -1568,7 +1591,22 @@ export function advanceToOffseason(ctx) {
     // A star who isn't a veteran yet still isn't fighting for a roster spot, so
     // he gets the same kind of camp, told as what he is: a player the team is
     // built around.
-    const isEstablished = isVeteran || player.ovr >= 85;
+    //
+    // Nor is a player already in the top of the lineup. The camp battle is a
+    // fight for the last spot, and a first- or second-line forward, a top-four
+    // defenceman or the starting goalie was dropped into it every September
+    // until he reached 85. Read off the room where there is one (at most one
+    // man ahead of him at his own position, none for a goalie) and off the
+    // role his rating and contract say he has where there isn't.
+    const room = roomFor(player.rooms, player.team);
+    const ahead = room ? depthAhead(room, player.pos, player.ovr) : null;
+    const TOP_ROLES = ['Franchise Centerpiece', 'Top 6 Forward', 'Franchise Defenseman', 'Top 4 Defenseman',
+      'Franchise Starter', '1A/1B Starter', 'Top Line Star', 'Top Pair Prospect', 'Top 4 Defender',
+      'Top Pair Anchor', 'Starting Goalie', 'Elite Starter', 'Elite Prospect'];
+    const inTopOfLineup = ahead != null
+      ? ahead <= (player.pos === 'G' ? 0 : 1)
+      : TOP_ROLES.includes(getRole(player.contract?.salary || 0, player));
+    const isEstablished = isVeteran || player.ovr >= 85 || inTopOfLineup;
 
     if (isEstablished) {
         ctx.setActiveEvent({

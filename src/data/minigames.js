@@ -216,7 +216,7 @@ export const interactiveMinigames = [
     id: 'open_ice_hit',
     title: 'THE OPEN-ICE HIT',
     desc: 'They keep coming over your blue line with their heads down.',
-    read: 'Three rushes. Hit a man who\'s looking at the puck. If he looks up and sees you, he\'ll step round a big hit, so hold your ground instead. Win two of the three.',
+    read: 'Four rushes. Hit a man who\'s looking at the puck. If he looks up and sees you, he\'ll step round a big hit, so hold your ground instead. Win three of the four.',
     stat: 'physicality',
     accent: 'red',
     gameType: 'hit',

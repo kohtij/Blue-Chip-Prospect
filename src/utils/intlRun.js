@@ -58,11 +58,123 @@ const LOWER_LADDER = [
   { key: 'DECIDER', kind: 'knockout', label: 'Decider', short: 'FINAL', options: 9, scouted: 3, tape: 1 }
 ];
 
-const PTS_TO_ADVANCE = 4;      // out of three group games, so two clean nights
-const LOWER_PROMOTION_PTS = 9; // out of four, so three
-const LOWER_SURVIVAL_PTS = 3;
+// THE IIHF'S POINTS.
+//
+// Every IIHF tournament in the game (the World Juniors, the Worlds, the
+// Olympics and the lower divisions) scores a group game the same way: three
+// for a win in regulation, two for a win in overtime or a shootout, one for a
+// loss in overtime or a shootout, and nothing for a loss in regulation. The
+// game used to hand a point to every loss, so a 2-4 defeat put a point on the
+// board.
+const PTS = { win: 3, otWin: 2, otLoss: 1, loss: 0 };
+// How often a group game is still tied after sixty minutes. Roughly one in five
+// at these tournaments; a game the other side was ready for is a little likelier
+// to be close.
+const OT_WIN_CHANCE = 0.18;
+const OT_LOSS_CHANCE = 0.25;
+const groupResult = (won) => {
+  const ot = Math.random() < (won ? OT_WIN_CHANCE : OT_LOSS_CHANCE);
+  return { ot, pts: won ? (ot ? PTS.otWin : PTS.win) : (ot ? PTS.otLoss : PTS.loss) };
+};
 
-const rnd = (n) => Math.floor(Math.random() * n);
+// What gets you out of the group is where you finish in it, the way it works
+// at the real tournaments, not a points total on your own.
+//
+//   - World Juniors and Worlds: groups of four here, and the top three go
+//     through. Last place plays a relegation game against the other group's
+//     last-placed team, and the loser goes down to Division I-A. (Four of five
+//     go through at the real World Juniors and the bottom team is relegated.)
+//   - Olympics: nobody goes out in the group and nobody is relegated. The
+//     group decides the seeding, and the group winner gets a bye past the
+//     qualification playoff, the way the top seeds do.
+//   - Lower divisions: a group of five. The winner plays for promotion, the
+//     last-placed side plays to stay up, everybody else plays for placing.
+const TOP_ADVANCE = 3;
+
+const rnd0 = (n) => Math.floor(Math.random() * n);
+
+// One game between two nations the player isn't in, decided by how they
+// compare, the same way a game he watched is.
+function simGame(a, b) {
+  const edge = a.iihfRank != null && b.iihfRank != null
+    ? (b.iihfRank - a.iihfRank) * 0.03
+    : ((b.tier || 3) - (a.tier || 3)) * 0.17;
+  const aWins = Math.random() < 0.5 + Math.max(-0.38, Math.min(0.38, edge));
+  const ot = Math.random() < 0.2;
+  const loser = ot ? 1 + rnd0(3) : rnd0(3);
+  const winner = ot ? loser + 1 : loser + 1 + rnd0(4);
+  return aWins
+    ? { gf: winner, ga: loser, ot }
+    : { gf: loser, ga: winner, ot };
+}
+
+// A round robin for the group: the circle method, so nobody plays twice on the
+// same day. Returns the days in order with the player's own games first and,
+// in a group of five, his day off last.
+function roundRobin(ids, meId) {
+  const list = ids.length % 2 ? [...ids, null] : [...ids];
+  const n = list.length;
+  const days = [];
+  let rot = [...list];
+  for (let d = 0; d < n - 1; d++) {
+    const pairs = [];
+    for (let i = 0; i < n / 2; i++) {
+      const x = rot[i], y = rot[n - 1 - i];
+      if (x && y) pairs.push([x, y]);
+    }
+    days.push(pairs);
+    rot = [rot[0], rot[n - 1], ...rot.slice(1, n - 1)];
+  }
+  const playsMe = (day) => day.some(p => p.includes(meId));
+  return [...days.filter(playsMe), ...days.filter(d => !playsMe(d))];
+}
+
+// THE GROUP TABLE.
+//
+// His own games come from the road he's played; everybody else's were played
+// out when the tournament was drawn and are shown a matchday at a time. The
+// order is the IIHF's: points, then the game between two teams level on
+// points, then goal difference, then goals scored.
+export function groupTable(run) {
+  const g = run?.group;
+  if (!g) return [];
+  const played = run.road.filter(e => (e.kind ? e.kind === 'group' : /^G\d$/.test(e.key)));
+  const myGames = played.length;
+  // Everybody's games are in once his last group game is.
+  const groupOver = myGames >= run.rounds.filter(r => r.kind === 'group').length || !!run.finish;
+  const rows = new Map(g.teams.map(t => [t.id, { ...t, gp: 0, w: 0, otw: 0, otl: 0, l: 0, gf: 0, ga: 0, pts: 0 }]));
+  const results = [];
+  const add = (home, away, gf, ga, ot) => {
+    results.push({ home, away, gf, ga });
+    const h = rows.get(home), a2 = rows.get(away);
+    if (!h || !a2) return;
+    h.gp++; a2.gp++;
+    h.gf += gf; h.ga += ga; a2.gf += ga; a2.ga += gf;
+    const hw = gf > ga;
+    const [w, l] = hw ? [h, a2] : [a2, h];
+    if (ot) { w.otw++; w.pts += PTS.otWin; l.otl++; l.pts += PTS.otLoss; }
+    else { w.w++; w.pts += PTS.win; l.l++; }
+  };
+  for (const e of played) {
+    const m = /^(\d+)-(\d+)(?:\s+(OT|SO))?/.exec(e.score || '');
+    if (!m) continue;
+    add(g.meId, e.opponent?.id, +m[1], +m[2], !!m[3]);
+  }
+  for (const f of g.fixtures) {
+    if (f.day <= myGames || groupOver) add(f.home, f.away, f.gf, f.ga, f.ot);
+  }
+  const headToHead = (x, y) => {
+    const r = results.find(q => (q.home === x.id && q.away === y.id) || (q.home === y.id && q.away === x.id));
+    if (!r) return 0;
+    const xWon = r.home === x.id ? r.gf > r.ga : r.ga > r.gf;
+    return xWon ? -1 : 1;
+  };
+  return [...rows.values()].sort((x, y) =>
+    (y.pts - x.pts) || headToHead(x, y) || ((y.gf - y.ga) - (x.gf - x.ga)) || (y.gf - x.gf)
+    || ((x.iihfRank ?? 99) - (y.iihfRank ?? 99)));
+}
+
+const rnd = rnd0;
 const shuffle = (a) => [...a].sort(() => 0.5 - Math.random());
 
 // Who you draw. Top-division nations meet top-division nations; everyone else
@@ -247,11 +359,12 @@ export function resolveSat(run) {
     : ((round.opponent?.tier || 3) - (run.myTier || 2)) * 0.17;
   const chance = 0.52 + Math.max(-0.38, Math.min(0.38, edge));
   const won = Math.random() < chance;
-  const pts = round.kind === 'group' ? (won ? 3 : 1) : 0;
+  const result = round.kind === 'group' ? groupResult(won) : { ot: false, pts: 0 };
+  const pts = result.pts;
   const line = { g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, saves: 0, shots: 0, sho: 0 };
   const entry = {
-    key: round.key, label: round.label, short: round.short, opponent: round.opponent,
-    won, clean: won, rescued: false, ot: false, score: scoreline(won, won, false), line, pts, sat: true
+    key: round.key, kind: round.kind, label: round.label, short: round.short, opponent: round.opponent,
+    won, clean: won, rescued: false, ot: result.ot, score: scoreline(won, won, result.ot), line, pts, sat: true
   };
   return {
     sat: true,
@@ -338,6 +451,40 @@ export function buildRun({ player, safeNationalities, context, division, year })
 
   const depth = squadRole(player, me, context, letter);
 
+  // The group: him and the nations he meets in it, drawn in the order the
+  // round robin plays them, and everybody else's games played out now.
+  const groupRounds = rounds.map((r, i) => ({ r, i })).filter(x => x.r.kind === 'group');
+  const meNation = me || { id: player.nat, name: player.nat, tier: 4 };
+  const groupTeams = [meNation, ...groupRounds.map(x => x.r.opponent)].filter(Boolean);
+  const days = roundRobin(groupTeams.map(t => t.id), meNation.id);
+  const byId = new Map(groupTeams.map(t => [t.id, t]));
+  // His opponents in the order the schedule has them.
+  days.forEach((day, d) => {
+    const mine = day.find(p => p.includes(meNation.id));
+    if (mine && groupRounds[d]) {
+      const oppId = mine[0] === meNation.id ? mine[1] : mine[0];
+      rounds[groupRounds[d].i] = { ...rounds[groupRounds[d].i], opponent: byId.get(oppId) };
+    }
+  });
+  const fixtures = [];
+  days.forEach((day, d) => {
+    for (const [x, y] of day) {
+      if (x === meNation.id || y === meNation.id) continue;
+      fixtures.push({ day: d + 1, home: x, away: y, ...simGame(byId.get(x), byId.get(y)) });
+    }
+  });
+  const group = {
+    meId: meNation.id,
+    teams: groupTeams.map(t => ({ id: t.id, name: t.name, iihfRank: t.iihfRank, tier: t.tier })),
+    fixtures
+  };
+  // Who he'd meet in a relegation game at the World Juniors or the Worlds: the
+  // weakest of the other top-division nations, standing in for the other
+  // group's last-placed side.
+  const others = (safeNationalities || []).filter(n => n.division === division && n.id !== meNation.id
+    && !groupTeams.some(t => t.id === n.id));
+  const relegationOpponent = [...others].sort((x, y) => (y.iihfRank ?? 99) - (x.iihfRank ?? 99))[0] || spareNation;
+
   return {
     context,
     depth,
@@ -355,6 +502,9 @@ export function buildRun({ player, safeNationalities, context, division, year })
     isOlympics,
     rounds,
     spare: spareNation || { id: 'TBD', name: 'TBD', tier: 3 },
+    group,
+    groupRank: null,
+    relegationOpponent,
     index: 0,
     points: 0,
     usedPlays: [],
@@ -504,7 +654,7 @@ function produce(player, isClean, oppTier) {
 }
 
 // One game, resolved. `rescued` is a knockout saved by the last-chance moment.
-export function resolvePick(run, player, { playId, scoutedIds = [], rescued = null }) {
+export function resolvePick(run, player, { playId, scoutedIds = [], rescued = null, rescueKind = null }) {
   const round = run.rounds[run.index];
   const wasRead = scoutedIds.includes(playId);
   // Being read in a knockout is not elimination on its own: it is the moment
@@ -533,6 +683,32 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
     line.saves = Math.max(0, line.saves - 1);
     line.sho = 0;
   }
+  // THE MOMENT THAT SAVED IT GOES ON THE SCORESHEET.
+  //
+  // A knockout he dragged out of the fire with the last-chance game was won by
+  // what he did in it, and the line used to say nothing of it: a one-timer
+  // buried in overtime and 0G under the score. Now a scoring moment is his
+  // goal, a breakout pass is the assist on it, a block is a block and a save
+  // is a save. A shootout winner is credited as a shootout winner rather than
+  // a goal, because that's how the record is kept: shootout goals aren't
+  // counted in a player's stats anywhere.
+  let shootoutWinner = false;
+  if (rescued === true && rescueKind) {
+    if (['onetimer', 'deflection', 'deke', 'zone_battle'].includes(rescueKind)) {
+      line.g += 1; line.sog = (line.sog || 0) + 1; line.pm += 1;
+    } else if (rescueKind === 'breakout') {
+      line.a += 1; line.pm += 1;
+    } else if (rescueKind === 'shotblock') {
+      line.blk = (line.blk || 0) + 3;
+    } else if (rescueKind === 'shootout') {
+      shootoutWinner = true;
+    } else if (player.pos === 'G') {
+      const stopped = { breakaway: 1, screened: 1, rebound: 3, crease: 4 }[rescueKind] || 1;
+      line.saves += stopped; line.shots += stopped;
+    }
+  }
+  line.soWinner = shootoutWinner;
+
   const goalsAgainst = player.pos === 'G' ? line.shots - line.saves : null;
 
   const stats = {
@@ -552,18 +728,35 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
   // Three for a win, one for losing it after sixty minutes. Being read in the
   // group is a bad night, not an exit, and the points table is what decides
   // whether the tournament carries on.
-  const pts = round.kind === 'group' ? (clean ? 3 : 1) : 0;
-  const score = scoreline(clean, survived, rescued !== null, goalsAgainst);
+  // The IIHF's points, and whether it took overtime to decide. A knockout
+  // saved by the last-chance moment went long by definition, and one saved in
+  // a shootout says so.
+  const result = round.kind === 'group' ? groupResult(clean) : { ot: false, pts: 0 };
+  const pts = result.pts;
+  const wentLong = rescued !== null || result.ot;
+  const score = scoreline(clean, survived, wentLong, goalsAgainst, shootoutWinner, line.g || 0);
+
+  // EARNING THE NEXT ONE.
+  //
+  // The extra man sat the games on his list whatever he'd done in the one he
+  // played, so two assists on Tuesday bought him the press box on Wednesday.
+  // A big night now keeps him in: two points for a skater, or a win with a
+  // .930 or a shutout for a backup goalie.
+  const big = player.pos === 'G'
+    ? survived && (line.sho || (line.shots > 0 && line.saves / line.shots >= 0.93))
+    : (line.g + line.a) >= 2;
+  const earnedSpot = !!run.depth && !run.promoted && big;
 
   const entry = {
     key: round.key,
+    kind: round.kind,
     label: round.label,
     short: round.short,
     opponent: round.opponent,
     won: survived,
     clean,
     rescued: wasRead && rescued === true,
-    ot: rescued !== null,
+    ot: wentLong,
     score,
     line,
     pts
@@ -574,8 +767,10 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
     clean,
     survived,
     entry,
+    earnedSpot,
     nextRun: {
       ...run,
+      promoted: run.promoted || earnedSpot,
       escapeUsed: run.escapeUsed || rescued !== null,
       points: run.points + pts,
       usedPlays: run.usedPlays.includes(playId) ? run.usedPlays : [...run.usedPlays, playId],
@@ -588,24 +783,26 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
 // A game that came down to the last-chance moment was tied when that play
 // happened, and the play decided it. Those are overtime results either way,
 // and the scoreline should say so.
-function scoreline(clean, survived, wentToOt, goalsAgainst = null) {
+// minFor is his own goals tonight: the team can't have scored fewer than he did.
+function scoreline(clean, survived, wentToOt, goalsAgainst = null, shootout = false, minFor = 0) {
+  const tag = shootout ? 'SO' : 'OT';
   // With a goaltender in net the other team's score is not a free choice: it
   // is what he let in. Only our own end of it is drawn.
   if (goalsAgainst != null) {
     const ga = Math.max(0, goalsAgainst);
-    if (wentToOt) return survived ? `${ga + 1}-${ga} OT` : `${Math.max(0, ga - 1)}-${ga} OT`;
+    if (wentToOt) return survived ? `${ga + 1}-${ga} ${tag}` : `${Math.max(0, ga - 1)}-${ga} ${tag}`;
     return survived ? `${ga + 1 + rnd(2)}-${ga}` : `${Math.max(0, ga - 1 - rnd(2))}-${ga}`;
   }
   if (wentToOt) {
-    const gf = 2 + rnd(3);
-    return survived ? `${gf}-${gf - 1} OT` : `${gf - 1}-${gf} OT`;
+    const gf = Math.max(2 + rnd(3), survived ? minFor : minFor + 1);
+    return survived ? `${gf}-${gf - 1} ${tag}` : `${gf - 1}-${gf} ${tag}`;
   }
   if (clean) {
-    const gf = 3 + rnd(3);
+    const gf = Math.max(3 + rnd(3), minFor);
     return `${gf}-${Math.max(0, gf - 2 - rnd(2))}`;
   }
-  const ga = 3 + rnd(3);
-  return `${Math.max(0, ga - 1 - rnd(2))}-${ga}`;
+  const ours = Math.max(minFor, 2 + rnd(3) - 1 - rnd(2));
+  return `${ours}-${Math.max(ours + 1, 3 + rnd(3))}`;
 }
 
 // Where the run stands after a game: does it carry on, and into what.
@@ -617,21 +814,44 @@ export function advanceRun(run, { survived }) {
     const groupLeft = run.rounds.slice(run.index + 1).some(r => r.kind === 'group');
     if (groupLeft) return { ...run, index: run.index + 1 };
 
-    // Group is done. Whether there is anything left to play for depends on the
-    // points, and on which room you are in.
-    if (run.isTopDiv) {
-      if (run.points >= PTS_TO_ADVANCE) return { ...run, index: run.index + 1 };
-      return { ...run, finish: { type: 'GROUP_EXIT' } };
+    // Group is done. Where he finished decides what's next.
+    const table = groupTable({ ...run, finish: null, index: run.rounds.length });
+    // A tournament already under way when groups came in has no table: it
+    // goes on its points, one win being enough, as it did before.
+    const rank = run.group
+      ? Math.max(1, table.findIndex(t => t.id === run.group.meId) + 1)
+      : (run.points >= 3 ? 1 : 4);
+    const ranked = { ...run, groupRank: rank };
+    const next = run.index + 1;
+
+    if (run.isOlympics) {
+      // Everybody plays on. The group winner skips the qualification playoff.
+      const rounds = rank === 1 ? run.rounds.filter(r => r.key !== 'R16') : run.rounds;
+      return { ...ranked, rounds, index: next };
     }
-    const decider = run.points >= LOWER_PROMOTION_PTS ? 'PROMOTION'
-      : run.points <= LOWER_SURVIVAL_PTS ? 'SURVIVAL'
-        : 'PLACEMENT';
+    if (run.isTopDiv) {
+      if (rank <= TOP_ADVANCE) return { ...ranked, index: next };
+      // Last in the group: one game to stay in the top division, and the
+      // tournament ends either way.
+      const releg = {
+        key: 'RELEG', kind: 'knockout', label: 'Relegation game', short: 'RELEG', decider: 'SURVIVAL',
+        options: 9, scouted: 3, tape: 1, opponent: run.relegationOpponent || run.spare
+      };
+      return { ...ranked, rounds: [...run.rounds.slice(0, next), releg], index: next };
+    }
+    // The lower divisions: the winner plays for promotion, the bottom side to
+    // stay up, the rest for placing, each against the side next to them.
+    const last = table.length;
+    const decider = rank === 1 ? 'PROMOTION' : rank === last ? 'SURVIVAL' : 'PLACEMENT';
+    const oppRow = rank === 1 ? table[1] : rank === last ? table[last - 2] : table[rank % 2 === 0 ? rank : rank - 2];
+    const oppNation = oppRow ? { id: oppRow.id, name: oppRow.name, iihfRank: oppRow.iihfRank, tier: oppRow.tier } : null;
     const rounds = run.rounds.map((r, i) =>
-      i === run.index + 1
-        ? { ...r, decider, label: decider === 'PROMOTION' ? 'Promotion final'
-          : decider === 'SURVIVAL' ? 'Relegation game' : 'Placement game' }
+      i === next
+        ? { ...r, decider, opponent: oppNation || r.opponent,
+            label: decider === 'PROMOTION' ? 'Promotion final'
+              : decider === 'SURVIVAL' ? 'Relegation game' : 'Placement game' }
         : r);
-    return { ...run, rounds, index: run.index + 1 };
+    return { ...ranked, rounds, index: next };
   }
 
   // Knockout.
@@ -677,6 +897,7 @@ export function describeFinish(run) {
     return { kind: 'PLACEMENT', won };
   }
 
+  if (f.decider === 'SURVIVAL') return { kind: won ? 'SURVIVED' : 'RELEGATED' };
   if (f.type === 'GROUP_EXIT') return { kind: 'GROUP_EXIT' };
   if (f.at === 'FINAL') return { kind: 'MEDAL', medal: won ? 'Gold' : 'Silver' };
   if (f.at === 'BRONZE') return won ? { kind: 'MEDAL', medal: 'Bronze' } : { kind: 'FOURTH' };
@@ -702,7 +923,15 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
   let awardName = '';
   let updated = { ...player };
 
-  const tier = player.natTier || nat?.tier || 1;
+  // The World Juniors have their own divisions. A nation can be in the top
+  // one at the Worlds and in Division I at the under-20s, so the two are kept
+  // apart: the junior one on natDivU20, the senior one on natDiv.
+  const junior = run.context === 'wjc';
+  const tier = (junior ? player.natTierU20 : player.natTier) || nat?.tier || 1;
+  const setDivision = (newTier, name) => {
+    if (junior) { updated.natTierU20 = newTier; updated.natDivU20 = name; }
+    else { updated.natTier = newTier; updated.natDiv = name; }
+  };
 
   switch (outcome?.kind) {
     case 'MEDAL': {
@@ -740,12 +969,12 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
       // Tier 2 is the Top Division, 3 is Division I-A, 4 is I-B. Going up is
       // one step, and there is nothing above the top room.
       const newTier = Math.max(2, tier - 1);
-      updated.natTier = newTier;
-      updated.natDiv = newTier === 2 ? 'Top Division' : 'Division I-A';
+      const newDiv = newTier === 2 ? 'Top Division' : 'Division I-A';
+      setDivision(newTier, newDiv);
       fanDelta = Math.round(60 * prestige);
       awardName = 'Promotion';
       headline = 'Promoted';
-      detail = `${countryName} go up. They will be playing in ${updated.natDiv} next time.`;
+      detail = `${countryName} go up. They will be playing in ${newDiv} next time.`;
       break;
     }
     case 'PROMOTION_MISSED': {
@@ -761,12 +990,16 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
       break;
     }
     case 'RELEGATED': {
-      if (tier === 2 || tier === 3) {
-        updated.natTier = tier + 1;
-        updated.natDiv = tier === 2 ? 'Division I-A' : 'Division I-B';
+      // Any top-division nation can go down, the strongest included: it was
+      // tier 2 or 3 only, and the top division had no relegation game at all,
+      // so nobody ever left it.
+      if (tier <= 3) {
+        const newTier = Math.max(tier, 2) + 1;
+        const newDiv = newTier === 3 ? 'Division I-A' : 'Division I-B';
+        setDivision(newTier, newDiv);
         fanDelta = Math.round(-30 * prestige);
         headline = 'Relegated';
-        detail = `${countryName} go down to ${updated.natDiv}.`;
+        detail = `${countryName} go down to ${newDiv}.`;
       } else {
         fanDelta = Math.round(-12 * prestige);
         headline = 'Beaten';
@@ -840,10 +1073,17 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
     const lastIdx = history.length - 1;
     const prior = history[lastIdx];
     const next = [...history];
+    // A season can hold two tournaments: the World Juniors or the Olympics in
+    // the winter and the Worlds in May. intlData held one, so the Worlds
+    // wrote over the winter's line while both medals stayed on the season,
+    // and the retirement table showed two medals against one tournament.
+    // Every tournament now goes in intl; intlData stays for older code.
+    const already = prior.intl || (prior.intlData ? [prior.intlData] : []);
     next[lastIdx] = {
       ...prior,
       awards: fullAward ? [...(prior.awards || []), fullAward] : (prior.awards || []),
-      intlData
+      intlData,
+      intl: [...already, intlData]
     };
     updated.seasonHistory = next;
   } else {
@@ -864,4 +1104,4 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
   };
 }
 
-export { TOURNEY_NAME, PTS_TO_ADVANCE };
+export { TOURNEY_NAME, TOP_ADVANCE };

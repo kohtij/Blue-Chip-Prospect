@@ -350,7 +350,7 @@ export function handleTrain(ctx, t) {
       player,
       safeNationalities: ctx.safeNationalities,
       context,
-      division: resolveNatDivision(player, ctx.safeNationalities),
+      division: resolveNatDivision(player, ctx.safeNationalities, context),
       year: ctx.currentYear
     });
     advanceTo(stints, nextStage);
@@ -639,20 +639,29 @@ export function handleTrain(ctx, t) {
         const cap = 88000000; // Rough baseline cap
         const baseVal = Math.min(cap * 0.20, (player.ovr - 70) * 450000);
         const extSalary = Math.round((baseVal * 0.8) / 25000) * 25000;
+        // The term, which the offer never said and was always five years. A
+        // club signs a young core player for as long as it's allowed to (eight
+        // years, re-signing its own) and an older one for less.
+        const age = player.age || 25;
+        const extYears = age <= 26 ? 6 + Math.floor(Math.random() * 3)
+          : age <= 29 ? 5 + Math.floor(Math.random() * 3)
+            : age <= 32 ? 3 + Math.floor(Math.random() * 3)
+              : 1 + Math.floor(Math.random() * 3);
+        const extTerm = `${extYears} ${extYears === 1 ? 'year' : 'years'}`;
         
         advanceTo(stints, 2);
         ctx.setActiveEvent({
             title: '📝 MID-SEASON EXTENSION',
-            desc: `The GM pulls you into the office before practice. "We don't want you hitting free agency in July. We want you here." They slide a contract across the desk: ${formatMoney(extSalary)} per year. You can lock in your future right now, or bet on yourself and hit the open market this summer.`,
+            desc: `The GM pulls you into the office before practice. "We don't want you hitting free agency in July. We want you here." They slide a contract across the desk: ${extTerm} at ${formatMoney(extSalary)} a year, ${formatMoney(extSalary * extYears)} in all, starting next season. You can lock in your future right now, or bet on yourself and hit the open market this summer.`,
             choices: [
                 { 
                   label: 'Sign the extension', 
-                  subLabel: `Lock in ${formatMoney(extSalary)}/yr now and skip free agency.`, 
+                  subLabel: `${extTerm} at ${formatMoney(extSalary)}/yr, and no free agency.`, 
                   isRisky: false, 
                   feedback: 'You signed the extension. The city loves you for staying, and you don\'t have to worry about July 1st.', 
                   effect: { fanStatus: 50, ovr: 0, rel: { coach: 25, teammates: 15 } },
                   action: 'SIGN_EXTENSION',
-                  actionData: { salary: extSalary, years: 5, role: 'Core Player' }
+                  actionData: { salary: extSalary, years: extYears, role: 'Core Player' }
                 },
                 { 
                   label: 'Bet on yourself', 
@@ -780,7 +789,7 @@ export function handleTrain(ctx, t) {
       // write straight into the newest history entry, which filed a December
       // tournament against the previous season, and a career whose only
       // tournaments were mid-season ones showed none at all.
-      ...(player.pendingIntl ? { intlData: player.pendingIntl.intlData } : {}),
+      ...(player.pendingIntl ? { intlData: player.pendingIntl.intlData, intl: [player.pendingIntl.intlData] } : {}),
       awards: [...(recap.awards || []), ...(player.pendingIntl?.awards || [])],
       // The letter on the sweater belongs to the season, not to the playoffs.
       // It was only ever written in proceedFromPlayoffs, so a captain or an

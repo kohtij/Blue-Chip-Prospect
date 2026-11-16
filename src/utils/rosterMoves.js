@@ -18,6 +18,7 @@
 
 import { nhlTeams } from '../data/teams';
 import { proSeasonsOf, waiverExempt } from './waivers';
+import { withTeamArticle } from './gameHelpers';
 
 export const parentOf = (ahlId) => nhlTeams.find(t => t.ahlId === ahlId) || null;
 export const affiliateOf = (nhlId) => nhlTeams.find(t => t.id === nhlId)?.ahlId || null;
@@ -143,16 +144,19 @@ const statLine = (p, seg) => {
 };
 
 export function moveEvent(move, p, seg, teamName) {
-  const toName = teamName(move.team, move.lg);
-  const fromName = teamName(p.team, p.league);
+  // With the article each league takes, so a North American club is always
+  // "the Utica Comets". Two of these lines wrote the name bare.
+  const toName = withTeamArticle(teamName(move.team, move.lg), move.lg);
+  const fromName = withTeamArticle(teamName(p.team, p.league), p.league);
+  const FromName = withTeamArticle(teamName(p.team, p.league), p.league, true);
   const firstNhl = !(p.seasonHistory || []).some(s => nhlGamesIn(s) > 0) && !(p.stats?.nhl?.games > 0);
 
   if (move.type === 'RECALL') {
     const desc = move.why === 'INJURIES'
-      ? `Two of the ${toName}'s forwards went down in the same game, and they need a body by tomorrow night. You've got ${statLine(p, seg)} with ${fromName}, and your name was the first one the coach said.`
+      ? `Two of ${toName}'s forwards went down in the same game, and they need a body by tomorrow night. You've got ${statLine(p, seg)} with ${fromName}, and your name was the first one the coach said.`
       : firstNhl
-        ? `The call came at eight in the morning. Pack a bag, be at the airport by noon, you're in the lineup tomorrow night. You've put up ${statLine(p, seg)} down here, and the ${toName} have seen enough.`
-        : `You've put up ${statLine(p, seg)} with ${fromName}, and the ${toName} have seen enough. You're recalled, and this time the plan is to stay.`;
+        ? `The call came at eight in the morning. Pack a bag, be at the airport by noon, you're in the lineup tomorrow night. You've put up ${statLine(p, seg)} down here, and ${toName} have seen enough.`
+        : `You've put up ${statLine(p, seg)} with ${fromName}, and ${toName} have seen enough. You're recalled, and this time the plan is to stay.`;
     return {
       title: firstNhl ? '🚨 CALLED UP TO THE NHL' : '📈 CALLED UP',
       desc,
@@ -175,7 +179,7 @@ export function moveEvent(move, p, seg, teamName) {
   if (move.type === 'CLAIMED') {
     return {
       title: '⏳ CLAIMED OFF WAIVERS',
-      desc: `The ${fromName} put you on waivers to send you down, and the ${toName} put in a claim before the deadline. You're on a flight tonight, and you'll meet your new teammates in the morning.`,
+      desc: `${FromName} put you on waivers to send you down, and ${toName} put in a claim before the deadline. You're on a flight tonight, and you'll meet your new teammates in the morning.`,
       choices: [
         { label: 'Fresh start', subLabel: 'A club that wanted you badly enough to claim you.', isRisky: false,
           feedback: 'You landed after midnight. There was a stall with your name on it by morning skate.', effect: { fanStatus: 5, ovr: 0, rel: { coach: 10 } } }
@@ -187,8 +191,8 @@ export function moveEvent(move, p, seg, teamName) {
 
   // Sent down.
   const desc = move.why === 'EXEMPT'
-    ? `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. The GM called you in after practice. You're going down to the ${toName} to play big minutes and find your game. You're waiver-exempt, so nobody else got the chance to claim you.`
-    : `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. You went on waivers yesterday. Nobody claimed you, so you report to the ${toName} in the morning.`;
+    ? `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. The GM called you in after practice. You're going down to ${toName} to play big minutes and find your game. You're waiver-exempt, so nobody else got the chance to claim you.`
+    : `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. You went on waivers yesterday. Nobody claimed you, so you report to ${toName} in the morning.`;
   return {
     title: '📉 SENT DOWN TO THE AHL',
     desc,

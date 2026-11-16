@@ -2,10 +2,9 @@ import { useMemo } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { careerTrophies, formatMoney, withTeamArticle } from '../utils/gameHelpers';
-import { classTable, compGroup, groupName, leagueLabel, peerUnit, peerValue, playerCareerValue, seatPlayerPick } from '../utils/peers';
-import { isDefence } from '../utils/production';
+import { leagueLabel, seatPlayerPick } from '../utils/peers';
 import { careerRecords, formatRecord, RECORD_LABEL } from '../utils/records';
-import { computeCareerScore, hallOfFame } from '../utils/careerScore';
+import { computeCareerScore, hallOfFame, peerCareerScore } from '../utils/careerScore';
 import { buyoutOwed } from '../utils/bonuses';
 import { getAwardImage } from '../data/awards';
 import { getTeamData, teamAccent } from '../data/teams';
@@ -42,6 +41,18 @@ const LEAGUE_HUE = {
   ICEHL: '#f472b6', SLOVAK: '#f472b6', J20: '#f472b6', U20: '#f472b6'
 };
 const hueOf = (lg) => LEAGUE_HUE[lg] || '#94a3b8';
+
+// The same for the national team: each tournament in its own colour, clear of
+// the league colours above and of gold and green.
+const INTL_KIND = {
+  wjc: { label: 'World Juniors', hue: '#818cf8' },
+  worlds: { label: 'World Championship', hue: '#e879f9' },
+  olympics: { label: 'Winter Olympics', hue: '#67e8f9' },
+  other: { label: 'International', hue: '#94a3b8' }
+};
+const intlKindOf = (name = '') => /junior|wjc/i.test(name) ? 'wjc'
+  : /olympic/i.test(name) ? 'olympics'
+    : /world championship/i.test(name) ? 'worlds' : 'other';
 const tint = (hex, pct) => `color-mix(in srgb, ${hex} ${pct}%, transparent)`;
 
 // The career score's tiers, bottom to top, with the score each one starts at.
@@ -190,8 +201,7 @@ function YearHonours({ season }) {
   );
 }
 
-// An award's name, short enough for a table row. Every league's trophies end in
-// some arrangement of Memorial, Trophy and Award, which identify nothing.
+// An award's name for a table row, without its year.
 function shortAward(raw, intl) {
   let text = String(raw).replace(/^\d{4}\s/, '').replace(/\s\d{4}$/, '');
   if (intl) {
@@ -199,15 +209,14 @@ function shortAward(raw, intl) {
     else if (text.includes('Silver')) text = 'Silver Medal';
     else if (text.includes('Bronze')) text = 'Bronze Medal';
     else if (text.includes('Promotion')) text = 'Promotion';
-    else if (text.includes('Survival')) text = 'Stayed up';
+    else if (text.includes('Survival')) text = 'Stayed Up';
   } else {
-    text = text.replace('Gold, Olympics', 'Olympic gold')
-      .replace('Gold, World Juniors', 'WJC gold')
-      .replace('Gold, World Championship', 'Worlds gold')
-      .replace(/\s*\([^)]*\)\s*$/, '')
-      .replace(/\s+Memorial\s+(Trophy|Award)$/, '')
-      .replace(/\s+(Trophy|Award)$/, '')
-      .replace(/^Frank J\.\s+/, '');
+    // Full names. Cutting "Trophy", "Award" and "Memorial" off the end left
+    // "Presidents'" and "Frank J." stubs that named nothing.
+    text = text.replace('Gold, Olympics', 'Olympic Gold')
+      .replace('Gold, World Juniors', 'World Juniors Gold')
+      .replace('Gold, World Championship', 'World Championship Gold')
+      .replace(/\s*\([^)]*\)\s*$/, '');
   }
   return { text, img: getAwardImage(raw) || getAwardImage(text) };
 }
@@ -253,7 +262,6 @@ export default function RetirementScreen() {
   const country = natObj?.name || player.nat || '';
   const isLegend = score.tier === 'Generational Icon' || score.tier === 'Hall of Famer';
   const isGoalie = player.pos === 'G';
-  const isDman = isDefence(player.pos);
   const history = player.seasonHistory || [];
   const peakOvr = player.stats?.peakOvr || player.ovr;
 
@@ -273,24 +281,47 @@ export default function RetirementScreen() {
     // A tournament is not a season and has no playoffs, so it gets its own
     // table. Older saves without tournament stats get dashes rather than the
     // numbers the old screen used to invent for them.
-    if (season.intlData || intlAwards.length) {
-      const st = season.intlData?.stats || null;
-      let name = season.intlData?.tournamentName;
-      if (!name) {
-        const first = intlAwards[0] || '';
-        name = `${season.year} ${first.includes('World Juniors') || first.includes('WJC') ? 'World Juniors'
-          : first.includes('Olympics') ? 'Winter Olympics'
-            : first.includes('World Championship') ? 'World Championship' : 'International tournament'}`;
-      }
+    //
+    // One row per tournament, each with its own medal. A season with a winter
+    // tournament and the Worlds carried both medals but only one tournament's
+    // line (the Worlds wrote over the other), so the row showed two medals
+    // for one tournament. Each medal now goes to the tournament its name says
+    // it came from; one with no line of its own gets a row of dashes.
+    const tourneys = Array.isArray(season.intl) && season.intl.length ? season.intl
+      : season.intlData ? [season.intlData] : [];
+    const medals = [...new Set(intlAwards)];
+    const used = new Set();
+    const rowFor = (td, awards, nameHint) => {
+      const st = td?.stats || null;
+      const name = td?.tournamentName || nameHint;
       intlRows.push({
-        year: season.year, name, league: 'INTL', awards: intlAwards, known: !!st,
-        isCaptain: season.intlData?.letter === 'C', isAlternate: season.intlData?.letter === 'A',
-        games: season.intlData?.gamesPlayed ?? null,
+        year: season.year, name, league: 'INTL', awards, known: !!st,
+        kind: intlKindOf(name), division: td?.division || null,
+        tYear: Number((/^(\d{4})/.exec(name) || [])[1]) || Number((/(\d{4})/.exec(name) || [])[1]) || season.year,
+        isCaptain: td?.letter === 'C', isAlternate: td?.letter === 'A',
+        games: td?.gamesPlayed ?? null,
         goals: st?.g ?? 0, assists: st?.a ?? 0, saves: st?.saves ?? 0, shots: st?.shots ?? 0,
         shutouts: st?.sho ?? 0, plusMinus: st?.pm ?? 0, blocks: st?.blk ?? 0,
         sog: st?.sog ?? 0, fot: st?.fot ?? 0, fow: st?.fow ?? 0
       });
-    }
+    };
+    tourneys.forEach(td => {
+      const m = /^(\d{4})\s+(.+)$/.exec(td.tournamentName || '') || [];
+      const mine = [];
+      medals.forEach((aw, i) => {
+        if (used.has(i)) return;
+        const fits = m[2] ? (aw.includes(m[2]) && (!m[1] || aw.includes(m[1]))) : tourneys.length === 1;
+        if (fits) { used.add(i); mine.push(aw); }
+      });
+      rowFor(td, mine);
+    });
+    medals.forEach((aw, i) => {
+      if (used.has(i)) return;
+      const kind = /junior|wjc/i.test(aw) ? 'World Juniors' : /olympic/i.test(aw) ? 'Winter Olympics'
+        : /world championship|\bwc\b/i.test(aw) ? 'World Championship' : 'International tournament';
+      const yr = (/(\d{4})/.exec(aw) || [])[1] || season.year;
+      rowFor(null, [aw], `${yr} ${kind}`);
+    });
 
     // A season is not always one club. The stints record the split, so a
     // year with a deadline trade or a call-up becomes a row for each.
@@ -537,8 +568,7 @@ export default function RetirementScreen() {
     }
     return po
       ? [['Games', gp], ['Goals', t.poGoals], ['Assists', t.poAssists], ['Points', t.poGoals + t.poAssists]]
-      : [['Games', gp], ['Goals', t.goals], ['Assists', t.assists], ['Points', t.goals + t.assists],
-         ...(isDman ? [['Blocks', t.blocks]] : [])];
+      : [['Games', gp], ['Goals', t.goals], ['Assists', t.assists], ['Points', t.goals + t.assists]];
   };
 
   // Every skater gets the same four: games, goals, assists, points. Shooting
@@ -554,7 +584,7 @@ export default function RetirementScreen() {
             This is the last screen of a career and it was the quietest one in
             the game: a dark panel, a small banner in the corner and grey
             numbers. It's lit in the club's colours now, with the banner hanging
-            from the rafters, the number behind everything, and the four things
+            from the rafters, the club's crest behind everything, and the four things
             people remember about a career in their own colours: the rating at
             his best, the championships in gold, the trophies, and the money. */}
         <section className="relative overflow-hidden rounded-2xl border"
@@ -567,14 +597,21 @@ export default function RetirementScreen() {
           {/* The rafters. */}
           <div className="absolute inset-x-0 top-0 h-[6px]"
                style={{ background: `linear-gradient(90deg, ${tone}, color-mix(in srgb, ${tone} 30%, transparent))` }} />
-          {/* His number, behind everything. */}
-          <span aria-hidden="true"
-                className="absolute -right-4 sm:right-2 -top-6 sm:-top-10 font-black sports-font leading-none select-none pointer-events-none"
-                style={{ fontSize: 'clamp(10rem, 34vw, 22rem)', color: `color-mix(in srgb, ${tone} 22%, transparent)` }}>
-            {player.number}
-          </span>
+          <div className="relative isolate flex gap-4 sm:gap-8 px-4 sm:px-8 pb-5 sm:pb-7">
+            {/* The club's crest, behind the banner and the words: the logo
+                itself, large and faded. It was his number, which the banner
+                already carries. Sized to the hero and kept inside it, so the whole crest shows.
+                At sixty per cent of the width it ran off the top and the side,
+                and an NHL crest, drawn a quarter larger again, showed as a few
+                curves of colour. Then sized off the height around it, it came
+                out small in Firefox, so it has a fixed size now: about the
+                height of the top half of the hero, behind the banner and the
+                words and clear of the numbers underneath. */}
+            <div aria-hidden="true"
+                 className="absolute -z-10 right-[-70px] sm:right-[-2%] top-[62%] sm:top-[66%] -translate-y-1/2 w-[320px] h-[320px] sm:w-[460px] sm:h-[460px] opacity-[0.14] pointer-events-none select-none">
+              <TeamLogo teamId={home.team} league={home.league} isAHL={home.league === 'AHL'} size="backdrop" className="w-full h-full" />
+            </div>
 
-          <div className="relative flex gap-4 sm:gap-8 px-4 sm:px-8 pb-5 sm:pb-7">
             {/* A retired number, hanging the way an arena hangs one. */}
             <div className="shrink-0 w-[100px] sm:w-[156px] flex flex-col items-center">
               <div className="w-[62%] flex justify-between h-5 sm:h-7">
@@ -616,6 +653,8 @@ export default function RetirementScreen() {
               </p>
               <p className="mt-0.5 text-[12px] sm:text-sm font-bold text-slate-400">
                 Retired at {player.age}{span ? `, after ${history.length} ${history.length === 1 ? 'season' : 'seasons'}` : ''}
+                {/* An injury that ended it says so. */}
+                {player.storylines?.endedByInjury ? `. A hard-fought career, cut short by a ${player.storylines.endedByInjury.label}.` : ''}
               </p>
               {/* White, not the club's colour. Plenty of clubs are red, and
                   red text means something went wrong everywhere else in the
@@ -792,8 +831,11 @@ export default function RetirementScreen() {
                     ) : (
                       <div className="grid" style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
                         {cells.map(([l, v], i) => (
-                          <div key={l} className={`px-4 sm:px-5 pt-2 pb-3.5 sm:pb-4 ${i ? 'border-l border-[rgba(255,255,255,0.06)]' : ''}`}>
-                            <p className="text-[1.35rem] sm:text-[2rem] font-black sports-font leading-none number-font whitespace-nowrap"
+                          <div key={l} className={`min-w-0 px-2.5 sm:px-5 pt-2 pb-3.5 sm:pb-4 ${i ? 'border-l border-[rgba(255,255,255,0.06)]' : ''}`}>
+                            {/* Thousands on a phone are five characters with
+                                the comma, so they step down a size rather
+                                than run out of the cell. */}
+                            <p className={`${String(v).length >= 5 ? 'text-[1.05rem]' : 'text-[1.35rem]'} sm:text-[2rem] font-black sports-font leading-none number-font whitespace-nowrap`}
                                style={{ color: '#fff' }}>
                               {v}
                             </p>
@@ -873,15 +915,20 @@ export default function RetirementScreen() {
           {clubRows.length === 0 ? (
             <p className="text-sm text-slate-500">No seasons were recorded for this career.</p>
           ) : (
-            <div tabIndex={0} role="region" aria-label="Table, scrolls sideways" className="-mx-4 sm:-mx-6 overflow-x-auto">
+            // The table scrolls in its own box, so its headings can stay at
+            // the top while a long career goes by underneath them. On the page
+            // they scrolled away after a few seasons, and GP, G, A and Pts were
+            // four unlabelled numbers from then on.
+            <div tabIndex={0} role="region" aria-label="Table, scrolls both ways"
+                 className="-mx-4 sm:-mx-6 overflow-auto max-h-[75vh] overscroll-contain">
               <table className="w-full min-w-[620px] text-left whitespace-nowrap text-[12px] sm:text-[13px]">
-                <thead>
-                  <tr className="text-[10px] font-bold text-slate-600">
-                    <td colSpan={3} />
-                    <th colSpan={regCols} className="px-2 pb-1 text-center border-l border-[rgba(255,255,255,0.06)]">Regular season</th>
-                    <th colSpan={4} className="px-2 pb-1 text-center border-l border-[rgba(255,255,255,0.06)]">Playoffs</th>
+                <thead className="sticky top-0 z-10 bg-[#0a0d0a] shadow-[0_6px_10px_-6px_rgba(0,0,0,0.8)]">
+                  <tr className="text-[10px] font-bold text-slate-600 bg-[#0a0d0a]">
+                    <td colSpan={3} className="bg-[#0a0d0a]" />
+                    <th colSpan={regCols} className="px-2 pt-2 pb-1 text-center border-l border-[rgba(255,255,255,0.06)] bg-[#0a0d0a]">Regular season</th>
+                    <th colSpan={4} className="px-2 pt-2 pb-1 text-center border-l border-[rgba(255,255,255,0.06)] bg-[#0a0d0a]">Playoffs</th>
                   </tr>
-                  <tr className="border-y border-[rgba(255,255,255,0.07)] bg-[#0d110d] text-[10px] font-bold text-slate-500">
+                  <tr className="border-y border-[rgba(255,255,255,0.07)] bg-[#0d110d] text-[10px] font-bold text-slate-500 [&>th]:bg-[#0d110d]">
                     <th className="pl-4 sm:pl-6 pr-2 py-2 font-bold">Season</th>
                     <th className="px-2 py-2 font-bold">Team</th>
                     <th className="px-2 py-2 font-bold">League</th>
@@ -935,7 +982,8 @@ export default function RetirementScreen() {
                             <span className="shrink-0 w-6 h-6 flex items-center justify-center">
                               <TeamLogo teamId={r.team} league={r.league} isAHL={r.league === 'AHL'} size="tiny" />
                             </span>
-                            <span className="hidden sm:inline font-bold text-white whitespace-nowrap">
+                            {/* On a phone too: the logo alone didn't say who it was. */}
+                            <span className="font-bold text-white text-[11px] sm:text-[13px] leading-tight sm:whitespace-nowrap">
                               {getFullTeamName(r.team, r.league)}
                             </span>
                           </span>
@@ -947,7 +995,7 @@ export default function RetirementScreen() {
                           )}
                         </td>
                         <td className="px-2 py-2 text-[11px] font-bold" style={{ color: hue }}>{r.league}</td>
-                        <td className={`${cell} border-l border-[rgba(255,255,255,0.06)]`}>{r.games || 0}</td>
+                        <td className={`${cell} !text-slate-500 border-l border-[rgba(255,255,255,0.06)]`}>{r.games || 0}</td>
                         {isGoalie ? (<>
                           <td className={cell}>{r.wins}-{r.losses}-{r.otl}</td>
                           <td className={cell}>{sv3(r.saves, r.shots)}</td>
@@ -958,7 +1006,7 @@ export default function RetirementScreen() {
                           <td className={cell}>{r.assists}</td>
                           <td className={`${cell} text-white font-black`}>{r.goals + r.assists}</td>
                         </>)}
-                        <td className={`${cell} border-l border-[rgba(255,255,255,0.06)]`}>{po ? r.playoffGames : <Dash />}</td>
+                        <td className={`${cell} !text-slate-500 border-l border-[rgba(255,255,255,0.06)]`}>{po ? r.playoffGames : <Dash />}</td>
                         <td className={cell}>{po ? (isGoalie ? sv3(r.playoffSaves, r.playoffShots) : r.playoffGoals) : <Dash />}</td>
                         <td className={cell}>{po ? (isGoalie ? gaa2(r.playoffSaves, r.playoffShots, r.playoffGames) : r.playoffAssists) : <Dash />}</td>
                         <td className={`${cell} pr-4 sm:pr-6 ${po ? 'text-white font-black' : ''}`}>
@@ -1023,15 +1071,20 @@ export default function RetirementScreen() {
                       <th className="w-full px-3 py-2 font-bold">Result</th>
                     </tr>
                   </thead>
+                  {/* In order, each row in its tournament's colour. */}
                   <tbody className="divide-y divide-[rgba(255,255,255,0.04)]">
                     {intlRows.map((t, i) => {
+                      const hue = INTL_KIND[t.kind]?.hue || INTL_KIND.other.hue;
                       const cell = 'px-2 py-2 text-right number-font text-slate-300';
                       return (
-                        <tr key={i}>
-                          <td className="pl-4 sm:pl-6 pr-2 py-2 font-bold text-slate-300"
-                              style={{ boxShadow: 'inset 3px 0 0 0 rgba(232,121,249,0.55)' }}>
+                        <tr key={i} style={{ background: tint(hue, 6) }}>
+                          <td className="pl-4 sm:pl-6 pr-2 py-2 font-bold"
+                              style={{ boxShadow: `inset 4px 0 0 0 ${hue}` }}>
                             <span className="flex items-center gap-1.5">
-                              {t.name}
+                              <span style={{ color: hue }}>{t.name}</span>
+                              {t.division && t.division !== 'Top Division' && (
+                                <span className="text-[10px] font-bold text-slate-500">{t.division}</span>
+                              )}
                               <Letter captain={t.isCaptain} alternate={t.isAlternate && !t.isCaptain} />
                             </span>
                           </td>
@@ -1087,45 +1140,59 @@ export default function RetirementScreen() {
           </Section>
         )}
 
-        {/* THE DRAFT CLASS. */}
+        {/* THE DRAFT CLASS.
+            The whole class, ranked by career score, him included. It was his
+            own position group ranked on a position stat (points and blocks
+            for a defenceman), which couldn't put a centre beside a goalie. */}
         {(() => {
           // A career drafted before the class was moved aside for him can still
           // have a classmate at his own pick. Seat him here too.
-          const table = classTable(seatPlayerPick(player.peers, player.draftPick, player.draftTeam), 8, player.pos);
-          if (!table.length) return null;
-          const unit = peerUnit(player.pos);
+          const peers = seatPlayerPick(player.peers, player.draftPick, player.draftTeam) || [];
+          const classmates = peers.filter(c => (c.career?.seasons || 0) > 0);
+          if (!classmates.length) return null;
+          const nhlOf = (c) => c.career?.nhl || c.career || {};
           const rows = [
-            ...table.map(c => ({
-              name: c.name, gp: c.career.gp, pts: peerValue(c, player.pos),
-              rawPts: (c.career.g || 0) + (c.career.a || 0), blk: c.career.blk || 0,
-              pick: c.pick, team: c.draftedBy, cups: c.career.titles || 0, trophies: c.career.trophies || 0, me: false
-            })),
+            ...classmates.map(c => {
+              const n = nhlOf(c);
+              return {
+                name: c.name, pos: c.pos, gp: n.gp || 0, pts: (n.g || 0) + (n.a || 0), sho: n.sho || 0,
+                score: peerCareerScore(c), pick: c.pick, team: c.draftedBy,
+                cups: c.career.titles || 0, trophies: c.career.trophies || 0, me: false
+              };
+            }),
             {
-              name: 'You', gp: player.stats?.nhl?.games || 0, pts: playerCareerValue(player),
-              rawPts: (player.stats?.nhl?.goals || 0) + (player.stats?.nhl?.assists || 0),
-              blk: player.stats?.nhl?.blocks || 0, pick: player.draftPick, team: player.draftTeam,
+              name: 'You', pos: player.pos, gp: player.stats?.nhl?.games || 0,
+              pts: (player.stats?.nhl?.goals || 0) + (player.stats?.nhl?.assists || 0),
+              sho: player.stats?.nhl?.shutouts || 0, score: score.total,
+              pick: player.draftPick, team: player.draftTeam,
               cups: history.filter(ss => ss.titleWon).length, trophies: careerTrophies(player).individual, me: true
             }
-          ].sort((x, y) => y.pts - x.pts).slice(0, 9);
+          ].sort((x, y) => y.score - x.score);
+          // The top eight, and him wherever he finished.
+          const top = rows.slice(0, 8);
+          const shown = top.some(r => r.me) ? top : [...top, rows.find(r => r.me)];
           return (
-            <Section title="Your Draft Class" meta={`The ${titleCase(groupName(compGroup(player.pos)))} of your year, by NHL ${unit}`}>
+            <Section title="Your Draft Class">
               <div tabIndex={0} role="region" aria-label="Table, scrolls sideways" className="-mx-4 sm:-mx-6 overflow-x-auto">
-                <table className="w-full min-w-[520px] text-left whitespace-nowrap text-[12px] sm:text-[13px]">
+                <table className="w-full min-w-[560px] text-left whitespace-nowrap text-[12px] sm:text-[13px]">
                   <thead>
                     <tr className="border-y border-[rgba(255,255,255,0.07)] bg-[#0d110d] text-[10px] font-bold text-slate-500">
                       <th className="pl-4 sm:pl-6 pr-2 py-2 font-bold w-8">#</th>
                       <th className="px-2 py-2 font-bold">Player</th>
+                      <th className="px-2 py-2 font-bold">Pos</th>
                       <th className="px-2 py-2 font-bold text-right">Drafted</th>
                       <th className="px-2 py-2 font-bold text-right">Honours</th>
-                      <th className="px-2 py-2 font-bold text-right">GP</th>
-                      <th className="pl-2 pr-4 sm:pr-6 py-2 font-bold text-right">{isGoalie ? 'Shutouts' : isDman ? 'Pts / BLK' : 'Points'}</th>
+                      <th className="px-2 py-2 font-bold text-right">NHL GP</th>
+                      <th className="px-2 py-2 font-bold text-right">Points</th>
+                      <th className="pl-2 pr-4 sm:pr-6 py-2 font-bold text-right">Score</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[rgba(255,255,255,0.04)]">
-                    {rows.map((r, i) => (
-                      <tr key={`${r.name}-${i}`} className={r.me ? 'bg-[#22E748]/[0.08]' : ''}>
-                        <td className="pl-4 sm:pl-6 pr-2 py-2 number-font text-slate-600">{i + 1}</td>
+                    {shown.map((r) => (
+                      <tr key={`${r.name}-${r.pick}`} className={r.me ? 'bg-[#22E748]/[0.08]' : ''}>
+                        <td className="pl-4 sm:pl-6 pr-2 py-2 number-font text-slate-600">{rows.indexOf(r) + 1}</td>
                         <td className={`px-2 py-2 font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-200'}`}>{r.name}</td>
+                        <td className="px-2 py-2 text-slate-500 font-bold">{r.pos === 'LD' || r.pos === 'RD' ? 'D' : r.pos}</td>
                         <td className="px-2 py-2 text-right text-slate-500">{r.pick ? `#${r.pick} ${r.team || ''}` : 'Undrafted'}</td>
                         <td className="px-2 py-2 text-right">
                           {r.cups > 0 && <span className="text-[#F59E0B] font-bold">{r.cups} {r.cups === 1 ? 'title' : 'titles'}</span>}
@@ -1134,8 +1201,11 @@ export default function RetirementScreen() {
                           {!r.cups && !r.trophies && <Dash />}
                         </td>
                         <td className="px-2 py-2 text-right number-font text-slate-400">{r.gp}</td>
+                        <td className="px-2 py-2 text-right number-font text-slate-300">
+                          {r.pos === 'G' ? <span>{r.sho} <span className="text-slate-500 text-[10px]">SO</span></span> : r.pts}
+                        </td>
                         <td className={`pl-2 pr-4 sm:pr-6 py-2 text-right number-font font-black ${r.me ? 'text-[#22E748]' : 'text-white'}`}>
-                          {isDman ? `${r.rawPts} / ${r.blk}` : r.pts}
+                          {r.score.toLocaleString()}
                         </td>
                       </tr>
                     ))}

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
-import { SlotSheet, Marker, Surface } from './rink/Ice';
+import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
 import { SLOT, SLOT_MOUTH, SLOT_VIEW, wavePath } from './rink/geometry';
-import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
+import { Stage, Hud, Pips, Verdict, Clock, ActionButton } from './minigame/Shell';
 
 // Blocking the shot, from the slot.
 //
@@ -15,6 +15,10 @@ import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 // man winding up at the blue line. The shot comes down one of three lanes, drawn
 // as a shot the way a drill book draws one, and you get in front of it or you
 // screen your own goalie. Three in a row and the shift is over.
+//
+// The shot used to appear whole, already at the net, while an invisible clock
+// ran behind it, so there was no way to tell you were on one. The puck travels
+// down the lane now, and the clock in the corner drains with it.
 
 const NEEDED = 3;
 // The lane centres come from SLOT now, so the shooting lanes, the seams the
@@ -38,6 +42,9 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
 
   const doneRef = useRef(false);
   const timerRef = useRef(null);
+  // How long this shot takes to get there, and how far it has come.
+  const [windowMs, setWindowMs] = useState(1000);
+  const [elapsed, setElapsed] = useState(0);
 
   const finish = useCallback((win, why, delay = 1500) => {
     if (doneRef.current) return;
@@ -55,15 +62,17 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
     timerRef.current = setTimeout(() => {
       if (doneRef.current) return;
       const next = Math.floor(Math.random() * LANES.length);
-      setLane(next);
-      setPicked(null);
-      setPhase('live');
-
       // Floored so the lane is always reachable, however big the game.
       const window = Math.max(
         MIN_REACTION_MS + 60,
         (1150 - skating * 5) * lerpDifficulty(1.0, 0.70, difficulty)
       );
+      setLane(next);
+      setPicked(null);
+      setWindowMs(window);
+      setElapsed(0);
+      setPhase('live');
+
       timerRef.current = setTimeout(() => {
         if (doneRef.current) return;
         setPhase('result');
@@ -73,6 +82,14 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
 
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [phase, skating, difficulty, finish]);
+
+  // The puck on its way, for the picture and the clock.
+  useEffect(() => {
+    if (phase !== 'live') return;
+    const start = Date.now();
+    const tick = setInterval(() => setElapsed(Date.now() - start), 20);
+    return () => clearInterval(tick);
+  }, [phase]);
 
   const commit = (id) => {
     if (phase !== 'live' || doneRef.current) return;
@@ -103,9 +120,11 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
       hud={
         <Hud
           left={<Pips label="Blocked" filled={blocks} total={NEEDED} />}
-          right={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-            Defensive slot
-          </span>}
+          right={phase === 'live'
+            ? <Clock msLeft={windowMs - elapsed} msTotal={windowMs} urgentAt={windowMs * 0.4} />
+            : <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                Defensive slot
+              </span>}
         />
       }
       verdict={
@@ -134,8 +153,15 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
             fill="none"
             stroke={picked === null ? '#fbbf24' : hitLane ? '#22E748' : '#ef4444'}
             strokeWidth="1.9" strokeLinecap="round"
+            opacity={phase === 'live' ? 0.45 : 1}
           />
         )}
+        {/* The puck, coming down the lane. It stops where he blocked it. */}
+        {phase === 'live' && lane !== null && (() => {
+          const t = Math.min(1, elapsed / windowMs);
+          const from = [LANES[lane].x, SLOT.pointRow + 4];
+          return <Puck at={[from[0] + (SLOT_MOUTH[0] - from[0]) * t, from[1] + (SLOT_MOUTH[1] - from[1]) * t]} r="2" />;
+        })()}
 
         {/* Me, in the slot. I slide into whichever lane I commit to. */}
         <g style={{ transition: 'transform 120ms ease-out' }}

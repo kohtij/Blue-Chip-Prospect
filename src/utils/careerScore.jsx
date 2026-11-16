@@ -86,20 +86,20 @@ export function computeCareerScore(player) {
   const minorAwards = countMatch('Player of the Year') + countMatch('Red Tilson') + countMatch('All-American');
 
   if (hart > 0) addPoints(hart * 400, times(hart, 'Hart Trophy'));
-  if (smythe > 0) addPoints(smythe * 400, times(smythe, 'Conn Smythe'));
+  if (smythe > 0) addPoints(smythe * 400, times(smythe, 'Conn Smythe Trophy'));
   if (vezina > 0) addPoints(vezina * 300, times(vezina, 'Vezina Trophy'));
   if (norris > 0) addPoints(norris * 300, times(norris, 'Norris Trophy'));
-  if (ross > 0) addPoints(ross * 300, times(ross, 'Art Ross'));
-  if (rocket > 0) addPoints(rocket * 300, times(rocket, 'Rocket Richard'));
+  if (ross > 0) addPoints(ross * 300, times(ross, 'Art Ross Trophy'));
+  if (rocket > 0) addPoints(rocket * 300, times(rocket, 'Maurice "Rocket" Richard Trophy'));
   if (calder > 0) addPoints(calder * 200, times(calder, 'Calder Trophy'));
   if (allStar > 0) addPoints(allStar * 75, times(allStar, 'All-Star Team'));
   if (stanleyCup > 0) addPoints(stanleyCup * 600, times(stanleyCup, 'Stanley Cup'));
   if (calderCup > 0) addPoints(calderCup * 100, times(calderCup, 'Calder Cup'));
   if (memCup > 0) addPoints(memCup * 100, times(memCup, 'Memorial Cup'));
-  if (ncaaTitle > 0) addPoints(ncaaTitle * 100, times(ncaaTitle, 'NCAA title'));
-  if (olyGold > 0) addPoints(olyGold * 250, times(olyGold, 'Olympic gold'));
-  if (wjcGold > 0) addPoints(wjcGold * 100, times(wjcGold, 'World Juniors gold'));
-  if (minorAwards > 0) addPoints(minorAwards * 50, times(minorAwards, 'Junior or college award'));
+  if (ncaaTitle > 0) addPoints(ncaaTitle * 100, times(ncaaTitle, 'NCAA Title'));
+  if (olyGold > 0) addPoints(olyGold * 250, times(olyGold, 'Olympic Gold'));
+  if (wjcGold > 0) addPoints(wjcGold * 100, times(wjcGold, 'World Juniors Gold'));
+  if (minorAwards > 0) addPoints(minorAwards * 50, times(minorAwards, 'Junior or College Award'));
 
   // 2. LONGEVITY & SEASONAL MILESTONES
   let nhlSeasons = 0, otherSeasons = 0, hundredPtSeasons = 0, fiftyGoalSeasons = 0, demotions = 0;
@@ -257,4 +257,45 @@ export function hallOfFame(score, lastSeasonYear) {
     return { inducted: false, nearMiss: true, eligible };
   }
   return null;
+}
+
+/**
+ * A classmate's career score, on the player's scale.
+ *
+ * The draft class at retirement is ranked by career score, so every classmate
+ * needs one. They don't have a season-by-season history or named trophies, so
+ * this is the same sum built from what a classmate does keep: NHL seasons and
+ * the seasons outside it, 100-point and 50-goal years, the game and goal
+ * milestones, the career grade measured exactly as the player's is, and his
+ * titles, trophies and All-Star nods at the player's weights. A trophy counts
+ * 300, which is what most of the NHL's individual awards are worth above.
+ *
+ * A class from an older save has no NHL record of its own. Its seasons are
+ * split by guessing the first four were spent outside the NHL, which is about
+ * where a drafted player is at twenty-two.
+ */
+export function peerCareerScore(peer) {
+  const c = peer?.career || {};
+  const n = c.nhl || null;
+  const nhlSeasons = n ? n.seasons : Math.max(0, (c.seasons || 0) - 4);
+  const other = Math.max(0, (c.seasons || 0) - nhlSeasons);
+  const nh = n || c;
+  const gp = nh.gp || 0, g = nh.g || 0, pts = g + (nh.a || 0);
+  let s = nhlSeasons * 75 + other * 15 + (n?.hundred || 0) * 150 + (n?.fifty || 0) * 150;
+  if (gp >= 1000) s += 400; else if (gp >= 500) s += 150;
+  if (g >= 500) s += 400;
+
+  const toi = gp > 0 && nh.toiGames ? nh.toiGames / gp : null;
+  if (peer.pos === 'G') {
+    const sv = (nh.shots || 0) > 0 ? (nh.saves || 0) / nh.shots : 0;
+    if (gp >= 100) s += sv >= 0.925 ? 600 : sv >= 0.918 ? 400 : sv >= 0.910 ? 200 : 0;
+  } else if (gp >= 100) {
+    const grade = ['LD', 'RD'].includes(peer.pos)
+      ? rateSeason({ league: 'NHL', pos: peer.pos, games: gp, g, a: nh.a || 0, pm: nh.pm || 0, blk: nh.blk || null, toi })
+      : forwardCareerGrade({ games: gp, goals: g, points: pts, sog: nh.sog || 0, pm: nh.pm || 0, blk: nh.blk ?? null, toi, fot: nh.fot || 0, fow: nh.fow || 0 });
+    s += grade >= 7.9 ? 600 : grade >= 7.2 ? 400 : grade >= 6.2 ? 200 : grade >= 5.4 ? 75 : 0;
+  }
+
+  s += (c.titles || 0) * 600 + (c.trophies || 0) * 300 + (c.allStars || 0) * 75;
+  return Math.round(s);
 }

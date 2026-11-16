@@ -21,7 +21,7 @@ import { NEUTRAL_PILL, NEUTRAL_PILL_DIM, statCode, statPillClass } from '../util
 const SHELVES = [
   { id: 'staff', label: 'Staff', blurb: 'People you hire once. What they give you, you keep.' },
   { id: 'consumable', label: 'Boosts', blurb: 'Bought for a season or two, then gone.' },
-  { id: 'luxury', label: 'Lifestyle', blurb: 'What the money buys you away from the rink. Mostly fame, occasionally more.' }
+  { id: 'luxury', label: 'Lifestyle', blurb: 'What the money buys you away from the rink.' }
 ];
 
 // What an item does, in the shortest honest form, for the chips on its row.

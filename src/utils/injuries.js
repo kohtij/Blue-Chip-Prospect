@@ -98,9 +98,14 @@ const GOALIE_TILT = { groin: 2.6, lower: 1.6, hand: 0.5, foot: 0.4, ankle: 0.6, 
 export function injuryOdds(player, { games = 82 } = {}) {
   const age = player?.age || 24;
   const phy = player?.physicality || 50;
-  const past = player?.injuryHistory?.length || 0;
+  // Recent injuries, not every one he's ever had. Counting the whole career
+  // snowballed: each injury raised the odds of the next for good, so by thirty
+  // he was getting hurt two seasons in three and the event had become an
+  // annual ritual. A body that's been sound for four years is sound.
+  const season = player?.stats?.seasonsPlayed ?? 0;
+  const past = (player?.injuryHistory || []).filter(i => season - (i.season ?? season) < 4).length;
 
-  let odds = 0.30;
+  let odds = 0.27;
   if (age >= 34) odds += 0.16;
   else if (age >= 30) odds += 0.09;
   else if (age <= 21) odds -= 0.05;
@@ -110,8 +115,8 @@ export function injuryOdds(player, { games = 82 } = {}) {
   odds += (phy - 50) * 0.0016;
   if (player?.pos === 'G') odds -= 0.08;
 
-  // The body remembers.
-  odds += Math.min(0.22, past * 0.055);
+  // The body remembers, for a while.
+  odds += Math.min(0.14, past * 0.045);
 
   // A short season is fewer chances to get hurt.
   odds *= clamp(games / 82, 0.25, 1);
@@ -129,6 +134,25 @@ function drawType(pos) {
   let roll = Math.random() * total;
   for (const i of pool) { roll -= i.w; if (roll <= 0) return i; }
   return pool[0];
+}
+
+// THE ONE HE DOESN'T COME BACK FROM.
+//
+// Rare, and mostly late. Careers end on concussions, backs and the joints that
+// have been rebuilt once too often, and almost never on a bruised foot. The
+// chance rises with age and with the history: a man with two concussions
+// behind him is the one the doctors stop clearing.
+const ENDING_WEIGHT = { head: 1, back: 0.6, shoulder: 0.35, lower: 0.35, ankle: 0.15 };
+function endsCareer(player, type) {
+  const w = ENDING_WEIGHT[type.key];
+  if (!w) return false;
+  const age = player?.age || 24;
+  const base = age <= 25 ? 0.005 : age <= 29 ? 0.013 : age <= 32 ? 0.03 : age <= 35 ? 0.06 : 0.09;
+  const hist = player?.injuryHistory || [];
+  const heads = hist.filter(i => i.key === 'head').length;
+  const serious = hist.filter(i => (i.games || 0) >= 20).length;
+  const chance = base * w * (1 + heads * 0.9 + serious * 0.25);
+  return Math.random() < Math.min(0.4, chance);
 }
 
 /**
@@ -150,13 +174,18 @@ export function rollInjury(player, { games = 82 } = {}) {
   let out = Math.round((lo + Math.random() * (hi - lo)) * drag + gaussianNoise());
   out = clamp(out, 2, Math.max(2, Math.round(games)));
 
+  // The rest of the season, and then the summer decides.
+  const careerEnding = endsCareer(player, type);
+  if (careerEnding) out = Math.round(games * (0.6 + Math.random() * 0.3));
+
   return {
     key: type.key,
     label: type.label,
     games: out,
     // What he carries into next year. A nagging injury takes something off him
     // until it is behind him, which is what "playing hurt" actually means.
-    lingers: type.nag && Math.random() < 0.45,
+    lingers: !careerEnding && type.nag && Math.random() < 0.45,
+    careerEnding,
     season: player?.stats?.seasonsPlayed ?? 0,
     age
   };
@@ -186,6 +215,10 @@ export function injuryLine(inj) {
  */
 export function injuryEvent(inj) {
   if (!inj) return null;
+  // A week out with a bruised foot is a line in the recap, not a stop in the
+  // middle of the season. Every injury used to get one, which is a lot of
+  // what made getting hurt feel like it happened every year.
+  if (inj.games < 6 && inj.key !== 'head') return null;
   const month = MONTHS[Math.floor(Math.random() * MONTHS.length)];
   const how = HOW[inj.key] || 'you got hurt';
   const who = inj.key === 'head' ? 'the doctors' : 'the staff';
@@ -202,12 +235,21 @@ export function injuryEvent(inj) {
     action: 'INJURY_RETURN',
     actionData: { plan: 'wait' }
   };
-  if (inj.key === 'head' || inj.games < 6) {
+  // The bad one. It isn't called the end yet, because nobody calls it that in
+  // December: he's out for the year and nobody will talk about next season.
+  if (inj.careerEnding) {
+    return {
+      title: '🚑 OUT FOR THE SEASON',
+      desc: `In ${month}, ${how}. ${what} This one's different. You're done for the year, and when you ask about next season nobody will give you a straight answer.`,
+      choices: [{ ...wait, label: 'Start the rehab', subLabel: 'Do everything they ask and see where you are in the summer.',
+        feedback: 'You did the work every day, and every day it was slower than they said it would be.' }],
+      isMidSeasonEvent: true
+    };
+  }
+  if (inj.key === 'head') {
     return {
       title, desc,
-      choices: [inj.key === 'head'
-        ? { ...wait, label: 'Follow the protocol', subLabel: 'There\'s no rushing a concussion. You go back when the doctors say so.' }
-        : { ...wait, label: 'Get back out there', subLabel: 'It\'s a short one. Do the work and get back in the lineup.' }],
+      choices: [{ ...wait, label: 'Follow the protocol', subLabel: 'There\'s no rushing a concussion. You go back when the doctors say so.' }],
       isMidSeasonEvent: true
     };
   }
@@ -244,4 +286,23 @@ export function wearPenalty(player) {
   if (past.length < 3) return 0;
   const serious = past.filter(i => (i.games || 0) >= 20).length;
   return Math.min(4, Math.floor((past.length - 2) * 0.5) + serious);
+}
+
+/**
+ * The summer after a career-ending injury: what the doctors say, for the event
+ * that ends the career.
+ */
+const ENDING_PART = { back: 'back', shoulder: 'shoulder', lower: 'knee', ankle: 'ankle' };
+export function careerEndingVerdict(inj) {
+  if (!inj) return null;
+  if (inj.key === 'head') {
+    return 'The headaches never really went away. In June the specialists sat you down and said what you\'d been dreading: another hit like that one could cost you more than a career. They won\'t clear you to play.';
+  }
+  return `Your ${ENDING_PART[inj.key] || 'body'} never came back right. In June the surgeons told you there's nothing left to repair, and you can't play at this level any more.`;
+}
+
+/** What ended it, as the retirement screen says it: "A knee injury ended it." */
+export function endingLabel(inj) {
+  if (!inj) return null;
+  return inj.key === 'head' ? 'concussion' : `${ENDING_PART[inj.key] || 'career-ending'} injury`;
 }

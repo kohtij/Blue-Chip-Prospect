@@ -137,9 +137,9 @@ export function Pips({ label, filled, total, tone = 'good' }) {
 
 // The shot clock, as a bar that drains. It turns at two seconds, the only
 // warning a shooter gets.
-export function Clock({ msLeft, msTotal }) {
+export function Clock({ msLeft, msTotal, urgentAt = 2000 }) {
   const pct = Math.max(0, Math.min(100, (msLeft / msTotal) * 100));
-  const urgent = msLeft <= 2000;
+  const urgent = msLeft <= urgentAt;
   return (
     <div className="flex items-center gap-2 min-w-[108px]">
       <span className={`number-font text-sm sm:text-base font-black tabular-nums ${urgent ? 'text-[#ef4444]' : 'text-slate-300'}`}>

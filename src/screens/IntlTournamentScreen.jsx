@@ -14,7 +14,7 @@ import { getMinigamePool } from '../data/minigames';
 import { getStakes } from '../utils/stakes';
 import { isDefence } from '../utils/production';
 import {
-  prepareRound, resolvePick, advanceRun, commitRun, PTS_TO_ADVANCE, sitsOut, resolveSat
+  prepareRound, resolvePick, advanceRun, commitRun, sitsOut, resolveSat, groupTable
 } from '../utils/intlRun';
 import PlayCard from '../components/PlayCard';
 
@@ -89,6 +89,69 @@ function Flag({ nation, className = 'w-5 h-3.5' }) {
   return <img src={nation.img} alt="" className={`${className} object-cover rounded-[1px] shrink-0`} />;
 }
 
+// THE GROUP TABLE.
+//
+// The tournament used to show one line of his own results and nothing about
+// anybody else, so a group stage was three games with no table to finish in.
+// Now it's the group as it stands, everybody's games included, in the order
+// the IIHF ranks it, with a line where going through stops.
+function GroupTable({ run, nations }) {
+  const rows = groupTable(run);
+  if (!rows.length) return null;
+  const last = rows.length;
+  // Where the lines go: under the places that go through, and over the one
+  // that plays to stay up.
+  const cutAfter = run.isOlympics ? [1]
+    : run.isTopDiv ? [3]
+      : [1, last - 1];
+  const caption = run.isOlympics
+    ? 'Nobody goes out in the group. The winner skips the qualification playoff.'
+    : run.isTopDiv
+      ? 'The top three go through. Last place plays a relegation game.'
+      : 'The winner plays for promotion. Last place plays to stay up.';
+  const cols = ['GP', 'W', 'OTW', 'OTL', 'L', 'GD', 'PTS'];
+  return (
+    <div className="mt-4 mb-1">
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 px-1">Group Standings</p>
+      <div className="rounded-xl border border-[rgba(255,255,255,0.06)] overflow-hidden bg-[#0a0d0a]">
+        <table className="w-full text-[11px] sm:text-xs">
+          <thead>
+            <tr className="text-[9px] sm:text-[10px] font-black text-slate-500 border-b border-[rgba(255,255,255,0.06)]">
+              <th className="w-6 py-2 pl-2 text-left font-black">#</th>
+              <th className="py-2 text-left font-black">Nation</th>
+              {cols.map(c => <th key={c} className={`${c === 'PTS' ? 'w-9 sm:w-11' : 'w-7 sm:w-9'} py-2 px-0.5 text-center font-black last:pr-2`}>{c}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const me = r.id === run.group.meId;
+              const gd = r.gf - r.ga;
+              const nation = (nations || []).find(n => n.id === r.id);
+              return (
+                <tr key={r.id} className={`${me ? 'bg-[#3b82f6]/[0.12]' : ''} ${
+                  cutAfter.includes(i + 1) && i + 1 < last ? 'border-b border-dashed border-[rgba(255,255,255,0.18)]' : 'border-b border-[rgba(255,255,255,0.04)] last:border-0'}`}>
+                  <td className="py-2 pl-2 text-slate-500 number-font font-black">{i + 1}</td>
+                  <td className="py-2 pr-1">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <Flag nation={nation} className="w-4 h-3" />
+                      <span className={`break-words ${me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>{nation?.name || r.name || r.id}</span>
+                    </span>
+                  </td>
+                  {[r.gp, r.w, r.otw, r.otl, r.l, gd > 0 ? `+${gd}` : gd, r.pts].map((v, k) => (
+                    <td key={k} className={`py-2 px-0.5 text-center number-font tabular-nums last:pr-2 ${
+                      k === 6 ? (me ? 'text-white font-black' : 'text-slate-200 font-black') : 'text-slate-400'}`}>{v}</td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[10px] sm:text-[11px] text-slate-500 font-sans mt-1.5 px-1">{caption}</p>
+    </div>
+  );
+}
+
 export default function IntlTournamentScreen() {
   const {
     BreakawayGame, BreakoutGame, CreaseGame, DeflectionGame, FaceoffGame, ShootoutGame,
@@ -136,8 +199,8 @@ export default function IntlTournamentScreen() {
   }, [player, safeNationalities, setPlayer, setSeasonEvents, unlockAchievement]);
 
   // Settle the game once the result is known, including a rescued knockout.
-  const settle = useCallback((playId, rescued) => {
-    const res = resolvePick(run, player, { playId, scoutedIds: board.scoutedIds, rescued });
+  const settle = useCallback((playId, rescued, rescueKind = null) => {
+    const res = resolvePick(run, player, { playId, scoutedIds: board.scoutedIds, rescued, rescueKind });
     const advanced = advanceRun(res.nextRun, { survived: res.survived });
     setOutcome({ ...res, advanced });
     setRun(res.nextRun);
@@ -155,7 +218,7 @@ export default function IntlTournamentScreen() {
     // the draw, a defenceman gets in the lane. There is one of those per
     // tournament, so spending it in the quarter-final leaves the final with no
     // net under you.
-    const isDecider = round.key === 'FINAL' || round.key === 'BRONZE' || round.key === 'DECIDER';
+    const isDecider = ['FINAL', 'BRONZE', 'DECIDER', 'RELEG'].includes(round.key);
     if (wasRead && round.kind === 'knockout' && !run.escapeUsed && !isDecider) {
       const pool = [...new Set(
         (getMinigamePool(player.pos) || []).map(m => GAME_TYPE_TO_KEY[m.gameType]).filter(Boolean)
@@ -195,8 +258,9 @@ export default function IntlTournamentScreen() {
   const handleLastChance = (isWin) => {
     if (lockRef.current) return;
     lockRef.current = true;
+    const kind = lastChance;
     setLastChance(null);
-    settle(picked.id, isWin);
+    settle(picked.id, isWin, kind);
     lockRef.current = false;
   };
 
@@ -272,10 +336,17 @@ export default function IntlTournamentScreen() {
             escape that does not exist in one. The tape rule holds all
             tournament rather than belonging to a stage, so it stays. */}
         {(() => {
-          const medal = ['FINAL', 'BRONZE', 'DECIDER'].includes(round?.key);
+          const medal = ['FINAL', 'BRONZE'].includes(round?.key);
+          const decider = ['DECIDER', 'RELEG'].includes(round?.key);
           const stage = !round ? null
             : round.kind === 'group'
-              ? ['This game', `A group game. Bank ${PTS_TO_ADVANCE} points to get out: read them cleanly for 3, scrape through for 1.`]
+              ? ['This game', run.isOlympics
+                  ? 'A group game. Nobody goes out in the group, but the winner skips the qualification playoff.'
+                  : run.isTopDiv
+                    ? 'A group game. The top three go through, and last place plays a relegation game.'
+                    : 'A group game. Win the group to play for promotion. Finish last and you play to stay up.']
+              : decider
+                ? ['This game', `${round.label}. Get read and it's over, and there's no escape in one of these.`]
               : medal
                 ? ['This game', 'A medal game. Get read and it\'s over, and there\'s no escape in one of these.']
                 : ['This game', run?.escapeUsed
@@ -283,6 +354,7 @@ export default function IntlTournamentScreen() {
                     : 'A knockout. Get read and you\'re out, unless you spend your one escape.'];
           return [
             stage,
+            round?.kind === 'group' ? ['Points', '3 for a win, 2 for a win in overtime, 1 for a loss in overtime, none for a loss in regulation.'] : null,
             ['On tape', 'Every play you run gets watched. They look there first next time.']
           ].filter(Boolean);
         })().map(([term, rule]) => (
@@ -296,6 +368,13 @@ export default function IntlTournamentScreen() {
       </div>
 
       <RunLine run={run} />
+
+      {/* The group, while it's being played and for the game that comes out
+          of it. */}
+      {!done && run.group && (round?.kind === 'group' || outcome?.entry?.kind === 'group'
+        || ['RELEG', 'DECIDER'].includes(round?.key)) && (
+        <GroupTable run={run} nations={safeNationalities} />
+      )}
 
       {/* TOURNAMENT OVER */}
       {done ? (
@@ -473,6 +552,10 @@ export default function IntlTournamentScreen() {
                     : outcome.entry.rescued
                       ? `They had ${picked.name.toLowerCase()} scouted and took it away, and you dragged the game out of the fire anyway.`
                       : `They had ${picked.name.toLowerCase()} scouted. Every time you went to it there were two of them waiting.`}
+                  {/* A big night in a game he was only in for. */}
+                  {outcome.earnedSpot && !outcome.advanced.finish && (isG
+                    ? " The coaches liked what they saw, and the net is yours for the next one."
+                    : ` ${outcome.entry.line.g + outcome.entry.line.a} points tonight, and the coach told you after the game that you're in the lineup for the next one.`)}
                 </p>
                 <div className="flex justify-center gap-2 flex-wrap mt-4 text-[10px] font-black sports-font tracking-widest">
                   {outcome.sat ? (
@@ -491,6 +574,11 @@ export default function IntlTournamentScreen() {
                   ) : (
                     <span className="px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] text-slate-300">
                       {outcome.entry.line.g}G {outcome.entry.line.a}A
+                    </span>
+                  )}
+                  {outcome.entry.line?.soWinner && (
+                    <span className="px-2.5 py-1 rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]">
+                      SHOOTOUT WINNER
                     </span>
                   )}
                   {outcome.entry.pts > 0 && (

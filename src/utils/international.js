@@ -12,8 +12,12 @@
 // knockout games bolted on afterwards as random minigames. The tournament is
 // played game by game now, in intlRun, so none of that is left.
 
-export function resolveNatDivision(player, safeNationalities) {
-  if (player?.natDiv) return player.natDiv;
+// The World Juniors have their own divisions, kept on natDivU20; the Worlds
+// and the Olympics read the senior one.
+export function resolveNatDivision(player, safeNationalities, context = null) {
+  if (context === 'wjc') {
+    if (player?.natDivU20) return player.natDivU20;
+  } else if (player?.natDiv) return player.natDiv;
   const nat = (safeNationalities || []).find(n => n.id === player?.nat);
   return nat?.division || 'Top Division';
 }

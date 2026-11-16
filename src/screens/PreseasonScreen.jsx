@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../utils/appHelpers';
-import { cap, recomputeOvr } from '../utils/gameHelpers';
+import { cap, recomputeOvr, withTeamArticle } from '../utils/gameHelpers';
 import { statPillClass } from '../utils/statColors';
 import { CHOICE_ROW, kickerClass, TITLE_MD, TITLE_SM } from '../utils/ui';
 
@@ -77,7 +77,7 @@ export default function PreseasonScreen() {
     switch (move.reason) {
       case 'CLAIMED':
         return { title: '⏳ CLAIMED OFF WAIVERS', type: 'DEMOTION', label: 'Fresh start', sub: 'A club that wanted you badly enough to claim you.',
-          desc: `Your GM put you on waivers to send you down, and another club put in a claim before the deadline. You play for the ${getFullTeamName(move.team, 'NHL')} now.` };
+          desc: `Your GM put you on waivers to send you down, and another club put in a claim before the deadline. You play for ${withTeamArticle(getFullTeamName(move.team, 'NHL'), 'NHL')} now.` };
       case 'WAIVERS':
         return { title: '📉 CLEARED WAIVERS', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `Camp broke and your name went on the waiver wire. Nobody claimed you in the twenty-four hours, so you report to the ${ahl()} to start the year.` };
@@ -86,12 +86,12 @@ export default function PreseasonScreen() {
           desc: `The club would rather you played big minutes than sat in the press box. You start the year with the ${ahl()}. You're still waiver-exempt, so no other club got the chance to claim you.` };
       case '9_GAME_RULE':
         return { title: '📉 RETURNED TO JUNIOR', type: 'DEMOTION', label: 'Head down, work', sub: 'Go back and make it impossible to send you down again.',
-          desc: `After training camp, the front office decided you need one more year of seasoning. You have been returned to the ${getFullTeamName(move.team, move.lg)}.` };
+          desc: `After training camp, the front office decided you need one more year of seasoning. You have been returned to ${withTeamArticle(getFullTeamName(move.team, move.lg), move.lg)}.` };
       case 'JUNIOR_ASSIGNMENT':
         // Not a demotion. He signed, he came to camp, and the club decided he
         // plays another year where he already is.
         return { title: '🏒 BACK TO JUNIOR FOR A YEAR', type: 'ASSIGNMENT', label: 'Go and dominate it', sub: 'One more year as the best player in the league.',
-          desc: `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You're back with the ${getFullTeamName(move.team, move.lg)}, and they expect you to carry it.` };
+          desc: `You signed, you came to camp, and the staff told you what they tell most of their first-rounders: go and be the best player in your league for one more year. You're back with ${withTeamArticle(getFullTeamName(move.team, move.lg), move.lg)}, and they expect you to carry it.` };
       case 'CAMP_ASSIGNMENT':
         return { title: '📉 ASSIGNED TO THE AHL', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `Camp broke and the list went up without your name on the NHL side of it. You have been assigned to the ${ahl()} to start the year, which is where they put the ones they aren't finished with.` };

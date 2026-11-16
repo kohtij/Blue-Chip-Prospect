@@ -848,7 +848,7 @@ export default function RecapScreen() {
                                 className="inline-flex items-center gap-1.5 text-left text-slate-300 hover:text-white cursor-pointer">
                           {showAllMoments
                             ? 'Hide them'
-                            : `${list.length} ${list.length === 1 ? 'moment' : 'moments'} from the year. Show them`}
+                            : `${list.length} ${list.length === 1 ? 'moment' : 'moments'} from the year`}
                           <span aria-hidden="true" className={`text-[#c084fc] transition-transform ${showAllMoments ? 'rotate-180' : ''}`}>▾</span>
                         </button>
                       </RecapRow>

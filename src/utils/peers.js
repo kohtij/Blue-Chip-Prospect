@@ -161,7 +161,10 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
       // pm and toiGames are the defenceman's half of a career. They were
       // simulated every season and banked nowhere, so every comparison in the
       // game fell back to his points.
-      career: { gp: 0, g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, toiGames: 0, sho: 0, saves: 0, shots: 0, wins: 0, losses: 0, otl: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0 }
+      career: { gp: 0, g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, toiGames: 0, sho: 0, saves: 0, shots: 0, wins: 0, losses: 0, otl: 0, titles: 0, trophies: 0, allStars: 0, seasons: 0,
+        // The NHL part of it on its own, which is what a career score is
+        // built from. See peerCareerScore in utils/careerScore.jsx.
+        nhl: { ...EMPTY_NHL } }
     });
   }
 
@@ -482,6 +485,24 @@ const JUNIOR_GAMES = {
   KHL: 68, CZECH: 52, SLOVAK: 50, SWISS: 52, DEL: 56, SHL: 52
 };
 
+const EMPTY_NHL = { seasons: 0, gp: 0, g: 0, a: 0, pm: 0, blk: 0, sog: 0, fot: 0, fow: 0, toiGames: 0, sho: 0, saves: 0, shots: 0, hundred: 0, fifty: 0 };
+
+// A season added to his NHL record, if it was an NHL season.
+function addNhl(nhl, season) {
+  if (!nhl) return nhl;
+  if (season.league !== 'NHL') return nhl;
+  const pts = (season.g || 0) + (season.a || 0);
+  return {
+    seasons: nhl.seasons + 1,
+    gp: nhl.gp + (season.gp || 0), g: nhl.g + (season.g || 0), a: nhl.a + (season.a || 0),
+    pm: nhl.pm + (season.pm || 0), blk: nhl.blk + (season.blk || 0), sog: nhl.sog + (season.sog || 0),
+    fot: nhl.fot + (season.fot || 0), fow: nhl.fow + (season.fow || 0),
+    toiGames: nhl.toiGames + (season.avgToi || 0) * (season.gp || 0),
+    sho: nhl.sho + (season.sho || 0), saves: nhl.saves + (season.saves || 0), shots: nhl.shots + (season.shots || 0),
+    hundred: nhl.hundred + (pts >= 100 ? 1 : 0), fifty: nhl.fifty + ((season.g || 0) >= 50 ? 1 : 0)
+  };
+}
+
 function playPeerSeason(peer) {
   const ovr = Math.max(0, ovrAt(peer));
   const tier = leagueFor(ovr, peer.age);
@@ -672,7 +693,10 @@ function playPeerSeason(peer) {
       titles: peer.career.titles,
       trophies: peer.career.trophies || 0,
       allStars: peer.career.allStars,
-      seasons: peer.career.seasons + 1
+      seasons: peer.career.seasons + 1,
+      // Only for a class built since this was kept: an older one would start
+      // the count halfway through a career, which is worse than estimating.
+      nhl: addNhl(peer.career.nhl, season)
     }
   };
 }

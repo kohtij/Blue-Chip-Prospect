@@ -70,7 +70,7 @@ import { handleEventChoice as _handleEventChoice } from './handlers/handleEventC
 import { checkPlayoffs as _checkPlayoffs } from './handlers/checkPlayoffs';
 import { waiverExempt } from './utils/waivers';
 import { makesNhlRoster, parentOf } from './utils/rosterMoves';
-import { isNineGameCandidate } from './utils/gameHelpers';
+import { isNineGameCandidate, withTeamArticle } from './utils/gameHelpers';
 
 function App() {
   const [screen, setScreen] = useState('creation');
@@ -1263,7 +1263,7 @@ function App() {
     if (rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team)) unlockAchievement('betrayal');
     if (player.draftTeam === o.team && player.team !== o.team) {
        unlockAchievement('return_home');
-       setSeasonEvents(prev => [...prev, { feedback: `You're back with ${getFullTeamName(o.team, o.league)}, the team that drafted you.`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
+       setSeasonEvents(prev => [...prev, { feedback: `You're back with ${withTeamArticle(getFullTeamName(o.team, o.league), o.league)}, the team that drafted you.`, effect: { fanStatus: 50, ovr: 0, money: 0 } }]);
     }
     if (o.type === 'FREE AGENCY' && player.age >= 35) unlockAchievement('vet_contract');
 
@@ -1457,6 +1457,15 @@ function App() {
   const proceedToNextScreen = (currentEvent, currentMgContext, currentPlayer) => {
     setActiveEvent(null);
     setMinigameContext('season');
+
+    // The camp battle is played after the summer's training card has been
+    // picked, so it hands back to the summer, which starts the season. Sending
+    // it to the preseason screen dealt the card hand a second time and gave
+    // him two upgrades in one camp.
+    if (currentMgContext === 'camp' && currentPlayer?.offseason) {
+      advanceToOffseason(currentPlayer);
+      return;
+    }
 
     // 1. PRESEASON & TRAINING CAMP ALWAYS RETURN TO PRESEASON
     if (['preseason', 'training', 'camp'].includes(currentMgContext)) {

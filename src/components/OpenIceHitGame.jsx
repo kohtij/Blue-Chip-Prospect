@@ -14,12 +14,13 @@ import { Stage, Hud, Pips, Verdict, Callout, ActionButton } from './minigame/She
 // it and he's in alone. So on every rush you watch his head first and the
 // distance second.
 //
-// Three rushes, two needed. Hit a man with his head down while he's in reach,
+// Four rushes, three needed. Hit a man with his head down while he's in reach,
 // or hold your ground on a man who's looked up. Anything else is a rush lost:
-// too early and he skates round you, too late and it's interference.
+// too early and he skates round you, too late and it's interference. It was
+// two of three, which a coin flip on each rush won half the time.
 
-const RUSHES = 3;
-const NEEDED = 2;
+const RUSHES = 4;
+const NEEDED = 3;
 
 const ME = [50, SLOT.slotRow];
 const END_Y = SLOT.screenRow + 2;

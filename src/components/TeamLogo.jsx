@@ -28,7 +28,10 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
   const altName = team?.fullName || (team?.city && team?.name ? `${team.city} ${team.name}` : team?.name) || teamId || '';
 
   // Standardized container sizing across components (SCALED UP)
-  const containerSize = size === "tiny"
+  // 'backdrop' is sized by its className: the crest behind the retirement hero.
+  const containerSize = size === "backdrop"
+    ? ""
+    : size === "tiny"
     ? "w-4 h-4 sm:w-5 sm:h-5"
     : size === "small"
       ? "w-10 h-10 sm:w-12 sm:h-12"
@@ -78,7 +81,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
         <img
           src={`https://assets.nhle.com/logos/nhl/svg/${teamId}_${nhlVariant}.svg`}
           alt={altName}
-          className="w-full h-full object-contain drop-shadow-lg scale-[1.28] transform-gpu"
+          className={`w-full h-full object-contain transform-gpu scale-[1.28] ${size === 'backdrop' ? '' : 'drop-shadow-lg'}`}
           onError={(e) => {
             if (nhlVariant === 'dark') { setNhlVariant('light'); return; }
             e.target.style.display = 'none'; setImgError(true);
@@ -95,12 +98,16 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
         <img
           src={finalLogoUrl}
           alt={altName}
-          className="w-full h-full object-contain drop-shadow-lg p-0.5"
+          className={`w-full h-full object-contain ${size === 'backdrop' ? '' : 'drop-shadow-lg p-0.5'}`}
           onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
         />
       </div>
     );
   }
+
+  // A backdrop with no picture is nothing: the lettered disc would sit across
+  // the whole hero.
+  if (size === 'backdrop') return null;
 
   return (
     <div 

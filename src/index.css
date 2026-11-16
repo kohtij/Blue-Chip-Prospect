@@ -190,13 +190,21 @@ body::after {
   animation: bcp-fade-up .32s ease-out both;
 }
 
-/* The strip across the top of every panel, in the club's colour. */
+/* The strip across the top of every panel, in the club's colour.
+   It used to be a flat 3px bar that relied on the panel's overflow: hidden to
+   trim it to the rounded corners. Safari on iPhone drops that clipping when a
+   panel has a composited layer inside it (the entry animation, the foil on an
+   event), so the bar ran square past both corners and sat on top of the
+   border. It's now the top border of a box with the panel's own corners, so it
+   curves and tapers into them by itself and needs no clipping at all. The
+   radius is the panel's 14px less its 1px border. */
 .game-panel::after {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 3px;
-  background: var(--club, var(--accent-blue));
+  height: 13px;
+  border-top: 3px solid var(--club, var(--accent-blue));
+  border-radius: 13px 13px 0 0;
   pointer-events: none;
 }
 
