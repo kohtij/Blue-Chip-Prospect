@@ -154,11 +154,15 @@ function awardReason(award, r, player, leagues) {
 }
 
 export default function RecapScreen() {
-  const { advanceToOffseason, isJunior, player, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
+  const { advanceToOffseason, isJunior, player, playoffs, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
   const [showAllMoments, setShowAllMoments] = useState(false);
   
   return (() => {
-          const titles = getPlayoffTitles(player.league);
+          // The league the title was won in is the one the playoffs were played
+          // in. The player's own league can have moved since: a call-up at
+          // the end of the year turned a Calder Cup into a Stanley Cup here.
+          const titleLg = (seasonRecap?.titleWon === 1 && playoffs?.currentLg) || player.league;
+          const titles = getPlayoffTitles(titleLg);
 
 
           let narrative;
@@ -213,7 +217,7 @@ export default function RecapScreen() {
           })();
 
           if (seasonRecap?.titleWon === 1 && streak >= 2) {
-             const cupName = player.league === 'NHL' ? 'the Stanley Cup' : (titles?.cupName || 'the Championship');
+             const cupName = titleLg === 'NHL' ? 'the Stanley Cup' : (titles?.cupName || 'the Championship');
              if (streak === 2) {
                  narrativeTitle = 'BACK-TO-BACK CHAMPIONS';
                  narrative = `Twice. Winning ${cupName} once can be a good year and a hot goaltender; winning it again is the part nobody manages. This team doesn't have to argue about it any more.`;
@@ -225,7 +229,7 @@ export default function RecapScreen() {
                  narrative = `${streak} in a row. Whatever the rest of the league is building, it's being built to beat you, and it isn't working. Nobody argues about the word dynasty any more.`;
              }
           } else if (seasonRecap?.titleWon === 1) {
-             if (player.league === 'NHL') {
+             if (titleLg === 'NHL') {
                  narrativeTitle = 'STANLEY CUP CHAMPIONS';
                  narrative = player.isCaptain
                    ? 'Your name goes on the Stanley Cup. You wore the C, so you were the first one to lift it.'

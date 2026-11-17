@@ -44,7 +44,12 @@ export const ordinal = (n) => {
   return `${num}${suffix}`;
 };
 
-export const cap = (val) => Math.min(100, Math.max(0, val));
+// The lowest an attribute goes. Nobody still playing pro hockey has none of
+// any of them, and a stat at zero was read back as the default of 50 in
+// places, so an old player's ratings could fall to nothing one summer and
+// come back as 50s the next.
+export const ATTR_FLOOR = 20;
+export const cap = (val) => Math.min(100, Math.max(ATTR_FLOOR, val));
 
 // Fans are people, so the number is a whole one. Rounded here as well as in
 // fanGain, because this is the floor every path to the value passes through
@@ -337,11 +342,13 @@ export const recomputeOvr = (p) => {
     console.warn('[recomputeOvr] called without pos, will default to forward formula. Caller should pass pos.', p);
   }
 
-  const sht = p.shooting || 50;
-  const skt = p.skating || 50;
-  const phy = p.physicality || 50;
-  const iq  = p.hockeyIQ || 50;
-  const sta = p.stamina || 50;
+  // Missing means 50; a real number, however low, counts as itself. These
+  // were `|| 50`, so a stat at zero rated as an average one.
+  const sht = cap(p.shooting ?? 50);
+  const skt = cap(p.skating ?? 50);
+  const phy = cap(p.physicality ?? 50);
+  const iq  = cap(p.hockeyIQ ?? 50);
+  const sta = cap(p.stamina ?? 50);
 
   if (p.pos === 'G') {
     return Math.round((sht * 0.3) + (skt * 0.3) + (phy * 0.2) + (iq * 0.1) + (sta * 0.1));
@@ -711,8 +718,15 @@ function _computeProgressionDelta({ player, trainingEffect, rating, newAge, coac
     st[s]++;
   }
 
+  // THE AGING CURVE. This took 0.4 a year and never stopped growing, which
+  // made an 85 overall at thirty a 72 at thirty-five and a fringe player at
+  // thirty-seven, and ran every attribute to nothing by forty. Real stars
+  // fade more slowly than that. Now it's 0.24 a year, levelling off at
+  // thirty-eight: the same 85 is about 79 at thirty-five, 72 at
+  // thirty-seven and high 50s at forty. The summer decline in
+  // advanceToOffseason comes on top.
   if (newAge >= 31) {
-    const agePenalty = (newAge - 30) * 0.40; 
+    const agePenalty = Math.min(1.8, (newAge - 30) * 0.24);
     
     st.skating     -= Math.floor((4 * agePenalty) * coachModifier);
     st.stamina     -= Math.floor((5 * agePenalty) * coachModifier);
@@ -1028,8 +1042,10 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const seedPct = Math.min(1, Math.max(0, (finalTeamFactor - 0.05) / 0.90));
   let standings = Math.max(1, Math.min(teamCount,
     Math.round(teamCount - seedPct * (teamCount - 1) + gaussianNoise() * 1.8)));
-  if (isEuroLg) standings = teamCount + 1; 
-  const madePlayoffs = !isEuroLg && standings <= playoffSpots;
+  // European leagues have tables and playoffs like any other. Every one of
+  // them used to be filed one place below last, outside the playoffs, so a
+  // season in Czechia read ninth of eight and never had a postseason.
+  const madePlayoffs = standings <= playoffSpots;
 
   let games;
   if (p.pos === 'G') {
@@ -1286,7 +1302,8 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   let playedLg = currentLg;
   let playedTeam = currentTeam;
 
-  if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21) {
+  // Only an NHL contract can be promoted; an AHL deal is with the AHL club.
+  if (currentLg === 'AHL' && rating >= 8.0 && p.age > 21 && onNhlContract(p)) {
     currentLg = 'NHL';
     const currentAhlTeam = ahlTeams.find(t => t.id === currentTeam);
     if (currentAhlTeam) {
@@ -1517,7 +1534,10 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   let newVal = Math.min(maxVal, Math.max(50000, decayedValue + valIncrease));
   
   if (coachModifier < 1) newVal = Math.max(50000, newVal - 500000);
-  const nextOvr = recomputeOvr({ pos: p.pos, shooting: newSht, skating: newSkt, physicality: newPhy, hockeyIQ: newIq, stamina: newSta });
+  // From the stored values, not the raw sums: the sums can run below the
+  // floor, and the rating was coming out negative while the stats beside it
+  // were stored at the floor.
+  const nextOvr = recomputeOvr({ pos: p.pos, shooting: cap(newSht), skating: cap(newSkt), physicality: cap(newPhy), hockeyIQ: cap(newIq), stamina: cap(newSta) });
   const newPeakOvr = Math.max((p.stats.peakOvr || p.ovr), nextOvr);
 
   // Each stint is credited to its own career bucket, so a nine-game NHL trial
@@ -1892,6 +1912,22 @@ export const accruedSeasons = (p) => {
 // makes him unrestricted whatever his age.
 export const isRestricted = (p) =>
   onNhlContract(p) && !p.contract?.boughtOut && (p.age || 0) < 27 && accruedSeasons(p) < 7;
+
+// Salary arbitration is a right a restricted free agent earns with
+// professional seasons, and how many he needs depends on how old he was when
+// he turned pro: four if he was 18 to 20, three at 21, two at 22 or 23 and one
+// after that. So most players coming off an entry-level deal signed out of
+// junior can't file, which is why their second contracts are bridge deals.
+// Seasons in the NHL or the AHL count.
+export const arbitrationEligible = (p) => {
+  const nowYear = 2026 + (p?.stats?.seasonsPlayed || 0);
+  const pro = (p?.seasonHistory || []).filter(s =>
+    ['NHL', 'AHL'].includes(s.league) || (s.stints || []).some(x => ['NHL', 'AHL'].includes(x?.league)));
+  if (!pro.length) return false;
+  const ageThen = (p.age || 0) - (nowYear - (pro[0].year ?? nowYear));
+  const need = ageThen <= 20 ? 4 : ageThen === 21 ? 3 : ageThen <= 23 ? 2 : 1;
+  return pro.length >= need;
+};
 
 // has a junior club to go back to, so a European or college prospect goes to
 // the AHL instead and never sees this.

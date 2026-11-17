@@ -308,10 +308,13 @@ export function handleTrain(ctx, t) {
       blk: sum.blocks || 0,
       sog: sum.sog || 0, fot: sum.fot || 0, fow: sum.fow || 0, pim: sum.pim || 0
     };
+    // The league's own number of playoff spots. Sixteen was the NHL's, and a
+    // table with fewer clubs than that had everybody in.
+    const inPlayoffs = last.standings <= (LEAGUE_CONFIG?.[last.league]?.playoffSpots ?? 16);
     return {
-      recap: { ...tot, standings: last.standings, madePlayoffs: last.standings <= 16, awards: [] },
+      recap: { ...tot, standings: last.standings, madePlayoffs: inPlayoffs, awards: [] },
       currentLg: last.league, currentTeam: last.team,
-      madePlayoffs: last.standings <= 16, partial: true, stints
+      madePlayoffs: inPlayoffs, partial: true, stints
     };
   };
 

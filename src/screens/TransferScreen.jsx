@@ -343,6 +343,8 @@ export default function TransferScreen() {
                       <div className="mt-auto flex flex-col gap-2 z-10 relative">
                          
                          {/* INJECTED QUALIFYING OFFER & ARBITRATION BUTTONS */}
+                         {/* Arbitration is only there for a player who has earned
+                             the right to file. See arbitrationEligible. */}
                          {qoOffer && (
                            <div className="w-full flex gap-2 mb-1">
                              <button 
@@ -354,6 +356,7 @@ export default function TransferScreen() {
                                  {qoOffer.salary >= 1000000 ? `$${(qoOffer.salary / 1000000).toFixed(1)}M/yr` : `$${(qoOffer.salary / 1000).toFixed(0)}K/yr`}
                                </span>
                              </button>
+                             {qoOffer.arbitration && (
                              <button 
                                onClick={() => handleArbitration(qoOffer)} 
                                className="btn-danger flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest text-[9px] sm:text-[10px] flex flex-col items-center leading-tight"
@@ -363,6 +366,7 @@ export default function TransferScreen() {
                                  1-Yr Hearing
                                </span>
                              </button>
+                             )}
                            </div>
                          )}
 
@@ -384,9 +388,9 @@ export default function TransferScreen() {
                              back, so it sits at the bottom edge of every card, in
                              the same place whether or not there is anything above
                              it. */}
-                         {(o.type === 'QUALIFYING OFFER' || (!o.negotiated && o.type !== 'SCHOLARSHIP')) && (
+                         {((o.type === 'QUALIFYING OFFER' && o.arbitration) || (!o.negotiated && o.type !== 'SCHOLARSHIP' && o.type !== 'QUALIFYING OFFER')) && (
                            <div className="flex gap-2 mb-1">
-                             {o.type === 'QUALIFYING OFFER' && !qoOffer && (
+                             {o.type === 'QUALIFYING OFFER' && o.arbitration && !qoOffer && (
                                <button onClick={() => handleArbitration(o)} className="btn-danger flex-1 py-2 rounded-xl sports-font tracking-widest text-[9px] sm:text-[10px] cursor-pointer">
                                  ARBITRATION
                                </button>
@@ -465,7 +469,7 @@ export default function TransferScreen() {
                   <p className={`px-4 py-2 text-[11px] font-bold border-t border-[rgba(255,255,255,0.06)] ${
                     short > market.anchor * 0.08 ? 'text-[#ef4444]' : short >= 0 ? 'text-slate-300' : 'text-[#22E748]'}`}>
                     {short > market.anchor * 0.08
-                      ? `Your best offer pays ${formatComp(best)}, ${formatComp(short)} less than your market value.`
+                      ? `Your best offer pays ${formatComp(best)}, ${formatComp(short)} less than your market value${isRestricted(player) ? ', which is normal for a restricted free agent' : ''}.`
                       : short >= 0
                         ? `Your best offer pays ${formatComp(best)}, close to your market value.`
                         : `Your best offer pays ${formatComp(best)}, ${formatComp(-short)} more than your market value.`}

@@ -133,7 +133,7 @@ export const eventDeck = [
     title: 'The Viral Moment',
     desc: 'A clip of you pulling off a ridiculous highlight-reel move in warmups is blowing up online. A brand wants you to lean into it.',
     choices: [
-      { label: 'Post the whole routine', subLabel: "Lean all the way into the attention.", isRisky: true, successChance: 0.6, successFeedback: 'You broke the internet. Your following (and your Q rating) explodes.', successEffect: { fanStatus: 35, ovr: 0, money: 45000 }, failFeedback: 'A rival captain called you a clown in the press and it stuck.', failEffect: { fanStatus: -15, ovr: 0, money: 45000 } },
+      { label: 'Post the whole routine', subLabel: "Lean all the way into the attention.", isRisky: true, successChance: 0.6, successFeedback: 'You broke the internet. Your following explodes, and the sponsors start calling.', successEffect: { fanStatus: 35, ovr: 0, money: 45000 }, failFeedback: 'A rival captain called you a clown in the press and it stuck.', failEffect: { fanStatus: -15, ovr: 0, money: 45000 } },
       { label: 'Stay humble, say nothing', subLabel: "Let the clip speak for itself.", isRisky: false, feedback: 'You let your game do the talking. Old-school respect from the room.', effect: { fanStatus: 5, ovr: 1, money: 0 } }
     ]
   },

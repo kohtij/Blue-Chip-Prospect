@@ -2,6 +2,7 @@
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
 import { fanGain, generatePlayoffDeck, singleGameScore } from '../utils/gameHelpers';
 import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
+import { seedNextRound } from './checkPlayoffs';
 
 export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
   const { player, playoffs, setPlayer, setPlayoffs, unlockAchievement } = ctx;
@@ -107,50 +108,32 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
       if (overallStatus === 'eliminated') {
         // Simulate the rest of the bracket after elimination so the recap has a champion.
         for (let r = rIndex; r < totalRounds - 1; r++) {
-          const currR = newBracket[r];
-          const nextR = [...newBracket[r + 1]];
           const currWN = getWinsNeeded(playoffs.currentLg, r);
           const nextWN = getWinsNeeded(playoffs.currentLg, r + 1);
           const nextIsFF = getGamesPerMatchup(playoffs.currentLg, r + 1) === 1;
 
-          for (let i = 0; i < currR.length; i += 2) {
-            const m1 = currR[i];
-            const m2 = currR[i + 1];
-            const adv1 = m1.wins1 >= currWN ? m1.team1 : m1.team2;
-            const adv2 = m2.wins1 >= currWN ? m2.team1 : m2.team2;
-
+          // seedNextRound knows a play-in round from an ordinary one.
+          newBracket[r + 1] = seedNextRound(newBracket[r], newBracket[r + 1], currWN, playoffs.currentTeamId).map(m => {
             const t1W = Math.random() > 0.5;
             const lw = nextIsFF ? 0 : Math.floor(Math.random() * nextWN);
-
-            if (nextR[Math.floor(i / 2)]) {
-              nextR[Math.floor(i / 2)] = {
-                ...nextR[Math.floor(i / 2)],
-                team1: adv1,
-                team2: adv2,
-                status: 'simulated',
-                wins1: t1W ? nextWN : lw,
-                wins2: t1W ? lw : nextWN
-              };
-            }
-          }
-          newBracket[r + 1] = nextR;
+            return {
+              ...m,
+              isPlayerSeries: false,
+              status: 'simulated',
+              wins1: t1W ? nextWN : lw,
+              wins2: t1W ? lw : nextWN
+            };
+          });
         }
       } else if (matchStatus === 'won') {
         if (rIndex + 1 < totalRounds) {
-          const nextR = [...newBracket[rIndex + 1]];
-          const currWN = winsNeeded;
           const nextRoundIdx = rIndex + 1;
 
-          for (let i = 0; i < newRound.length; i += 2) {
-            const m1 = newRound[i];
-            const m2 = newRound[i + 1];
-            const adv1 = m1.wins1 >= currWN ? m1.team1 : m1.team2;
-            const adv2 = m2.wins1 >= currWN ? m2.team1 : m2.team2;
-
-            const isPlayerMatch = adv1.id === playoffs.currentTeamId || adv2.id === playoffs.currentTeamId;
-            let t1 = adv1;
-            let t2 = adv2;
-            if (isPlayerMatch && adv2.id === playoffs.currentTeamId) { t1 = adv2; t2 = adv1; }
+          // seedNextRound knows a play-in round from an ordinary one, and puts
+          // his club first in its matchup.
+          const seeded = seedNextRound(newRound, newBracket[rIndex + 1], winsNeeded, playoffs.currentTeamId);
+          const nextR = seeded.map(m => {
+            const isPlayerMatch = m.team1?.id === playoffs.currentTeamId;
 
             const nextGpm = getGamesPerMatchup(playoffs.currentLg, nextRoundIdx);
             // On a tournament board there is nothing to deal: the next round
@@ -165,10 +148,8 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
                     }))
               : null;
 
-            nextR[Math.floor(i / 2)] = {
-              ...nextR[Math.floor(i / 2)],
-              team1: t1,
-              team2: t2,
+            return {
+              ...m,
               isPlayerSeries: isPlayerMatch,
               status: 'playing',
               deck: nextDeck,
@@ -176,7 +157,7 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
               wins2: 0,
               revealed: []
             };
-          }
+          });
           newBracket[rIndex + 1] = nextR;
 
           // A series keeps its round on screen so the player sees every card he
@@ -194,9 +175,10 @@ export function handleGridClick(ctx, rIndex, mIndex, cIndex) {
             ...p,
             fanStatus: fanGain(p.fanStatus, 30)
           });
-          if (player.league === 'NHL') unlockAchievement('stanley_cup');
-          if (player.league === 'AHL') unlockAchievement('ahl_champ');
-          if (player.league === 'NCAA') unlockAchievement('ncaa_champ');
+          const lg = playoffs.currentLg || player.league;
+          if (lg === 'NHL') unlockAchievement('stanley_cup');
+          if (lg === 'AHL') unlockAchievement('ahl_champ');
+          if (lg === 'NCAA') unlockAchievement('ncaa_champ');
         }
       }
     }

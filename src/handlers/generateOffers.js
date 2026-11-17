@@ -1,6 +1,7 @@
 import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams, delTeams, icehlTeams } from '../data/teams';
 import { shopItems } from '../data/economy';
-import { getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
+import { arbitrationEligible, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
+import { nhlGamesIn } from '../utils/rosterMoves';
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
 import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
@@ -137,6 +138,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     let market = null;
 
     const isRFA = actingLeague === 'NHL' && isRestricted({ ...player, league: 'NHL' });
+    const canArbitrate = isRFA && arbitrationEligible(player);
 
     // Force NHL logic if actingLeague is NHL. Impossible to get $165k here.
     if (actingLeague === 'NHL') {
@@ -170,6 +172,13 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       }
       minYears = Math.min(minYears, maxYears);
 
+      // A restricted free agent has less leverage than an unrestricted one.
+      // Without arbitration rights his only threat is an offer sheet, so his
+      // second deal is usually a bridge well under what the same numbers earn
+      // on the open market; with them, the hearing pulls the price most of the
+      // way back up. Every RFA used to be priced as if he could walk.
+      if (isRFA) baseSalary *= canArbitrate ? 0.88 : 0.72;
+
       // The maximum contract is twenty per cent of the cap, as the real one is,
       // rather than a hand-written number needing its own inflation term.
       baseSalary = Math.min(cap * 0.20, baseSalary);
@@ -199,6 +208,15 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
          setEventFeedback("The front office thinks you're a problem in the room, and they have told your agent there will be no extension. You're going to the open market.");
          teamDidNotExtend = true;
       } 
+      // A club qualifies the restricted players it means to keep. One who
+      // spent the year in the minors and isn't close to a job up top often
+      // isn't qualified at all, and becomes unrestricted. Before this only a
+      // player under 65 could go unqualified, so every RFA was.
+      else if (isRFA && nhlGamesIn((player.seasonHistory || []).slice(-1)[0]) < 20 && player.ovr < 70
+               && Math.random() < (coachTrust > 75 ? 0.35 : 0.55)) {
+         setEventFeedback("Your club didn't send you a qualifying offer. You're an unrestricted free agent.");
+         teamDidNotExtend = true;
+      }
       // High Front Office trust saves fringe players from being cut
       else if (player.ovr < 65 && Math.random() > (coachTrust > 75 ? 0.85 : 0.60)) {
          setEventFeedback(isRFA ? "Your team elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent." : "Your team elected not to extend your contract. You're now a UFA.");
@@ -235,7 +253,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
            team: actingTeam,
            league: actingLeague,
            type: 'EXTENSION', // FIX: Forces the UI to actually render this fair-market offer!
-           salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15)) : baseSalary,
+           // Never under the qualifying offer: he could simply take that.
+           salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15))
+             : isRFA ? Math.max(baseSalary, Math.round(qoSalary / 25000) * 25000) : baseSalary,
            years: maxYears,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
            fanHit: 10,
@@ -250,6 +270,8 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                league: actingLeague,
                type: 'QUALIFYING OFFER',
                salary: qoSalary,
+               // Whether he can take the club to a hearing instead.
+               arbitration: canArbitrate,
                years: 1, // QOs are strictly 1-year deals
                role: 'Two-Way Deal', // QOs offer no roster guarantees
                fanHit: 0,

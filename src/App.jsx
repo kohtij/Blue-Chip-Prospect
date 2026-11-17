@@ -70,7 +70,7 @@ import { handleEventChoice as _handleEventChoice } from './handlers/handleEventC
 import { checkPlayoffs as _checkPlayoffs } from './handlers/checkPlayoffs';
 import { waiverExempt } from './utils/waivers';
 import { makesNhlRoster, parentOf } from './utils/rosterMoves';
-import { isNineGameCandidate, withTeamArticle } from './utils/gameHelpers';
+import { isNineGameCandidate, onNhlContract, withTeamArticle } from './utils/gameHelpers';
 
 function App() {
   const [screen, setScreen] = useState('creation');
@@ -985,7 +985,8 @@ function App() {
     // player usually needs a year or two in the AHL first, as in real life.
     if (player.league === 'AHL') {
       const parent = parentOf(player.team);
-      if (parent && makesNhlRoster(player)) return { team: parent.id, lg: 'NHL', reason: 'PROMOTION' };
+      // Only an NHL contract can be promoted. An AHL deal is with the AHL club.
+      if (parent && onNhlContract(player) && makesNhlRoster(player)) return { team: parent.id, lg: 'NHL', reason: 'PROMOTION' };
     }
     if (wonRecentTitle) return null;
     const needsAHLDevelopment = player.league === 'NHL' && !makesNhlRoster(player);
@@ -1382,6 +1383,10 @@ function App() {
   }; 
 
   const handleArbitration = (offer) => {
+    // The hearing starts from the same market the offers were priced on. It
+    // had its own formula on his rating alone, so a club could be offering
+    // five million on the screen before it while the arbitrator opened at one.
+    const anchor = offer?.market?.anchor;
     let baseline;
     const careerAwards = player.stats?.awards || [];
     const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
@@ -1392,6 +1397,7 @@ function App() {
     else baseline = 900000 + 150000 + ((player.ovr - 70) * 100000);
 
     if (isSuperstar) baseline = Math.max(baseline, 10500000);
+    if (anchor > 0) baseline = anchor;
     baseline = Math.min(13500000, baseline); 
 
     const teamOffer = Math.round((baseline * 0.70) / 25000) * 25000;
@@ -1428,15 +1434,15 @@ function App() {
       const next = { ...p, stats, inventory: [...(p.inventory || []), item.id] };
       
       // Apply the intended stats
-      if (item.effect?.stamina) next.stamina = cap((next.stamina || 50) + item.effect.stamina);
-      if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ || 50) + item.effect.hockeyIQ);
+      if (item.effect?.stamina) next.stamina = cap((next.stamina ?? 50) + item.effect.stamina);
+      if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ ?? 50) + item.effect.hockeyIQ);
       if (item.effect?.fanStatus) next.fanStatus = fanGain(next.fanStatus, item.effect.fanStatus);
-      if (item.effect?.physicality) next.physicality = cap((next.physicality || 50) + item.effect.physicality);
-      if (item.effect?.shooting) next.shooting = cap((next.shooting || 50) + item.effect.shooting);
-      if (item.effect?.skating) next.skating = cap((next.skating || 50) + item.effect.skating);
+      if (item.effect?.physicality) next.physicality = cap((next.physicality ?? 50) + item.effect.physicality);
+      if (item.effect?.shooting) next.shooting = cap((next.shooting ?? 50) + item.effect.shooting);
+      if (item.effect?.skating) next.skating = cap((next.skating ?? 50) + item.effect.skating);
       
       // Safety net: Catch the "power" typo and route it to physicality
-      if (item.effect?.power) next.physicality = cap((next.physicality || 50) + item.effect.power);
+      if (item.effect?.power) next.physicality = cap((next.physicality ?? 50) + item.effect.power);
       
       // Recompute OVR so the upgrade instantly reflects on the player card
       next.ovr = recomputeOvr(next);

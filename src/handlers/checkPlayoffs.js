@@ -6,6 +6,49 @@ import { getGamesPerMatchup, getWinsNeeded } from '../utils/appHelpers';
 
 const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
 
+// THE PLAY-IN.
+//
+// Some leagues open with a round the top seeds skip. The Czech pre-playoffs
+// are fifth to twelfth, best of five, while the top four wait in the
+// quarterfinal; the Swiss and Slovak play-ins are seventh to tenth, with the
+// top six through. The bracket used to pair every round off by halving the
+// one before, which those formats break: four play-in winners can't make a
+// quarterfinal of eight on their own.
+//
+// The byes are the gap: the next round's places less the play-in's winners.
+// Zero for every format that simply halves.
+export const playInByes = (rounds) => {
+  if (!rounds || rounds.length < 2) return 0;
+  const winners = rounds[0].teams / 2;
+  return rounds[1].teams > winners ? rounds[1].teams - winners : 0;
+};
+
+/**
+ * The next round with its teams filled in from the one just finished. A round
+ * after a play-in says which play-in series feeds each of its matchups
+ * (`feed`), with the seed that had the bye already in place; every other
+ * round pairs the winners of neighbouring series. The player's club is
+ * always team1. Statuses, decks and scores are the caller's.
+ */
+export function seedNextRound(prev, next, prevWN, teamId) {
+  const winner = (m) => (m.wins1 >= prevWN ? m.team1 : m.team2);
+  const playerFirst = (a, b) => (b?.id === teamId ? [b, a] : [a, b]);
+  if (next.some(m => typeof m.feed === 'number')) {
+    return next.map(m => {
+      if (typeof m.feed !== 'number' || !prev[m.feed]) return { ...m };
+      const [team1, team2] = playerFirst(m.team1, winner(prev[m.feed]));
+      return { ...m, team1, team2 };
+    });
+  }
+  return next.map((m, k) => {
+    const m1 = prev[2 * k];
+    const m2 = prev[2 * k + 1];
+    if (!m1 || !m2) return { ...m };
+    const [team1, team2] = playerFirst(winner(m1), winner(m2));
+    return { ...m, team1, team2 };
+  });
+}
+
 // Plays one series out with a fixed per-game win chance for team 1.
 function simulateSeries(p1, winsNeeded, gamesPerMatchup) {
   if (gamesPerMatchup === 1) {
@@ -31,7 +74,8 @@ function simulateBracketWithoutPlayer({ bracket, currentLg, currentTeamId, stand
   const absencePenalty = clamp((playerOvr - 70) * 0.003, 0, 0.06);
 
   let playerAlive = true;
-  let lastPlayerRound = 0;
+  // A seed with a bye starts in the second round.
+  let lastPlayerRound = bracket[0]?.some(m => m.isPlayerSeries) ? 0 : 1;
 
   for (let r = 0; r < totalRounds; r++) {
     const round = bracket[r];
@@ -39,31 +83,18 @@ function simulateBracketWithoutPlayer({ bracket, currentLg, currentTeamId, stand
     // Seed this round from the previous winners, using the same pairing rule the
     // live bracket uses, and keep the player's club as team1.
     if (r > 0) {
-      const prev = bracket[r - 1];
-      const prevWN = getWinsNeeded(currentLg, r - 1);
-      for (let i = 0; i < prev.length; i += 2) {
-        const m1 = prev[i];
-        const m2 = prev[i + 1];
-        const slot = Math.floor(i / 2);
-        if (!m1 || !m2 || !round[slot]) continue;
-        const adv1 = m1.wins1 >= prevWN ? m1.team1 : m1.team2;
-        const adv2 = m2.wins1 >= prevWN ? m2.team1 : m2.team2;
-        const isPlayerMatch = playerAlive && (adv1.id === currentTeamId || adv2.id === currentTeamId);
-        let t1 = adv1;
-        let t2 = adv2;
-        if (isPlayerMatch && adv2.id === currentTeamId) { t1 = adv2; t2 = adv1; }
+      const seeded = seedNextRound(bracket[r - 1], round, getWinsNeeded(currentLg, r - 1), currentTeamId);
+      seeded.forEach((m, slot) => {
         round[slot] = {
-          ...round[slot],
-          team1: t1,
-          team2: t2,
-          isPlayerSeries: isPlayerMatch,
+          ...m,
+          isPlayerSeries: playerAlive && m.team1?.id === currentTeamId,
           wins1: 0,
           wins2: 0,
           revealed: [],
           deck: null,
           status: 'playing'
         };
-      }
+      });
     }
 
     const winsNeeded = getWinsNeeded(currentLg, r);
@@ -167,8 +198,15 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
     // Decide which R1 matchup index the player occupies. West indices come first (0..halfSize-1)
     // so West sits on the LEFT of the bracket per user preference, East on the right.
     const firstRoundMatchups = rounds[0].teams / 2;
+    // A top seed in a league with a play-in skips the first round. See playInByes.
+    const byes = hasConfs ? 0 : playInByes(rounds);
+    const playerHasBye = byes > 0 && (standings || 99) <= byes;
+    const byeMatchups = byes > 0 ? rounds[1].teams / 2 : 0;
+    const playerByeIdx = playerHasBye ? Math.floor(Math.random() * byeMatchups) : -1;
     let playerMatchIdx;
-    if (hasConfs) {
+    if (playerHasBye) {
+      playerMatchIdx = -1;
+    } else if (hasConfs) {
       const halfSize = Math.floor(firstRoundMatchups / 2);
       if (playerConf === 'West') {
         playerMatchIdx = Math.floor(Math.random() * halfSize);
@@ -245,6 +283,25 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
             revealed: [],
             divisionLabel: getDivLabel(m, numMatchups)
           });
+        } else if (r === 1 && byes > 0) {
+          // The seeds who skipped the play-in are waiting here. Each of the
+          // first few faces a play-in winner (feed); the rest play each other.
+          const getBackupTeam = () => allOpponents[Math.floor(Math.random() * allOpponents.length)] || { name: 'TBD', id: 'TBD' };
+          const isPlayer = m === playerByeIdx;
+          const feeds = m < firstRoundMatchups;
+          roundMatchups.push({
+            id: `r${r}-m${m}`,
+            team1: isPlayer ? playerTeamObj : (singlePool.pop() || getBackupTeam()),
+            team2: feeds ? { name: 'TBD', id: 'TBD' } : (singlePool.pop() || getBackupTeam()),
+            ...(feeds ? { feed: m } : {}),
+            conf: null,
+            isPlayerSeries: false,
+            wins1: 0,
+            wins2: 0,
+            status: 'locked',
+            deck: null,
+            revealed: []
+          });
         } else {
           roundMatchups.push({
             id: `r${r}-m${m}`,
@@ -302,9 +359,29 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
       return;
     }
 
+    // A seed with a bye watches the play-in from the press box: it's played out
+    // now, and his series is the first one in the quarterfinal.
+    let activeRoundIndex = 0;
+    if (playerHasBye) {
+      const wn0 = getWinsNeeded(currentLg, 0);
+      const gpm0 = getGamesPerMatchup(currentLg, 0);
+      bracket[0] = bracket[0].map(m => ({ ...m, ...simulateSeries(0.5, wn0, gpm0), status: 'simulated', deck: null }));
+      const gpm1 = rounds[1]?.gamesPerMatchup || 7;
+      bracket[1] = seedNextRound(bracket[0], bracket[1], wn0, currentTeamId).map(m => {
+        const mine = m.team1?.id === currentTeamId;
+        return {
+          ...m,
+          isPlayerSeries: mine,
+          status: 'playing',
+          deck: mine && !board ? generatePlayoffDeck(standings || 1, spots, 2, gpm1) : null
+        };
+      });
+      activeRoundIndex = 1;
+    }
+
     setPlayoffs({
       bracket,
-      activeRoundIndex: 0,
+      activeRoundIndex,
       overallStatus: 'playing',
       currentLg,
       currentTeamId,

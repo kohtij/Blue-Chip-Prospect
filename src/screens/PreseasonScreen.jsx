@@ -215,11 +215,11 @@ export default function PreseasonScreen() {
                                 ...player,
                                 // The first camp of a career also sets who you are.
                                 archetype: isArchetypeChoice ? (t.archetype || player.archetype) : player.archetype,
-                                shooting: cap((player.shooting || 50) + (eff.shooting || 0)),
-                                skating: cap((player.skating || 50) + (eff.skating || 0)),
-                                physicality: cap((player.physicality || 50) + (eff.physicality || 0)),
-                                hockeyIQ: cap((player.hockeyIQ || 50) + (eff.hockeyIQ || 0)),
-                                stamina: cap((player.stamina || 50) + (eff.stamina || 0))
+                                shooting: cap((player.shooting ?? 50) + (eff.shooting || 0)),
+                                skating: cap((player.skating ?? 50) + (eff.skating || 0)),
+                                physicality: cap((player.physicality ?? 50) + (eff.physicality || 0)),
+                                hockeyIQ: cap((player.hockeyIQ ?? 50) + (eff.hockeyIQ || 0)),
+                                stamina: cap((player.stamina ?? 50) + (eff.stamina || 0))
                             });
                             const applied = { ...trained, ovr: recomputeOvr(trained) };
                             setPlayer(applied);

@@ -18,7 +18,7 @@
 
 import { nhlTeams } from '../data/teams';
 import { proSeasonsOf, waiverExempt } from './waivers';
-import { withTeamArticle } from './gameHelpers';
+import { onNhlContract, withTeamArticle } from './gameHelpers';
 
 export const parentOf = (ahlId) => nhlTeams.find(t => t.ahlId === ahlId) || null;
 export const affiliateOf = (nhlId) => nhlTeams.find(t => t.id === nhlId)?.ahlId || null;
@@ -88,6 +88,9 @@ export function midSeasonMove(p, seg, { movesThisYear = 0, lastMove = null } = {
   if (p.league === 'AHL') {
     const parent = parentOf(p.team);
     if (!parent || lastMove === 'DOWN') return null;
+    // An AHL contract belongs to the AHL club. The NHL affiliate has no claim
+    // on him and can't call him up. See onNhlContract.
+    if (!onNhlContract(p)) return null;
     // CHL-eligible teenagers can't be in the AHL at all, so they're never here.
     let odds = 0;
     if (p.ovr >= bar) odds = form >= 6.5 ? 0.7 : 0.45;

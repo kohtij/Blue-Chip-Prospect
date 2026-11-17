@@ -8,6 +8,8 @@ import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
 import { isDefence } from '../utils/production';
 import { buildRun } from '../utils/intlRun';
+import { onNhlContract } from '../utils/gameHelpers';
+import { parentOf } from '../utils/rosterMoves';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings, opts = {}) {
   const { player, playoffs, setActiveEvent, setActivePress, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
@@ -405,31 +407,41 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // ==========================================
     // STORYLINE 7: THE EMERGENCY CALL-UP
     // ==========================================
-    if (!player.storylines?.emergencyCallup && player.pos !== 'G' && currentLg === 'AHL' && pAge >= 24 && coachTrust >= 60 && Math.random() < 0.15) {
+    // The last week of the NHL season, not the start of the next one. He used
+    // to be moved to the NHL on the spot, without his club changing, so the
+    // playoffs that followed were his AHL club's and a Calder Cup won there
+    // was recapped as a Stanley Cup. He plays the games, goes back down, and
+    // what he earns is a better look at camp. Only an NHL contract can be
+    // called up: an AHL deal is with the AHL club alone.
+    const callupParent = currentLg === 'AHL' ? parentOf(currentTeam) : null;
+    if (!player.storylines?.emergencyCallup && player.pos !== 'G' && callupParent && onNhlContract(player)
+        && pAge >= 24 && coachTrust >= 60 && Math.random() < 0.15) {
+        const parentName = getFullTeamName(callupParent.id, 'NHL');
+        const backDown = madePlayoffs
+          ? 'When their season ended you were sent back down for the AHL playoffs.'
+          : 'When their season ended you were sent back down.';
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, emergencyCallup: 1 } }));
         setActiveEvent({
             title: '🚨 THE EMERGENCY CALL-UP',
-            desc: `The NHL club lost three players to injury in one night. Your AHL coach knocks on your hotel door at 2 AM. "Pack your bags. You're starting in the NHL tomorrow night."`,
+            desc: `The ${parentName} lost three players to injury in one night with a week of the season left. Your AHL coach knocks on your hotel door at 2 AM. "Pack your bags. You're playing in the NHL tomorrow night."`,
             choices: [
                 {
                     label: 'Play a safe, grinding game',
-                    subLabel: 'Keep it simple and let reliability make the case for staying up.',
+                    subLabel: 'Keep it simple and let reliability make the case for you.',
                     isRisky: false,
-                    feedback: 'You played eight clean minutes without a mistake, and the coach told you to unpack your bags. You\'re staying up.',
+                    feedback: `You played eight clean minutes a night without a mistake. ${backDown} The coach told you there'll be a real chance for you at camp.`,
                     effect: { fanStatus: 25, ovr: 2, rel: { coach: 20 } },
-                    action: 'CHANGE_LEAGUE',
-                    actionData: 'NHL'
+                    action: 'EARN_PROMOTION'
                 },
                 {
                     label: 'Try to be the hero',
-                    subLabel: 'Force the moment for a shot at a permanent roster spot.',
+                    subLabel: 'Force the moment and make them remember your name.',
                     isRisky: true,
                     successChance: (pOvr >= 72 ? 0.4 : 0.15),
-                    successFeedback: 'You jumped into the rush and scored the winner. The building chanted your name, and you have a permanent NHL roster spot.',
+                    successFeedback: `You jumped into the rush and scored the winner, and the building chanted your name. ${backDown} The coach told you to plan on starting next season in the NHL.`,
                     successEffect: { fanStatus: 75, ovr: 4, money: 50000, rel: { coach: 15 } },
-                    action: 'CHANGE_LEAGUE',
-                    actionData: 'NHL',
-                    failFeedback: 'You tried to do too much and turned the puck over for the game-losing goal. You were on a flight back to the AHL the next morning.',
+                    successAction: 'EARN_PROMOTION',
+                    failFeedback: `You tried to do too much and turned the puck over for the game-losing goal. You were on a flight back to the AHL the next morning.`,
                     failEffect: { fanStatus: -10, ovr: -1, rel: { coach: -20 } }
                 }
             ],

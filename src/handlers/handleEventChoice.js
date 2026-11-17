@@ -216,6 +216,11 @@ export function handleEventChoice(ctx, choice) {
     // itself is already banked on player.debut and handleTrain resumes from it.
   } else if (actionStr === 'CHANGE_POSITION') {
     updated.pos = choice.actionData;
+  } else if (actionStr === 'EARN_PROMOTION') {
+    // Camp reads this off the season just finished. See nhlBar.
+    const hist = [...(updated.seasonHistory || [])];
+    if (hist.length) hist[hist.length - 1] = { ...hist[hist.length - 1], earnedPromotion: true };
+    updated.seasonHistory = hist;
   } else if (actionStr === 'CHANGE_LEAGUE') {
     updated.league = choice.actionData;
     if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < 750000)) {

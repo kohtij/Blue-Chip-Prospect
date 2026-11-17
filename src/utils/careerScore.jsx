@@ -137,7 +137,7 @@ export function computeCareerScore(player) {
     return Math.round(18 + Math.max(0, grade - 4) * 22);
   };
   const nhlSeasonPoints = history.filter(s => s.league === 'NHL').reduce((a, s) => a + seasonValue(s), 0);
-  if (nhlSeasons > 0) addPoints(nhlSeasonPoints, n(nhlSeasons, 'NHL season, by how good it was', 'NHL seasons, by how good each was'));
+  if (nhlSeasons > 0) addPoints(nhlSeasonPoints, n(nhlSeasons, 'NHL season', 'NHL seasons'));
   if (otherSeasons > 0) addPoints(otherSeasons * 10, n(otherSeasons, 'season outside the NHL', 'seasons outside the NHL'));
   if (hundredPtSeasons > 0) addPoints(hundredPtSeasons * 150, n(hundredPtSeasons, '100-point season', '100-point seasons'));
   if (fiftyGoalSeasons > 0) addPoints(fiftyGoalSeasons * 150, n(fiftyGoalSeasons, '50-goal season', '50-goal seasons'));

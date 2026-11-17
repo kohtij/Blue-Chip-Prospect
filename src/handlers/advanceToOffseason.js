@@ -2,7 +2,7 @@ import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, 
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
-import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
+import { ATTR_FLOOR, formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { buyoutTerms, salaryParts } from '../utils/bonuses';
 import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
@@ -554,7 +554,18 @@ export function advanceToOffseason(ctx) {
 
        const hasContract = (player.contract?.years || 0) > 0;
 
-       if (hasContract) {
+       // WHEN THE GAME DECIDES. Nothing used to stop a career: a 44-year-old
+       // rated 1 could play out his deal, and Europe would always sign him.
+       // Out of contract and under 52, nobody calls, Europe included. Under
+       // contract and under 48, the club ends the deal. And at 46 it's over
+       // whatever the numbers say.
+       const clubName = getFullTeamName(player.team, player.league);
+       const forced = player.age >= 46 ? 'AGE'
+         : hasContract && player.ovr < 48 ? 'RELEASED'
+           : !hasContract && player.ovr < 52 ? 'NO_CALLS'
+             : null;
+
+       if (hasContract && !forced) {
            choices.push({ label: 'Play out current contract', subLabel: 'Honour the deal and give it one more year.', isRisky: false, feedback: 'You\'ll play out the last year of your contract.', effect: { fanStatus: 10, ovr: -2, money: 0 } });
        } else {
            if (player.ovr >= 76 && player.league === 'NHL') {
@@ -576,12 +587,30 @@ export function advanceToOffseason(ctx) {
        // option; how good he still is decides which leagues ring, not whether
        // any of them do.
        const isPro = !['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(player.league);
-       if (isPro && !hasContract) {
+       if (isPro && !hasContract && !forced) {
            choices.push({ label: 'Sign a twilight contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You signed in Europe for one last stretch. Less travel, bigger ice, and nobody asking about your cap hit.', effect: { fanStatus: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
        }
 
-       if (choices.length === 1) {
-           setScreen('retirement');
+       // Only the one way out. This used to go straight to the retirement
+       // screen without a word about why.
+       if (forced || choices.length === 1) {
+           const why = forced === 'RELEASED'
+             ? `The ${clubName} told your agent they're ending the last of your contract. They paid you to stay home, and nobody else has asked about you.`
+             : forced === 'AGE'
+               ? `You're ${player.age}. Your agent made a few calls this summer, more out of habit than hope. Every answer was polite, and every answer was no.`
+               : `You're ${player.age}. Your agent spent the summer calling the AHL and every league in Europe, and nobody called back.`;
+           setActiveEvent({
+             title: 'THE LAST CALL',
+             desc: why,
+             choices: [
+               { label: 'Announce your retirement', subLabel: 'Say goodbye on your own terms.', isRisky: false,
+                 feedback: 'You called the people who mattered first, then told everybody else. The tributes came in for days.',
+                 effect: { fanStatus: 40, ovr: 0, money: 0 }, action: 'FORCE_RETIRE' }
+             ],
+             isOffseasonEvent: true
+           });
+           enterStage(SUMMER_DONE);
+           setScreen('event');
            return;
        }
 
@@ -702,8 +731,8 @@ export function advanceToOffseason(ctx) {
             // Calculate the actual OVR drop for the UI pills
             const tempPlayer = {
                 ...player,
-                skating: Math.max(30, (player.skating || 50) - declineSkt),
-                physicality: Math.max(30, (player.physicality || 50) - declinePhy)
+                skating: Math.max(ATTR_FLOOR, (player.skating ?? 50) - declineSkt),
+                physicality: Math.max(ATTR_FLOOR, (player.physicality ?? 50) - declinePhy)
             };
             const newOvr = recomputeOvr(tempPlayer);
             const ovrDiff = newOvr - player.ovr;
@@ -720,8 +749,9 @@ export function advanceToOffseason(ctx) {
 
     // Apply team changes, contract updates, AND physical decline
     setPlayer(p => {
-        const nextSkt = Math.max(30, (p.skating || 50) - declineSkt);
-        const nextPhy = Math.max(30, (p.physicality || 50) - declinePhy);
+        // A floor of 30 here lifted a stat already under 30 back up to it.
+        const nextSkt = Math.max(ATTR_FLOOR, (p.skating ?? 50) - declineSkt);
+        const nextPhy = Math.max(ATTR_FLOOR, (p.physicality ?? 50) - declinePhy);
 
         const updatedPlayer = {
             ...p,
