@@ -159,10 +159,10 @@ export const MASTER_ACHIEVEMENTS = [
 
   // TROPHIES & CHAMPIONSHIPS
   { id: 'stanley_cup', name: 'Lord Stanley', desc: 'Win the Stanley Cup Championship', icon: '💍' },
-  { id: 'conf_champ', name: 'Conference Champ', desc: 'Win the Conference Finals and reach the Stanley Cup Final', icon: '🛡️' },
+  { id: 'conf_champ', name: 'Conference Champ', desc: 'Win your conference and play for the league title', icon: '🛡️' },
   { id: 'ahl_champ', name: 'Calder Cup', desc: 'Win the AHL Calder Cup Championship', icon: '🏆' },
   { id: 'gold_medal', name: 'National Hero', desc: 'Win International Gold at the WJC or Olympics', icon: '🥇' },
-  { id: 'back_to_back', name: 'Dynasty', desc: 'Win consecutive championships back-to-back', icon: '👑' },
+  { id: 'back_to_back', name: 'Dynasty', desc: 'Win three straight Stanley Cups with the same club', icon: '👑' },
   { id: 'ncaa_champ', name: 'National Champion', desc: 'Win the NCAA National Championship', icon: '🏆' },
 
   // INDIVIDUAL AWARDS

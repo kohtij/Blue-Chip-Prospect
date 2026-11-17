@@ -1847,6 +1847,52 @@ export const hasProContract = (p) => {
   return (c.salary || 0) > 0 && (c.years || 0) > 0;
 };
 
+// WHO HOLDS HIS RIGHTS.
+//
+// An AHL contract signed with an AHL club is a deal with that club and nobody
+// else. Its NHL affiliate owns nothing, so when it runs out he is a free agent
+// and the affiliate's parent has no claim on him. Free agency used to map every
+// AHL player to the parent club, which is how a player who had never signed
+// with the Rangers got a Rangers extension and was told the Rangers held his
+// rights.
+//
+// Contracts signed from here record whether they are NHL deals. Older ones are
+// read from what they look like: AHL deals are the "Pro Roster" ones, paid in
+// the low hundreds of thousands, and an NHL deal assigned to the minors pays
+// at least the NHL minimum. An NHL deal can also have him loaned back to
+// junior.
+export const onNhlContract = (p) => {
+  const c = p?.contract;
+  if (!c || !((c.salary || 0) > 0) || c.isScholarship) return false;
+  if (typeof c.nhl === 'boolean') return c.nhl;
+  if (p.league === 'NHL') return true;
+  if (['AHL', 'ECHL'].includes(p.league)) return c.role !== 'Pro Roster' && c.salary >= 500000;
+  if (['OHL', 'WHL', 'QMJHL'].includes(p.league)) return c.salary >= 500000;
+  return false;
+};
+
+// An accrued season is one with at least forty NHL games, or thirty at 18 or
+// 19, which is how the CBA counts them for free agency. Junior, college and
+// AHL years do not count. The status line used to count every season he had
+// played anywhere, so a 22-year-old with four junior years and one in the AHL
+// already had five of the seven that make a player unrestricted.
+export const accruedSeasons = (p) => {
+  const nowYear = 2026 + (p?.stats?.seasonsPlayed || 0);
+  return (p?.seasonHistory || []).filter(s => {
+    const nhlGames = Array.isArray(s.stints) && s.stints.length
+      ? s.stints.filter(x => (x?.league || s.league) === 'NHL').reduce((n, x) => n + (x?.games || 0), 0)
+      : (s.league === 'NHL' ? (s.games || 0) : 0);
+    const ageThen = (p.age || 0) - (nowYear - (s.year ?? nowYear));
+    return nhlGames >= (ageThen <= 19 ? 30 : 40);
+  }).length;
+};
+
+// Restricted means an NHL club holds his rights when the deal ends: he is on
+// an NHL contract, under 27, and short of seven accrued seasons. A buyout
+// makes him unrestricted whatever his age.
+export const isRestricted = (p) =>
+  onNhlContract(p) && !p.contract?.boughtOut && (p.age || 0) < 27 && accruedSeasons(p) < 7;
+
 // has a junior club to go back to, so a European or college prospect goes to
 // the AHL instead and never sees this.
 export const isNineGameCandidate = (p) => {

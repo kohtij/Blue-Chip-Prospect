@@ -508,7 +508,7 @@ function App() {
      const actionName = typeof choice === 'string' ? choice : (choice?.action || String(choice));
 
      if (actionName === 'ELC' && draftedBy) {
-       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: 3, role: getRole(925000, p), bonuses: elcBonuses(p.pos) } }));
+       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: 3, role: getRole(925000, p), bonuses: elcBonuses(p.pos), nhl: true } }));
        setEventFeedback("You signed your ELC and are heading to your first NHL training camp.");
      } else if (actionName === 'EXPLORE_OPTIONS' || actionName === 'EXPLORE' || actionName === 'DECLINE') {
        let offers = [];
@@ -1320,6 +1320,9 @@ function App() {
       teamsPlayedFor: newTeams,
       contract: {
         salary: o.salary, years: o.years, role: o.role, nmc: o.nmc, ntc: !o.nmc && !!o.ntc,
+        // Whether an NHL club holds this deal, or only the club he signed with.
+        // See onNhlContract.
+        nhl: nhlDeal,
         ...(sbShare ? { sbShare } : {}),
         ...(perfBonuses ? { bonuses: perfBonuses } : {}),
         isScholarship: o.type === 'SCHOLARSHIP' || (o.league || '') === 'NCAA'

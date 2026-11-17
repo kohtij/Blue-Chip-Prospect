@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getTeamData, nationalities } from '../data/teams';
-import { careerTrophies, formatMoney, getActiveStat, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
+import { accruedSeasons, careerTrophies, formatMoney, getActiveStat, isRestricted, onNhlContract, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
 import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
@@ -419,11 +419,17 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                         const scholarship = player.league === 'NCAA' || player.contract.isScholarship;
                         bits.push([`${player.contract.years} yrs ${scholarship ? 'elig' : 'left'}`, 'text-slate-400']);
                       } else {
-                        const proSeasons = player.stats?.seasonsPlayed || 0;
-                        const isRFA = player.age < 27 && proSeasons < 7;
-                        const isELC = player.contract.salary === 925000 || (isRFA && proSeasons < 3);
+                        // The same rule free agency uses, so the two can't
+                        // disagree. This counted every season he'd played
+                        // anywhere, junior included, against the seven that
+                        // make a player unrestricted. An AHL deal is with the
+                        // AHL club alone and carries no NHL status at all.
+                        const nhlDeal = onNhlContract(player);
+                        const isRFA = isRestricted(player);
+                        const isELC = nhlDeal && (player.contract.salary === 925000
+                          || (isRFA && accruedSeasons(player) < 3 && player.contract.salary <= 1000000));
                         bits.push([`${player.contract.years} ${player.contract.years === 1 ? 'yr' : 'yrs'} left`, 'text-slate-400']);
-                        bits.push([
+                        bits.push(!nhlDeal ? [`${player.league} deal`, 'text-slate-400'] : [
                           isELC ? 'ELC' : isRFA ? 'RFA' : 'UFA',
                           isELC ? 'text-[#22E748]' : isRFA ? 'text-[#F59E0B]' : 'text-[#c084fc]'
                         ]);

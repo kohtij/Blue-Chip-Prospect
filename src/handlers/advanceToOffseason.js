@@ -2,7 +2,7 @@ import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, 
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
-import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
+import { formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { buyoutTerms, salaryParts } from '../utils/bonuses';
 import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
@@ -653,7 +653,20 @@ export function advanceToOffseason(ctx) {
 
 
     // Always report to NHL Training Camp if you are on an NHL contract
-    if (['AHL', 'ECHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLeague) && (player.contract?.salary || 0) >= 500000 && player.rights) {
+    // In the minors that means the parent of the club he plays for, which is
+    // the one holding his contract. The club that drafted him used to be
+    // assumed, and he could have signed somewhere else since. An AHL deal
+    // signed with the AHL club is not an NHL contract at all, and its holder
+    // goes to the AHL club's camp. See onNhlContract.
+    const minors = ['AHL', 'ECHL'].includes(currentLeague);
+    if (minors && onNhlContract({ ...player, league: currentLeague })) {
+        const parent = (nhlTeams || []).find(t => t.ahlId === currentTeam || t.echlId === currentTeam);
+        const club = parent?.id || player.rights;
+        if (club) {
+            currentTeam = club;
+            currentLeague = 'NHL';
+        }
+    } else if (!minors && ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(currentLeague) && (player.contract?.salary || 0) >= 500000 && player.rights) {
         currentTeam = player.rights;
         currentLeague = 'NHL';
     }

@@ -24,8 +24,9 @@ export default function DraftScreen() {
     const byPick = new Map(night.picks.map(r => [r.pick, r]));
     const salt = classSalt(player.peers);
     const taken = new Set(night.picks.map(r => r.name));
+    // There are 224 picks and no more: the board around the last one stops at it.
     const at = (n) => {
-      if (n < 1) return null;
+      if (n < 1 || n > 224) return null;
       const r = byPick.get(n);
       if (r) return { name: r.name, pick: n, pos: r.pos, flag: flagFor(r.nat), team: r.team, via: r.from, from: r.juniorTeam, fromLeague: r.juniorLeague };
       const x = roomProspect(salt, n, taken);
@@ -57,7 +58,7 @@ export default function DraftScreen() {
     for (const l of night.reason.lines || []) {
       if (l.kind === 'traded') said.push(`${ClubName(night.myTeam)} made this pick with one they got from ${clubName(l.from)}.`);
       if (!gm) continue;
-      const who = `${gm}, their general manager,`;
+      const who = `General Manager ${gm}`;
       if (l.kind === 'need') said.push(`${who} came into the night short of ${l.group} in the system.`);
       if (l.kind === 'likes') said.push(`${who} has always liked ${l.group}.`);
       if (l.kind === 'nation') said.push(`${who} leans on his ${l.adj} scouts more than most.`);

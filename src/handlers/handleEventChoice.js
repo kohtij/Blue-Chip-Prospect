@@ -66,7 +66,8 @@ export function handleEventChoice(ctx, choice) {
         salary: choice.actionData.salary,
         years: choice.actionData.years + 1, // +1 because the current year is still running
         role: choice.actionData.role,
-        nmc: true // Mid-season extensions for core players usually carry an NMC
+        nmc: true, // Mid-season extensions for core players usually carry an NMC
+        ...(typeof player.contract?.nhl === 'boolean' ? { nhl: player.contract.nhl } : {})
       };
     }
   } else if (actionStr === 'INJURY_RETURN') {
@@ -90,9 +91,10 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'BUYOUT') {
     // The deal is over: no years left, no clause, no bonuses. The salary stays
     // on the record because free agency reads it to know he has been a pro.
-    // The club that bought him out is not on the list of clubs calling him.
+    // The club that bought him out is not on the list of clubs calling him,
+    // and a player who has been bought out is unrestricted at any age.
     const d = choice.actionData || {};
-    updated.contract = { salary: updated.contract?.salary || 0, years: 0, role: updated.contract?.role };
+    updated.contract = { salary: updated.contract?.salary || 0, years: 0, role: updated.contract?.role, boughtOut: true };
     updated.buyouts = [...(updated.buyouts || []), {
       team: d.team, perYear: d.perYear || 0, seasonsLeft: d.seasons || 0, total: d.total || 0
     }];
@@ -160,7 +162,7 @@ export function handleEventChoice(ctx, choice) {
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), seniorId]));
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
-    updated.contract = { salary: 925000, years: 3, role: getRole(925000, player), bonuses: elcBonuses(player.pos) };
+    updated.contract = { salary: 925000, years: 3, role: getRole(925000, player), bonuses: elcBonuses(player.pos), nhl: true };
   } else if (actionStr === 'DEMOTE') {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
   } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {
@@ -197,7 +199,7 @@ export function handleEventChoice(ctx, choice) {
         updated.contract = { ...updated.contract, role: 'Core Player', nmc: true };
     } else {
         // Cave and take the QO (roughly 75% of their massive demand, 1 year, no protection)
-        updated.contract = { salary: Math.max(850000, Math.floor((updated.contract.salary * 0.75) / 25000) * 25000), years: 1, role: 'Two-Way Deal', nmc: false };
+        updated.contract = { salary: Math.max(850000, Math.floor((updated.contract.salary * 0.75) / 25000) * 25000), years: 1, role: 'Two-Way Deal', nmc: false, nhl: true };
     }
  } else if (actionStr === 'RESOLVE_NINE_GAME') {
     // The club has made its call. If he is going back, move him to the junior club
@@ -298,7 +300,7 @@ export function handleEventChoice(ctx, choice) {
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), targetJuniorTeam]));
   } else if (actionStr === 'ACCEPT_ARBITRATION') {
     updated.team = choice.actionData.team; updated.league = 'NHL';
-    updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role };
+    updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role, nhl: true };
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
   } else if (actionStr === 'RESOLVE_DOUBLE_DOWN') {
     const isSuccess = outcomeEffect === choice.successEffect;

@@ -118,16 +118,36 @@ export function computeCareerScore(player) {
   });
 
   const n = (k, one, many) => (k === 1 ? `One ${one}` : `${k} ${many}`);
-  if (nhlSeasons > 0) addPoints(nhlSeasons * 75, n(nhlSeasons, 'NHL season', 'NHL seasons'));
-  if (otherSeasons > 0) addPoints(otherSeasons * 15, n(otherSeasons, 'season outside the NHL', 'seasons outside the NHL'));
+
+  // AN NHL SEASON IS WORTH WHAT HE DID IN IT.
+  //
+  // Every NHL season was a flat 75, so twenty years of turning up came to
+  // fifteen hundred points on their own, most of the way to Franchise
+  // Cornerstone before he'd done anything. Each season now counts by its own
+  // grade, the same rateSeason grade the recap gives it: an ordinary season
+  // (5.0) is worth about forty, a very good one (7.0) about eighty-five, a
+  // Hart-type year (9.0) about a hundred and thirty. A season of under twenty
+  // games is a cup of coffee and worth five.
+  const seasonValue = (s) => {
+    if ((s.games || 0) < 20) return 5;
+    const grade = rateSeason({
+      league: 'NHL', pos: player.pos, games: s.games, g: s.goals || 0, a: s.assists || 0,
+      pm: s.plusMinus || 0, blk: s.blocks ?? null, saves: s.saves || 0, shots: s.shots || 0, toi: null
+    });
+    return Math.round(18 + Math.max(0, grade - 4) * 22);
+  };
+  const nhlSeasonPoints = history.filter(s => s.league === 'NHL').reduce((a, s) => a + seasonValue(s), 0);
+  if (nhlSeasons > 0) addPoints(nhlSeasonPoints, n(nhlSeasons, 'NHL season, by how good it was', 'NHL seasons, by how good each was'));
+  if (otherSeasons > 0) addPoints(otherSeasons * 10, n(otherSeasons, 'season outside the NHL', 'seasons outside the NHL'));
   if (hundredPtSeasons > 0) addPoints(hundredPtSeasons * 150, n(hundredPtSeasons, '100-point season', '100-point seasons'));
   if (fiftyGoalSeasons > 0) addPoints(fiftyGoalSeasons * 150, n(fiftyGoalSeasons, '50-goal season', '50-goal seasons'));
 
   // 3. CAREER MILESTONES
   const nhlGames = player.stats?.nhl?.games || 0;
   const nhlGoals = player.stats?.nhl?.goals || 0;
-  if (nhlGames >= 1000) addPoints(400, '1,000 NHL games');
-  else if (nhlGames >= 500) addPoints(150, '500 NHL games');
+  // Lighter than they were: the seasons above already count the games.
+  if (nhlGames >= 1000) addPoints(250, '1,000 NHL games');
+  else if (nhlGames >= 500) addPoints(100, '500 NHL games');
   if (nhlGoals >= 500) addPoints(400, '500 NHL goals');
 
   // 3b. WHAT KIND OF PLAYER HE ACTUALLY WAS
@@ -196,7 +216,7 @@ export function computeCareerScore(player) {
   // 4. MODIFIERS
   if (player.isGenerational) addPoints(250, 'Generational talent');
   if (teams.length >= 5) addPoints(150, 'Played for five or more clubs');
-  if (nhlSeasons >= 10 && teams.length <= 2) addPoints(300, 'Ten NHL seasons with one organisation'); 
+  if (nhlSeasons >= 10 && teams.length <= 2) addPoints(150, 'Ten NHL seasons with one organisation');
   if (demotions > 0) addPoints(demotions * -25, demotions === 1 ? 'Sent down from the NHL' : `Sent down from the NHL ${demotions} times`);
 
   // 5. CALCULATE TIER
@@ -281,11 +301,18 @@ export function peerCareerScore(peer) {
   const other = Math.max(0, (c.seasons || 0) - nhlSeasons);
   const nh = n || c;
   const gp = nh.gp || 0, g = nh.g || 0, pts = g + (nh.a || 0);
-  let s = nhlSeasons * 75 + other * 15 + (n?.hundred || 0) * 150 + (n?.fifty || 0) * 150;
-  if (gp >= 1000) s += 400; else if (gp >= 500) s += 150;
+  const toi = gp > 0 && nh.toiGames ? nh.toiGames / gp : null;
+  // A classmate's seasons are valued like the player's, each by how good it
+  // was. He keeps no season-by-season record, so every NHL season is taken at
+  // the grade of his NHL career as a whole.
+  const careerGrade = gp <= 0 ? 4 : peer.pos === 'G'
+    ? rateSeason({ league: 'NHL', pos: 'G', games: gp, saves: nh.saves || 0, shots: nh.shots || 0 })
+    : rateSeason({ league: 'NHL', pos: peer.pos, games: gp, g, a: nh.a || 0, pm: nh.pm || 0, blk: nh.blk ?? null, toi });
+  const perSeason = gp / Math.max(1, nhlSeasons) < 20 ? 5 : Math.round(18 + Math.max(0, careerGrade - 4) * 22);
+  let s = nhlSeasons * perSeason + other * 10 + (n?.hundred || 0) * 150 + (n?.fifty || 0) * 150;
+  if (gp >= 1000) s += 250; else if (gp >= 500) s += 100;
   if (g >= 500) s += 400;
 
-  const toi = gp > 0 && nh.toiGames ? nh.toiGames / gp : null;
   if (peer.pos === 'G') {
     const sv = (nh.shots || 0) > 0 ? (nh.saves || 0) / nh.shots : 0;
     if (gp >= 100) s += sv >= 0.925 ? 600 : sv >= 0.918 ? 400 : sv >= 0.910 ? 200 : 0;

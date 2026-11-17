@@ -194,13 +194,20 @@ export default function RecapScreen() {
           // How many championships this makes in a row, counting back through
           // the seasons immediately before this one. A repeat is the rarest
           // thing in the sport and it used to read exactly like a first one.
+          //
+          // A repeat means the same club winning the same trophy again. A
+          // Calder Cup one year and a Stanley Cup the next used to count as
+          // back-to-back, because this only asked whether a title was won.
           const streak = (() => {
             const hist = player.seasonHistory || [];
+            // The season being recapped may already be written; skip it once.
+            const thisYear = 2026 + ((player.stats?.seasonsPlayed || 1) - 1);
+            const written = hist.length > 0 && hist[hist.length - 1].year === thisYear;
+            const now = written ? hist[hist.length - 1] : { league: player.league, team: player.team };
             let n = 1;
-            for (let i = hist.length - 1; i >= 0; i--) {
-              // The season being recapped may already be written; skip it once.
-              if (i === hist.length - 1 && hist[i].year === (2026 + ((player.stats?.seasonsPlayed || 1) - 1))) continue;
-              if (hist[i].titleWon) n += 1; else break;
+            for (let i = hist.length - (written ? 2 : 1); i >= 0; i--) {
+              const s = hist[i];
+              if (s.titleWon && s.league === now.league && s.team === now.team) n += 1; else break;
             }
             return n;
           })();

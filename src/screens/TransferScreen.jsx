@@ -3,7 +3,7 @@ import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { formatComp } from '../utils/contracts';
-import { formatMoney } from '../utils/gameHelpers';
+import { formatMoney, isRestricted, onNhlContract } from '../utils/gameHelpers';
 import { bonusCeiling } from '../utils/bonuses';
 import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
@@ -46,8 +46,9 @@ export default function TransferScreen() {
   let owningTeam = player.team;
   let owningLeague = player.league;
   
-  if (owningLeague === 'AHL' && (player.contract?.salary || 0) >= 500000) {
-     const parent = (nhlTeams || []).find(t => t.ahlId === player.team);
+  // Only an NHL deal belongs to the parent club. See onNhlContract.
+  if (['AHL', 'ECHL'].includes(owningLeague) && onNhlContract(player)) {
+     const parent = (nhlTeams || []).find(t => t.ahlId === player.team || t.echlId === player.team);
      if (parent) {
          owningTeam = parent.id;
          owningLeague = 'NHL';
@@ -68,9 +69,9 @@ export default function TransferScreen() {
                 : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type))
                   ? "You're looking at other routes: an NCAA scholarship, or a pro contract in Europe."
                   : freeAgencyOffers.some(o => o.type === 'QUALIFYING OFFER' || o.type === 'RFA EXTENSION')
-                    ? "You're a Restricted Free Agent. Your current club retains your rights, but rival teams can submit Offer Sheets."
+                    ? `You're a restricted free agent. The ${owningTeamName} hold your rights, but other clubs can still send you an offer sheet.`
                     : teamDidNotOffer
-                        ? (['NHL', 'AHL'].includes(player.league) && player.age < 27 && (player.stats?.seasonsPlayed || 0) < 7
+                        ? (isRestricted(player)
                             ? `The ${owningTeamName} elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent testing the open market.`
                             : `The ${owningTeamName} elected not to offer you a new contract. You're on the open market.`)
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
@@ -446,7 +447,7 @@ export default function TransferScreen() {
                       Your agent&rsquo;s comparables
                     </span>
                     <span className="text-[11px] font-bold text-slate-400">
-                      Market <span className="text-white font-black number-font">{formatComp(market.anchor)}</span>
+                      Market value <span className="text-white font-black number-font">{formatComp(market.anchor)}</span>
                     </span>
                   </div>
                   {market.comps.map(c => (
@@ -458,13 +459,16 @@ export default function TransferScreen() {
                       <span className="shrink-0 text-[11px] font-black number-font text-slate-300 w-[62px] text-right">{formatComp(c.salary)}</span>
                     </div>
                   ))}
+                  {/* Says which offer and which figure it's measuring, so
+                      "above it" no longer has to be worked out. Close to the
+                      market isn't bad news, so it isn't red. */}
                   <p className={`px-4 py-2 text-[11px] font-bold border-t border-[rgba(255,255,255,0.06)] ${
-                    short > 0 ? 'text-[#ef4444]' : 'text-[#22E748]'}`}>
+                    short > market.anchor * 0.08 ? 'text-[#ef4444]' : short >= 0 ? 'text-slate-300' : 'text-[#22E748]'}`}>
                     {short > market.anchor * 0.08
-                      ? `The best offer on the board is ${formatComp(short)} short of that.`
-                      : short > 0
-                        ? 'The best offer on the board is about right.'
-                        : `The best offer on the board is ${formatComp(-short)} above it.`}
+                      ? `Your best offer pays ${formatComp(best)}, ${formatComp(short)} less than your market value.`
+                      : short >= 0
+                        ? `Your best offer pays ${formatComp(best)}, close to your market value.`
+                        : `Your best offer pays ${formatComp(best)}, ${formatComp(-short)} more than your market value.`}
                   </p>
                 </div>
               );

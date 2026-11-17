@@ -1,6 +1,6 @@
 import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams, delTeams, icehlTeams } from '../data/teams';
 import { shopItems } from '../data/economy';
-import { getTransferImpact, isNhlFreeAgentEligible } from '../utils/gameHelpers';
+import { getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
 import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
@@ -97,8 +97,11 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     // Establish an internal rights variable that travels with the player during a trade
     let currentRights = player.rights;
 
-    // BULLETPROOF RIGHTS HOLDER CHECK
-    if (['AHL', 'ECHL'].includes(actingLeague)) {
+    // WHO HE BELONGS TO. A player in the minors on an NHL deal belongs to the
+    // parent club, and that is who gets to extend him. One on an AHL deal
+    // belongs to nobody once it ends: the AHL club can re-sign him, and every
+    // NHL club can bid. See onNhlContract.
+    if (['AHL', 'ECHL'].includes(actingLeague) && onNhlContract({ ...player, league: actingLeague })) {
        let parent = (nhlTeams || []).find(t => t.ahlId === actingTeam || t.echlId === actingTeam || t.id === actingTeam);
        
        if (!parent && currentRights) {
@@ -133,7 +136,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     // measured against rather than just the number that came out.
     let market = null;
 
-    const isRFA = actingLeague === 'NHL' && player.age < 27;
+    const isRFA = actingLeague === 'NHL' && isRestricted({ ...player, league: 'NHL' });
 
     // Force NHL logic if actingLeague is NHL. Impossible to get $165k here.
     if (actingLeague === 'NHL') {

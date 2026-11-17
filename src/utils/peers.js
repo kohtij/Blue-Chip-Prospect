@@ -1650,7 +1650,7 @@ export function draftBoard(peers, playerPick, playerName, count = 2, leagueState
     if (row) before.push(row);
   }
   const after = [];
-  for (let n = playerPick + 1; n <= playerPick + count; n++) {
+  for (let n = playerPick + 1; n <= Math.min(LAST_PICK, playerPick + count); n++) {
     const row = at(n);
     if (row) after.push(row);
   }
