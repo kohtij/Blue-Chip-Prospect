@@ -216,7 +216,7 @@ export default function NegotiationScreen() {
         ...p,
         relationships: {
           ...p.relationships,
-          coach: Math.min(100, Math.max(0, (p.relationships?.coach || 50) + trustHit))
+          coach: Math.min(100, Math.max(0, (p.relationships?.coach ?? 50) + trustHit))
         }
       }));
     }
@@ -229,7 +229,7 @@ export default function NegotiationScreen() {
       setPlayer(p => ({
         ...p,
         stats: { ...p.stats, reputation: Math.max(50, (p.stats?.reputation ?? 100) - 5) },
-        relationships: { ...p.relationships, coach: Math.max(0, (p.relationships?.coach || 50) - 40) }
+        relationships: { ...p.relationships, coach: Math.max(0, (p.relationships?.coach ?? 50) - 40) }
       }));
       setNegotiation(prev => ({
         ...prev, gmPatience: 0, currentSalary: Math.max(850000, prev.currentSalary - penalty),

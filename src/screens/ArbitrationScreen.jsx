@@ -31,7 +31,7 @@ export default function ArbitrationScreen() {
   const baseImpactChance = statSum > 165 ? 0.90 : statSum > 145 ? 0.65 : 0.35;
   const impactChance = Math.max(0.1, Math.min(0.95, baseImpactChance + moodModifier));
 
-  const relSum = (player.relationships?.teammates || 50) + (player.relationships?.coach || 50);
+  const relSum = (player.relationships?.teammates ?? 50) + (player.relationships?.coach ?? 50);
   const baseLeadChance = relSum >= 150 ? 0.95 : relSum >= 110 ? 0.70 : 0.30;
   const leadershipChance = Math.max(0.1, Math.min(0.95, baseLeadChance + moodModifier));
 

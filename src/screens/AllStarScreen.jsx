@@ -67,7 +67,7 @@ export default function AllStarScreen() {
          fanStatus: Math.max(0, p.fanStatus - 5),
          relationships: {
              ...p.relationships,
-             media: Math.max(0, (p.relationships?.media || 50) - 15)
+             media: Math.max(0, (p.relationships?.media ?? 50) - 15)
          }
      }));
      setPhase('declined');
@@ -132,8 +132,8 @@ const handleQuickSim = () => {
           ovr: recomputeOvr(withOvr),
           relationships: {
              ...withOvr.relationships,
-             media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (carpetFeedback?.mediaHit || 0))),
-             coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (carpetFeedback?.coachHit || 0)))
+             media: Math.min(100, Math.max(0, (withOvr.relationships?.media ?? 50) + (carpetFeedback?.mediaHit || 0))),
+             coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach ?? 50) + (carpetFeedback?.coachHit || 0)))
           }
       };
     });

@@ -18,6 +18,7 @@
 
 import { compGroup, groupName, posGroup } from './peers';
 import { defensiveHalf, paceOf } from './production';
+import { careerAwardList } from './awardList';
 
 // The player's own history writes goals/assists/games; a classmate's season
 // writes g/a/pts/gp. Both are read here, so neither caller has to care.
@@ -126,10 +127,8 @@ export function recentForm(subject) {
 const MAJORS = ['Hart', 'Norris', 'Vezina', 'Art Ross', 'Maurice Richard', 'Conn Smythe', 'Calder'];
 
 export const majorCount = (player) => {
-  const all = [
-    ...(player?.stats?.awards || []),
-    ...((player?.seasonHistory || []).flatMap(s => s.awards || []))
-  ];
+  // Once each: a Conn Smythe was being counted from both lists.
+  const all = careerAwardList(player);
   return all.filter(a => MAJORS.some(m => a.includes(m))).length;
 };
 

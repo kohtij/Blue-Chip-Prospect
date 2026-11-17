@@ -2,7 +2,7 @@
 // Imported by App.jsx and by every extracted screen so no helper is
 // re-declared in multiple places.
 
-import { getTeamData, getPlayoffRounds, getDeployment } from '../data/teams';
+import { getTeamData, getPlayoffRounds, getDeployment, isAmateurLeague, leagueLevel } from '../data/teams';
 import { getAwardImage } from '../data/awards';
 
 export const makeInitialPlayer = () => ({
@@ -34,9 +34,16 @@ export const makeInitialPlayer = () => ({
 // so the definition isn't reallocated on every offer generation.
 export function getRole(salary, player) {
   const lg = player?.league || 'NHL';
-  const isJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'].includes(lg);
-  const isAHL = lg === 'AHL';
-  const ovr = player?.ovr || 50;
+  // Every junior and college league. J20, U20 and the BCHL were missing, so a
+  // sixteen-year-old in Sweden was handed an NHL role like "Bottom Six Grinder".
+  const isJunior = isAmateurLeague(lg);
+  // Every pro league below the NHL is named on the AHL's scale, shifted by how
+  // strong the league is (see LEAGUE_LEVEL). They all used to fall through to
+  // the NHL's salary and rating bars, which in the ECHL or Europe meant
+  // everybody was a depth player, and the sim deploys him by that name.
+  const isAHL = lg !== 'NHL';
+  const rawOvr = player?.ovr || 50;
+  const ovr = isJunior || lg === 'NHL' ? rawOvr : rawOvr + (leagueLevel(lg) - leagueLevel('AHL'));
   const pos = player?.pos || 'C';
 
   // JUNIOR / AMATEUR LEAGUES
@@ -107,7 +114,7 @@ export const getTrainingQuality = (p) => {
   const lg = p?.league;
   const leagueTier = lg === 'NHL' ? 1
      : ['AHL', 'KHL', 'SHL', 'LIIGA', 'SWISS'].includes(lg) ? 0.6
-     : ['ECHL', 'NCAA'].includes(lg) ? 0.4
+     : ['DEL', 'CZECH', 'ICEHL', 'SLOVAK', 'ECHL', 'NCAA'].includes(lg) ? 0.4
      : 0.2;
   const clamp01 = v => Math.min(1, Math.max(0, v));
   const trust = clamp01(((p?.relationships?.coach ?? 50) - 40) / 50);
@@ -122,6 +129,19 @@ export const getTrainingTierLabel = (q) => {
   return { tier: 'LIMITED PROGRAMME', note: 'Short budget, shared ice time. You work with what the club has.' };
 };
 
+// Is this award a league championship? Every league's cup by name, so a
+// Kanada-malja or a Masaryk Cup is read as the title it is. The old test was
+// a fixed list of the North American cups plus anything ending in
+// "Championship", which is what every other league's title used to be saved as.
+const CUP_LEAGUES = ['NHL', 'AHL', 'ECHL', 'SPHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA',
+  'KHL', 'SHL', 'LIIGA', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+export const isLeagueCup = (award) => {
+  const a = String(award || '');
+  if (/memorial cup/i.test(a)) return false;
+  if (/championship$/i.test(a) && !/world|olympic/i.test(a)) return true;
+  return CUP_LEAGUES.some(lg => a.includes(getPlayoffTitles(lg).cupName));
+};
+
 // Dynamic Playoff Title Generator
 export const getPlayoffTitles = (league) => {
   switch (league) {
@@ -130,7 +150,20 @@ export const getPlayoffTitles = (league) => {
     case 'OHL': return { banner: 'OHL PLAYOFFS', final: 'OHL CHAMPIONSHIP FINAL', trophy: '🏆', cupName: 'J. Ross Robertson Cup' };
     case 'WHL': return { banner: 'WHL PLAYOFFS', final: 'WHL CHAMPIONSHIP FINAL', trophy: '🏆', cupName: 'Ed Chynoweth Cup' };
     case 'QMJHL': return { banner: 'QMJHL PLAYOFFS', final: 'GILLES-COURTEAU TROPHY FINAL', trophy: '🏆', cupName: 'Gilles-Courteau Trophy' };
-    default: return { banner: `${league || 'LEAGUE'} PLAYOFFS`, final: `${league || 'LEAGUE'} FINAL`, trophy: '🏆', cupName: `${league || 'League'} Championship` };
+    default: {
+      // The leagues whose trophy has a name. The bracket already called the
+      // last round the Kelly Cup Final or the Gagarin Cup Final, and then the
+      // recap said you'd won "the ECHL Championship".
+      const named = {
+        ECHL: 'Kelly Cup', USHL: 'Clark Cup', KHL: 'Gagarin Cup', SHL: 'Le Mat Trophy',
+        LIIGA: 'Kanada-malja', SPHL: "President's Cup", BCHL: 'BCHL Cup',
+        DEL: 'Meisterpokal', ICEHL: 'Karl Nedwed Trophy', CZECH: 'Masaryk Cup',
+        SLOVAK: 'Vladimír Dzurilla Trophy', SWISS: 'Swiss Championship',
+        NCAA: 'National Championship'
+      }[league];
+      if (named) return { banner: `${league} PLAYOFFS`, final: `${named.toUpperCase()} FINAL`, trophy: '🏆', cupName: named };
+      return { banner: `${league || 'LEAGUE'} PLAYOFFS`, final: `${league || 'LEAGUE'} FINAL`, trophy: '🏆', cupName: `${league || 'League'} Championship` };
+    }
   }
 };
 

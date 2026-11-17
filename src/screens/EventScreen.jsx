@@ -85,7 +85,7 @@ export default function EventScreen() {
               try {
                 let modChoice = { ...displayChoice };
                 if (activeEvent.title?.includes('COMMERCIAL') || activeEvent.title?.includes('SPONSOR') || activeEvent.title?.includes('ENDORSEMENT')) {
-                    const tTrust = player.relationships?.teammates || 50;
+                    const tTrust = player.relationships?.teammates ?? 50;
                     let relHit = 0;
                     if (tTrust < 45) relHit = -15;
                     else if (tTrust > 75) relHit = 5;
@@ -93,7 +93,7 @@ export default function EventScreen() {
                     if (relHit !== 0) {
                         modChoice.effect = {
                             ...modChoice.effect,
-                            rel: { ...(modChoice.effect?.rel || {}), teammates: (modChoice.effect?.rel?.teammates || 0) + relHit }
+                            rel: { ...(modChoice.effect?.rel || {}), teammates: (modChoice.effect?.rel?.teammates ?? 0) + relHit }
                         };
                     }
                 }

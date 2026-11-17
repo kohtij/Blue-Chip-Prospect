@@ -1,8 +1,8 @@
-import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE } from '../data/teams';
+import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
-import { ATTR_FLOOR, formatMoney, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
+import { ATTR_FLOOR, formatMoney, gamesInLeague, nhlSeasonsOf, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { buyoutTerms, salaryParts } from '../utils/bonuses';
 import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
@@ -105,8 +105,8 @@ export function advanceToOffseason(ctx) {
               ...p,
               relationships: {
                   ...p.relationships,
-                  coach: Math.min(100, (p.relationships?.coach || 50) + 2),
-                  teammates: Math.min(100, (p.relationships?.teammates || 50) + 3)
+                  coach: Math.min(100, (p.relationships?.coach ?? 50) + 2),
+                  teammates: Math.min(100, (p.relationships?.teammates ?? 50) + 3)
               }
           }));
       }
@@ -145,8 +145,9 @@ export function advanceToOffseason(ctx) {
   const wonTitle = seasonRecap?.titleWon === 1;
 
   if (done < CELEBRATED && (wonTitle || wonMemCup)) {
-      const trophyName = wonMemCup ? 'Memorial Cup' : (getPlayoffTitles(player.league)?.cupName || 'Championship');
-      const isStanleyCup = !wonMemCup && currentLeague === 'NHL';
+      const titleLg = seasonRecap?.titleLeague || player.league;
+      const trophyName = wonMemCup ? 'Memorial Cup' : getPlayoffTitles(titleLg).cupName;
+      const isStanleyCup = !wonMemCup && titleLg === 'NHL';
 
       // The quiet option is always available. It is what most players actually do.
       const soakItIn = {
@@ -586,7 +587,7 @@ export function advanceToOffseason(ctx) {
        // bottom few are not fussy. Any professional out of contract gets the
        // option; how good he still is decides which leagues ring, not whether
        // any of them do.
-       const isPro = !['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(player.league);
+       const isPro = !isAmateurLeague(player.league);
        if (isPro && !hasContract && !forced) {
            choices.push({ label: 'Sign a twilight contract in Europe', subLabel: 'Wind down your career overseas on a bigger ice surface.', isRisky: false, feedback: 'You signed in Europe for one last stretch. Less travel, bigger ice, and nobody asking about your cap hit.', effect: { fanStatus: 15, ovr: 0, money: 0 }, action: 'SIGN_TWILIGHT_EUROPE' });
        }
@@ -701,15 +702,16 @@ export function advanceToOffseason(ctx) {
     }
 
     // 1. ELC SLIDE RULE
-    // If the player is under an NHL contract but playing in juniors, or playing in the AHL under age 24 during their first 2 pro seasons, the contract slides.
-    // We restore the year that simulateSeason decremented.
-    const isJuniorSlide = safeJuniorLeagues.includes(currentLeague) && player.age <= 20;
-    const proSeasons = player.stats?.seasonsPlayed || 0;
+    // The real rule: an entry-level deal slides a year when the player was 18
+    // or 19 that season and played fewer than ten NHL games, wherever he
+    // played the rest. It used to slide for anyone in junior, and for anyone
+    // under 24 in the AHL in his first two seasons of any kind, which the CBA
+    // has never allowed. We restore the year that simulateSeason decremented.
+    const lastSeason = (player.seasonHistory || []).slice(-1)[0];
+    const isElc = updatedContract?.salary === 925000;
+    const slides = isElc && player.age <= 20 && gamesInLeague(lastSeason, 'NHL') < 10;
 
-    // We check for $925k to ensure we are only sliding actual ELCs, not random 1-year AHL veteran deals
-    const isAhlSlide = currentLeague === 'AHL' && player.age < 24 && proSeasons <= 2 && updatedContract?.salary === 925000;
-
-    if (updatedContract && (isJuniorSlide || isAhlSlide)) {
+    if (updatedContract && slides) {
         updatedContract.years = Math.min(3, updatedContract.years + 1);
     }
 
@@ -999,8 +1001,9 @@ export function advanceToOffseason(ctx) {
     const isUnsignedProspect = !hasSignedDeal && player.age < 21;
 
     // Calculate age-out limits before the draft check so we can use them to define the eligible window
-    // You cannot play J20 or U20 past twenty either.
-    const amateurAgeOut = ['OHL', 'WHL', 'QMJHL', 'J20', 'U20'].includes(currentLeague) ? 21 : 22;
+    // You cannot play J20 or U20 past twenty either, and the USHL and the BCHL
+    // are twenty-and-under leagues too: they had been given college's limit.
+    const amateurAgeOut = juniorLeagues.includes(currentLeague) ? 21 : 22;
     const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
     const isNcaaAgedOut = currentLeague === 'NCAA' && ncaaSeasons >= 4;
 
@@ -1283,7 +1286,7 @@ export function advanceToOffseason(ctx) {
   // goes to the best player in the room once he's been there a season and is
   // eighteen, or sooner for a generational talent; an A to anyone among its
   // best three. He has to have played most of last season with this club.
-  const JUNIOR_LETTERS = ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA'];
+  const JUNIOR_LETTERS = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20', 'NCAA'];
   if (done < LETTER && JUNIOR_LETTERS.includes(player.league) && !player.isCaptain && player.pos !== 'G') {
     const hist = player.seasonHistory || [];
     const lastSeason = hist[hist.length - 1];
@@ -1294,7 +1297,7 @@ export function advanceToOffseason(ctx) {
     const age = player.age || 17;
     const top = (player.ovr || 0) >= (skaters[0] ?? 0);
     const topThree = (player.ovr || 0) >= (skaters[2] ?? 0);
-    const wantsC = top && (age >= 18 || gen) && (player.relationships?.coach || 50) >= 55;
+    const wantsC = top && (age >= 18 || gen) && (player.relationships?.coach ?? 50) >= 55;
     const wantsA = !player.isAlternate && topThree && age >= 17;
     const odds = wantsC ? (gen ? 0.85 : 0.55) : (gen ? 0.9 : 0.5);
     if (sameRoom && (wantsC || wantsA) && Math.random() < odds) {
@@ -1326,8 +1329,10 @@ export function advanceToOffseason(ctx) {
     const hist = player.seasonHistory || [];
     const lastSeason = hist[hist.length - 1];
     const sameRoom = lastSeason?.team === player.team && (lastSeason?.games || 0) >= 30;
-    const trust = player.relationships?.coach || 50;
-    const proSeasons = player.stats?.seasonsPlayed || 0;
+    const trust = player.relationships?.coach ?? 50;
+    // NHL seasons, not seasons of any kind: four junior years had been
+    // counting toward the three a letter needs.
+    const proSeasons = nhlSeasonsOf(player);
 
     // A good year in front of the people voting on it helps; a bad one does not
     // rule it out, because a letter is about the room, not the scoresheet.

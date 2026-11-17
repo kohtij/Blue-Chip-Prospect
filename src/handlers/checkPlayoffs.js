@@ -143,6 +143,11 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
 
     const playerTeamObj = getTeamData(currentTeamId, currentLg) || { id: currentTeamId, name: currentTeamId };
     const playerConf = getTeamConference(currentTeamId, currentLg);
+    // Which conference is drawn on the left and which on the right. West and
+    // East for the leagues that have them; the BCHL's Coastal and Interior
+    // otherwise, in the order the league lists them.
+    const [leftConf, rightConf] = !hasConfs ? [null, null]
+      : conferences.includes('West') ? ['West', 'East'] : conferences;
 
     // Build opponent pools. If the league has conferences, split into West / East so the
     // bracket genuinely respects them; otherwise a single shuffled pool feeds every matchup.
@@ -150,8 +155,8 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
     const shuffled = [...allOpponents].sort(() => 0.5 - Math.random());
     let westPool = [], eastPool = [], singlePool = [];
     if (hasConfs) {
-      westPool = shuffled.filter(t => t.conf === 'West');
-      eastPool = shuffled.filter(t => t.conf === 'East');
+      westPool = shuffled.filter(t => t.conf === leftConf);
+      eastPool = shuffled.filter(t => t.conf === rightConf);
     } else {
       singlePool = shuffled;
     }
@@ -198,6 +203,15 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
     // Decide which R1 matchup index the player occupies. West indices come first (0..halfSize-1)
     // so West sits on the LEFT of the bracket per user preference, East on the right.
     const firstRoundMatchups = rounds[0].teams / 2;
+    // A league that plays its first two rounds inside the division (the BCHL)
+    // draws each first-round series from one division, with the divisions in
+    // bracket order, so neighbouring series meet in the division final and
+    // the division winners in the conference final.
+    const divisional = !!LEAGUE_CONFIG[currentLg]?.divisionalPlayoffs
+      && divs.length > 0 && firstRoundMatchups % divs.length === 0;
+    const perDiv = divisional ? firstRoundMatchups / divs.length : 0;
+    const divPools = divisional ? Object.fromEntries(divs.map(d => [d, shuffled.filter(t => t.div === d)])) : null;
+    const playerDivIdx = divisional ? divs.indexOf(playerTeamObj.div) : -1;
     // A top seed in a league with a play-in skips the first round. See playInByes.
     const byes = hasConfs ? 0 : playInByes(rounds);
     const playerHasBye = byes > 0 && (standings || 99) <= byes;
@@ -206,9 +220,11 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
     let playerMatchIdx;
     if (playerHasBye) {
       playerMatchIdx = -1;
+    } else if (divisional && playerDivIdx >= 0) {
+      playerMatchIdx = playerDivIdx * perDiv + Math.floor(Math.random() * perDiv);
     } else if (hasConfs) {
       const halfSize = Math.floor(firstRoundMatchups / 2);
-      if (playerConf === 'West') {
+      if (playerConf === leftConf) {
         playerMatchIdx = Math.floor(Math.random() * halfSize);
       } else {
         playerMatchIdx = halfSize + Math.floor(Math.random() * (firstRoundMatchups - halfSize));
@@ -255,12 +271,13 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
         // The League Final round crosses conferences, so its matchup carries no conf tag.
         let matchConf = null;
         if (hasConfs && r < totalRounds - 1) {
-          matchConf = m < halfSize ? 'West' : 'East';
+          matchConf = m < halfSize ? leftConf : rightConf;
         }
 
         if (r === 0) {
           const isPlayer = m === playerMatchIdx;
-          const pool = hasConfs ? (matchConf === 'West' ? westPool : eastPool) : singlePool;
+          const pool = divisional ? divPools[divs[Math.floor(m / perDiv)]]
+            : hasConfs ? (matchConf === leftConf ? westPool : eastPool) : singlePool;
           
           // Fallback: If a league has fewer than 16 teams, recycle an opponent so we never get a "TBD" ghost
           const getBackupTeam = () => allOpponents[Math.floor(Math.random() * allOpponents.length)] || { name: 'TBD', id: 'TBD' };
@@ -351,6 +368,7 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
         spots,
         playerConf,
         hasConfs,
+        confs: [leftConf, rightConf],
         roundsConfig: rounds,
         playerSidelined: true,
         confTitleWon: hasConfs && run.reachedFinal
@@ -389,6 +407,7 @@ export function checkPlayoffs(ctx, currentLg, currentTeamId, standings, opts = {
       spots,
       playerConf,
       hasConfs,
+      confs: [leftConf, rightConf],
       roundsConfig: rounds,
       board
     });

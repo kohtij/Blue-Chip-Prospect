@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppContext } from '../AppContext';
-import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
+import { getFullTeamName, getPlayoffTitles, isLeagueCup } from '../utils/appHelpers';
 import { careerTrophies, formatMoney, withTeamArticle } from '../utils/gameHelpers';
 import { leagueLabel, seatPlayerPick } from '../utils/peers';
 import { careerRecords, formatRecord, RECORD_LABEL } from '../utils/records';
@@ -166,18 +166,18 @@ function Letter({ captain, alternate }) {
 // What a year won, at the end of its row: the championship in gold, anything
 // else as a small neutral chip with its own trophy image.
 function YearHonours({ season }) {
-  const own = season.league === 'NHL' ? 'stanley cup' : season.league === 'AHL' ? 'calder cup' : 'championship';
+  const titleLg = season.titleLeague || season.league || 'NHL';
   const awards = (season.awards || [])
     .filter(aw => !aw.toLowerCase().includes('1st team all-star'))
-    .filter(aw => !season.titleWon || !aw.toLowerCase().includes(own))
+    .filter(aw => !season.titleWon || !isLeagueCup(aw))
     .map(aw => shortAward(aw, season.league === 'INTL'));
   if (!season.titleWon && !awards.length) return null;
   return (
     <span className="flex flex-wrap gap-1">
       {!!season.titleWon && (
         <span className="inline-flex items-center gap-1 rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-1.5 py-[2px] text-[10px] font-bold text-[#F59E0B] whitespace-nowrap">
-          <TrophyImage league={season.league || 'NHL'} className="w-3 h-3" />
-          {getPlayoffTitles(season.league).cupName}
+          <TrophyImage league={titleLg} className="w-3 h-3" />
+          {getPlayoffTitles(titleLg).cupName}
         </span>
       )}
       {awards.map((a, i) => {
@@ -425,7 +425,7 @@ export default function RetirementScreen() {
 
   const champs = {};
   history.filter(s => s.titleWon).forEach(s => {
-    const lg = s.league || 'NHL';
+    const lg = s.titleLeague || s.league || 'NHL';
     champs[lg] = champs[lg] || { name: getPlayoffTitles(lg).cupName, league: lg, years: [] };
     champs[lg].years.push(s.year + 1);
   });
@@ -437,7 +437,7 @@ export default function RetirementScreen() {
   history.forEach(s => {
     Array.from(new Set(s.awards || [])).forEach(aw => {
       const raw = String(aw);
-      if (/stanley cup|calder cup$|championship$|robertson|chynoweth|courteau/i.test(raw) && !/memorial cup/i.test(raw)) return;
+      if (isLeagueCup(raw)) return;
       if (/promotion|survival/i.test(raw)) return;
       let key = raw.replace(/^\d{4}\s/, '').replace(/\s\d{4}$/, '').replace(/\s*\(.+?\)\s*$/, '').trim();
       let kind = 'major';
@@ -548,7 +548,7 @@ export default function RetirementScreen() {
       name: player.name, pos: player.pos, number: player.number,
       games: nhl.games || 0,
       points: isGoalie ? sv3(nhl.saves || 0, nhl.shots || 0) : (nhl.goals || 0) + (nhl.assists || 0),
-      cups: history.filter(s => s.league === 'NHL' && s.titleWon).length,
+      cups: history.filter(s => s.titleWon && (s.titleLeague || s.league) === 'NHL').length,
       awards: careerTrophies(player).individual, earnings,
       team: homeName, logo: home.team, league: home.league,
       isLegend, careerScore: score.total

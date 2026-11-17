@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { ordinal, withTeamArticle } from '../utils/gameHelpers';
+import { NO_ARTICLE_LEAGUES, ordinal, withTeamArticle } from '../utils/gameHelpers';
 import { classSalt, draftBoard, flagFor, groupName, positionDraftSlot, roomProspect } from '../utils/peers';
 import LeagueTag from '../components/LeagueTag';
 import { kickerClass, TITLE_LG } from '../utils/ui';
@@ -85,7 +85,7 @@ export default function DraftScreen() {
         </div>
         
         <h2 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight px-4">
-          THE {getFullTeamName(seasonRecap?.draftedBy?.id, 'NHL').toUpperCase()} ARE PROUD TO SELECT, FROM {['SHL', 'LIIGA'].includes(seasonRecap?.juniorLeague) ? '' : 'THE '}{getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
+          THE {getFullTeamName(seasonRecap?.draftedBy?.id, 'NHL').toUpperCase()} ARE PROUD TO SELECT, FROM {NO_ARTICLE_LEAGUES.includes(seasonRecap?.juniorLeague) ? '' : 'THE '}{getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
         </h2>
         
         {/* Added break-words, w-full, and responsive sizing so long names wrap cleanly and maintain box padding */}
@@ -246,7 +246,7 @@ export default function DraftScreen() {
            </button>
         ) : (
            <button onClick={() => handleDraftChoice('RETURN')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
-             {player.league === 'NCAA' ? 'RETURN TO NCAA' : ['SHL', 'LIIGA', 'KHL', 'SWISS', 'CZECH', 'SLOVAK'].includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
+             {player.league === 'NCAA' ? 'RETURN TO NCAA' : ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'].includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
            </button>
         )}
       </div>

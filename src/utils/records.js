@@ -57,10 +57,10 @@ export const formatRecord = (key, value) => String(Math.round(value));
 /**
  * The book for one league and one club, as far as it is actually known.
  *
- * Club books exist for the NHL, the OHL, the WHL and one AHL club, because
- * those are the leagues that publish franchise records in a form that can be
- * checked club by club. The QMJHL and the rest of the AHL have none here, so
- * nothing can be broken there and nothing claims to have been.
+ * Club books exist for the leagues in CLUB_RECORDS, where franchise records
+ * are published in a form that can be checked club by club. A league or a
+ * club with no book there has nothing to break, and nothing claims to have
+ * been broken.
  */
 export function ensureBook(book, league, club) {
   const next = { ...(book || {}) };
@@ -105,10 +105,14 @@ export function seasonValues(recap, pos) {
  *
  * Club first, because that is the one a career can realistically reach.
  */
-export function claimRecords(book, { league, club, year, name, pos, recap }) {
+export function claimRecords(book, { league, club, year, name, pos, recap, clubRecap = null }) {
   let next = ensureBook(book, league, club);
   const broken = [];
   const vals = seasonValues(recap, pos);
+  // A club record only counts the games played for that club. A player
+  // traded inside the league took his whole season's total to the club he
+  // finished with.
+  const clubVals = seasonValues(clubRecap || recap, pos);
   const lg = { ...(next[league] || {}) };
   const clubs = { ...(lg.clubs || {}) };
   const leagueRecs = { ...(lg.league || {}) };
@@ -117,17 +121,18 @@ export function claimRecords(book, { league, club, year, name, pos, recap }) {
   for (const k of RECORD_KEYS(pos)) {
     const v = vals[k];
     if (v == null) continue;
+    const cv = clubVals[k] ?? v;
 
     // Beating yourself by one is not news: the book moves, nobody says it.
     const worthSaying = (prev) => !prev.mine || (v - prev.value) >= 3;
 
-    if (clubRecs[k] && v > clubRecs[k].value) {
+    if (clubRecs[k] && cv > clubRecs[k].value) {
       broken.push({
-        scope: 'club', key: k, value: v, report: worthSaying(clubRecs[k]),
+        scope: 'club', key: k, value: cv, report: (!clubRecs[k].mine || (cv - clubRecs[k].value) >= 3),
         previous: clubRecs[k].value, previousHolder: clubRecs[k].holder,
         previousMine: !!clubRecs[k].mine, previousYear: clubRecs[k].year, club, league
       });
-      clubRecs[k] = { value: v, holder: name, year, mine: true };
+      clubRecs[k] = { value: cv, holder: name, year, mine: true };
     }
     if (leagueRecs[k] && v > leagueRecs[k].value) {
       broken.push({

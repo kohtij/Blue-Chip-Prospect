@@ -1,7 +1,7 @@
-import { capFanStatus, fanGain, recomputeOvr, applyOvrDelta, withLuck } from '../utils/gameHelpers';
+import { capFanStatus, elcYears, fanGain, recomputeOvr, applyOvrDelta, withLuck } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
-import { getOpponentPool, JUNIOR_PARENT_LEAGUE } from '../data/teams';
-import { elcBonuses, veteranBonuses } from '../utils/bonuses';
+import { getOpponentPool, isAmateurLeague, JUNIOR_PARENT_LEAGUE, LEAGUE_CONFIG } from '../data/teams';
+import { elcBonuses, salaryParts, veteranBonuses } from '../utils/bonuses';
 
 export function handleEventChoice(ctx, choice) {
   const { 
@@ -104,6 +104,25 @@ export function handleEventChoice(ctx, choice) {
     updated.isAlternate = false;
     // The rest of the summer waits for the market (see advanceToOffseason).
     updated.offseason = { ...(updated.offseason || {}), boughtOut: true };
+  } else if (actionStr === 'MIDSEASON_SIGN') {
+    // Cut loose in February and signed somewhere else for the rest of the year
+    // (see midSeasonTermination). The old deal paid for the games already
+    // played, about three quarters of the season, and the new one pays for the
+    // rest. One year, so he's a free agent in the summer. The season itself
+    // carries on from here with the new club.
+    const d = choice.actionData || {};
+    const played = 0.733;
+    const { wages } = salaryParts(updated.contract || {});
+    updated.contract = {
+      salary: d.salary || 0, years: 1, role: d.role, nhl: d.league === 'NHL',
+      splitYear: { paid: Math.round(wages * played), share: 1 - played }
+    };
+    updated.team = d.team;
+    updated.league = d.league;
+    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), d.team]));
+    updated.rightsLapsedBy = d.from || null;
+    updated.isCaptain = false;
+    updated.isAlternate = false;
   } else if (actionStr === 'SLUMP_RESPONSE') {
     // The form he carries into the next stretch, in place of the cold one.
     const d = choice.actionData || {};
@@ -162,7 +181,7 @@ export function handleEventChoice(ctx, choice) {
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), seniorId]));
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
-    updated.contract = { salary: 925000, years: 3, role: getRole(925000, player), bonuses: elcBonuses(player.pos), nhl: true };
+    updated.contract = { salary: 925000, years: elcYears(player.age), role: getRole(925000, player), bonuses: elcBonuses(player.pos), nhl: true };
   } else if (actionStr === 'DEMOTE') {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
   } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {
@@ -366,9 +385,9 @@ export function handleEventChoice(ctx, choice) {
     ovr: recomputeOvr(withOvr),
     stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) },
     relationships: {
-      coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (outcomeEffect?.rel?.coach || 0))),
-      teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (outcomeEffect?.rel?.teammates || 0))),
-      media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (outcomeEffect?.rel?.media || 0)))
+      coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach ?? 50) + (outcomeEffect?.rel?.coach ?? 0))),
+      teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates ?? 50) + (outcomeEffect?.rel?.teammates ?? 0))),
+      media: Math.min(100, Math.max(0, (withOvr.relationships?.media ?? 50) + (outcomeEffect?.rel?.media ?? 0)))
     }
   };
 
@@ -441,17 +460,22 @@ export function handleEventChoice(ctx, choice) {
       const isSuccess = outcomeEffect === choice.successEffect;
       
       // Determine if the player is pro to apply fines and pro-specific text
-      const isPro = ['NHL', 'AHL', 'SHL', 'LIIGA'].includes(finalPlayer.league);
+      // Any pro league. This named four, so a KHL or ECHL holdout wasn't fined.
+      const isPro = !isAmateurLeague(finalPlayer.league);
       const fineAmount = isPro ? -250000 : 0;
       
       if (isSuccess) {
           const pool = (getOpponentPool(finalPlayer.league) || []).filter(t => t.id !== player.team);
           const destTeamObj = pool[Math.floor(Math.random() * pool.length)] || { id: 'UNK' };
           
-          const willMakePlayoffs = Math.random() > 0.5;
-          const generatedStandings = willMakePlayoffs 
-              ? Math.floor(Math.random() * 16) + 1  // Ranks 1-16
-              : Math.floor(Math.random() * 16) + 17; // Ranks 17-32
+          // A place in his new league's table. This was 1-16 or 17-32 in every
+          // league, so a European club could finish 30th of 14.
+          const leagueSize = pool.length + 1;
+          const spots = Math.min(leagueSize, LEAGUE_CONFIG[finalPlayer.league]?.playoffSpots ?? Math.floor(leagueSize / 2));
+          const willMakePlayoffs = spots > 0 && Math.random() > 0.5;
+          const generatedStandings = willMakePlayoffs
+              ? Math.floor(Math.random() * spots) + 1
+              : spots + 1 + Math.floor(Math.random() * Math.max(1, leagueSize - spots));
           
           setActiveEvent({
               title: 'HOLDOUT RESOLVED: TRADED!',

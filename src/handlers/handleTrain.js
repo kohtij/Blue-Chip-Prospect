@@ -1,8 +1,9 @@
-import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, ordinal, summariseStints, withTeamArticle, formatMoney } from '../utils/gameHelpers';
+import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, gamesInLeague, nhlSeasonsOf, ordinal, summariseStints, withTeamArticle, formatMoney } from '../utils/gameHelpers';
 import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
-import { getFullTeamName } from '../utils/appHelpers';
-import { getOpponentPool, LEAGUE_CONFIG } from '../data/teams';
+import { getFullTeamName, getRole } from '../utils/appHelpers';
+import { priceOf, recentForm, majorCount } from '../utils/contracts';
+import { getOpponentPool, isAmateurLeague, LEAGUE_CONFIG } from '../data/teams';
 import { rollInjury, injuryLine, injuryEvent } from '../utils/injuries';
 import { coachOpening, ensureClub, playerArchetype, recordSeason, roomFor, roomTrust } from '../utils/roster';
 import { teamStrengthOf } from '../utils/leagueState';
@@ -11,6 +12,76 @@ import { runPostSeasonFlow } from './runPostSeasonFlow';
 import { waiverExempt } from '../utils/waivers';
 import { formTrust, inSlump, slumpEvent } from '../utils/form';
 import { affiliateOf, conditioningEvent, isCorePlayer, midSeasonMove, moveEvent } from '../utils/rosterMoves';
+
+// --- CUT LOOSE IN FEBRUARY -------------------------------------------------
+//
+// An overpaid veteran with term left and nothing in his numbers to justify it.
+// The odds follow how far his pay is above what his form is worth, as the
+// summer buyout's do (see advanceToOffseason), and a coach who has given up on
+// him adds to them. The choices are the clubs that call: an NHL club on a cheap
+// one-year deal if he's still good enough for one, a European club for the
+// rest of the year, or turning the club down and sitting.
+
+function midSeasonTermination(p, seg, year) {
+  const c = p.contract || {};
+  if (p.league !== 'NHL' || p.storylines?.terminated) return null;
+  if ((p.age || 0) < 29 || (c.years || 0) < 2 || (c.salary || 0) < 2500000 || c.salary === 925000) return null;
+  const fair = priceOf(recentForm(p).rate, year, { age: p.age, awards: majorCount(p) });
+  const ratio = fair > 0 ? c.salary / fair : 0;
+  const coach = p.relationships?.coach ?? 50;
+  const odds = Math.min(0.3, Math.max(0, (ratio - 1.8) * 0.25) + (coach < 35 ? 0.08 : 0));
+  if (!(odds > 0) || Math.random() >= odds) return null;
+
+  const club = getFullTeamName(p.team, 'NHL');
+  const choices = [];
+  const nhlPool = (getOpponentPool('NHL') || []).filter(t => t.id !== p.team);
+  if (p.ovr >= 74 && nhlPool.length) {
+    const t = nhlPool[Math.floor(Math.random() * nhlPool.length)];
+    const salary = Math.max(775000, Math.round(Math.min(2000000, fair * 0.5) / 25000) * 25000);
+    const name = getFullTeamName(t.id, 'NHL');
+    choices.push({
+      label: `Sign with the ${name}`,
+      subLabel: `${formatMoney(salary)} for the rest of this season, then free agency.`,
+      isRisky: false,
+      feedback: `You cleared waivers in the morning and signed with the ${name} that afternoon. You're in their lineup tomorrow night.`,
+      effect: { fanStatus: 5, ovr: 0, rel: { coach: 10 } },
+      action: 'MIDSEASON_SIGN',
+      actionData: { from: p.team, team: t.id, league: 'NHL', salary, role: getRole(salary, { ...p, league: 'NHL' }) }
+    });
+  }
+  const euroLg = Math.random() < 0.55 ? 'KHL' : 'SWISS';
+  const euroPool = getOpponentPool(euroLg) || [];
+  if (euroPool.length) {
+    const t = euroPool[Math.floor(Math.random() * euroPool.length)];
+    const salary = Math.round((1000000 + Math.max(0, p.ovr - 70) * 120000) / 25000) * 25000;
+    const name = getFullTeamName(t.id, euroLg);
+    choices.push({
+      label: `Sign with ${name} in the ${euroLg === 'KHL' ? 'KHL' : 'Swiss league'}`,
+      subLabel: `${formatMoney(salary)} for the rest of this season, then free agency.`,
+      isRisky: false,
+      feedback: `You were on a plane two days later. ${name} put you on their top line the night you landed.`,
+      effect: { fanStatus: 0, ovr: 0, rel: { coach: 15 } },
+      action: 'MIDSEASON_SIGN',
+      actionData: { from: p.team, team: t.id, league: euroLg, salary, role: getRole(salary, { ...p, league: euroLg }) }
+    });
+  }
+  choices.push({
+    label: 'Refuse and stay',
+    subLabel: 'Keep the contract and the money, and sit in the press box.',
+    isRisky: false,
+    feedback: `You told the GM you weren't going anywhere. You've watched every game since from the press box, and the ${club} will try again in the summer.`,
+    effect: { fanStatus: -5, ovr: -1, rel: { coach: -15, media: -5 } }
+  });
+
+  const calls = choices.length - 1;
+  return {
+    title: '✂️ CUT LOOSE',
+    desc: `The GM called you in before practice. The ${club} are done with you, and they want to put you on unconditional waivers and terminate your contract. If you agree, you give up what's left on it and you're free to sign anywhere today. Your agent already has ${calls === 1 ? 'a club' : 'two clubs'} on the phone.`,
+    choices,
+    madePlayoffs: false,
+    isMidSeasonEvent: true
+  };
+}
 
 // --- THE LEADERSHIP GROUP, MID-SEASON ---------------------------------------
 // Camp, in advanceToOffseason, is the normal way a letter gets handed out, and
@@ -31,8 +102,9 @@ export function midSeasonLetter(player, seg) {
   if (!seg || player.league !== 'NHL') return null;
   if (player.isCaptain || player.isAlternate || player.storylines?.alternateGiven) return null;
 
-  const trust = player.relationships?.coach || 50;
-  const proSeasons = player.stats?.seasonsPlayed || 0;
+  const trust = player.relationships?.coach ?? 50;
+  // NHL seasons, not seasons of any kind. See the camp letter.
+  const proSeasons = nhlSeasonsOf(player);
   // Same head start a generational talent gets in September, applied to the
   // mid-season route as well, or the two paths would disagree about how long
   // a club waits before putting a letter on the man it built the team around.
@@ -616,7 +688,7 @@ export function handleTrain(ctx, t) {
 
       // MID-SEASON EVENTS: February
       // The Coaching Carousel (moved from post-season)
-      const coachTrustLvl = player.relationships?.coach || 50;
+      const coachTrustLvl = player.relationships?.coach ?? 50;
       const isBottomFeeder = (seg.standings || 16) >= 27;
       
       if (player.league === 'NHL' && player.pos !== 'G' && isBottomFeeder && coachTrustLvl < 50 && Math.random() < 0.40) {
@@ -678,6 +750,21 @@ export function handleTrain(ctx, t) {
             madePlayoffs: false,
             isMidSeasonEvent: true
         });
+        ctx.setScreen('event');
+        return;
+      }
+
+      // CUT LOOSE IN FEBRUARY. NHL buyouts only happen in the summer windows.
+      // During the season, a club that's done with an overpaid veteran puts
+      // him on unconditional waivers to terminate the deal, by agreement with
+      // him: he gives up what's left on it and is free to sign anywhere that
+      // day, for the rest of the year. Most go to Europe, and a few catch on
+      // with another NHL club on a cheap deal. Once a career at most.
+      const term = midSeasonTermination(livePlayer, seg, ctx.currentYear);
+      if (term) {
+        advanceTo(stints, 2);
+        setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), terminated: true } }));
+        ctx.setActiveEvent(term);
         ctx.setScreen('event');
         return;
       }
@@ -746,9 +833,14 @@ export function handleTrain(ctx, t) {
   const playedLg = result.playedLg || lastStint?.league || currentLg;
 
   // 2. Award Achievements
-  if (updatedPlayer.league === 'NHL' && recap.games > 0) unlockAchievement('first_nhl_goal');
-  if (recap.g >= 50) unlockAchievement('fifty_goal_season');
-  if ((recap.g + recap.a) >= 100) unlockAchievement('hundred_pt_season');
+  // These three are NHL achievements, and they read the whole year's line in
+  // any league: fifty goals in the OHL was a "50-goal NHL season", and the
+  // first-point one fired for anyone heading to the NHL next year.
+  const nhlStints = (recap.stints || []).filter(st => st.league === 'NHL');
+  const nhlSum = (k) => nhlStints.reduce((n, st) => n + (st[k] || 0), 0);
+  if (nhlSum('games') > 0 && (nhlSum('g') + nhlSum('a') > 0 || nhlSum('wins') > 0)) unlockAchievement('first_nhl_goal');
+  if (nhlSum('g') >= 50) unlockAchievement('fifty_goal_season');
+  if ((nhlSum('g') + nhlSum('a')) >= 100) unlockAchievement('hundred_pt_season');
   if (recap.sho >= 8) unlockAchievement('shutout_king');
   if (updatedPlayer.ovr >= 90) unlockAchievement('max_ovr');
 
@@ -861,7 +953,9 @@ export function handleTrain(ctx, t) {
           pos: updatedPlayer.pos,
           games: recap.games || 0,
           scheduleGames: LEAGUE_CONFIG?.[updatedPlayer.league]?.games || 82,
-          won: (recap.standings || 32) <= 8,
+          // A winning team is the top quarter of its own league. This was the
+          // top eight whatever the league, half of a fourteen-team table.
+          won: (recap.standings || 32) <= Math.ceil(((getOpponentPool(updatedPlayer.league) || []).length || 32) / 4),
           titleWon: !!recap.titleWon
       });
       updatedPlayer.rooms = { ...(updatedPlayer.rooms || club?.rooms || {}), [playedForClub]: updatedRoom };
@@ -936,7 +1030,7 @@ export function handleTrain(ctx, t) {
 
      const wasAHLtoNHL = player.league === 'AHL' && currentLg === 'NHL';
      const wasECHLtoAHL = player.league === 'ECHL' && currentLg === 'AHL';
-     const wasJuniorToPro = ['OHL', 'WHL', 'QMJHL', 'NCAA'].includes(player.league) && ['NHL', 'AHL'].includes(currentLg);
+     const wasJuniorToPro = isAmateurLeague(player.league) && ['NHL', 'AHL'].includes(currentLg);
      const wasNHLtoAHL = player.league === 'NHL' && currentLg === 'AHL';
      const wasAHLtoECHL = player.league === 'AHL' && currentLg === 'ECHL';
      const wasJuniorReturn = recap.waiverEvent === '9_GAME_RULE';
@@ -1027,7 +1121,7 @@ export function handleTrain(ctx, t) {
              ? `It wasn't a good autumn. They sent you down without so much as a phone call to anybody else, because at your age and on your contract they don't need one, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL. Nobody in the room brings it up.`
              : `It wasn't a good autumn. You were put on waivers, you cleared, and you spent ${ahlGames} games in the American League before the call came to go back up. You finished the year in the NHL, and you know now exactly how quickly it can go the other way.`;
      } else if (wasAHLtoNHL) {
-         const isFirst = !(player.seasonHistory || []).some(s => s.league === 'NHL');
+         const isFirst = !(player.seasonHistory || []).some(s => gamesInLeague(s, 'NHL') > 0);
          moveTitle = isFirst ? '🚨 WELCOME TO THE SHOW' : '📈 CALLED UP';
          // Earned over the whole year rather than in one phone call: he
          // finishes the season with the farm club and starts the next one up.

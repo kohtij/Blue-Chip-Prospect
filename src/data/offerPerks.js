@@ -86,7 +86,8 @@ const FLAWS = {
   ]
 };
 
-const JUNIOR = ['OHL', 'WHL', 'QMJHL', 'USHL'];
+// J20, U20 and the BCHL were missing and fell through to the NHL's set.
+const JUNIOR = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20'];
 const EURO = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
 const MINOR = ['AHL', 'ECHL', 'SPHL'];
 

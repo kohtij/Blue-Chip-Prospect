@@ -133,7 +133,10 @@ export const LEAGUE_AWARDS = {
   },
 
   SHL: {
-    mvp: 'Guldpucken (Swedish Player of the Year)',
+    // Guldpucken is Sweden's player of the year, for Swedes in the SHL or
+    // the NHL, so it can't be the SHL's MVP (see nationalAward). Guldhjälmen
+    // is: the players vote on it.
+    mvp: 'Guldhjälmen (SHL Most Valuable Player)',
     scoring: 'SHL Poängligan (Scoring Title)',
     goals: 'Håkan Loob Trophy (SHL Leading Goalscorer)',
     dman: 'Salming Trophy (SHL Best Defenceman)',
@@ -148,19 +151,25 @@ export const LEAGUE_AWARDS = {
     dman: 'Pekka Rautakallio Trophy (Liiga Best Defenceman)',
     goalie: 'Urpo Ylönen Trophy (Liiga Best Goaltender)',
     rookie: 'Jarmo Wasama Memorial Trophy (Liiga Rookie of the Year)',
-    regular: 'Liiga Regular Season Champion'
+    regular: 'Liiga Regular Season Champion',
+    // The players' own vote, beside the Lasse Oksanen, the way the Ted
+    // Lindsay sits beside the Hart.
+    players: 'Kultainen kypärä (Liiga Players\' Player of the Year)'
   },
   KHL: {
     mvp: 'Golden Stick (KHL Most Valuable Player)',
     scoring: 'KHL Top Scorer',
     goals: 'KHL Top Sniper',
-    dman: 'KHL Top Scoring Defenceman',
+    dman: 'KHL Best Defenceman',
     goalie: 'KHL Top Goaltender',
     rookie: 'Alexei Cherepanov Award (KHL Top Rookie)',
     regular: 'Continental Cup (KHL Regular Season Champion)'
   },
   CZECH: {
-    mvp: 'Zlatá hokejka (Czech Player of the Year)',
+    // Zlatá hokejka is the best Czech player anywhere, NHL included, not
+    // the Extraliga's MVP, and a Canadian in Třinec can't win it. It's
+    // handed out by nationality: see nationalAward.
+    mvp: 'Extraliga Most Valuable Player',
     scoring: 'Extraliga Scoring Champion',
     goals: 'Extraliga Leading Goalscorer',
     dman: 'Extraliga Defenceman of the Year',

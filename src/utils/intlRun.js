@@ -276,7 +276,7 @@ function nationalLetter(player, nation, context) {
 
   const clubLetter = player.isCaptain ? 10 : player.isAlternate ? 5 : 0;
   const profile = Math.min(8, Math.floor((player.fanStatus || 0) / 90));
-  const trusted = ((player.relationships?.teammates || 50) - 50) * 0.12;
+  const trusted = ((player.relationships?.teammates ?? 50) - 50) * 0.12;
 
   const standing = (player.ovr || 60)
     + clubLetter

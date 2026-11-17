@@ -35,28 +35,48 @@ export const LEAGUE_CONFIG = {
   QMJHL: { name: 'Quebec Maritimes Junior Hockey League', games: 64, playoffSpots: 16, logo: leagueLogos.QMJHL, conferences: [],          divisions: ['East','Central','West'],                     playoffFormat: 'best-of-7-16' },
   USHL:  { name: 'United States Hockey League',      games: 62, playoffSpots: 8,  logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'ushl-8' },
   NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
-  SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 8,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 10,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'shl-10' },
   // No playoff in the junior tiers: a season there is a development year and
   // ends with the regular season. playoffSpots 0 is what says so, because a
   // finish is only a playoff finish when it is inside the spots.
   J20:   { name: 'J20 Nationell',                    games: 44, playoffSpots: 0,  logo: leagueLogos.J20,   conferences: [],              divisions: [], playoffFormat: null },
   U20:   { name: 'U20 SM-sarja',                     games: 44, playoffSpots: 0,  logo: leagueLogos.U20,   conferences: [],              divisions: [], playoffFormat: null },
-  LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 8,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
+  LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 12,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'liiga-12' },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
   SWISS: { name: 'National League',                  games: 52, playoffSpots: 10, logo: leagueLogos.SWISS, conferences: [],              divisions: [], playoffFormat: 'shl-10' },
-  DEL:   { name: 'Deutsche Eishockey Liga',          games: 52, playoffSpots: 8,  logo: leagueLogos.DEL,   conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
-  ICEHL: { name: 'ICE Hockey League',                games: 52, playoffSpots: 8,  logo: leagueLogos.ICEHL, conferences: [],              divisions: [], playoffFormat: 'best-of-7-8' },
-  BCHL:  { name: 'British Columbia Hockey League',   games: 54, playoffSpots: 16, logo: leagueLogos.BCHL,  conferences: ['Coastal', 'Interior'], divisions: [], playoffFormat: 'best-of-7-16' },
-  SPHL:  { name: 'Southern Professional Hockey League', games: 56, playoffSpots: 8, logo: leagueLogos.SPHL, conferences: [], divisions: [], playoffFormat: 'best-of-7-8' },
+  DEL:   { name: 'Deutsche Eishockey Liga',          games: 52, playoffSpots: 10,  logo: leagueLogos.DEL,   conferences: [],              divisions: [], playoffFormat: 'shl-10' },
+  ICEHL: { name: 'ICE Hockey League',                games: 52, playoffSpots: 10,  logo: leagueLogos.ICEHL, conferences: [],              divisions: [], playoffFormat: 'shl-10' },
+  // Twenty clubs in two conferences of two divisions. The top four in each
+  // division go through and play their way out of it: division semifinal,
+  // division final, conference final, then the final.
+  BCHL:  { name: 'British Columbia Hockey League',   games: 54, playoffSpots: 16, logo: leagueLogos.BCHL,  conferences: ['Coastal','Interior'], divisions: ['Coastal West','Coastal East','Interior West','Interior East'], divisionalPlayoffs: true, playoffFormat: 'best-of-7-16' },
+  SPHL:  { name: 'Southern Professional Hockey League', games: 58, playoffSpots: 8, logo: leagueLogos.SPHL, conferences: [], divisions: [], playoffFormat: 'best-of-7-8' },
   CZECH: { name: 'Czech Extraliga',                  games: 52, playoffSpots: 12, logo: leagueLogos.CZECH, conferences: [],              divisions: [], playoffFormat: 'best-of-7-12' },
-  SLOVAK: { name: 'Slovak Extraliga',                games: 50, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [],             divisions: [], playoffFormat: 'pre-10' }
+  SLOVAK: { name: 'Slovak Extraliga',                games: 54, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [],             divisions: [], playoffFormat: 'pre-10' }
 };
 
 // The Nordic junior tiers belong here and not in euroLeagues: they are where a
 // sixteen-year-old plays, so everything that treats a junior league as a junior
 // league, the slide rule, aging out, amateur graduation, the import draft,
 // applies to them the same way it does to the CHL.
-export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'];
+export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20'];
+// Everything a player is still an amateur in: junior and college.
+export const amateurLeagues = [...juniorLeagues, 'NCAA'];
+export const isAmateurLeague = (lg) => amateurLeagues.includes(lg);
+// North American pro below the NHL.
+export const minorProLeagues = ['AHL', 'ECHL', 'SPHL'];
+
+// How far below the NHL each league plays, in rating points: a player's
+// rating plus this is roughly what he'd rate as against NHL competition, so a
+// 70 in the AHL reads like a 78 does in the NHL. Every league outside the NHL
+// and junior used to get the AHL's number, so a 65 who led the ECHL was
+// deployed like a 65 in the AHL, on the fourth line.
+export const LEAGUE_LEVEL = {
+  NHL: 0, KHL: 6, AHL: 8, SHL: 8, LIIGA: 8, SWISS: 8, DEL: 10, CZECH: 10,
+  ICEHL: 12, SLOVAK: 12, ECHL: 15, SPHL: 22
+};
+// Junior and college all sit where the old rule had them.
+export const leagueLevel = (lg) => LEAGUE_LEVEL[lg] ?? (isAmateurLeague(lg) ? 16 : 8);
 export const nordicJuniorLeagues = ['J20', 'U20'];
 // Which senior league a junior tier feeds, for a call-up to the men's side.
 export const JUNIOR_PARENT_LEAGUE = { J20: 'SHL', U20: 'LIIGA' };
@@ -94,6 +114,14 @@ export const PLAYOFF_ROUNDS = {
   ],
   // Slovakia's wild-card round is best-of-five; the Swiss play-in is
   // best-of-three. Seventh to tenth either way, top six straight through.
+  // Liiga: twelve in, fifth to twelfth play a best-of-five first round while
+  // the top four wait, and everything after that is best-of-seven.
+  'liiga-12': [
+    { name: 'First Round',       teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
+  ],
   'pre-10': [
     { name: 'Pre-Playoffs',      teams: 4,  gamesPerMatchup: 5 },
     { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
@@ -245,6 +273,7 @@ export const whlTeams = [
   { id: 'SCB', conf: 'East', div: 'East', city: 'Swift Current', name: 'Broncos', bg: '#00471B', color: '#0033A0', rival: 'MJ', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/swift_current_broncos.png' },
   { id: 'TCA', conf: 'West', div: 'US', city: 'Tri-City', name: 'Americans', bg: '#041E42', color: '#C8102E', rival: 'SPO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/tri-city_americans.png' },
   { id: 'VAN', conf: 'West', div: 'BC', city: 'Vancouver', name: 'Giants', bg: '#000000', color: '#C8102E', rival: 'VIC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/vancouver_giants.png' },
+  { id: 'PEN', conf: 'West', div: 'BC', city: 'Penticton', name: 'Vees', bg: '#0072CE', color: '#000000', rival: 'KEL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/penticton_vees.png' },
   { id: 'VIC', conf: 'West', div: 'BC', city: 'Victoria', name: 'Royals', bg: '#00205B', color: '#C8102E', rival: 'VAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/victoria_royals.png' },
   { id: 'WEN', conf: 'West', div: 'US', city: 'Wenatchee', name: 'Wild', bg: '#002855', color: '#54B948', rival: 'TC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/wenatchee_wild.png' }
 ];
@@ -443,7 +472,7 @@ export const liigaTeams = [
   { id: 'HIFK', city: 'HIFK', name: 'Helsinki', bg: '#C8102E', color: '#00205B', rival: 'TPS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/helsinki_hifk.png' },
   { id: 'KAR', city: 'Kärpät', name: 'Oulu', bg: '#000000', color: '#FFB81C', rival: 'TAP', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/oulu_k%C3%A4rp%C3%A4t.png' },
   { id: 'TPS', city: 'TPS', name: 'Turku', bg: '#000000', color: '#FFFFFF', rival: 'HIFK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/turku_tps.png' },
-  { id: 'LUK', city: 'Lukko', name: 'Rauma', bg: '#00205B', color: '#FFB81C', rival: 'TPS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/rauma_lukko.png' },
+  { id: 'LUK', city: 'Lukko', name: 'Rauma', bg: '#00205B', color: '#FFB81C', rival: 'ASS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/rauma_lukko.png' },
   { id: 'KAL', city: 'KalPa', name: 'Kuopio', bg: '#FFB81C', color: '#000000', rival: 'JYP', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/kuopio_kalpa.png' },
   { id: 'PEL', city: 'Pelicans', name: 'Lahti', bg: '#00205B', color: '#F26522', rival: 'HIFK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/lahti_pelicans.png' },
   { id: 'KOO', city: 'KooKoo', name: 'Kouvola', bg: '#000000', color: '#F26522', rival: 'PEL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/kouvola_kookoo.png' },
@@ -452,6 +481,7 @@ export const liigaTeams = [
   { id: 'SAI', city: 'SaiPa', name: 'Lappeenranta', bg: '#FFB81C', color: '#000000', rival: 'KOO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/lappeenranta_saipa.png' },
   { id: 'JUK', city: 'Jukurit', name: 'Mikkeli', bg: '#00205B', color: '#FFB81C', rival: 'KAL', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/jukurit_mikkeli.png' },
   { id: 'SPO', city: 'Sport', name: 'Vaasa', bg: '#C8102E', color: '#FFB81C', rival: 'KAR', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/vaasa_sport.png' },
+  { id: 'ASS', city: 'Ässät', name: 'Pori', bg: '#C8102E', color: '#000000', rival: 'LUK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/pori_%C3%A4ss%C3%A4t.png' },
   { id: 'AKH', city: 'Kiekko-Espoo', name: 'Espoo', bg: '#00205B', color: '#FFB81C', rival: 'HIFK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/kiekko-espoo.png' }
 ];
 
@@ -597,15 +627,30 @@ export const swissTeams = [
 // ==========================================
 // 13. BCHL TEAMS (Junior A)
 // ==========================================
+// The 2025-26 league: twenty clubs, five of them in Alberta. Penticton left
+// for the WHL. Blackfalds has no crest in the logo pack, so it shows its
+// lettered badge.
 export const bchlTeams = [
-  { id: 'PEN', conf: 'Interior', city: 'Penticton', name: 'Vees', bg: '#00205B', color: '#FFFFFF', rival: 'VER', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/penticton_vees.png' },
-  { id: 'VER', conf: 'Interior', city: 'Vernon', name: 'Vipers', bg: '#041E42', color: '#F2A900', rival: 'PEN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/vernon_vipers.png' },
-  { id: 'SAL', conf: 'Interior', city: 'Salmon Arm', name: 'Silverbacks', bg: '#000000', color: '#C8102E', rival: 'VER', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/salmon_arm_silverbacks.png' },
-  { id: 'CHI', conf: 'Coastal', city: 'Chilliwack', name: 'Chiefs', bg: '#622438', color: '#D4AF37', rival: 'SUR', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/chilliwack_chiefs.png' },
-  { id: 'SUR', conf: 'Coastal', city: 'Surrey', name: 'Eagles', bg: '#00471B', color: '#FFFFFF', rival: 'CHI', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/surrey_eagles.png' },
-  { id: 'NAN', conf: 'Coastal', city: 'Nanaimo', name: 'Clippers', bg: '#F26522', color: '#000000', rival: 'VIC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/nanaimo_clippers.png' },
-  { id: 'VIC', conf: 'Coastal', city: 'Victoria', name: 'Grizzlies', bg: '#000000', color: '#FFB81C', rival: 'NAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/victoria_grizzlies.png' },
-  { id: 'ALB', conf: 'Coastal', city: 'Alberni Valley', name: 'Bulldogs', bg: '#00205B', color: '#C8102E', rival: 'NAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/alberni_valley_bulldogs.png' }
+  { id: 'ALB', conf: 'Coastal', div: 'Coastal West', city: 'Alberni Valley', name: 'Bulldogs', bg: '#00205B', color: '#C8102E', rival: 'NAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/alberni_valley_bulldogs.png' },
+  { id: 'CVC', conf: 'Coastal', div: 'Coastal West', city: 'Cowichan Valley', name: 'Capitals', bg: '#1D3C78', color: '#C8102E', rival: 'VIC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/cowichan_valley_capitals.png' },
+  { id: 'NAN', conf: 'Coastal', div: 'Coastal West', city: 'Nanaimo', name: 'Clippers', bg: '#F26522', color: '#000000', rival: 'ALB', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/nanaimo_clippers.png' },
+  { id: 'PRK', conf: 'Coastal', div: 'Coastal West', city: 'Powell River', name: 'Kings', bg: '#00573F', color: '#F2C200', rival: 'NAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/powell_river_kings.png' },
+  { id: 'VIC', conf: 'Coastal', div: 'Coastal West', city: 'Victoria', name: 'Grizzlies', bg: '#000000', color: '#FFB81C', rival: 'CVC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/victoria_grizzlies.png' },
+  { id: 'CHI', conf: 'Coastal', div: 'Coastal East', city: 'Chilliwack', name: 'Chiefs', bg: '#622438', color: '#D4AF37', rival: 'SUR', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/chilliwack_chiefs.png' },
+  { id: 'COQ', conf: 'Coastal', div: 'Coastal East', city: 'Coquitlam', name: 'Express', bg: '#000000', color: '#C8102E', rival: 'LAN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/coquitlam_express.png' },
+  { id: 'LAN', conf: 'Coastal', div: 'Coastal East', city: 'Langley', name: 'Rivermen', bg: '#00205B', color: '#A2AAAD', rival: 'COQ', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/langley_rivermen.png' },
+  { id: 'PGS', conf: 'Coastal', div: 'Coastal East', city: 'Prince George', name: 'Spruce Kings', bg: '#D9381E', color: '#00205B', rival: 'CHI', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/prince_george_spruce_kings.png' },
+  { id: 'SUR', conf: 'Coastal', div: 'Coastal East', city: 'Surrey', name: 'Eagles', bg: '#00471B', color: '#FFFFFF', rival: 'CHI', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/surrey_eagles.png' },
+  { id: 'CRA', conf: 'Interior', div: 'Interior West', city: 'Cranbrook', name: 'Bucks', bg: '#004B23', color: '#A2AAAD', rival: 'TRA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/cranbrook_bucks.png' },
+  { id: 'SAL', conf: 'Interior', div: 'Interior West', city: 'Salmon Arm', name: 'Silverbacks', bg: '#000000', color: '#C8102E', rival: 'VER', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/salmon_arm_silverbacks.png' },
+  { id: 'TRA', conf: 'Interior', div: 'Interior West', city: 'Trail', name: 'Smoke Eaters', bg: '#000000', color: '#F58220', rival: 'CRA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/trail_smoke_eaters.png' },
+  { id: 'VER', conf: 'Interior', div: 'Interior West', city: 'Vernon', name: 'Vipers', bg: '#041E42', color: '#F2A900', rival: 'WKW', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/vernon_vipers.png' },
+  { id: 'WKW', conf: 'Interior', div: 'Interior West', city: 'West Kelowna', name: 'Warriors', bg: '#000000', color: '#C4A464', rival: 'VER', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/west_kelowna_warriors.png' },
+  { id: 'BLK', conf: 'Interior', div: 'Interior East', city: 'Blackfalds', name: 'Bulldogs', bg: '#000000', color: '#C4A57B', rival: 'SPC', logo: '' },
+  { id: 'BRO', conf: 'Interior', div: 'Interior East', city: 'Brooks', name: 'Bandits', bg: '#000000', color: '#E0002A', rival: 'OKO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/brooks_bandits.png' },
+  { id: 'OKO', conf: 'Interior', div: 'Interior East', city: 'Okotoks', name: 'Oilers', bg: '#000000', color: '#C6A23F', rival: 'BRO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/okotoks_oilers.png' },
+  { id: 'SPC', conf: 'Interior', div: 'Interior East', city: 'Sherwood Park', name: 'Crusaders', bg: '#00843D', color: '#FFFFFF', rival: 'SGS', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/sherwood_park_crusaders.png' },
+  { id: 'SGS', conf: 'Interior', div: 'Interior East', city: 'Spruce Grove', name: 'Saints', bg: '#00205B', color: '#F2C200', rival: 'SPC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/spruce_grove_saints.png' }
 ];
 
 // ==========================================
@@ -617,7 +662,11 @@ export const sphlTeams = [
   { id: 'HSV', city: 'Huntsville', name: 'Havoc', bg: '#000000', color: '#C8102E', rival: 'KNO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/Huntsville_Havoc.png' },
   { id: 'KNO', city: 'Knoxville', name: 'Ice Bears', bg: '#582C83', color: '#FFFFFF', rival: 'HSV', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/knoxville_ice_bears.png' },
   { id: 'PEN', city: 'Pensacola', name: 'Ice Flyers', bg: '#00205B', color: '#88D0F6', rival: 'MAC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/Pensacola_Ice_Flyers.png' },
-  { id: 'MAC', city: 'Macon', name: 'Mayhem', bg: '#C8102E', color: '#00205B', rival: 'PEN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/Macon_Mayhem.png' }
+  { id: 'MAC', city: 'Macon', name: 'Mayhem', bg: '#C8102E', color: '#00205B', rival: 'PEN', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/Macon_Mayhem.png' },
+  { id: 'EVV', city: 'Evansville', name: 'Thunderbolts', bg: '#002D72', color: '#FFB81C', rival: 'PEO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/evansville_thunderbolts.png' },
+  { id: 'BHM', city: 'Birmingham', name: 'Bulls', bg: '#000000', color: '#C8102E', rival: 'HSV', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/birmingham_bulls.png' },
+  { id: 'QCS', city: 'Quad City', name: 'Storm', bg: '#00205B', color: '#A2AAAD', rival: 'PEO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/quad_city_storm.png' },
+  { id: 'FAY', city: 'Fayetteville', name: 'Marksmen', bg: '#000000', color: '#C8102E', rival: 'ROA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/fayetteville_marksmen.png' }
 ];
 
 // ==========================================
@@ -753,7 +802,11 @@ export const getOpponentPool = (league) => {
 };
 
 export const getDeployment = (ovr, pos, league) => {
-  if (pos === 'G') return ovr >= 82 ? 'Starter' : 'Backup';
+  // Read against his own league (see LEAGUE_LEVEL). Every league outside the
+  // NHL used one pair of bars, so the same 70 was a top-line junior and a
+  // top-line AHL player, and a goalie needed an 82 to start anywhere at all.
+  const eq = league === 'NHL' ? ovr : ovr + leagueLevel(league);
+  if (pos === 'G') return eq >= 82 ? 'Starter' : 'Backup';
   
   const isDef = pos === 'LD' || pos === 'RD';
   
@@ -765,8 +818,8 @@ export const getDeployment = (ovr, pos, league) => {
   }
   
   // Amateur / Minor Leagues
-  if (ovr >= 72) return isDef ? '1st Pair Core' : '1st Line Core';
-  if (ovr >= 65) return isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
+  if (eq >= 86) return isDef ? '1st Pair Core' : '1st Line Core';
+  if (eq >= 80) return isDef ? '2nd Pair Top-Four' : '2nd Line Top-Six';
   return isDef ? '3rd Pair Depth' : '3rd Line Depth';
 };
 
@@ -830,12 +883,12 @@ const LEAGUE_ROUND_NAMES = {
   OHL:    ['First Round', 'Second Round', 'Conference Final', 'Robertson Cup Final'],
   WHL:    ['First Round', 'Second Round', 'Conference Final', 'Ed Chynoweth Cup Final'],
   QMJHL:  ['First Round', 'Second Round', 'Semifinal', 'Gilles-Courteau Final'],
-  BCHL:   ['First Round', 'Second Round', 'Conference Final', 'Fred Page Cup Final'],
+  BCHL:   ['Division Semifinal', 'Division Final', 'Conference Final', 'BCHL Cup Final'],
   KHL:    ['Conference Quarterfinal', 'Conference Semifinal', 'Conference Final', 'Gagarin Cup Final'],
-  SHL:    ['Quarterfinal', 'Semifinal', 'Le Mat Trophy Final'],
-  LIIGA:  ['Quarterfinal', 'Semifinal', 'Kanada-malja Final'],
-  DEL:    ['Viertelfinale', 'Halbfinale', 'DEL Final'],
-  ICEHL:  ['Quarterfinal', 'Semifinal', 'ICEHL Final'],
+  SHL:    ['Play-In', 'Quarterfinal', 'Semifinal', 'Le Mat Trophy Final'],
+  LIIGA:  ['First Round', 'Quarterfinal', 'Semifinal', 'Kanada-malja Final'],
+  DEL:    ['Pre-Playoffs', 'Viertelfinale', 'Halbfinale', 'DEL Final'],
+  ICEHL:  ['Pre-Playoffs', 'Quarterfinal', 'Semifinal', 'ICEHL Final'],
   SWISS:  ['Play-In', 'Viertelfinal', 'Halbfinal', 'National League Final'],
   CZECH:  ['Pre-Playoff', 'Quarterfinal', 'Semifinal', 'Extraliga Final'],
   SLOVAK: ['Play-In', 'Quarterfinal', 'Semifinal', 'Extraliga Final'],

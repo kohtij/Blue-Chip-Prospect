@@ -1,7 +1,22 @@
 import {
   nhlTeams, ahlTeams, ohlTeams, whlTeams, qmjhlTeams, juniorLeagues, euroLeagues,
-  LEAGUE_CONFIG, getOpponentPool
+  LEAGUE_CONFIG, getOpponentPool, isAmateurLeague, leagueLevel
 } from '../data/teams';
+
+// WHICH CAREER TOTAL A SEASON COUNTS TOWARD.
+//
+// Four buckets: junior and college ('chl', shown as pre-NHL), the AHL, the
+// NHL, and every other pro league ('pro'). Anything that wasn't junior or the
+// AHL used to be filed as NHL, here and in two other places that each kept
+// their own copy of the rule, so a season in the ECHL, the KHL or Czechia
+// counted as NHL games. A teenager in the SHL or Liiga is a draft prospect
+// playing up, so his games count with the junior ones, where the draft looks
+// for them; at twenty he's a pro like anyone else in those leagues.
+export const statBucketOf = (lg, age = 20) =>
+  lg === 'NHL' ? 'nhl'
+    : lg === 'AHL' ? 'ahl'
+      : isAmateurLeague(lg) || (['SHL', 'LIIGA'].includes(lg) && age < 20) ? 'chl'
+        : 'pro';
 import { shopItems } from '../data/economy';
 import { awardsFor } from '../data/leagueAwards';
 import { ageFactor, curvesFor, D_TOI_REF, drawComebackBar, drawCommunityBar, drawRoomBar, faceoffs, forwardDefence, gaussianNoise, goalieAgeAdjust, iceTime, isDefence, paceOf, penaltyMinutes, rateSeason, seasonForm, shotsOnGoal, soften, formReading, zoneEffect, zoneStarts, ZONE_PM_PER_SEASON } from './production';
@@ -10,6 +25,7 @@ import { advanceLeagueState, teamStrengthOf } from './leagueState';
 import { advanceRecords, claimRecords } from './records';
 import { waiverExempt } from './waivers';
 import { earnedBonuses, salaryParts } from './bonuses';
+import { careerAwardList } from './awardList';
 import { advancePeers, classBestAt, classNews, dmanBar, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
@@ -49,6 +65,23 @@ export const ordinal = (n) => {
 // places, so an old player's ratings could fall to nothing one summer and
 // come back as 50s the next.
 export const ATTR_FLOOR = 20;
+
+// How long an entry-level contract runs, by the age he signs it: three years
+// from 18 to 21, two at 22 or 23, one at 24 and up. Every ELC was three years.
+export const elcYears = (age) => (age <= 21 ? 3 : age <= 23 ? 2 : 1);
+
+/** Games one season of the history spent in a given league, split seasons included. */
+export const gamesInLeague = (season, lg) => {
+  if (!season) return 0;
+  if (Array.isArray(season.stints) && season.stints.length) {
+    return season.stints.filter(st => st.league === lg).reduce((n, st) => n + (st.games || 0), 0);
+  }
+  return season.league === lg ? (season.games || 0) : 0;
+};
+
+/** Seasons in which he was a real part of an NHL roster: twenty games or more. */
+export const nhlSeasonsOf = (p, min = 20) =>
+  (p?.seasonHistory || []).filter(s => gamesInLeague(s, 'NHL') >= min).length;
 export const cap = (val) => Math.min(100, Math.max(ATTR_FLOOR, val));
 
 // Fans are people, so the number is a whole one. Rounded here as well as in
@@ -120,8 +153,6 @@ const ROLE_STEP = 0.22;
 export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = 'NHL',
                               coachTrust = 50, lastRoleMulti = null, sameLeague = true,
                               depth = 0 }) => {
-  const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(league);
-
   // 1. What he signed for.
   let signed = null;
   for (const [keys, multi] of CONTRACT_TIERS) {
@@ -132,7 +163,7 @@ export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = '
   }
 
   // 2. What he is worth, read against his league rather than against the NHL.
-  const standing = ovr + (junior ? 16 : league === 'NHL' ? 0 : 8);
+  const standing = ovr + leagueLevel(league);
   const deserved = standing >= 85 ? 1.30 : standing >= 78 ? 1.08
                  : standing >= 71 ? 0.88 : standing >= 64 ? 0.66 : 0.46;
 
@@ -224,10 +255,8 @@ export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = '
 };
 
 export const careerHonours = (player) => {
-  const awards = [
-    ...(player?.stats?.awards || []),
-    ...((player?.seasonHistory || []).flatMap(s => s.awards || []))
-  ];
+  // Once each: see careerAwardList.
+  const awards = careerAwardList(player);
   const count = (str) => awards.filter(a => a.includes(str)).length;
 
   const cups = count('Stanley Cup');
@@ -436,15 +465,18 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // of the twenty. See data/leagueAwards.js for what each one calls its
   // trophies and why some of them are named and some are not.
   const trophy = awardsFor(player.league);
-  const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'].includes(player.league);
-  const proSeasons = player.stats?.seasonsPlayed || 0;
+  // How many games this league plays. The workload bars below were fixed
+  // numbers set for an 84-game NHL year (and 68 in junior), so a college
+  // player on a 34-game schedule, or anyone in a 50-game European league,
+  // could never play enough to qualify for half these trophies.
+  const sched = LEAGUE_CONFIG[player.league]?.games || 82;
 
   if (standings === 1) awards.push(trophy.regular);
 
   // The goalie bars move with the league, because a .915 is a good year in the
   // NHL and an ordinary one in a low-event European league.
   const pace = paceOf(player.league);
-  const goalieMin = junior ? 30 : 38;
+  const goalieMin = Math.round(sched * 0.45);
 
   if (isGoalie) {
     // The Vezina is run as a race.
@@ -461,7 +493,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     // A goalie taking the MVP outright is a once-a-generation event: three
     // times in the last forty years. Leading the league is not enough, he has
     // to leave it behind, and over a full starter's workload.
-    if (svPct >= lead + 0.016 && games >= goalieMin + 14) awards.push(trophy.mvp);
+    if (svPct >= lead + 0.016 && games >= Math.round(sched * 0.62)) awards.push(trophy.mvp);
   } else if (isDefense) {
     // How the Norris is decided.
     //
@@ -517,7 +549,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   const teammates = rel.teammates ?? 50;
   const media = rel.media ?? 50;
   const wearsALetter = !!player.isCaptain || !!player.alternateGiven;
-  const fullish = games >= (junior ? 50 : 55);
+  const fullish = games >= Math.round(sched * 0.65);
 
   // THE PLAYERS' AWARD.
   //
@@ -595,7 +627,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     const cutShort = !!lastYear && !!lastYear.injuryEnded && (lastYear.games || 0) <= 40;
     // Coming back is the condition, playing well is the case, and somebody
     // else in the league came back too.
-    if (cutShort && games >= (junior ? 48 : 62) && rating >= drawComebackBar()) {
+    if (cutShort && games >= Math.round(sched * 0.72) && rating >= drawComebackBar()) {
       awards.push(trophy.perseverance);
     }
   }
@@ -611,14 +643,23 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
       && media >= 65 && (player.fanStatus || 0) >= drawCommunityBar()) {
     awards.push(trophy.community);
   }
+  // On a team near the top of its own league: the top quarter. Top eight
+  // was a quarter of the NHL and more than half of most European tables.
+  const teamCount = (getOpponentPool(player.league) || []).length || 32;
   if (trophy.leadership && player.isCaptain && fullish
-      && standings <= 8 && teammates >= drawRoomBar()) {
+      && standings <= Math.ceil(teamCount / 4) && teammates >= drawRoomBar()) {
     awards.push(trophy.leadership);
   }
 
-  // A rookie is a sixteen-year-old in junior and a first-year professional
-  // everywhere else.
-  const isRookie = junior ? player.age === 16 : proSeasons === 1;
+  // A rookie is in his first real season in this league, the way the Calder
+  // counts it: no earlier season with more than 25 games in it, and not two
+  // with more than six. In the NHL he also has to be under 26. This was "the
+  // first season of the whole career" outside junior, which meant a player
+  // who came up through junior could never be a rookie in the AHL or the NHL,
+  // and in junior it was a sixteen-year-old only.
+  const earlier = (player.seasonHistory || []).map(s => gamesInLeague(s, player.league));
+  const isRookie = !earlier.some(n => n > 25) && earlier.filter(n => n > 6).length < 2
+    && (player.league !== 'NHL' || (player.age || 0) < 26);
   if (isRookie) {
     // ONE ROOKIE AWARD, THREE POSITIONS, ONE STANDARD.
     //
@@ -670,6 +711,47 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   }
 
   return awards;
+}
+
+// A COUNTRY'S PLAYER OF THE YEAR.
+//
+// Sweden, Czechia and Slovakia each name one, and it's for a national of that
+// country wherever he plays, which in practice means the NHL: every Guldpucken
+// since Swedes in the NHL became eligible in 2015, and every Zlatá hokejka in
+// the last decade, went to an NHL player. A European league's MVP can still
+// take it in a year when nobody back home in the NHL had a big one, which is
+// likelier for Slovakia, with a handful of NHL regulars, than for Sweden.
+//
+// In the NHL he wins it with one of the league's big trophies, or with a
+// scoring year his countrymen don't match. `share` is that year as a share of
+// what won the scoring title, and it's highest where the most of them are:
+// Sweden has a dozen first-liners in the league, Slovakia a couple. A
+// defenceman's line is lower, and a goalie needs the Vezina or the Hart.
+const NATIONAL_AWARDS = {
+  // Guldpucken is for Swedes in the SHL or the NHL, and nowhere else.
+  SWE: { name: 'Guldpucken (Swedish Player of the Year)', share: 0.82, euroChance: 0.10, onlyIn: 'SHL' },
+  CZE: { name: 'Zlatá hokejka (Czech Player of the Year)', share: 0.76, euroChance: 0.15 },
+  SVK: { name: 'Hokejista roka (Slovak Player of the Year)', share: 0.58, euroChance: 0.40 }
+};
+export function nationalAward({ nat, pos, league, awards = [], games = 0, pts = 0, bar = null }) {
+  const award = NATIONAL_AWARDS[nat];
+  if (!award || !league || isAmateurLeague(league)) return null;
+  const sched = LEAGUE_CONFIG[league]?.games || 82;
+  if (games < Math.round(sched * 0.65)) return null;
+  const t = awardsFor(league);
+  const won = (key) => !!t[key] && awards.includes(t[key]);
+  if (league === 'NHL') {
+    const major = ['mvp', 'scoring', 'goals', 'dman', 'goalie', 'players'].some(won);
+    if (major) return award.name;
+    if (pos === 'G' || !bar?.total) return null;
+    const line = award.share * (pos === 'LD' || pos === 'RD' ? 0.6 : 1);
+    return pts >= bar.total * line ? award.name : null;
+  }
+  // Outside the NHL, only the MVP of a top European league is in the
+  // conversation, and only in a year the NHL contingent leaves it open.
+  if (award.onlyIn && league !== award.onlyIn) return null;
+  if (leagueLevel(league) <= 8 && league !== 'AHL' && won('mvp') && Math.random() < award.euroChance) return award.name;
+  return null;
 }
 
 // We need to pass the full player object into this function now to read their archetype
@@ -866,7 +948,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const isEuroLg = euroLeagues.includes(p.league);
   const isNCAA = p.league === 'NCAA';
   
-  const coachTrust = p.relationships?.coach || 50;
+  const coachTrust = p.relationships?.coach ?? 50;
 
   const placement = _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA);
   let currentLg   = options.lockPlacement ? p.league : placement.currentLg;
@@ -1104,7 +1186,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const ageCapped = isJuniorLg || isNCAA;
   const ageMulti = ageFactor(p.age, ageCapped);
   const form = seasonForm(games);
-  const curves = curvesFor(currentLg);
+  const curves = curvesFor(currentLg, LEAGUE_CONFIG[currentLg]?.games);
 
   // FORM CARRIES.
   //
@@ -1450,6 +1532,13 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     ozPct: seasonOz
   });
 
+  // His country's player of the year, which looks at every league at once.
+  const national = nationalAward({
+    nat: p.nat, pos: p.pos, league: playedLg, awards, games: leagueYear.games,
+    pts: (leagueYear.g || 0) + (leagueYear.a || 0), bar
+  });
+  if (national) awards.push(national);
+
   // Every club the player had anything to do with this year is now a club the
   // save tracks, and then the whole league moves on a year. Every NHL club is
   // tracked from the start: the draft order and the front offices read all
@@ -1474,11 +1563,16 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // for the club he left in October. A club record uses the club he finished
   // with, which is the only club a single-club record can belong to.
   const recordSeasonYear = 2026 + (p.stats?.seasonsPlayed || 0);
+  const lgStints = stints.filter(s => s.league === playedLg);
+  const recordClub = lgStints[lgStints.length - 1]?.team || currentTeam;
   const recordClaim = (leagueYear.games || 0) > 0
     ? claimRecords(p.recordBook, {
-        league: playedLg, club: currentTeam, year: recordSeasonYear,
+        league: playedLg, club: recordClub, year: recordSeasonYear,
         name: p.name, pos: p.pos,
-        recap: leagueYear
+        recap: leagueYear,
+        clubRecap: lgStints.filter(s => s.team === recordClub).reduce((acc, s) => ({
+          g: acc.g + (s.g || 0), a: acc.a + (s.a || 0), wins: acc.wins + (s.wins || 0), sho: acc.sho + (s.sho || 0)
+        }), { g: 0, a: 0, wins: 0, sho: 0 })
       })
     : { book: p.recordBook || {}, broken: [] };
   const nextRecordBook = advanceRecords(recordClaim.book);
@@ -1521,15 +1615,24 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       ? ((s.sho || 0) * 8) + Math.max(0, Math.round((((s.shots || 0) > 0 ? (s.saves || 0) / s.shots : 0) - 0.900) * 2000))
       : (s.g || 0) + (s.a || 0);
     if (jr) return sum + Math.floor(worth / 20);
-    if (s.league === 'AHL') return sum + Math.floor(worth / 15);
-    return sum + Math.floor(worth / 3);
+    // Every pro league that wasn't the AHL earned fans at the NHL's rate, so
+    // a season in the SPHL made a player as famous as one in the NHL.
+    const rate = { NHL: 3, KHL: 12, SHL: 12, LIIGA: 12, SWISS: 12, AHL: 15, DEL: 15, CZECH: 15,
+      ICEHL: 15, SLOVAK: 15, ECHL: 18, SPHL: 25 }[s.league] ?? 15;
+    return sum + Math.floor(worth / rate);
   }, 0);
 
   let valIncrease = p.pos === 'G'
       ? ((seasonTotal.sho * 350000) + (seasonTotal.saves * 600) + (seasonTotal.games * 10000))
       : ((seasonTotal.g * 110000) + (seasonTotal.a * 45000) + (seasonTotal.pm * 15000) + (seasonTotal.games * 8000));
   
-  const maxVal = currentLg === 'NHL' ? 20000000 : currentLg === 'AHL' ? 3000000 : 500000;
+  // The most a player in this league can be worth. Everything outside the NHL
+  // and the AHL was capped at junior's half a million, so the best player in
+  // the KHL was "worth" less than an AHL depth forward.
+  const maxVal = {
+    NHL: 20000000, KHL: 5000000, AHL: 3000000, SWISS: 2000000, SHL: 1500000, LIIGA: 1500000,
+    DEL: 1000000, CZECH: 1000000, ICEHL: 800000, SLOVAK: 600000, ECHL: 250000, SPHL: 100000
+  }[currentLg] ?? 500000;
   const decayedValue = Math.floor((p.stats.value || 50000) * 0.65);
   let newVal = Math.min(maxVal, Math.max(50000, decayedValue + valIncrease));
   
@@ -1542,7 +1645,8 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
 
   // Each stint is credited to its own career bucket, so a nine-game NHL trial
   // stays nine NHL games instead of being filed under junior with the other 50.
-  const bucketOf = (lg) => ['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'SHL', 'LIIGA'].includes(lg) ? 'chl' : (lg === 'AHL' ? 'ahl' : 'nhl');
+  // See statBucketOf.
+  const bucketOf = (lg) => statBucketOf(lg, p.age);
   const mergedBuckets = {};
   for (const s of stints) {
     const b = bucketOf(s.league);
@@ -1588,7 +1692,12 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // The salary, less whatever part of it was paid as a signing bonus on July 1,
   // plus any performance bonus the season reached. Only NHL games count toward
   // those, because no bonus in an NHL contract pays for games anywhere else.
-  const { wages } = salaryParts(p.contract);
+  // A year split between two contracts (cut loose in February, see
+  // handleEventChoice) pays the old deal's share and the new one's.
+  const split = p.contract?.splitYear;
+  const wages = split
+    ? (split.paid || 0) + Math.round(salaryParts(p.contract).wages * (split.share ?? 1))
+    : salaryParts(p.contract).wages;
   const nhlStints = stints.filter(st => st.league === 'NHL');
   const nhlGames = nhlStints.reduce((n, st) => n + (st.games || 0), 0);
   const bonusYear = (p.contract?.bonuses?.length && nhlGames > 0)
@@ -1647,7 +1756,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     hockeyIQ: cap(newIq),
     stamina: cap(newSta),
     fanStatus: fanGain(fanFade(p.fanStatus || 0), fanStatusGain),
-    contract: { ...p.contract, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
+    contract: { ...p.contract, splitYear: undefined, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
       value: newVal,
@@ -1800,7 +1909,8 @@ export const formatLeagueName = (league) => {
   return league;
 };
 
-export const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+// European clubs don't take "the", junior sides included.
+export const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', 'J20', 'U20'];
 
 export const leagueWithArticle = (league) => {
   const formatted = formatLeagueName(league);
@@ -1948,7 +2058,7 @@ export const isNineGameCandidate = (p) => {
   // on the record are the fallback for a career that started before the flag
   // existed, since the only way to have them this young is to have had the look.
   if (p.nineGameUsed) return false;
-  return !(p.seasonHistory || []).some(s => s.league === 'NHL' && (s.games || 0) > 0);
+  return !(p.seasonHistory || []).some(s => gamesInLeague(s, 'NHL') > 0);
 };
 
 // The club's read on those nine games. This is a judgement call, not a formula

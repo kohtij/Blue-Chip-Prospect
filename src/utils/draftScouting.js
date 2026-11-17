@@ -19,6 +19,7 @@
 
 import { draftSlotFromBoard } from './peers';
 import { D_WEIGHT, defensiveHalf, isDefence, NHLE_STAR, nhleOf, POS_PACE } from './production';
+import { careerAwardList } from './awardList';
 
 export const PICKS_PER_ROUND = 32;
 export const DRAFT_ROUNDS = 7;
@@ -125,10 +126,8 @@ function productionScore(player) {
 
 function honoursScore(player) {
   const history = player.seasonHistory || [];
-  const awards = [
-    ...(player.stats?.awards || []),
-    ...history.flatMap(s => s.awards || [])
-  ];
+  // Once each: a junior title sits in both lists. See careerAwardList.
+  const awards = careerAwardList(player);
 
   let pts = 0;
   for (const a of awards) {

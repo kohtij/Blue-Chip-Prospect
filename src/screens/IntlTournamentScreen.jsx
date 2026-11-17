@@ -182,7 +182,7 @@ export default function IntlTournamentScreen() {
   const canTimeout =
     !run.timeoutUsed && !outcome && !done &&
     round && round.key !== 'FINAL' && round.key !== 'DECIDER' &&
-    ((player.relationships?.teammates || 50) >= 75 || player.isCaptain || player.isAlternate);
+    ((player.relationships?.teammates ?? 50) >= 75 || player.isCaptain || player.isAlternate);
 
   const finishTournament = useCallback((finishedRun) => {
     const { updatedPlayer, summary } = commitRun({

@@ -9,18 +9,19 @@ import { getMinigamePool, findMinigame } from './data/minigames';
 import { awardsFor } from './data/leagueAwards';
 import { FO_EDGE_CAP } from './utils/production';
 import {
-  cap, fanGain, getFanTier, applyOvrDelta, recomputeOvr
+  cap, elcYears, fanGain, gamesInLeague, getFanTier, applyOvrDelta, recomputeOvr, statBucketOf
 } from './utils/gameHelpers';
 import { createDraftClass, scoutingBoard } from './utils/peers';
 import { runDraftNight } from './utils/draftNight';
 import { addToPool } from './utils/frontOffice';
 import { recordTitle } from './utils/titles';
 import { elcBonuses, salaryParts, SB_SHARE, veteranBonuses } from './utils/bonuses';
+import { careerAwardList } from './utils/awardList';
 import { withOfferPerks } from './data/offerPerks';
 import { getStakes, applyStakesToReward } from './utils/stakes';
 import {
   makeInitialPlayer, getRole, getWinsNeeded,
-  MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName, getTrainingQuality
+  MASTER_ACHIEVEMENTS, getJournalistsForLeague, getFullTeamName, getPlayoffTitles, getTrainingQuality
 } from './utils/appHelpers';
 
 import PressScreen from './screens/PressScreen';
@@ -251,7 +252,7 @@ function App() {
 
     let currentStreak = 0, streakTeam = null;
     for (let i = 0; i < hist.length; i++) {
-      if (hist[i]?.titleWon && hist[i]?.league === 'NHL') {
+      if (hist[i]?.titleWon && (hist[i]?.titleLeague || hist[i]?.league) === 'NHL') {
         if (streakTeam === hist[i].team) {
            currentStreak++;
            if (currentStreak >= 3) { unlockAchievement('back_to_back'); break; } 
@@ -263,10 +264,12 @@ function App() {
   useEffect(() => {
     if (screen !== 'retirement') return;
     const titles = player.stats?.titles || 0;
-    const trophyCount = (player.stats?.awards || []).length;
+    // Every honour, once each. stats.awards only ever held the cups and
+    // medals, so season trophies never counted toward this.
+    const trophyCount = careerAwardList({ stats: player.stats, seasonHistory: player.seasonHistory }).length;
     if (titles >= 3 && trophyCount >= 5) unlockAchievement('hall_of_fame');
     if (player.age > 38 && player.league === 'NHL') unlockAchievement('veteran_retirement');
-  }, [player.age, player.league, player.stats?.awards, player.stats?.titles, screen, unlockAchievement]);
+  }, [player.age, player.league, player.stats, player.seasonHistory, screen, unlockAchievement]);
 
   useEffect(() => {
     if (screen === 'playoffs') document.title = "Blue Chip Prospect | Playoffs";
@@ -288,9 +291,11 @@ function App() {
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
   const isJunior = safeJuniorLeagues.includes(player.league);
-  const isAmateur = isJunior || player.league === 'NCAA' || safeEuroLeagues.includes(player.league);
+  // The European men's leagues are professional. They were counted as
+  // amateur here, and filed under the junior stat bucket.
+  const isAmateur = isJunior || player.league === 'NCAA';
   const isAHL = player.league === 'AHL';
-  const lgKey = isAmateur ? 'chl' : isAHL ? 'ahl' : 'nhl';
+  const lgKey = statBucketOf(player.league, player.age);
 
   const [pressAnswerKeys, setPressAnswerKeys] = useState([]);
 
@@ -508,7 +513,7 @@ function App() {
      const actionName = typeof choice === 'string' ? choice : (choice?.action || String(choice));
 
      if (actionName === 'ELC' && draftedBy) {
-       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: 3, role: getRole(925000, p), bonuses: elcBonuses(p.pos), nhl: true } }));
+       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: elcYears(p.age), role: getRole(925000, p), bonuses: elcBonuses(p.pos), nhl: true } }));
        setEventFeedback("You signed your ELC and are heading to your first NHL training camp.");
      } else if (actionName === 'EXPLORE_OPTIONS' || actionName === 'EXPLORE' || actionName === 'DECLINE') {
        let offers = [];
@@ -604,8 +609,8 @@ function App() {
       ...withOvr, fanStatus: fanGain(withOvr.fanStatus, fanDelta), ovr: recomputeOvr(withOvr),
       relationships: {
         ...withOvr.relationships,
-        media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + mediaDelta)),
-        coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + coachDelta))
+        media: Math.min(100, Math.max(0, (withOvr.relationships?.media ?? 50) + mediaDelta)),
+        coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach ?? 50) + coachDelta))
       }
     };
     
@@ -722,9 +727,9 @@ function App() {
           careerEarnings: (withOvr.stats?.careerEarnings || withOvr.stats?.earnings || 0) + (outcome.money || 0)
       },
       relationships: {
-        coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (outcome.rel?.coach || 0))),
-        teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (outcome.rel?.teammates || 0))),
-        media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (outcome.rel?.media || 0)))
+        coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach ?? 50) + (outcome.rel?.coach ?? 0))),
+        teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates ?? 50) + (outcome.rel?.teammates ?? 0))),
+        media: Math.min(100, Math.max(0, (withOvr.relationships?.media ?? 50) + (outcome.rel?.media ?? 0)))
       }
     };
 
@@ -768,9 +773,9 @@ function App() {
           careerEarnings: (withOvr.stats?.careerEarnings || withOvr.stats?.earnings || 0) + (payout.money || 0)
       },
       relationships: {
-        coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach || 50) + (payout.rel?.coach || 0))),
-        teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates || 50) + (payout.rel?.teammates || 0))),
-        media: Math.min(100, Math.max(0, (withOvr.relationships?.media || 50) + (payout.rel?.media || 0)))
+        coach: Math.min(100, Math.max(0, (withOvr.relationships?.coach ?? 50) + (payout.rel?.coach ?? 0))),
+        teammates: Math.min(100, Math.max(0, (withOvr.relationships?.teammates ?? 50) + (payout.rel?.teammates ?? 0))),
+        media: Math.min(100, Math.max(0, (withOvr.relationships?.media ?? 50) + (payout.rel?.media ?? 0)))
       },
       // WINNING A DRAW USED TO BE WORTH NOTHING AFTER THE SCREEN CLOSED.
       //
@@ -905,7 +910,7 @@ function App() {
     // and re-running the graduation check would loop on it forever.
     if (p0.offseason) { _advanceToOffseason(offCtx); return; }
 
-    const isAgedOutJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'].includes(p0.league) && p0.age >= 21;
+    const isAgedOutJunior = juniorLeagues.includes(p0.league) && p0.age >= 21;
     const isAgedOutNCAA = p0.league === 'NCAA' && p0.age >= 24;
 
     if (isAgedOutJunior || isAgedOutNCAA) {
@@ -968,7 +973,7 @@ function App() {
     const chlSeason = [...(player.seasonHistory || [])].reverse().find(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
     const hasCHLHistory = !!chlSeason;
     
-    const played10NhlGames = (player.seasonHistory || []).some(s => s.league === 'NHL' && s.games >= 10);
+    const played10NhlGames = (player.seasonHistory || []).some(s => gamesInLeague(s, 'NHL') >= 10);
     const isNonELC = player.contract?.salary !== 925000 && player.contract?.salary !== 0;
     const juniorsEligible = isUnder20 && !played10NhlGames && !isNonELC;
 
@@ -1098,7 +1103,7 @@ function App() {
             pSaves = Math.floor(pShots * savePct);
             pSho = Math.max(0, Math.floor((savePct - 0.900) * 50) + Math.floor(Math.random() * 2));
         } else {
-            const chemistryMod = (player.relationships?.teammates || 50) > 75 ? 1.15 : 1.0;
+            const chemistryMod = (player.relationships?.teammates ?? 50) > 75 ? 1.15 : 1.0;
             const ppg = impact * (0.8 + Math.random() * 0.4) * chemistryMod;
             const points = Math.floor(playoffGames * ppg);
             const goalRatio = ['LD', 'RD'].includes(player.pos) ? 0.25 : 0.45;
@@ -1160,8 +1165,8 @@ function App() {
        ...(r || {}),
        awards: Array.from(new Set([...((r || {}).awards || []), ...(smytheEarned ? [poTrophy] : [])])),
        playoffWins: totalWins, playoffGames, playoffG: pG, playoffA: pA, playoffSaves: pSaves,
-       playoffShots: pShots, playoffSho: pSho, titleWon: isCupWon ? 1 : 0, confTitleWon: playoffs.confTitleWon || false,
-       confName: playoffs.playerConf === 'East' ? 'Eastern Conference' : 'Western Conference',
+       playoffShots: pShots, playoffSho: pSho, titleWon: isCupWon ? 1 : 0, titleLeague: playoffs.currentLg, confTitleWon: playoffs.confTitleWon || false,
+       confName: playoffs.playerConf === 'East' ? 'Eastern Conference' : playoffs.playerConf === 'West' ? 'Western Conference' : `${playoffs.playerConf} Conference`,
        leagueChampion: champion,
        eliminatedByName: poLoss ? getFullTeamName(poLoss.oppId, playoffs.currentLg) : null,
        eliminatedRound: poLoss ? poLoss.roundName : null,
@@ -1172,12 +1177,16 @@ function App() {
     
     setPlayer(p => {
         const lg = playoffs.currentLg;
-        const statBucket = lg === 'AHL' ? 'ahl' : (['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA', 'SHL', 'LIIGA'].includes(lg) ? 'chl' : 'nhl');
+        // Same rule as the regular season (see statBucketOf). A KHL or ECHL
+        // playoff run was being banked as NHL playoff games.
+        const statBucket = statBucketOf(lg, p.age - 1);
         const poBucket = statBucket + 'Playoffs'; 
         
         const newHistory = [...(p.seasonHistory || [])];
         const currentYearString = `${2026 + (p.stats?.seasonsPlayed || 0)}`;
-        const cupName = lg === 'NHL' ? 'Stanley Cup' : lg === 'AHL' ? 'Calder Cup' : 'Championship';
+        // Saved under the league's own trophy. Everything past the NHL and AHL
+        // used to go in as a bare "Championship".
+        const cupName = getPlayoffTitles(lg).cupName;
         // A cup is recorded once per season. The old guard compared against the
         // exact string `${year} ${cupName}` in the career list, which misses
         // whenever the year has already rolled over, and it never looked at the
@@ -1199,6 +1208,10 @@ function App() {
             newHistory[lastIdx] = { 
                 ...newHistory[lastIdx], 
                 titleWon: isCupWon || newHistory[lastIdx].titleWon, 
+                // Which league the title was in. A split season is filed under
+                // the league it ended in, which isn't always the one whose
+                // playoffs he played.
+                ...(isCupWon ? { titleLeague: lg } : {}),
                 playoffGames,
                 playoffRounds: roundsWon,
                 playoffGoals: pG,
@@ -1287,7 +1300,7 @@ function App() {
        else if ((p.fanStatus || 0) >= 400) { baseTrust = 60; mediaTrust = 65; }
        newRelationships = { coach: baseTrust, teammates: baseTrust, media: mediaTrust };
     } else {
-       newRelationships = { coach: Math.min(100, (p.relationships?.coach || 50) + 10), teammates: Math.min(100, (p.relationships?.teammates || 50) + 10), media: Math.min(100, (p.relationships?.media || 50) + 5) };
+       newRelationships = { coach: Math.min(100, (p.relationships?.coach ?? 50) + 10), teammates: Math.min(100, (p.relationships?.teammates ?? 50) + 10), media: Math.min(100, (p.relationships?.media ?? 50) + 5) };
     }
     const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
 
@@ -1388,7 +1401,9 @@ function App() {
     // five million on the screen before it while the arbitrator opened at one.
     const anchor = offer?.market?.anchor;
     let baseline;
-    const careerAwards = player.stats?.awards || [];
+    // Season trophies live on the history, not on stats.awards, so a Hart
+    // winner wasn't being recognised here at all.
+    const careerAwards = careerAwardList(player);
     const isSuperstar = player.ovr >= 88 || careerAwards.some(a => ['Hart', 'Vezina', 'Norris', 'Art Ross', 'Rocket'].some(aw => a.includes(aw)));
 
     if (player.ovr >= 85 || isSuperstar) baseline = 7500000 + ((player.ovr - 85) * 1000000);

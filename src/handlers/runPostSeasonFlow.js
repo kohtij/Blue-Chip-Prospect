@@ -8,7 +8,7 @@ import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
 import { isDefence } from '../utils/production';
 import { buildRun } from '../utils/intlRun';
-import { onNhlContract } from '../utils/gameHelpers';
+import { nhlSeasonsOf, onNhlContract } from '../utils/gameHelpers';
 import { parentOf } from '../utils/rosterMoves';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings, opts = {}) {
@@ -92,7 +92,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // STORYLINE 1.5: THE FRANCHISE DUO
     // ==========================================
     let duoStage = player.storylines?.franchiseDuo || 0;
-    const teammateTrust = player.relationships?.teammates || 50;
+    const teammateTrust = player.relationships?.teammates ?? 50;
 
     // The duo belongs to the club it formed at. Asking him to defer salary
     // for "your best friend on the team" made no sense after he'd been traded
@@ -114,7 +114,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
 
     // Organic Trigger: Good teammate relations early in NHL career
-    if (duoStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && teammateTrust > 75 && player.stats?.seasonsPlayed >= 2 && Math.random() < 0.15) {
+    if (duoStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && teammateTrust > 75 && nhlSeasonsOf(player) >= 1 && Math.random() < 0.15) {
         setPlayer(p => ({ 
             ...p, 
             storylines: { ...p.storylines, franchiseDuo: 1, duoTeam: currentTeam },
@@ -157,10 +157,10 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // STORYLINE 2: LOCKER ROOM POLITICS
     // ==========================================
     const lockerStage = player.storylines?.lockerRoom || 0;
-    const coachTrust = player.relationships?.coach || 50;
+    const coachTrust = player.relationships?.coach ?? 50;
 
     // STAGE 1: THE CLASH (Triggered organically early in an NHL career)
-    if (lockerStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && player.stats?.seasonsPlayed < 5 && Math.random() < 0.15) {
+    if (lockerStage === 0 && player.pos !== 'G' && currentLg === 'NHL' && nhlSeasonsOf(player) < 3 && Math.random() < 0.15) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, lockerRoom: 1 } }));
         setActiveEvent({
             title: '👴 THE OLD GUARD',

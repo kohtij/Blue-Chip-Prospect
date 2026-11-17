@@ -1,5 +1,25 @@
 import { forwardCareerGrade, rateSeason } from './production';
 
+// The NHL part of one season. A year split between the NHL and the AHL is one
+// history entry, filed under whichever league it ended in with the whole
+// year's totals, so reading it by its league gave forty NHL games and thirty
+// AHL ones either all to the NHL or none of them. The stints say which games
+// were where.
+const nhlPart = (s) => {
+  if (Array.isArray(s.stints) && s.stints.length) {
+    const st = s.stints.filter(x => x.league === 'NHL');
+    if (!st.length) return null;
+    const sum = (k) => st.reduce((n, x) => n + (x[k] || 0), 0);
+    const games = sum('games');
+    return {
+      games, goals: sum('g'), assists: sum('a'), plusMinus: sum('pm'), blocks: sum('blk'),
+      saves: sum('saves'), shots: sum('shots'),
+      avgToi: games > 0 ? st.reduce((n, x) => n + (x.avgToi || 0) * (x.games || 0), 0) / games : 0
+    };
+  }
+  return s.league === 'NHL' ? s : null;
+};
+
 /**
  * Minutes a night across an NHL career.
  *
@@ -13,7 +33,7 @@ const nhlCareerToi = (player) => {
   const gp = player.stats?.nhl?.games || 0;
   if (banked > 0 && gp > 0) return banked / gp;
 
-  const nhlYears = (player.seasonHistory || []).filter(s => s.league === 'NHL' && (s.games || 0) > 0);
+  const nhlYears = (player.seasonHistory || []).map(nhlPart).filter(s => s && (s.games || 0) > 0);
   const mins = nhlYears.reduce((n, s) => n + (s.avgToi || 0) * s.games, 0);
   const games = nhlYears.reduce((n, s) => n + s.games, 0);
   return games > 0 && mins > 0 ? mins / games : null;
@@ -106,12 +126,15 @@ export function computeCareerScore(player) {
   let prevLg = null;
 
   history.forEach(s => {
-    if (s.league === 'NHL') nhlSeasons++;
+    const nhl = nhlPart(s);
+    if (nhl && (nhl.games || 0) > 0) nhlSeasons++;
     else otherSeasons++;
 
-    const pts = (s.goals || 0) + (s.assists || 0);
-    if (s.league === 'NHL' && pts >= 100) hundredPtSeasons++;
-    if (s.league === 'NHL' && (s.goals || 0) >= 50) fiftyGoalSeasons++;
+    // NHL goals and points only. A fifty-goal year counted thirty in the NHL
+    // and twenty in the AHL as fifty.
+    const pts = nhl ? (nhl.goals || 0) + (nhl.assists || 0) : 0;
+    if (pts >= 100) hundredPtSeasons++;
+    if (nhl && (nhl.goals || 0) >= 50) fiftyGoalSeasons++;
 
     if (prevLg === 'NHL' && ['AHL', 'ECHL', 'OHL', 'WHL', 'QMJHL'].includes(s.league)) demotions++;
     prevLg = s.league;
@@ -136,7 +159,7 @@ export function computeCareerScore(player) {
     });
     return Math.round(18 + Math.max(0, grade - 4) * 22);
   };
-  const nhlSeasonPoints = history.filter(s => s.league === 'NHL').reduce((a, s) => a + seasonValue(s), 0);
+  const nhlSeasonPoints = history.map(nhlPart).filter(s => s && (s.games || 0) > 0).reduce((a, s) => a + seasonValue(s), 0);
   if (nhlSeasons > 0) addPoints(nhlSeasonPoints, n(nhlSeasons, 'NHL season', 'NHL seasons'));
   if (otherSeasons > 0) addPoints(otherSeasons * 10, n(otherSeasons, 'season outside the NHL', 'seasons outside the NHL'));
   if (hundredPtSeasons > 0) addPoints(hundredPtSeasons * 150, n(hundredPtSeasons, '100-point season', '100-point seasons'));

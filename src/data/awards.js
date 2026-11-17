@@ -144,6 +144,7 @@ export const AWARD_IMAGES = {
   'Mike Richter':             `${AWARDS}/national_hockey_league_award_best_goalie.png`,
   'Tim Taylor':               `${AWARDS}/national_hockey_league_award_best_rookie.png`,
   'Guldpucken':               `${AWARDS}/national_hockey_league_award_mvp.png`,
+  'Guldhjälmen':              `${AWARDS}/national_hockey_league_award_mvp.png`,
   'Loob Trophy':              `${AWARDS}/national_hockey_league_award_goals.png`,
   'Salming':                  `${AWARDS}/national_hockey_league_award_best_defender.png`,
   'Honkens':                  `${AWARDS}/national_hockey_league_award_best_goalie.png`,
@@ -161,6 +162,7 @@ export const AWARD_IMAGES = {
   'Årets Rookie':             `${AWARDS}/national_hockey_league_award_best_rookie.png`,
   'KHL Top Sniper':           `${AWARDS}/national_hockey_league_award_goals.png`,
   'KHL Top Scoring Defenceman': `${AWARDS}/national_hockey_league_award_best_defender.png`,
+  'KHL Best Defenceman':      `${AWARDS}/national_hockey_league_award_best_defender.png`,
 
   // And the plain forms every remaining league builds its award names from.
   // Last in the object, so nothing more specific is ever shadowed.
@@ -175,6 +177,7 @@ export const AWARD_IMAGES = {
   'Best Goaltender':          `${AWARDS}/national_hockey_league_award_best_goalie.png`,
   'Top Goaltender':           `${AWARDS}/national_hockey_league_award_best_goalie.png`,
   'Best Player':              `${AWARDS}/national_hockey_league_award_mvp.png`,
+  'Most Valuable Player':     `${AWARDS}/national_hockey_league_award_mvp.png`,
   'Rookie of the Year':       `${AWARDS}/national_hockey_league_award_best_rookie.png`,
   'Top Rookie':               `${AWARDS}/national_hockey_league_award_best_rookie.png`,
   'Regular Season Champ':     `${AWARDS}/national_hockey_league_award_TEAM_MOST_POINTS.png`,
@@ -187,7 +190,8 @@ export const PLAYOFF_TROPHY_IMAGES = {
   AHL:   `${PO}/american_hockey_league_po_trophy.png`,
   OHL:   `${PO}/ontario_hockey_league_po_trophy.png`,
   WHL:   `${PO}/western_hockey_league_po_trophy.png`,
-  QMJHL: `${PO}/quebec_major_junior_hockey_league_po_trophy.png`
+  QMJHL: `${PO}/quebec_major_junior_hockey_league_po_trophy.png`,
+  USHL:  `${PO}/united_states_hockey_league_po_trophy.png`
 };
 
 // Cup name → playoff trophy. Same map keyed by championship cup names, which
@@ -197,7 +201,8 @@ export const CUP_IMAGES = {
   'Calder Cup':             PLAYOFF_TROPHY_IMAGES.AHL,
   'J. Ross Robertson Cup':  PLAYOFF_TROPHY_IMAGES.OHL,
   'Ed Chynoweth Cup':       PLAYOFF_TROPHY_IMAGES.WHL,
-  'Gilles-Courteau Trophy': PLAYOFF_TROPHY_IMAGES.QMJHL
+  'Gilles-Courteau Trophy': PLAYOFF_TROPHY_IMAGES.QMJHL,
+  'Clark Cup':              PLAYOFF_TROPHY_IMAGES.USHL
 };
 
 // Substring lookup, first matching key wins. Returns URL or null.

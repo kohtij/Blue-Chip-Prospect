@@ -744,6 +744,12 @@ export function inTopOfLineup(player, roleOf = null) {
  */
 export function nhlRegular(player) {
   if (player?.league !== 'NHL') return false;
-  const last = [...(player.seasonHistory || [])].reverse().find(s => s.league === 'NHL');
-  return (player.stats?.nhl?.games || 0) >= 120 || (last?.games || 0) >= 50;
+  // His last season with NHL games in it, counting only those games: a split
+  // year is filed under whichever league it ended in, with the whole year's
+  // total.
+  const nhlGames = (s) => (Array.isArray(s.stints) && s.stints.length
+    ? s.stints.filter(x => x.league === 'NHL').reduce((n, x) => n + (x.games || 0), 0)
+    : (s.league === 'NHL' ? (s.games || 0) : 0));
+  const last = [...(player.seasonHistory || [])].reverse().find(s => nhlGames(s) > 0);
+  return (player.stats?.nhl?.games || 0) >= 120 || (last ? nhlGames(last) : 0) >= 50;
 }

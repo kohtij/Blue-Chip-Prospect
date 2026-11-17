@@ -30,7 +30,7 @@ export default function TradeDeadlineScreen() {
           // no way to ask for a move at all. The NCAA stays out: college players
           // cannot be traded.
           const isPro = res.currentLg !== 'NCAA' && !['', undefined, null].includes(res.currentLg);
-          const playoffSpots = LEAGUE_CONFIG[res.currentLg]?.playoffSpots || 16;
+          const playoffSpots = LEAGUE_CONFIG[res.currentLg]?.playoffSpots ?? 16;
           const standings = res.recap?.standings || 16;
           const isContender = standings <= playoffSpots;
 
@@ -53,9 +53,14 @@ export default function TradeDeadlineScreen() {
           const isCollege = res.currentLg === 'NCAA';
           const hasProContract = !isCollege && _hasProContract(player);
           const isExpiring = hasProContract && player.contract.years === 1;
-          let eliteThreshold = 82;
-          if (['AHL', 'SHL', 'LIIGA'].includes(res.currentLg)) eliteThreshold = 72;
-          if (['OHL', 'WHL', 'QMJHL', 'USHL'].includes(res.currentLg)) eliteThreshold = 62;
+          // What counts as a star depends on the league. Only three leagues had
+          // their own bar, so a 75 in the ECHL or the Czech league was held to
+          // the NHL's 82 and could never be a deadline target.
+          const ELITE_BY_LEAGUE = {
+            NHL: 82, AHL: 72, KHL: 74, SHL: 72, LIIGA: 72, SWISS: 72,
+            DEL: 70, CZECH: 70, ICEHL: 68, SLOVAK: 68, ECHL: 66, SPHL: 60
+          };
+          const eliteThreshold = ELITE_BY_LEAGUE[res.currentLg] ?? 62;
           const isElite = player.ovr >= eliteThreshold;
 
           // Who actually gets moved in March. An expiring contract on a club that is

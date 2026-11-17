@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { getTeamData, nationalities } from '../data/teams';
-import { accruedSeasons, careerTrophies, formatMoney, getActiveStat, isRestricted, onNhlContract, ordinal, resolveRole, summariseStints } from '../utils/gameHelpers';
+import { getTeamData, juniorLeagues, nationalities } from '../data/teams';
+import { accruedSeasons, careerTrophies, formatMoney, getActiveStat, isRestricted, onNhlContract, ordinal, resolveRole, statBucketOf, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
 import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
@@ -145,9 +145,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
         : f < 900 ? 'linear-gradient(90deg, color-mix(in srgb, #F59E0B 55%, #78350f), #fbbf24)'
           : 'linear-gradient(90deg, color-mix(in srgb, #22E748 55%, #14532d), #4ade80)';
 
-  const activeBucket = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA', 'SHL', 'LIIGA'].includes(player.league)
-    ? 'chl' : (player.league === 'AHL' ? 'ahl' : 'nhl');
-  const bName = activeBucket === 'nhl' ? 'NHL' : activeBucket === 'ahl' ? 'AHL' : 'PRE-NHL';
+  // The same four buckets the season is banked into (see statBucketOf). A
+  // KHL or ECHL player was shown his NHL totals under an NHL heading.
+  const activeBucket = statBucketOf(player.league, player.age);
+  const bName = activeBucket === 'nhl' ? 'NHL' : activeBucket === 'ahl' ? 'AHL' : activeBucket === 'pro' ? 'OTHER PRO' : 'PRE-NHL';
 
   const cGP = player.stats?.[activeBucket]?.games || 0;
   const cG = player.stats?.[activeBucket]?.goals || 0;
@@ -374,7 +375,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                       it, so a demotion is visible from across the room and a
                       recall is visible the same way. */}
                   <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-1.5 py-[2px] rounded border ${
-                    ['AHL', 'ECHL'].includes(player.league)
+                    ['AHL', 'ECHL', 'SPHL'].includes(player.league)
                       ? 'text-[#F59E0B] border-[rgba(245,158,11,0.45)] bg-[rgba(245,158,11,0.10)]'
                       : 'text-slate-400 border-[rgba(255,255,255,0.12)]'}`}>
                     {player.league}
@@ -410,7 +411,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                     // old he is belongs with how long he has left far more
                     // than it belongs with what he plays.
                     const bits = [[`${player.age} yrs`, 'text-slate-400']];
-                    const junior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'].includes(player.league);
+                    const junior = juniorLeagues.includes(player.league);
                     if (junior && player.age >= 20) {
                       bits.push(['Overager', 'text-[#ef4444]']);
                     } else if (!junior && player.league !== 'NCAA' && player.contract?.years !== undefined) {

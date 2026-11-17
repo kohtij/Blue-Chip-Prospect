@@ -7,6 +7,9 @@ import TrophyImage from '../components/TrophyImage';
 import { applyOvrDelta, recomputeOvr } from '../utils/gameHelpers';
 import { CHOICE_ROW, kickerClass, TAG_RED, TITLE_MD, TITLE_SM } from '../utils/ui';
 
+// The heading over each half of a conference bracket.
+const confHeading = (c) => ({ West: 'WESTERN', East: 'EASTERN' }[c] || String(c).toUpperCase());
+
 export default function PlayoffsScreen() {
   const { advancePlayoffRound, handleGridClick, player, playoffs, proceedFromPlayoffs, setPlayer, setPlayoffs, triggerMinigame } = useAppContext();
   
@@ -20,7 +23,7 @@ export default function PlayoffsScreen() {
   // where the first card turned over ends it, so the flavor text and card
   // labels need to read "one game" instead of "SERIES VICTORY".
   const isSingleGame = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex) === 1;
-  const titles = getPlayoffTitles(player.league);
+  const titles = getPlayoffTitles(playoffs.currentLg || player.league);
 
   // THE TOURNAMENT BOARD.
   //
@@ -222,8 +225,8 @@ export default function PlayoffsScreen() {
               ovr: recomputeOvr(withOvr),
               relationships: {
                   ...withOvr.relationships,
-                  media: Math.max(0, (withOvr.relationships?.media || 50) + relDelta.media),
-                  coach: Math.max(0, (withOvr.relationships?.coach || 50) + relDelta.coach)
+                  media: Math.max(0, (withOvr.relationships?.media ?? 50) + relDelta.media),
+                  coach: Math.max(0, (withOvr.relationships?.coach ?? 50) + relDelta.coach)
               }
           };
        });
@@ -590,8 +593,8 @@ export default function PlayoffsScreen() {
       {/* CONFERENCE HEADERS */}
       {playoffs.hasConfs && (
         <div className="flex justify-between w-full max-w-5xl px-2 mb-3 text-[10px] sm:text-xs md:text-sm font-black sports-font uppercase tracking-wider">
-          <span className="text-[#ef4444]">WESTERN</span>
-          <span className="text-[#3b82f6]">EASTERN</span>
+          <span className="text-[#ef4444]">{confHeading(playoffs.confs?.[0] || 'West')}</span>
+          <span className="text-[#3b82f6]">{confHeading(playoffs.confs?.[1] || 'East')}</span>
         </div>
       )}
 
@@ -613,7 +616,7 @@ export default function PlayoffsScreen() {
                     </div>
                     <div className="flex-1 flex flex-col justify-around gap-1">
                       {round.map((match, mIdx) => {
-                        if (match.conf !== 'West') return null;
+                        if (match.conf !== (playoffs.confs?.[0] || 'West')) return null;
                         const isLocked = match.status === 'locked';
                         const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
                         return (
@@ -680,7 +683,7 @@ export default function PlayoffsScreen() {
                     </div>
                     <div className="flex-1 flex flex-col justify-around gap-1">
                       {round.map((match, mIdx) => {
-                        if (match.conf !== 'East') return null;
+                        if (match.conf !== (playoffs.confs?.[1] || 'East')) return null;
                         const isLocked = match.status === 'locked';
                         const rWN = getWinsNeeded(playoffs.currentLg, rIdx);
                         return (

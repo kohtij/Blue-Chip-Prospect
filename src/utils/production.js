@@ -163,10 +163,20 @@ const CURVES = {
 const JUNIOR_ENV = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA',
   'MHL', 'CZE20', 'SVK20', 'SUI20', 'DNL'];
 
-export function curvesFor(league) {
-  if (league === 'NHL') return CURVES.nhl;
-  if (JUNIOR_ENV.includes(league)) return CURVES.junior;
-  return CURVES.minor;
+// The curves are season totals, set for the schedule each kind of league
+// usually plays: 82 games in the NHL, 68 in major junior, 72 in the AHL. A
+// league with a shorter season gets its curve shrunk to match. The SHL plays
+// 52 and was being handed the AHL's 72-game ceiling, so a good Swedish season
+// regularly went past Håkan Loob's 76 points, which has stood since 1983.
+const CURVE_SCHEDULE = { nhl: 82, junior: 68, minor: 72 };
+
+export function curvesFor(league, schedule = null) {
+  const kind = league === 'NHL' ? 'nhl' : JUNIOR_ENV.includes(league) ? 'junior' : 'minor';
+  const base = CURVES[kind];
+  if (!schedule) return base;
+  const k = Math.min(1.05, Math.max(0.5, schedule / CURVE_SCHEDULE[kind]));
+  const scale = (c) => ({ soft: c.soft * k, hard: c.hard * k });
+  return { goals: scale(base.goals), assists: scale(base.assists) };
 }
 
 // What a season is worth, per league.

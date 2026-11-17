@@ -1,6 +1,6 @@
-import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams, delTeams, icehlTeams } from '../data/teams';
+import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams, delTeams, icehlTeams, j20Teams, u20Teams, isAmateurLeague } from '../data/teams';
 import { shopItems } from '../data/economy';
-import { arbitrationEligible, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
+import { arbitrationEligible, elcYears, gamesInLeague, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
 import { nhlGamesIn } from '../utils/rosterMoves';
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
@@ -191,9 +191,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     baseSalary = Math.max(leagueMinimum, Math.round(baseSalary / 25000) * 25000);
     let offers = [];
     
-    const isAmateurGraduating = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA'].includes(actingLeague);
+    const isAmateurGraduating = isAmateurLeague(actingLeague);
     
-    const coachTrust = player.relationships?.coach || 50; // B2: Front Office Consumer
+    const coachTrust = player.relationships?.coach ?? 50; // B2: Front Office Consumer
     let teamDidNotExtend = false;
 
     // The club that just bought him out isn't bidding to have him back. Its
@@ -257,7 +257,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
            salary: actingLeague !== 'NHL' ? Math.max(85000, Math.floor(baseSalary * 0.15))
              : isRFA ? Math.max(baseSalary, Math.round(qoSalary / 25000) * 25000) : baseSalary,
            years: maxYears,
-           role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < 75) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, player)),
+           // A two-way deal for a player in the minors or below an NHL job. It was
+           // anyone under 75, which sent NHL regulars' extensions to the AHL.
+           role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < (player.pos === 'G' ? 75 : 68)) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, { ...player, league: 'NHL' })),
            fanHit: 10,
            state: ccState,
            standing: currentClubStanding
@@ -273,7 +275,13 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                // Whether he can take the club to a hearing instead.
                arbitration: canArbitrate,
                years: 1, // QOs are strictly 1-year deals
-               role: 'Two-Way Deal', // QOs offer no roster guarantees
+               // A qualifying offer is two-way only for a player who hasn't
+               // been an NHL regular. Under the CBA it's one-way after 180 NHL
+               // games in the last three seasons (60 a year), and the role is
+               // what the sim deploys him by, so every RFA who took his QO
+               // spent the next season on the AHL-start multiplier.
+               role: (player.seasonHistory || []).slice(-3).reduce((n, s) => n + gamesInLeague(s, 'NHL'), 0) >= 180
+                 ? getRole(qoSalary, { ...player, league: 'NHL' }) : 'Two-Way Deal',
                fanHit: 0,
                state: ccState,
                standing: currentClubStanding
@@ -291,7 +299,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                  type: 'HOMETOWN DISCOUNT',
                  salary: discountSalary,
                  years: Math.min(8, Math.max(5, maxYears + 2)), // Guaranteed long-term security
-                 role: getRole(baseSalary, player),
+                 role: getRole(baseSalary, { ...player, league: 'NHL' }),
                  fanHit: 100, // Massive loyalty boost
                  state: 'Staying Put',
                  nmc: true, // Rewarded with a No-Movement Clause
@@ -323,7 +331,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
           const osSalary = Math.min(13500000, Math.round((baseSalary * 1.3) / 25000) * 25000);
           offers.push({
             team: offerSheetTeam, league: 'NHL', type: 'OFFER SHEET',
-            salary: osSalary, years: 5, role: getRole(osSalary, player),
+            salary: osSalary, years: 5, role: getRole(osSalary, { ...player, league: 'NHL' }),
             fanHit: getTransferImpact(actingTeam, offerSheetTeam), state: 'Offer Sheet'
           });
         }
@@ -337,13 +345,16 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
         
         const isUnder18 = player.age < 18;
 
+        // A weak seventeen-year-old was being offered the SHL and Liiga, the
+        // two strongest leagues in Europe, as the market's bottom rung. At
+        // that age and level the place for him is a junior team.
         if (player.ovr < 65) {
             if (player.ovr < 55) {
-               pool = isUnder18 ? (shlTeams || []) : (sphlTeams || []);
-               targetLg = isUnder18 ? 'SHL' : 'SPHL';
+               pool = isUnder18 ? (j20Teams || []) : (sphlTeams || []);
+               targetLg = isUnder18 ? 'J20' : 'SPHL';
             } else if (player.ovr < 60) {
-               pool = isUnder18 ? (liigaTeams || []) : (echlTeams || []);
-               targetLg = isUnder18 ? 'LIIGA' : 'ECHL';
+               pool = isUnder18 ? (u20Teams || []) : (echlTeams || []);
+               targetLg = isUnder18 ? 'U20' : 'ECHL';
             } else {
                const roll = Math.random();
                if (isUnder18) {
@@ -441,6 +452,17 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
             // Use our new minYears constraint to prevent weird 1-year bridge deals for RFAs
             let offerYears = Math.floor(Math.random() * (maxYears - minYears + 1)) + minYears;
             offerYears = Math.min(7, offerYears);
+
+            // A player under 25 signing his first NHL contract signs an
+            // entry-level one, whoever he signs it with: the CBA sets the pay
+            // and the term by his age. These were being priced and termed like
+            // any veteran's deal, up to seven years.
+            const firstNhlDeal = targetLg === 'NHL' && !isTradeRequest && player.age < 25
+              && !onNhlContract(player) && !(player.seasonHistory || []).some(s => gamesInLeague(s, 'NHL') > 0);
+            if (firstNhlDeal) {
+              offerSalary = 925000;
+              offerYears = elcYears(player.age);
+            }
             
             offers.push({
               team: t,
@@ -448,7 +470,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
               type: isTradeRequest ? 'TRADE' : 'FREE AGENCY',
               salary: offerSalary,
               years: offerYears,
-              role: targetLg === 'NHL' ? getRole(offerSalary, player) : 'Pro Roster',
+              // Named for the league he'd be joining, not the one he's leaving: an AHL
+              // player's NHL offer was being described on the AHL's scale.
+              role: targetLg === 'NHL' ? getRole(offerSalary, { ...player, league: 'NHL' }) : 'Pro Roster',
               fanHit: getTransferImpact(actingTeam, t),
               state: teamState,
               standing: projectedStanding,

@@ -192,7 +192,7 @@ export default function PreseasonScreen() {
                         onClick={() => {
                             const bumped = (p) => ({
                                 ...p,
-                                relationships: { ...p.relationships, coach: Math.min(100, (p.relationships?.coach || 50) + 5) }
+                                relationships: { ...p.relationships, coach: Math.min(100, (p.relationships?.coach ?? 50) + 5) }
                             });
 
                             // Camp pays out now, not next spring.

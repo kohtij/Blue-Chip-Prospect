@@ -14,17 +14,15 @@
 // 2023-24 OHL Media Guide and the 2022-23 WHL Guide and Record Book. Then the
 // ECHL's own record book, the AHL Hall of Fame record book, Wikipedia per-club
 // record pages and hockey-reference franchise single-season leaders for the
-// NHL, EliteProspects all-time single-season leaderboards, and club or league
-// announcements for anything set recently.
+// NHL, EliteProspects all-time single-season leaderboards, club or league
+// announcements for anything set recently, and QuantHockey for the QMJHL's
+// clubs and the European, USHL and SPHL league books.
 //
 // What is still missing, and why:
-//   - The QMJHL's eighteen clubs. The league's records site keeps all of it,
-//     by franchise and by season, but it is behind a bot check and its pages
-//     are addressed by codes that have to be clicked rather than typed, so it
-//     needs a browser.
 //   - Bridgeport. See the note on the AHL clubs below.
-//   - The European leagues, the USHL, the BCHL and the Nordic junior tiers.
-//     Nothing published for them could be checked.
+//   - Club books for the European leagues, the USHL, the SPHL, the BCHL and
+//     the Nordic junior tiers. Their league books are in (see LEAGUE_RECORDS),
+//     apart from the BCHL and the junior tiers.
 //
 // Two notes on franchise history, because both change whose book a season is in:
 //   - The NHL consolidated the original Winnipeg Jets (1979-96) into the
@@ -96,9 +94,9 @@ export const NHL_CLUB_RECORDS = {
  * exception: Glen Hanlon's forty-nine for Brandon is in the league record book
  * itself, so it is known.
  *
- * The QMJHL has no equivalent guide that can be read here, and the AHL has no
- * league-wide guide at all, which is why those clubs are nearly all missing.
- * Hershey is in because Hershey publishes its own.
+ * The AHL has no league-wide guide at all, which is why its clubs are nearly
+ * all missing. Hershey is in because Hershey publishes its own. The QMJHL's
+ * clubs come from QuantHockey; see QMJHL_CLUB_RECORDS.
  */
 export const OHL_CLUB_RECORDS = {
   BAR: { points: [127, 'Kevin Labanc', '2015-16'], goals: [53, 'Bryan Cameron', '2009-10'], assists: [88, 'Kevin Labanc', '2015-16'], wins: [40, 'Andrew Perugini', '2006-07'], shutouts: [6, 'Dan LaCosta', '2005-06'] },
@@ -196,11 +194,47 @@ export const AHL_CLUB_RECORDS = {
   WBS: { points: [82, 'Janne Pesonen', '2008-09'], goals: [34, 'Chris Minard', '2008-09'], assists: [50, 'Janne Pesonen', '2008-09'], wins: [35, 'Brad Thiessen', '2010-11'], shutouts: [12, 'Matt Murray', '2014-15'] },
 };
 
+/**
+ * The QMJHL's eighteen clubs, from QuantHockey's single-season records for each
+ * club, read in November 2026.
+ *
+ * QuantHockey keeps a club's seasons under the name it plays as now, with some
+ * of its old names folded in and some not: Gatineau's book has the Hull years
+ * in it, and Charlottetown's has the PEI Rocket's, but Acadie-Bathurst's starts
+ * in Bathurst, without the Laval years that make Mario Lemieux's 282 points a
+ * franchise record. Lemieux is in the league book either way.
+ *
+ * Where two men share a record the book keeps whoever set it first, as
+ * everywhere else here. Where they set it in the same season, it keeps the one
+ * QuantHockey lists first.
+ */
+export const QMJHL_CLUB_RECORDS = {
+  BAT: { points: [124, 'Thomas Beauregard', '2006-07'], goals: [71, 'Thomas Beauregard', '2006-07'], assists: [80, 'Mathieu Perreault', '2007-08'], wins: [41, 'Adam Russo', '2001-02'], shutouts: [7, 'Adam Russo', '2002-03'] },
+  BAC: { points: [135, 'Yanick Lehoux', '2000-01'], goals: [67, 'Yanick Lehoux', '2000-01'], assists: [80, 'Francois Bouchard', '2006-07'], wins: [36, 'Philippe Cadorette', '2013-14'], shutouts: [7, 'Philippe Cadorette', '2013-14'] },
+  BLA: { points: [116, 'Alex Barre-Boulet', '2017-18'], goals: [53, 'Alex Barre-Boulet', '2017-18'], assists: [63, 'Alex Barre-Boulet', '2017-18'], wins: [33, 'Samuel Montembeault', '2014-15'], shutouts: [6, 'Samuel Montembeault', '2016-17'] },
+  CBE: { points: [105, 'Dominic Noel', '2001-02'], goals: [53, 'Cam Fergus', '2006-07'], assists: [63, 'Dominic Noel', '2001-02'], wins: [35, 'Olivier Roy', '2008-09'], shutouts: [6, 'Martin Houle', '2004-05'] },
+  CHA: { points: [110, 'Ben Duffy', '2012-13'], goals: [55, 'Patrick Guay', '2021-22'], assists: [71, 'Ben Duffy', '2012-13'], wins: [32, 'Matthew Welsh', '2018-19'], shutouts: [7, 'Colten Ellis', '2020-21'] },
+  CHI: { points: [201, 'Marc Fortier', '1986-87'], goals: [80, 'Sylvain Locas', '1975-76'], assists: [135, 'Marc Fortier', '1986-87'], wins: [40, 'Daniel Berthiaume', '1984-85'], shutouts: [6, 'Felix Potvin', '1990-91'] },
+  DRU: { points: [163, 'Daniel Briere', '1995-96'], goals: [79, 'Rene Corbet', '1992-93'], assists: [96, 'Ian Laperriere', '1992-93'], wins: [35, 'Olivier Rodrigue', '2018-19'], shutouts: [6, 'Louis-Philippe Guindon', '2013-14'] },
+  GAT: { points: [191, 'Guy Rouleau', '1985-86'], goals: [91, 'Guy Rouleau', '1985-86'], assists: [123, 'Luc Robitaille', '1985-86'], wins: [34, 'Roberto Romano', '1981-82'], shutouts: [6, 'Ryan Mior', '2007-08'] },
+  HAL: { points: [140, 'Jordan Dumais', '2022-23'], goals: [71, 'Ladislav Nagy', '1998-99'], assists: [86, 'Jordan Dumais', '2022-23'], wins: [45, 'Zachary Fucale', '2012-13'], shutouts: [6, 'Zachary Fucale', '2013-14'] },
+  MON: { points: [129, 'Conor Garland', '2014-15'], goals: [53, 'Sebastien Roger', '1997-98'], assists: [94, 'Conor Garland', '2014-15'], wins: [43, 'Nicola Riopel', '2008-09'], shutouts: [6, 'Simon Lajeunesse', '1999-00'] },
+  QUE: { points: [152, 'Alexander Radulov', '2005-06'], goals: [61, 'Alexander Radulov', '2005-06'], assists: [91, 'Alexander Radulov', '2005-06'], wins: [40, 'Maxime Ouellet', '1998-99'], shutouts: [6, 'Charles Lavigne', '2008-09'] },
+  RIM: { points: [186, 'Brad Richards', '1999-00'], goals: [71, 'Brad Richards', '1999-00'], assists: [115, 'Brad Richards', '1999-00'], wins: [38, 'Sebastien Caron', '1999-00'], shutouts: [6, 'Colten Ellis', '2017-18'] },
+  ROU: { points: [167, 'Mike Ribeiro', '1998-99'], goals: [67, 'Mike Ribeiro', '1998-99'], assists: [100, 'Mike Ribeiro', '1998-99'], wins: [35, 'Jean-Philippe Levasseur', '2005-06'], shutouts: [8, 'William Rousseau', '2023-24'] },
+  SJD: { points: [116, 'William Dufour', '2021-22'], goals: [56, 'William Dufour', '2021-22'], assists: [70, 'Josh Lawrence', '2021-22'], wins: [37, 'Mathieu Corbeil', '2011-12'], shutouts: [6, 'Mathieu Corbeil', '2011-12'] },
+  SHA: { points: [200, 'Patrice Lefebvre', '1987-88'], goals: [94, 'Stephan Lebeau', '1987-88'], assists: [136, 'Patrice Lefebvre', '1987-88'], wins: [42, 'Frederic Cloutier', '2000-01'], shutouts: [6, 'Frederic Cloutier', '2000-01'] },
+  SHE: { points: [119, 'Joshua Roy', '2021-22'], goals: [51, 'Xavier Parent', '2021-22'], assists: [68, 'Joshua Roy', '2021-22'], wins: [33, 'Samuel Hlavaj', '2019-20'], shutouts: [5, 'Samuel St-Hilaire', '2023-24'] },
+  VDO: { points: [184, 'Simon Gamache', '2000-01'], goals: [74, 'Simon Gamache', '2000-01'], assists: [110, 'Simon Gamache', '2000-01'], wins: [39, 'Etienne Montpetit', '2015-16'], shutouts: [7, 'Roberto Luongo', '1997-98'] },
+  VIC: { points: [150, 'Marc-Andre Thinel', '2000-01'], goals: [70, 'Claude Savoie', '1992-93'], assists: [92, 'Alexandre Daigle', '1992-93'], wins: [35, 'Kevin Poulin', '2009-10'], shutouts: [7, 'Kevin Poulin', '2009-10'] },
+};
+
 /** Which club book belongs to which league. A league absent here has none. */
 export const CLUB_RECORDS = {
   NHL: NHL_CLUB_RECORDS,
   OHL: OHL_CLUB_RECORDS,
   WHL: WHL_CLUB_RECORDS,
+  QMJHL: QMJHL_CLUB_RECORDS,
   AHL: AHL_CLUB_RECORDS,
 };
 
@@ -225,4 +259,22 @@ export const LEAGUE_RECORDS = {
   // anyone has scored while also setting the points record. Ray Ferraro scored
   // a hundred and eight three years earlier. The WHL's own record book says so.
   WHL: { points: [212, 'Rob Brown', '1986-87'], goals: [108, 'Ray Ferraro', '1983-84'], assists: [136, 'Rob Brown', '1986-87'], wins: [49, 'Glen Hanlon', '1976-77'], shutouts: [13, 'Kelly Guard', '2003-04'] },
+  // The rest are from QuantHockey's league record pages, read in November 2026.
+  // Its tables for these leagues reach back to the mid-1990s at the latest
+  // (the SHL to 1975, the Liiga to 1933, the Swiss league to the mid-1980s),
+  // which covers the whole life of the KHL, the DEL, both Extraligas and the
+  // SPHL. The BCHL isn't here because its tables start around 1996, after the
+  // years Brett Hull and others set the real marks. Slovakia's goaltending
+  // tables are missing their older wins and carry shutout totals that can't
+  // be right, so only its scoring records are in.
+  SHL: { points: [76, 'Håkan Loob', '1982-83'], goals: [42, 'Håkan Loob', '1982-83'], assists: [53, 'Ryan Lasch', '2021-22'], wins: [31, 'Strauss Mann', '2025-26'], shutouts: [10, 'Strauss Mann', '2025-26'] },
+  LIIGA: { points: [93, 'Kari Jalonen', '1986-87'], goals: [47, 'Arto Javanainen', '1987-88'], assists: [64, 'Kari Jalonen', '1986-87'], wins: [34, 'Tim Thomas', '2004-05'], shutouts: [15, 'Tim Thomas', '2004-05'] },
+  KHL: { points: [89, 'Nikita Gusev', '2023-24'], goals: [49, 'Josh Leivo', '2024-25'], assists: [66, 'Nikita Gusev', '2023-24'], wins: [38, 'Jakub Kovář', '2018-19'], shutouts: [13, 'Alexei Murygin', '2015-16'] },
+  SWISS: { points: [93, 'Oleg Petrov', '1997-98'], goals: [41, 'Ravil Yudashev', '1992-93'], assists: [63, 'Oleg Petrov', '1997-98'], wins: [35, 'Leonardo Genoni', '2010-11'], shutouts: [10, 'Leonardo Genoni', '2018-19'] },
+  DEL: { points: [101, 'Robert Reichel', '1995-96'], goals: [50, 'Sergei Berezin', '1995-96'], assists: [65, 'John Chabot', '1995-96'], wins: [35, 'Rob Zepp', '2009-10'], shutouts: [9, 'Sinuhe Wallinheimo', '2000-01'] },
+  CZECH: { points: [83, 'Martin Růžička', '2012-13'], goals: [40, 'Martin Růžička', '2012-13'], assists: [53, 'Richard Král', '1999-00'], wins: [35, 'Adam Svoboda', '2002-03'], shutouts: [11, 'Roman Málek', '2002-03'] },
+  SLOVAK: { points: [99, 'Žigmund Pálffy', '2008-09'], goals: [52, 'Žigmund Pálffy', '2008-09'], assists: [59, 'Juraj Mikúš', '2008-09'] },
+  ICEHL: { points: [98, 'Todd Elik', '2006-07'], goals: [46, 'Francois Fortier', '2010-11'], assists: [77, 'Todd Elik', '2006-07'], wins: [33, 'Frederic Chabot', '2004-05'], shutouts: [8, 'Sebastian Dahm', '2024-25'] },
+  SPHL: { points: [106, 'Kevin Swider', '2004-05'], goals: [63, 'Rob Sich', '2009-10'], assists: [73, 'Kevin Swider', '2004-05'], wins: [32, 'Sean Bonar', '2016-17'], shutouts: [8, 'Kyle Rank', '2013-14'] },
+  USHL: { points: [104, 'Kevin Roy', '2011-12'], goals: [54, 'Kevin Roy', '2011-12'], assists: [73, 'Jeremy Wilmer', '2021-22'], wins: [37, 'Brady Hjelle', '2010-11'], shutouts: [10, 'Marty Magers', '2001-02'] },
 };

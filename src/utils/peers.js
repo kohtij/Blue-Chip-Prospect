@@ -546,7 +546,7 @@ function playPeerSeason(peer) {
   const games = Math.max(20, scheduled - 4 + Math.floor(Math.random() * 9));
   const ageCapped = tier === 'JR' || preDraft;
   const form = seasonForm(games);
-  const curves = curvesFor(junior ? league : (tier === 'JR' ? 'OHL' : tier));
+  const curves = curvesFor(junior ? league : (tier === 'JR' ? 'OHL' : tier), scheduled);
 
   // Ability to a scoring rate, on the same shape the player's own uses: a
   // threshold below which nobody scores, and a linear climb above it.

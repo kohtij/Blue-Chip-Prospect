@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
-import { getOpponentPool, getPlayoffRounds, getPrimaryRival, ncaaTeams } from '../data/teams';
+import { getOpponentPool, getPlayoffRounds, getPrimaryRival, LEAGUE_CONFIG, ncaaTeams } from '../data/teams';
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
@@ -178,9 +178,19 @@ export default function RecapScreen() {
           // true and GAME 7 HEARTBREAK was unreachable there, and it read 16 for
           // the NCAA where the title actually takes 8 wins. The bracket the
           // playoffs are simulated from is the only authority on this.
-          const maxWins = (getPlayoffRounds(player.league) || [])
+          // The league the playoffs were played in, which a move since can
+          // have taken him out of.
+          const poLg = (seasonRecap?.madePlayoffs && playoffs?.currentLg) || player.league;
+          const maxWins = (getPlayoffRounds(poLg) || [])
             .reduce((sum, r) => sum + Math.ceil((r.gamesPerMatchup || 7) / 2), 0) || 16;
           const standings = seasonRecap?.standings || 16;
+          // "A great regular season" and "squeaked in" were the top four and
+          // thirteenth or lower, which is the NHL's sixteen. In an eight-team
+          // playoff nobody could squeak in at all. A quarter of the field each.
+          const spots = LEAGUE_CONFIG[poLg]?.playoffSpots || 16;
+          const band = Math.max(2, Math.round(spots / 4));
+          const topSeed = standings <= band;
+          const lastIn = standings > spots - band;
 
           // Was `seasonsPlayed - 2`, which assumed every player spends exactly two
           // years as an amateur. Four NCAA years opened the pro career at "PRO
@@ -217,7 +227,7 @@ export default function RecapScreen() {
           })();
 
           if (seasonRecap?.titleWon === 1 && streak >= 2) {
-             const cupName = titleLg === 'NHL' ? 'the Stanley Cup' : (titles?.cupName || 'the Championship');
+             const cupName = titleLg === 'NHL' ? 'the Stanley Cup' : `the ${titles?.cupName || 'championship'}`;
              if (streak === 2) {
                  narrativeTitle = 'BACK-TO-BACK CHAMPIONS';
                  narrative = `Twice. Winning ${cupName} once can be a good year and a hot goaltender; winning it again is the part nobody manages. This team doesn't have to argue about it any more.`;
@@ -258,14 +268,14 @@ export default function RecapScreen() {
                   narrative = 'You ran out of gas at the end.';
               } else if (pw === 0) {
                   narrativeTitle = 'SWEPT';
-                  narrative = standings <= 4 
+                  narrative = topSeed 
                     ? 'Swept, after the regular season you had. The papers haven\'t been kind.' 
                     : 'Swept out of the first round. You were outmatched from puck drop.';
               } else {
                   narrativeTitle = 'PLAYOFF EXIT';
-                  if (standings <= 4) {
+                  if (topSeed) {
                       narrative = 'A great regular season, and then an early exit nobody saw coming.';
-                  } else if (standings >= 13) {
+                  } else if (lastIn) {
                       narrative = 'You squeaked into the playoffs, and the run ended early.';
                   } else {
                       narrative = 'A solid regular season, and an early exit.';
