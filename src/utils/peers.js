@@ -62,6 +62,23 @@ const NATS = ['CAN', 'CAN', 'CAN', 'USA', 'USA', 'SWE', 'FIN', 'RUS', 'CZE', 'SV
 // how a draft reads.
 const SKATER_POS = ['C', 'C', 'LW', 'RW', 'LD', 'RD'];
 
+// WHO A REAL DRAFT TAKES, ROUND BY ROUND.
+//
+// The share of forwards, defencemen and goalies in each round, averaged over
+// the twelve NHL drafts from 2014 to 2025 (QuantHockey's draft pages). The
+// first round is seven forwards in ten and almost never a goalie; from the
+// second round on a third of the picks are defencemen and one in nine or so
+// is a goalie.
+export const DRAFT_POS_SHARE = [
+  { F: 69.8, D: 27.8, G: 2.1 },
+  { F: 56.3, D: 34.6, G: 8.8 },
+  { F: 53.1, D: 35.4, G: 11.6 },
+  { F: 56.7, D: 31.5, G: 11.7 },
+  { F: 50.6, D: 35.8, G: 13.6 },
+  { F: 55.1, D: 32.5, G: 12.3 },
+  { F: 57.4, D: 30.6, G: 12.0 }
+];
+
 // The player's own position, as a share of the skaters in his class.
 //
 // Every comparison in the game is made inside an exact position now, so the
@@ -231,27 +248,31 @@ export function createDraftClass(playerAge = 16, size = 28, playerPos = 'C', lea
   // and general managers price that in.
   //
   // So the skaters hold the board they earned and the goalies are placed
-  // against it: one in the first round rather more often than not, two or
-  // three more across the second, and the rest into the rounds the game does
-  // not otherwise model.
+  // against it, round by round, at the rate real drafts take them (see
+  // DRAFT_POS_SHARE). That was one in the first round nearly half the time,
+  // and two or three in the second and third: per pick, five times the
+  // first-round rate of any NHL draft since 2014.
   const goalies = board.filter(p => p.pos === 'G');
   const takenPicks = new Set(board.filter(p => p.pos !== 'G').map(p => p.pick));
   const roundOne = order.length || 32;
 
-  // The best of them goes in the first round about two years in three, which
-  // is roughly the historical rate once a strong class is accounted for.
   const freeIn = (lo, hi) => {
     const open = [];
     for (let n = lo; n <= hi; n++) if (!takenPicks.has(n)) open.push(n);
     return open;
   };
+  // Each goalie draws a round in proportion to how many goalies real drafts
+  // take in it, and the earliest rounds drawn go to the best of them.
+  const goalieWeights = DRAFT_POS_SHARE.map(r => r.G);
+  const drawRound = () => {
+    let roll = Math.random() * goalieWeights.reduce((a, b) => a + b, 0);
+    for (let r = 0; r < goalieWeights.length; r++) { roll -= goalieWeights[r]; if (roll <= 0) return r; }
+    return goalieWeights.length - 1;
+  };
+  const rounds = goalies.map(drawRound).sort((a, b) => a - b);
   goalies.forEach((g, i) => {
-    // The best of the class's goalies has a real chance at the first round,
-    // the next two land in the second or third, and the rest go late.
-    let window;
-    if (i === 0 && Math.random() < 0.45) window = freeIn(Math.round(roundOne * 0.38), roundOne);
-    else if (i <= 2) window = freeIn(roundOne + 1, roundOne * 3);
-    else window = freeIn(roundOne * 3 + 1, span);
+    const r = rounds[i];
+    let window = freeIn(r * roundOne + 1, Math.min(span, (r + 1) * roundOne));
     if (!window.length) window = freeIn(roundOne + 1, span);
     const chosen = window.length ? window[Math.floor(Math.random() * window.length)] : Math.min(span, roundOne * 3 + 1 + i);
     g.pick = chosen;
@@ -1075,7 +1096,29 @@ export function positionDraftSlot(peers, pos, playerPick) {
   const group = compGroup(pos);
   const picked = (peers || []).filter(p => p.pick && p.pick !== playerPick && compGroup(p.pos) === group);
   const ahead = picked.filter(p => p.pick < playerPick).length;
-  return { slot: ahead + 1, ahead, total: picked.length + 1, group };
+  return {
+    slot: ahead + 1, ahead, total: picked.length + 1, group,
+    // Where he went among every player of his position in the whole draft,
+    // not just the classmates the game follows. The class is about one
+    // pick in eight, so "the third left-side defenceman off the board" at
+    // 77th overall was the third of the class, when a real draft has taken
+    // a dozen of them by then.
+    draftSlot: Math.max(ahead + 1, Math.round(expectedTakenBefore(group, playerPick)) + 1)
+  };
+}
+
+// How many players of a position a real draft has taken before this pick.
+// Forwards split 40/30/30 between centres and the two wings, and the
+// defence evenly between the two sides.
+const POS_OF_GROUP = { C: ['F', 0.40], LW: ['F', 0.30], RW: ['F', 0.30], LD: ['D', 0.5], RD: ['D', 0.5], G: ['G', 1] };
+export function expectedTakenBefore(group, pick, perRound = 32) {
+  const [kind, share] = POS_OF_GROUP[group] || POS_OF_GROUP.C;
+  let n = 0;
+  for (let k = 1; k < pick; k++) {
+    const r = DRAFT_POS_SHARE[Math.min(DRAFT_POS_SHARE.length - 1, Math.floor((k - 1) / perRound))];
+    n += (r[kind] / 100) * share;
+  }
+  return n;
 }
 
 export function findRival(peers, playerValue, pos = 'C') {

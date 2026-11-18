@@ -15,14 +15,15 @@
 // ECHL's own record book, the AHL Hall of Fame record book, Wikipedia per-club
 // record pages and hockey-reference franchise single-season leaders for the
 // NHL, EliteProspects all-time single-season leaderboards, club or league
-// announcements for anything set recently, and QuantHockey for the QMJHL's
-// clubs and the European, USHL and SPHL league books.
+// announcements for anything set recently, and QuantHockey for the QMJHL's,
+// the ECHL's, the SPHL's, the USHL's and every European club, and for the
+// European, USHL and SPHL league books.
 //
 // What is still missing, and why:
 //   - Bridgeport. See the note on the AHL clubs below.
-//   - Club books for the European leagues, the USHL, the SPHL, the BCHL and
-//     the Nordic junior tiers. Their league books are in (see LEAGUE_RECORDS),
-//     apart from the BCHL and the junior tiers.
+//   - The BCHL and the Nordic junior tiers, clubs and league both. QuantHockey's
+//     BCHL tables start around 1996, after the years that set its real marks.
+//   - Clubs that joined their league this season and haven't played in it yet.
 //
 // Two notes on franchise history, because both change whose book a season is in:
 //   - The NHL consolidated the original Winnipeg Jets (1979-96) into the
@@ -94,9 +95,8 @@ export const NHL_CLUB_RECORDS = {
  * exception: Glen Hanlon's forty-nine for Brandon is in the league record book
  * itself, so it is known.
  *
- * The AHL has no league-wide guide at all, which is why its clubs are nearly
- * all missing. Hershey is in because Hershey publishes its own. The QMJHL's
- * clubs come from QuantHockey; see QMJHL_CLUB_RECORDS.
+ * The AHL's clubs come from the league's own Guide and Record Book (see
+ * AHL_CLUB_RECORDS), and the QMJHL's from QuantHockey (QMJHL_CLUB_RECORDS).
  */
 export const OHL_CLUB_RECORDS = {
   BAR: { points: [127, 'Kevin Labanc', '2015-16'], goals: [53, 'Bryan Cameron', '2009-10'], assists: [88, 'Kevin Labanc', '2015-16'], wins: [40, 'Andrew Perugini', '2006-07'], shutouts: [6, 'Dan LaCosta', '2005-06'] },
@@ -144,6 +144,9 @@ export const WHL_CLUB_RECORDS = {
   VAN: { points: [115, 'Casey Pierro-Zabotel', '2008-09'], goals: [61, 'Ty Ronning', '2017-18'], assists: [79, 'Casey Pierro-Zabotel', '2008-09'], shutouts: [11, 'Dustin Slade', '2005-06'] },
   VIC: { points: [112, 'Matthew Phillips', '2017-18'], goals: [51, 'Ryan Howse', '2010-11'], assists: [74, 'Mark Santorelli', '2007-08'], shutouts: [6, 'Coleman Vollrath', '2014-15'] },
   WEN: { points: [106, 'Jarret Stoll', '2000-01'], goals: [50, 'Nigel Dawes', '2004-05'], assists: [69, 'Sam Reinhart', '2013-14'], shutouts: [8, 'Jeff Glass', '2004-05'] },
+  // Penticton came over from the BCHL for 2025-26. One season, from
+  // QuantHockey, and no wins entry, to match the rest of the league's clubs.
+  PEN: { points: [85, 'Jacob Kvasnicka', '2025-26'], goals: [35, 'Jacob Kvasnicka', '2025-26'], assists: [50, 'Jacob Kvasnicka', '2025-26'], shutouts: [4, 'Ethan McCallum', '2025-26'] },
 };
 
 /**
@@ -229,6 +232,239 @@ export const QMJHL_CLUB_RECORDS = {
   VIC: { points: [150, 'Marc-Andre Thinel', '2000-01'], goals: [70, 'Claude Savoie', '1992-93'], assists: [92, 'Alexandre Daigle', '1992-93'], wins: [35, 'Kevin Poulin', '2009-10'], shutouts: [7, 'Kevin Poulin', '2009-10'] },
 };
 
+/**
+ * Every other league with a club book: the European leagues, the ECHL, the
+ * SPHL and the USHL, from QuantHockey's single-season records for each club,
+ * read in November 2026.
+ *
+ * QuantHockey's tables go back as far as each league's own note says, and a
+ * club's book is everything it has done under the name it plays as now, along
+ * with whichever older names QuantHockey folds into it. Goaltending wins and
+ * shutouts are thinner the further back you go, because older seasons often
+ * didn't record them.
+ *
+ * Where two men share a record the book keeps whoever set it first, as
+ * everywhere else here. Clubs new to their league have books a season or two
+ * deep, which is honest: there isn't any more history to read.
+ */
+/** The SHL's fourteen, back to 1975-76. Björklöven's goaltending wins aren't in QuantHockey's tables for its old SHL years. */
+export const SHL_CLUB_RECORDS = {
+  LHF: { points: [58, 'Linus Omark', '2021-22'], goals: [30, 'Lars-Gunnar Pettersson', '1990-91'], assists: [40, 'Stefan Nilsson', '1991-92'], wins: [30, 'Joel Lassinantti', '2018-19'], shutouts: [6, 'Jarmo Myllys', '1995-96'] },
+  SAIK: { points: [71, 'Bud Holloway', '2012-13'], goals: [33, 'Martin Karlsson', '1977-78'], assists: [51, 'Bud Holloway', '2012-13'], wins: [31, 'Strauss Mann', '2025-26'], shutouts: [10, 'Strauss Mann', '2025-26'] },
+  FBK: { points: [76, 'Håkan Loob', '1982-83'], goals: [42, 'Håkan Loob', '1982-83'], assists: [42, 'Marcus Nilsson', '2019-20'], wins: [25, 'Alexander Salak', '2012-13'], shutouts: [7, 'Alexander Salak', '2010-11'] },
+  FHC: { points: [67, 'Kristian Huselius', '2000-01'], goals: [33, 'Magnus Kahnberg', '2003-04'], assists: [53, 'Ryan Lasch', '2021-22'], wins: [27, 'Lars Johansson', '2015-16'], shutouts: [7, 'Henrik Lundqvist', '2003-04'] },
+  VHK: { points: [56, 'Elias Pettersson', '2017-18'], goals: [24, 'Elias Pettersson', '2017-18'], assists: [38, 'Lukas Elvenes', '2025-26'], wins: [25, 'Viktor Fasth', '2017-18'], shutouts: [8, 'Emil Larmi', '2022-23'] },
+  RBK: { points: [50, 'Daniel Zaar', '2020-21'], goals: [28, 'Tomas Srsen', '1993-94'], assists: [37, 'Kodie Curran', '2019-20'], wins: [23, 'Roman Will', '2019-20'], shutouts: [5, 'Christoffer Rifalk', '2023-24'] },
+  MIF: { points: [56, 'Juha Riihijärvi', '1999-00'], goals: [27, 'Juha Riihijärvi', '1996-97'], assists: [36, 'Juha Riihijärvi', '1999-00'], wins: [23, 'Oscar Ahlsenfelt', '2018-19'], shutouts: [9, 'Oscar Ahlsenfelt', '2016-17'] },
+  LHC: { points: [71, 'Pär Arlbrandt', '2013-14'], goals: [35, 'Mattias Weinhandl', '2007-08'], assists: [50, 'Tony Mårtensson', '2007-08'], wins: [21, 'Marcus Högberg', '2023-24'], shutouts: [9, 'Fredrik Norrena', '2003-04'] },
+  OHK: { points: [60, 'Derek Ryan', '2014-15'], goals: [24, 'Martin Johansson', '2014-15'], assists: [45, 'Derek Ryan', '2014-15'], wins: [26, 'Julius Hudacek', '2014-15'], shutouts: [6, 'Eero Kilpeläinen', '2017-18'] },
+  TIK: { points: [55, 'Jonathan Dahlen', '2025-26'], goals: [30, 'Jonathan Dahlen', '2025-26'], assists: [31, 'Henrik Zetterberg', '2000-01'], wins: [24, 'Jacob Johansson', '2022-23'], shutouts: [8, 'Kimmo Kapanen', '2003-04'] },
+  HV71: { points: [59, 'Kai Nurminen', '1995-96'], goals: [34, 'Kai Nurminen', '1995-96'], assists: [46, 'Johan Davidsson', '2009-10'], wins: [29, 'Gustaf Wesslau', '2012-13'], shutouts: [7, 'Gustaf Wesslau', '2012-13'] },
+  BIF: { points: [59, 'Jan Larsson', '1998-99'], goals: [40, 'Tom Bissett', '1998-99'], assists: [43, 'Per Djoos', '1998-99'], wins: [21, 'Veini Vehviläinen', '2021-22'], shutouts: [6, 'Robert Kristan', '2006-07'] },
+  DIF: { points: [64, 'Fredrik Bremberg', '2006-07'], goals: [30, 'Patric Kjellberg', '1997-98'], assists: [41, 'Fredrik Bremberg', '2006-07'], wins: [24, 'Adam Reideborn', '2018-19'], shutouts: [6, 'Daniel Larsson', '2007-08'] },
+  BJO: { points: [48, 'Mikael Andersson', '1987-88'], goals: [30, 'Tore Öqvist', '1985-86'], assists: [26, 'Mikael Andersson', '1987-88'], shutouts: [2, 'Göte Wälitalo', '1980-81'] },
+};
+
+/** The Liiga's seventeen, back to the 1970s for the clubs that were there, the last years of the old SM-sarja included. Kiekko-Espoo's book starts in 2024-25, when the new club took the place. */
+export const LIIGA_CLUB_RECORDS = {
+  TAP: { points: [77, 'Benjamin Rautiainen', '2025-26'], goals: [36, 'Martti Jarkko', '1976-77'], assists: [52, 'Benjamin Rautiainen', '2025-26'], wins: [30, 'Jussi Markkanen', '2000-01'], shutouts: [13, 'Juha Metsola', '2013-14'] },
+  ILK: { points: [81, 'Raimo Summanen', '1988-89'], goals: [45, 'Raimo Summanen', '1982-83'], assists: [46, 'Pekka Järvelä', '1988-89'], wins: [30, 'Jukka Tammi', '1987-88'], shutouts: [8, 'Marek Langhamer', '2022-23'] },
+  HIFK: { points: [87, 'Matti Hagman', '1979-80'], goals: [38, 'Jan Caloun', '1999-00'], assists: [57, 'Jan Caloun', '1998-99'], wins: [28, 'Sakari Lindfors', '1987-88'], shutouts: [8, 'Dave Stathos', '2003-04'] },
+  KAR: { points: [93, 'Kari Jalonen', '1986-87'], goals: [34, 'Janne Pesonen', '2007-08'], assists: [64, 'Kari Jalonen', '1986-87'], wins: [32, 'Niklas Bäckström', '2005-06'], shutouts: [10, 'Niklas Bäckström', '2005-06'] },
+  TPS: { points: [78, 'Kai Nurminen', '1999-00'], goals: [47, 'Arto Javanainen', '1987-88'], assists: [56, 'Kari Jalonen', '1988-89'], wins: [31, 'Jouni Rokama', '1993-94'], shutouts: [7, 'Lassi Lehtinen', '2022-23'] },
+  LUK: { points: [72, 'Juha Riihijärvi', '1995-96'], goals: [36, 'Jouni Rinne', '1975-76'], assists: [51, 'Esa Keskinen', '1990-91'], wins: [30, 'Ryan Zapolski', '2013-14'], shutouts: [10, 'Ryan Zapolski', '2015-16'] },
+  KAL: { points: [60, 'Darius Rusnak', '1990-91'], goals: [30, 'Matyas Kantner', '2024-25'], assists: [42, 'Jouni Rinne', '1988-89'], wins: [23, 'Ari Ahonen', '2010-11'], shutouts: [7, 'Mikko Koskinen', '2012-13'] },
+  PEL: { points: [62, 'Ryan Lasch', '2011-12'], goals: [41, 'Erkki Laine', '1982-83'], assists: [45, 'Ryan Lasch', '2023-24'], wins: [26, 'Antti Niemi', '2007-08'], shutouts: [7, 'Patrik Bartosak', '2025-26'] },
+  KOO: { points: [57, 'Malte Strömwall', '2018-19'], goals: [30, 'Malte Strömwall', '2018-19'], assists: [35, 'Matt Caito', '2019-20'], wins: [25, 'Henrik Haukeland', '2019-20'], shutouts: [8, 'Henrik Haukeland', '2019-20'] },
+  HPK: { points: [73, 'Teppo Kivelä', '1990-91'], goals: [30, 'Tomas Kapusta', '1992-93'], assists: [51, 'Igor Kuznetsov', '1989-90'], wins: [28, 'Kimmo Kapanen', '1999-00'], shutouts: [8, 'Teemu Lassila', '2008-09'] },
+  JYP: { points: [71, 'Pekka Järvelä', '1986-87'], goals: [41, 'Risto Kurkinen', '1986-87'], assists: [54, 'Pekka Järvelä', '1986-87'], wins: [26, 'Ari-Pekka Siekkinen', '1991-92'], shutouts: [9, 'Joni Myllykoski', '2010-11'] },
+  SAI: { points: [66, 'Maxime Fortier', '2025-26'], goals: [29, 'Vladimir Machulda', '2000-01'], assists: [47, 'Otto Kivenmäki', '2025-26'], wins: [21, 'Jussi Markkanen', '1997-98'], shutouts: [5, 'Jussi Markkanen', '2013-14'] },
+  JUK: { points: [59, 'Petrus Palmu', '2021-22'], goals: [26, 'Petrus Palmu', '2021-22'], assists: [33, 'Miika Koivisto', '2016-17'], wins: [29, 'Oskari Salminen', '2021-22'], shutouts: [9, 'Oskari Salminen', '2021-22'] },
+  SPO: { points: [63, 'Atro Leppänen', '2024-25'], goals: [22, 'Roope Talaja', '2018-19'], assists: [48, 'Simon Hjalmarsson', '2024-25'], wins: [19, 'Mika Järvinen', '2015-16'], shutouts: [7, 'Mika Järvinen', '2015-16'] },
+  ASS: { points: [72, 'Veli-Pekka Ketola', '1978-79'], goals: [44, 'Arto Javanainen', '1985-86'], assists: [49, 'Veli-Pekka Ketola', '1978-79'], wins: [26, 'Juuso Riksman', '2005-06'], shutouts: [9, 'Juuso Riksman', '2005-06'] },
+  AKH: { points: [41, 'Cameron Hillis', '2024-25'], goals: [19, 'Peter Quenneville', '2024-25'], assists: [29, 'Iikka Kangasniemi', '2025-26'], wins: [16, 'Petteri Rimpinen', '2024-25'], shutouts: [5, 'Petteri Rimpinen', '2025-26'] },
+  JOK: { points: [77, 'Ville Leino', '2007-08'], goals: [41, 'Timo Turunen', '1972-73'], assists: [51, 'Timo Sutinen', '1973-74'], wins: [34, 'Tim Thomas', '2004-05'], shutouts: [15, 'Tim Thomas', '2004-05'] },
+};
+
+/** The KHL's twenty-two, which only go back to 2008-09, the league's first season. Kunlun's book is the Shanghai Dragons' now. */
+export const KHL_CLUB_RECORDS = {
+  CSKA: { points: [71, 'Alexander Radulov', '2014-15'], goals: [33, 'Kirill Kaprizov', '2019-20'], assists: [47, 'Alexander Radulov', '2014-15'], wins: [28, 'Ilya Sorokin', '2018-19'], shutouts: [11, 'Ilya Sorokin', '2018-19'] },
+  SKA: { points: [82, 'Nikita Gusev', '2018-19'], goals: [40, 'Dmitri Jaskin', '2022-23'], assists: [65, 'Nikita Gusev', '2018-19'], wins: [30, 'Dmitry Nikolayev', '2022-23'], shutouts: [10, 'Igor Shesterkin', '2018-19'] },
+  DYN: { points: [89, 'Nikita Gusev', '2023-24'], goals: [38, 'Dmitri Jaskin', '2020-21'], assists: [66, 'Nikita Gusev', '2023-24'], wins: [26, 'Ivan Bocharov', '2019-20'], shutouts: [9, 'Alexander Yeremenko', '2016-17'] },
+  LOK: { points: [61, 'Pavol Demitra', '2010-11'], goals: [30, 'Maxim Shalunov', '2025-26'], assists: [43, 'Pavol Demitra', '2010-11'], wins: [32, 'Daniil Isaev', '2023-24'], shutouts: [13, 'Alexei Murygin', '2015-16'] },
+  SPA: { points: [78, 'Nikolai Goldobin', '2023-24'], goals: [37, 'Nikolai Goldobin', '2023-24'], assists: [41, 'Nikolai Goldobin', '2023-24'], wins: [23, 'Dominik Hasek', '2010-11'], shutouts: [7, 'Dominik Hasek', '2010-11'] },
+  SEV: { points: [62, 'Kirill Pilipenko', '2023-24'], goals: [32, 'Kirill Pilipenko', '2023-24'], assists: [37, 'Vadim Shipachev', '2011-12'], wins: [25, 'Vladislav Podyapolsky', '2020-21'], shutouts: [8, 'Vasily Koshechkin', '2012-13'] },
+  TOR: { points: [61, 'Damir Zhafyarov', '2020-21'], goals: [35, 'Pavel Brendl', '2008-09'], assists: [40, 'Damir Zhafyarov', '2020-21'], wins: [25, 'Denis Kostin', '2025-26'], shutouts: [7, 'Ilya Proskuryakov', '2016-17'] },
+  SOC: { points: [45, 'Artur Tyanulin', '2023-24'], goals: [22, 'André Petersson', '2015-16'], assists: [30, 'Artur Tyanulin', '2024-25'], wins: [24, 'Konstantin Barulin', '2015-16'], shutouts: [5, 'Magnus Hellberg', '2021-22'] },
+  MIN: { points: [89, 'Sam Anas', '2025-26'], goals: [32, 'Sam Anas', '2025-26'], assists: [57, 'Sam Anas', '2025-26'], wins: [28, 'Ben Scrivens', '2016-17'], shutouts: [8, 'Ben Scrivens', '2016-17'] },
+  AKB: { points: [71, 'Alexei Morozov', '2008-09'], goals: [35, 'Dmitri Jaskin', '2024-25'], assists: [39, 'Alexei Morozov', '2008-09'], wins: [30, 'Timur Bilyalov', '2023-24'], shutouts: [8, 'Timur Bilyalov', '2019-20'] },
+  AVA: { points: [78, 'Reid Boucher', '2023-24'], goals: [44, 'Reid Boucher', '2023-24'], assists: [55, 'Vladimir Tkachyov', '2023-24'], wins: [35, 'Nikita Serebryakov', '2025-26'], shutouts: [8, 'Dominik Furch', '2015-16'] },
+  MET: { points: [85, 'Sergei Mozyakin', '2016-17'], goals: [48, 'Sergei Mozyakin', '2016-17'], assists: [58, 'Vladimir Tkachyov', '2025-26'], wins: [32, 'Vasily Koshechkin', '2014-15'], shutouts: [9, 'Vasily Koshechkin', '2013-14'] },
+  SAL: { points: [80, 'Alexander Radulov', '2010-11'], goals: [49, 'Josh Leivo', '2024-25'], assists: [60, 'Alexander Radulov', '2010-11'], wins: [29, 'Niklas Svedberg', '2015-16'], shutouts: [7, 'Juha Metsola', '2019-20'] },
+  TRA: { points: [67, 'Maxim Shabanov', '2024-25'], goals: [27, 'Vitaly Kravtsov', '2024-25'], assists: [44, 'Maxim Shabanov', '2024-25'], wins: [29, 'Michael Garnett', '2011-12'], shutouts: [9, 'Zachary Fucale', '2024-25'] },
+  AVT: { points: [69, 'Nigel Dawes', '2018-19'], goals: [36, 'Brooks Macek', '2022-23'], assists: [43, 'Stephane Da Costa', '2024-25'], wins: [38, 'Jakub Kovar', '2018-19'], shutouts: [8, 'Jakub Kovar', '2014-15'] },
+  SIB: { points: [58, 'Trevor Murphy', '2024-25'], goals: [29, 'Alexander Sharov', '2022-23'], assists: [45, 'Trevor Murphy', '2024-25'], wins: [26, 'Alexander Salak', '2015-16'], shutouts: [6, 'Alexander Salak', '2015-16'] },
+  NEF: { points: [50, 'Dan Sexton', '2016-17'], goals: [27, 'Andrei Belozyorov', '2025-26'], assists: [37, 'Dan Sexton', '2016-17'], wins: [23, 'Ilya Ezhov', '2017-18'], shutouts: [7, 'Ilya Ezhov', '2017-18'] },
+  AMU: { points: [51, 'Jakub Petruzalek', '2011-12'], goals: [22, 'Jakub Petruzalek', '2011-12'], assists: [29, 'Jakub Petruzalek', '2011-12'], wins: [28, 'Juha Metsola', '2017-18'], shutouts: [7, 'Juha Metsola', '2016-17'] },
+  ADM: { points: [53, 'Daniil Gutik', '2024-25'], goals: [26, 'Daniil Gutik', '2024-25'], assists: [29, 'Libor Sulak', '2025-26'], wins: [20, 'Ivan Nalimov', '2015-16'], shutouts: [5, 'Igor Bobkov', '2016-17'] },
+  BAR: { points: [62, 'Nigel Dawes', '2016-17'], goals: [36, 'Nigel Dawes', '2016-17'], assists: [41, 'Brandon Bochenski', '2015-16'], wins: [25, 'Henrik Karlsson', '2016-17'], shutouts: [7, 'Henrik Karlsson', '2016-17'] },
+  KUN: { points: [45, 'Nicholas Merkley', '2025-26'], goals: [24, 'Nicholas Merkley', '2025-26'], assists: [31, 'Zach Leslie', '2022-23'], wins: [16, 'Magnus Hellberg', '2017-18'], shutouts: [6, 'Magnus Hellberg', '2017-18'] },
+  LAD: { points: [45, 'Riley Sawchuk', '2025-26'], goals: [23, 'Riley Sawchuk', '2025-26'], assists: [24, 'Dmitri Kugryshev', '2025-26'], wins: [19, 'Vasily Koshechkin', '2008-09'], shutouts: [8, 'Vasily Koshechkin', '2008-09'] },
+};
+
+/** The National League's fourteen, from the mid-1980s on. */
+export const SWISS_CLUB_RECORDS = {
+  ZSC: { points: [67, 'Randy Robitaille', '2004-05'], goals: [30, 'Pius Suter', '2019-20'], assists: [45, 'Randy Robitaille', '2004-05'], wins: [30, 'Simon Hrubec', '2023-24'], shutouts: [7, 'Lukas Flüeler', '2013-14'] },
+  BERN: { points: [82, 'Gates Orlando', '1996-97'], goals: [27, 'Alan Haworth', '1990-91'], assists: [56, 'Gates Orlando', '1996-97'], wins: [34, 'Marco Bührer', '2007-08'], shutouts: [10, 'Leonardo Genoni', '2018-19'] },
+  DAV: { points: [69, 'Ken Yaremchuk', '1996-97'], goals: [37, 'Michel Riesen', '2006-07'], assists: [44, 'Joe Thornton', '2004-05'], wins: [35, 'Leonardo Genoni', '2010-11'], shutouts: [8, 'Jonas Hiller', '2004-05'] },
+  ZUG: { points: [71, 'Ken Yaremchuk', '1994-95'], goals: [41, 'Bill McDougall', '1996-97'], assists: [55, 'Pierre-Marc Bouchard', '2015-16'], wins: [29, 'Lars Weibel', '2006-07'], shutouts: [7, 'Tobias Stephan', '2016-17'] },
+  LUG: { points: [72, 'Ville Peltonen', '2003-04'], goals: [33, 'Fredrik Pettersson', '2014-15'], assists: [49, 'Randy Robitaille', '2009-10'], wins: [30, 'Ronnie Rüeger', '2003-04'], shutouts: [6, 'Cristobal Huet', '2000-01'] },
+  FRI: { points: [86, 'Andrei Khomutov', '1994-95'], goals: [41, 'Andrei Khomutov', '1994-95'], assists: [51, 'Vyacheslav Bykov', '1991-92'], wins: [28, 'Reto Berra', '2021-22'], shutouts: [6, 'Cristobal Huet', '2011-12'] },
+  GEN: { points: [72, 'Juraj Kolnik', '2008-09'], goals: [28, 'Teemu Hartikainen', '2022-23'], assists: [48, 'Henrik Tömmernes', '2021-22'], wins: [31, 'Gianluca Mona', '2007-08'], shutouts: [6, 'Tobias Stephan', '2011-12'] },
+  LAU: { points: [57, 'Dustin Jeffrey', '2017-18'], goals: [25, 'Nicklas Danielsson', '2017-18'], assists: [44, 'Dustin Jeffrey', '2017-18'], wins: [29, 'Kevin Pasche', '2024-25'], shutouts: [9, 'Kevin Pasche', '2024-25'] },
+  BIE: { points: [61, 'Ravil Yudashev', '1992-93'], goals: [41, 'Ravil Yudashev', '1992-93'], assists: [31, 'Marc-Antoine Pouliot', '2012-13'], wins: [24, 'Jonas Hiller', '2017-18'], shutouts: [7, 'Reto Berra', '2011-12'] },
+  AMB: { points: [93, 'Oleg Petrov', '1997-98'], goals: [38, 'Paul DiPietro', '1998-99'], assists: [63, 'Oleg Petrov', '1997-98'], wins: [21, 'Thomas Bäumle', '2007-08'], shutouts: [7, 'Pauli Jaks', '1998-99'] },
+  RAP: { points: [65, 'Mike Richard', '1995-96'], goals: [27, 'Mike Richard', '1995-96'], assists: [46, 'Stacy Roest', '2008-09'], wins: [26, 'Melvin Nyffeler', '2021-22'], shutouts: [5, 'Daniel Manzato', '2009-10'] },
+  SCL: { points: [69, 'Josh Holden', '2007-08'], goals: [26, 'Josh Holden', '2007-08'], assists: [43, 'Josh Holden', '2007-08'], wins: [22, 'Matthias Schoder', '2008-09'], shutouts: [6, 'Damiano Ciaccio', '2018-19'] },
+  KLO: { points: [77, 'Kent Nilsson', '1990-91'], goals: [37, 'Kent Nilsson', '1990-91'], assists: [44, 'Kimmo Rintanen', '2008-09'], wins: [32, 'Ronnie Rüeger', '2008-09'], shutouts: [8, 'Ronnie Rüeger', '2011-12'] },
+  AJO: { points: [52, 'Julius Nättinen', '2024-25'], goals: [22, 'Lane Lambert', '1992-93'], assists: [34, 'Philip-Michael Devos', '2022-23'], wins: [8, 'Tim Wolf', '2021-22'], shutouts: [3, 'Benjamin Conz', '2024-25'] },
+};
+
+/** The DEL's fourteen, back to the league's first season in 1994-95. */
+export const DEL_CLUB_RECORDS = {
+  BER: { points: [85, 'Steve Walker', '2007-08'], goals: [37, 'Ty Ronning', '2024-25'], assists: [58, 'Steve Walker', '2007-08'], wins: [35, 'Rob Zepp', '2009-10'], shutouts: [6, 'Rich Shulmistra', '2001-02'] },
+  RBM: { points: [64, 'Keith Aucoin', '2017-18'], goals: [28, 'Trevor Parkes', '2019-20'], assists: [53, 'Keith Aucoin', '2017-18'], wins: [29, 'Mathias Niederberger', '2022-23'], shutouts: [5, 'Danny Aus den Birken', '2018-19'] },
+  MAN: { points: [74, 'Jan Alston', '1999-00'], goals: [32, 'Jan Alston', '1998-99'], assists: [46, 'Pavel Gross', '1996-97'], wins: [28, 'Dennis Endras', '2014-15'], shutouts: [7, 'Mike Rosati', '2001-02'] },
+  KOL: { points: [81, 'Sergei Berezin', '1995-96'], goals: [50, 'Sergei Berezin', '1995-96'], assists: [50, 'Dave McLlwain', '2005-06'], wins: [33, 'Joseph Heiß', '1995-96'], shutouts: [5, 'Chris Rogles', '2001-02'] },
+  ING: { points: [73, 'Thomas Greilinger', '2009-10'], goals: [38, 'Thomas Greilinger', '2009-10'], assists: [42, 'Bob Wren', '2009-10'], wins: [29, 'Timo Pielmeier', '2014-15'], shutouts: [8, 'Jim Waite', '2003-04'] },
+  STR: { points: [68, 'Jason Akeson', '2021-22'], goals: [30, 'Eric Chouinard', '2007-08'], assists: [44, 'Jason Akeson', '2021-22'], wins: [27, 'Henrik Haukeland', '2025-26'], shutouts: [4, 'Jeff Zatkoff', '2018-19'] },
+  WOL: { points: [64, 'Jason Ulmer', '2008-09'], goals: [31, 'Matt Dzieduszycki', '2012-13'], assists: [47, 'Jason Ulmer', '2008-09'], wins: [28, 'Dustin Strahlmeier', '2021-22'], shutouts: [7, 'Daniar Dshunussow', '2011-12'] },
+  BRE: { points: [57, 'Ziga Jeglic', '2021-22'], goals: [27, 'Jack Combs', '2016-17'], assists: [42, 'Ziga Jeglic', '2021-22'], wins: [31, 'Kristers Gudlevskis', '2023-24'], shutouts: [5, 'Kristers Gudlevskis', '2024-25'] },
+  NUR: { points: [70, 'Steven Reinprecht', '2013-14'], goals: [41, 'Ahren Spylo', '2007-08'], assists: [49, 'Evan Barratt', '2025-26'], wins: [28, 'Niklas Treutle', '2019-20'], shutouts: [5, 'Andrei Mezin', '1998-99'] },
+  AUG: { points: [78, 'Sergei Vostrikov', '2000-01'], goals: [36, 'Sergei Vostrikov', '1999-00'], assists: [51, 'Peter Larsson', '1999-00'], wins: [24, 'Dennis Endras', '2008-09'], shutouts: [6, 'Dennis Endras', '2008-09'] },
+  SWW: { points: [67, 'Mark MacKay', '1995-96'], goals: [40, 'Andrei Kovalev', '1994-95'], assists: [43, 'Rich Chernomaz', '1995-96'], wins: [25, 'Joacim Eriksson', '2023-24'], shutouts: [4, 'Stephane Beauregard', '1999-00'] },
+  FRA: { points: [58, 'Carter Rowney', '2022-23'], goals: [24, 'Dominik Bokk', '2022-23'], assists: [37, 'Carter Rowney', '2022-23'], wins: [22, 'Jake Hildebrand', '2022-23'], shutouts: [2, 'Mirko Pantkowski', '2025-26'] },
+  ISE: { points: [87, 'Robert Hock', '2007-08'], goals: [44, 'Michael Wolf', '2007-08'], assists: [63, 'Robert Hock', '2007-08'], wins: [25, 'Sebastien Caron', '2011-12'], shutouts: [6, 'Jim Waite', '2002-03'] },
+  KEV: { points: [75, 'Brad Purdie', '2001-02'], goals: [37, 'Chris Lindberg', '1996-97'], assists: [45, 'Adam Courchaine', '2013-14'], wins: [29, 'Scott Langkow', '2012-13'], shutouts: [8, 'Scott Langkow', '2010-11'] },
+};
+
+/** The Extraliga's fourteen, back to 1993-94, the first season after the split. */
+export const CZECH_CLUB_RECORDS = {
+  SPA: { points: [73, 'Roman Horak', '1996-97'], goals: [35, 'Petr Ton', '2013-14'], assists: [52, 'Roman Horak', '1996-97'], wins: [33, 'Petr Briza', '1999-00'], shutouts: [11, 'Tomas Pöpperle', '2013-14'] },
+  TRI: { points: [83, 'Martin Ruzicka', '2012-13'], goals: [40, 'Martin Ruzicka', '2012-13'], assists: [53, 'Richard Kral', '1999-00'], wins: [30, 'Simon Hrubec', '2018-19'], shutouts: [7, 'Marek Novotny', '1999-00'] },
+  PCE: { points: [60, 'Roman Cervenka', '2025-26'], goals: [37, 'Petr Sykora', '2006-07'], assists: [41, 'Roman Cervenka', '2025-26'], wins: [35, 'Adam Svoboda', '2002-03'], shutouts: [7, 'Adam Svoboda', '2002-03'] },
+  KOM: { points: [64, 'Peter Mueller', '2020-21'], goals: [29, 'Martin Zatovic', '2019-20'], assists: [39, 'Petr Holik', '2020-21'], wins: [29, 'Marek Ciliak', '2014-15'], shutouts: [6, 'Marek Ciliak', '2017-18'] },
+  VIT: { points: [64, 'David Moravec', '1997-98'], goals: [38, 'David Moravec', '1997-98'], assists: [35, 'Alexander Prokopiev', '1997-98'], wins: [29, 'Roman Malek', '2010-11'], shutouts: [8, 'Martin Prusek', '1996-97'] },
+  LIB: { points: [62, 'Tomas Filippi', '2023-24'], goals: [31, 'Libor Hudacek', '2019-20'], assists: [41, 'Petr Nedved', '2010-11'], wins: [32, 'Roman Will', '2018-19'], shutouts: [7, 'Roman Will', '2016-17'] },
+  MHK: { points: [50, 'Tomas Mertl', '2014-15'], goals: [25, 'Jiri Simanek', '2013-14'], assists: [36, 'Jaroslav Bednár', '2016-17'], wins: [28, 'Pavel Kantor', '2013-14'], shutouts: [9, 'Stanislav Skorvanek', '2025-26'] },
+  PLZ: { points: [76, 'Milan Gulas', '2019-20'], goals: [35, 'Milan Gulas', '2019-20'], assists: [44, 'Martin Straka', '2010-11'], wins: [33, 'Miroslav Svoboda', '2017-18'], shutouts: [9, 'Dusan Salficky', '1999-00'] },
+  KVA: { points: [57, 'Lukas Pech', '2012-13'], goals: [30, 'Ondrej Beranek', '2024-25'], assists: [35, 'Lukas Pech', '2012-13'], wins: [27, 'Lukas Mensator', '2008-09'], shutouts: [5, 'Petr Franek', '2002-03'] },
+  MBL: { points: [52, 'David Stastny', '2020-21'], goals: [26, 'David Stastny', '2020-21'], assists: [28, 'David Vyborny', '2014-15'], wins: [26, 'David Rittich', '2015-16'], shutouts: [5, 'David Rittich', '2015-16'] },
+  LIT: { points: [60, 'Tomas Vlasak', '1996-97'], goals: [27, 'Robert Kysela', '1995-96'], assists: [37, 'Viktor Hübl', '2014-15'], wins: [34, 'Pavel Francouz', '2014-15'], shutouts: [7, 'Zdenek Orct', '1998-99'] },
+  OLO: { points: [46, 'David Krejcí', '2021-22'], goals: [22, 'Zbynek Irgl', '2018-19'], assists: [26, 'Jan Kana', '2021-22'], wins: [24, 'Branislav Konrad', '2015-16'], shutouts: [7, 'Pavel Cagas', '1994-95'] },
+  CBU: { points: [58, 'Radek Toupal', '1997-98'], goals: [30, 'Vaclav Kral', '1998-99'], assists: [43, 'Radek Toupal', '1998-99'], wins: [29, 'Roman Turek', '2007-08'], shutouts: [7, 'Oldrich Svoboda', '1995-96'] },
+  KLA: { points: [75, 'Pavel Patera', '1994-95'], goals: [35, 'Martin Procházka', '2006-07'], assists: [49, 'Pavel Patera', '1994-95'], wins: [25, 'Zdenek Orct', '2004-05'], shutouts: [4, 'Milan Hnilicka', '1996-97'] },
+};
+
+/** The Slovak Extraliga's twelve, scoring only. QuantHockey's goaltending tables for Slovakia are missing their older wins and carry shutout totals that can't be right, the same reason the league book has none. */
+export const SLOVAK_CLUB_RECORDS = {
+  SLO: { points: [63, 'Lubomir Kolnik', '1996-97'], goals: [41, 'Jan Plch', '2003-04'], assists: [40, 'Michal Hreus', '1999-00'] },
+  KOS: { points: [74, 'Vlastimil Plavucha', '1996-97'], goals: [35, 'Vlastimil Plavucha', '1994-95'], assists: [44, 'Michal Chovan', '2020-21'] },
+  ZVO: { points: [79, 'Jan Plch', '2000-01'], goals: [43, 'Vlastimil Plavucha', '1999-00'], assists: [50, 'Peter Klouda', '2007-08'] },
+  POP: { points: [69, 'Marcel Hascak', '2020-21'], goals: [38, 'Marcel Hascak', '2020-21'], assists: [49, 'Andrew Calof', '2024-25'] },
+  NIT: { points: [67, 'Jozef Stumpel', '2013-14'], goals: [41, 'Samuel Bucek', '2021-22'], assists: [51, 'Jozef Stumpel', '2013-14'] },
+  BBY: { points: [72, 'Eric Faille', '2018-19'], goals: [32, 'Carter Turnbull', '2025-26'], assists: [48, 'Eric Faille', '2018-19'] },
+  DUC: { points: [58, 'Jordan Martel', '2025-26'], goals: [31, 'Renars Krastenbergs', '2024-25'], assists: [43, 'Kaspars Daugavins', '2023-24'] },
+  ZIL: { points: [60, 'Marek Hovorka', '2016-17'], goals: [37, 'Roman Tomas', '2013-14'], assists: [39, 'Peter Klouda', '2013-14'] },
+  SNV: { points: [59, 'Olivier Archambault', '2023-24'], goals: [29, 'Vladimir Svitek', '1996-97'], assists: [45, 'Olivier Archambault', '2023-24'] },
+  LMI: { points: [57, 'Marek Uram', '1996-97'], goals: [28, 'Marek Uram', '1996-97'], assists: [40, 'Petr Vlk', '1999-00'] },
+  TRE: { points: [86, 'Jan Pardavy', '1996-97'], goals: [42, 'Jan Pardavy', '1996-97'], assists: [54, 'Pavol Demitra', '2004-05'] },
+  PRE: { points: [59, 'Maxwell Gerlach', '2022-23'], goals: [34, 'Maxwell Gerlach', '2022-23'], assists: [30, 'Abbot Girduckis', '2022-23'] },
+};
+
+/** The ICE Hockey League's clubs, back to the mid-1990s for the Austrian ones. Ferencváros joined in 2025-26, so its book is one season deep, and Milano, new this season, has none yet. */
+export const ICEHL_CLUB_RECORDS = {
+  RBS: { points: [74, 'Thomas Koch', '2006-07'], goals: [33, 'Brett Sterling', '2015-16'], assists: [49, 'John Hughes', '2015-16'], wins: [27, 'Jordan Parise', '2008-09'], shutouts: [5, 'Jordan Parise', '2008-09'] },
+  KAC: { points: [65, 'Chad Hinz', '2006-07'], goals: [28, 'Tony Iob', '2004-05'], assists: [44, 'Andy Schneider', '2008-09'], wins: [29, 'Andrew Verner', '2003-04'], shutouts: [8, 'Sebastian Dahm', '2024-25'] },
+  VSV: { points: [85, 'John Hughes', '2013-14'], goals: [37, 'Danny Bousquet', '2006-07'], assists: [65, 'Corey Locke', '2016-17'], wins: [29, 'Gert Prohaska', '2006-07'], shutouts: [6, 'Bernhard Starkbaum', '2011-12'] },
+  VIC: { points: [85, 'Bob Wren', '2006-07'], goals: [46, 'Francois Fortier', '2010-11'], assists: [57, 'Bob Wren', '2006-07'], wins: [33, 'Frederic Chabot', '2004-05'], shutouts: [7, 'Bernhard Starkbaum', '2021-22'] },
+  HCB: { points: [54, 'Mitch Hults', '2022-23'], goals: [31, 'Brad McClure', '2025-26'], assists: [39, 'Brett Findlay', '2018-19'], wins: [30, 'Jaroslav Hübl', '2013-14'], shutouts: [7, 'Leland Irving', '2019-20'] },
+  PUS: { points: [50, 'Jason Akeson', '2024-25'], goals: [20, 'Jakob Stukel', '2021-22'], assists: [36, 'Jason Akeson', '2023-24'], wins: [26, 'Eddie Pasquale', '2025-26'], shutouts: [5, 'Tomas Sholl', '2022-23'] },
+  INN: { points: [98, 'Todd Elik', '2006-07'], goals: [36, 'Pierre Dagenais', '2006-07'], assists: [77, 'Todd Elik', '2006-07'], wins: [25, 'Claus Dalpiaz', '2005-06'], shutouts: [4, 'Claus Dalpiaz', '2003-04'] },
+  BWL: { points: [71, 'Rob Shearer', '2006-07'], goals: [40, 'Andrew Kozek', '2015-16'], assists: [52, 'Dragan Umicevic', '2019-20'], wins: [31, 'Alex Westlund', '2011-12'], shutouts: [6, 'Pavel Nestak', '2005-06'] },
+  G99: { points: [67, 'Eric Healey', '2009-10'], goals: [40, 'Warren Norris', '2004-05'], assists: [45, 'Greg Day', '2009-10'], wins: [27, 'Fabian Weinhandl', '2010-11'], shutouts: [6, 'Sebastian Dahm', '2015-16'] },
+  PIO: { points: [62, 'Steven Owre', '2023-24'], goals: [31, 'Steven Owre', '2023-24'], assists: [34, 'Nick Pastujov', '2023-24'], wins: [14, 'David Madlener', '2023-24'], shutouts: [1, 'Alex Caffi', '2022-23'] },
+  OLI: { points: [67, 'John Hughes', '2011-12'], goals: [30, 'Frank Banham', '2008-09'], assists: [48, 'John Hughes', '2010-11'], wins: [25, 'Jerry Kuhn', '2012-13'], shutouts: [5, 'Lukas Horak', '2023-24'] },
+  FEH: { points: [66, 'Janos Hari', '2018-19'], goals: [31, 'Istvan Sofron', '2011-12'], assists: [45, 'Janos Hari', '2018-19'], wins: [25, 'Mac Carruth', '2018-19'], shutouts: [6, 'Olivier Roy', '2022-23'] },
+  FTC: { points: [50, 'Brady Shaw', '2025-26'], goals: [19, 'Brady Shaw', '2025-26'], assists: [31, 'Brady Shaw', '2025-26'], wins: [9, 'Bence Bálizs', '2025-26'], shutouts: [1, 'Kristóf Nagy', '2025-26'] },
+};
+
+/** The ECHL's clubs, back to the late 1980s. New Mexico and Trenton, new this season, have no book yet. */
+export const ECHL_CLUB_RECORDS = {
+  ADK: { points: [75, 'Shane Harper', '2022-23'], goals: [37, 'Patrick Grasso', '2022-23'], assists: [54, 'James Henry', '2018-19'], wins: [23, 'Jeremy Brodeur', '2025-26'], shutouts: [4, 'Jeremy Brodeur', '2024-25'] },
+  MNE: { points: [83, 'Alex Kile', '2023-24'], goals: [37, 'Alex Kile', '2023-24'], assists: [52, 'Timothy Doherty', '2022-23'], wins: [22, 'Bradley Arvanitis', '2025-26'], shutouts: [4, 'Nolan Maier', '2024-25'] },
+  NOR: { points: [77, 'Brady Fleurent', '2024-25'], goals: [31, 'Brady Fleurent', '2025-26'], assists: [47, 'Brodie Dupont', '2017-18'], wins: [25, 'Isaac Poulter', '2025-26'], shutouts: [3, 'Brandon Anderson', '2016-17'] },
+  REA: { points: [95, 'Brian McCullough', '2002-03'], goals: [39, 'Brian McCullough', '2002-03'], assists: [60, 'Brad Rooney', '2002-03'], wins: [27, 'Barry Brust', '2004-05'], shutouts: [5, 'Brandon Anderson', '2013-14'] },
+  TR: { points: [67, 'Anthony Beauregard', '2024-25'], goals: [30, 'Jakov Novak', '2023-24'], assists: [42, 'Anthony Beauregard', '2024-25'], wins: [19, 'Philippe Desrosiers', '2021-22'], shutouts: [4, 'Hunter Jones', '2025-26'] },
+  WOR: { points: [65, 'Anthony Repaci', '2024-25'], goals: [30, 'Jordan Lavallee-Smotherman', '2021-22'], assists: [49, 'Connor Welsh', '2024-25'], wins: [23, 'Mitch Gillam', '2017-18'], shutouts: [5, 'Mitch Gillam', '2017-18'] },
+  ATL: { points: [110, 'Brad Schell', '2006-07'], goals: [38, 'Cody Sylvester', '2022-23'], assists: [85, 'Brad Schell', '2006-07'], wins: [32, 'Sean Fields', '2005-06'], shutouts: [5, 'Jeff Jakaitis', '2011-12'] },
+  FLA: { points: [102, 'Kevin Baker', '2008-09'], goals: [57, 'Kevin Baker', '2008-09'], assists: [59, 'Tom Buckley', '1999-00'], wins: [37, 'Cam Johnson', '2024-25'], shutouts: [5, 'Marc Magliarditi', '1998-99'] },
+  GRN: { points: [87, 'Alex Ierullo', '2022-23'], goals: [31, 'Brandon Wong', '2011-12'], assists: [60, 'Alex Ierullo', '2022-23'], wins: [24, 'Nicola Riopel', '2010-11'], shutouts: [4, 'Ryan Bednard', '2020-21'] },
+  JAX: { points: [66, 'Brendan Harris', '2023-24'], goals: [29, 'Wacey Rabbit', '2018-19'], assists: [45, 'Brendan Harris', '2023-24'], wins: [25, 'Matt Vernon', '2023-24'], shutouts: [3, 'Justen Close', '2024-25'] },
+  ORL: { points: [74, 'Aaron Luchuk', '2020-21'], goals: [35, 'Joe Perry', '2016-17'], assists: [46, 'Aaron Luchuk', '2020-21'], wins: [23, 'Clint Windsor', '2020-21'], shutouts: [5, 'Garret Sparks', '2014-15'] },
+  SAV: { points: [59, 'Devon Paliani', '2024-25'], goals: [32, 'Devon Paliani', '2024-25'], assists: [40, 'Reece Vitelli', '2024-25'], wins: [19, 'Vincent Purpura', '2025-26'], shutouts: [4, 'Michael Bullion', '2023-24'] },
+  SC: { points: [110, 'Ed Courtenay', '1996-97'], goals: [54, 'Ed Courtenay', '1996-97'], assists: [62, 'Travis Morin', '2008-09'], wins: [36, 'Kirk Daubenspeck', '2002-03'], shutouts: [8, 'Ryan Zapolski', '2012-13'] },
+  CIN: { points: [106, 'David Desharnais', '2007-08'], goals: [36, 'Joe Cardarelli', '2002-03'], assists: [77, 'David Desharnais', '2007-08'], wins: [29, 'Michael Houser', '2018-19'], shutouts: [5, 'Alex Westlund', '2001-02'] },
+  FW: { points: [88, 'Brandon Marino', '2013-14'], goals: [38, 'Shawn Szydlowski', '2014-15'], assists: [60, 'Jonathan Dugan', '2023-24'], wins: [28, 'Pat Nagle', '2015-16'], shutouts: [5, 'Pat Nagle', '2015-16'] },
+  IND: { points: [72, 'Alex Wideman', '2022-23'], goals: [31, 'Spencer Watson', '2019-20'], assists: [50, 'Alex Wideman', '2022-23'], wins: [29, 'Matt Tomkins', '2018-19'], shutouts: [4, 'Jake Hildebrand', '2016-17'] },
+  KAL: { points: [87, 'Erik Bradford', '2023-24'], goals: [38, 'Andrew Fournier', '2010-11'], assists: [57, 'Erik Bradford', '2023-24'], wins: [36, 'Joel Martin', '2015-16'], shutouts: [4, 'Joel Martin', '2014-15'] },
+  TOL: { points: [93, 'Brandon Hawkins', '2023-24'], goals: [40, 'Brandon Hawkins', '2023-24'], assists: [68, 'Shane Berschbach', '2016-17'], wins: [37, 'Pat Nagle', '2017-18'], shutouts: [7, 'Jake Paterson', '2016-17'] },
+  WHL: { points: [117, 'Devin Edgerton', '1992-93'], goals: [62, 'Darren Schwartz', '1992-93'], assists: [71, 'Devin Edgerton', '1992-93'], wins: [33, 'Andy Franck', '2005-06'], shutouts: [6, 'Mike Condon', '2013-14'] },
+  ALN: { points: [125, 'Chad Costello', '2014-15'], goals: [49, 'Hank Crone', '2022-23'], assists: [89, 'Chad Costello', '2016-17'], wins: [33, 'Riley Gill', '2014-15'], shutouts: [7, 'Riley Gill', '2016-17'] },
+  IDH: { points: [92, 'Mark Derlago', '2009-10'], goals: [45, 'Mark Derlago', '2010-11'], assists: [54, 'Matthew Register', '2023-24'], wins: [36, 'Steve Silverthorn', '2006-07'], shutouts: [5, 'Josh Robinson', '2012-13'] },
+  KC: { points: [87, 'Patrick Curry', '2023-24'], goals: [40, 'Cade Borchardt', '2024-25'], assists: [72, 'Marcus Crawford', '2025-26'], wins: [24, 'Shane Starrett', '2022-23'], shutouts: [5, 'Jack LaFontaine', '2024-25'] },
+  RC: { points: [79, 'Alex Aleardi', '2023-24'], goals: [35, 'Blake Bennett', '2023-24'], assists: [50, 'Ryan Wagner', '2024-25'], wins: [25, 'Danny Battochio', '2014-15'], shutouts: [4, 'Danny Battochio', '2014-15'] },
+  TAH: { points: [79, 'Sloan Stanick', '2024-25'], goals: [33, 'Simon Pinard', '2024-25'], assists: [50, 'Sloan Stanick', '2024-25'], wins: [24, 'Jesper Vikman', '2024-25'], shutouts: [4, 'Jordan Papirny', '2024-25'] },
+  TUL: { points: [77, 'Drew Fisher', '2014-15'], goals: [41, 'Adam Pleskach', '2014-15'], assists: [59, 'Drew Fisher', '2014-15'], wins: [30, 'Kevin Carr', '2014-15'], shutouts: [4, 'Devin Williams', '2017-18'] },
+  WIC: { points: [79, 'Michal Stinil', '2022-23'], goals: [32, 'Michal Stinil', '2023-24'], assists: [52, 'Michal Stinil', '2024-25'], wins: [20, 'Tim Boron', '2014-15'], shutouts: [4, 'Stuart Skinner', '2018-19'] },
+  BLO: { points: [59, 'Nikita Sedov', '2025-26'], goals: [27, 'Eddie Matsushima', '2024-25'], assists: [46, 'Nikita Sedov', '2025-26'], wins: [24, 'Dryden McKay', '2025-26'], shutouts: [4, 'Dryden McKay', '2025-26'] },
+  GSO: { points: [35, 'Tyler Weiss', '2025-26'], goals: [17, 'David Gagnon', '2025-26'], assists: [21, 'Patrick Newell', '2025-26'], wins: [9, 'Nikita Quapp', '2025-26'], shutouts: [1, 'Connor Ungar', '2025-26'] },
+};
+
+/** The SPHL's clubs, back to 2004-05, its first season. Athens and Pee Dee, new this season, have no book yet. */
+export const SPHL_CLUB_RECORDS = {
+  PEO: { points: [80, 'Alec Baer', '2021-22'], goals: [37, 'Jordan Ernst', '2024-25'], assists: [54, 'Alec Baer', '2021-22'], wins: [29, 'Eric Levine', '2021-22'], shutouts: [8, 'Colby Muise', '2024-25'] },
+  ROA: { points: [77, 'Joseph Widmar', '2025-26'], goals: [29, 'Mac Jansen', '2021-22'], assists: [49, 'Nicholas Ford', '2024-25'], wins: [29, 'Austin Roudebush', '2024-25'], shutouts: [3, 'Austin Roudebush', '2024-25'] },
+  HSV: { points: [78, 'James Patterson', '2006-07'], goals: [37, 'Travis Kauffeldt', '2008-09'], assists: [52, 'James Patterson', '2006-07'], wins: [26, 'Matt Carmichael', '2004-05'], shutouts: [4, 'Dan McWhinney', '2010-11'] },
+  KNO: { points: [106, 'Kevin Swider', '2004-05'], goals: [44, 'K.J. Voorhees', '2004-05'], assists: [73, 'Kevin Swider', '2004-05'], wins: [25, 'Terry Dunbar', '2006-07'], shutouts: [5, 'Bryan Hince', '2013-14'] },
+  PEN: { points: [71, 'Chris Wilson', '2010-11'], goals: [39, 'Chris Wilson', '2010-11'], assists: [51, 'Garrett Milan', '2017-18'], wins: [28, 'Max Strang', '2014-15'], shutouts: [5, 'Max Strang', '2014-15'] },
+  MAC: { points: [69, 'Jake Trask', '2017-18'], goals: [27, 'Jake Trask', '2017-18'], assists: [42, 'Jake Trask', '2017-18'], wins: [22, 'Garrett Bartus', '2015-16'], shutouts: [3, 'Garrett Bartus', '2015-16'] },
+  EVV: { points: [65, 'Austin Plevy', '2019-20'], goals: [27, 'Shayne Morrissey', '2018-19'], assists: [48, 'Austin Plevy', '2019-20'], wins: [23, 'Kristian Stead', '2025-26'], shutouts: [4, 'Brian Billett', '2021-22'] },
+  BHM: { points: [65, 'Carson Rose', '2023-24'], goals: [33, 'Drake Glover', '2023-24'], assists: [41, 'Nikita Kozyrev', '2023-24'], wins: [30, 'Mavric Parks', '2018-19'], shutouts: [6, 'Mavric Parks', '2018-19'] },
+  QCS: { points: [68, 'Leif Mattson', '2024-25'], goals: [32, 'Cole Golka', '2023-24'], assists: [39, 'Leif Mattson', '2025-26'], wins: [21, 'Brent Moran', '2023-24'], shutouts: [4, 'Brent Moran', '2024-25'] },
+  FAY: { points: [98, 'Rob Sich', '2009-10'], goals: [63, 'Rob Sich', '2009-10'], assists: [65, 'Chris Leveille', '2009-10'], wins: [32, 'Sean Bonar', '2016-17'], shutouts: [4, 'Chad Collins', '2004-05'] },
+};
+
+/** The USHL's sixteen, from the mid-1990s on, when QuantHockey's tables for it begin. */
+export const USHL_CLUB_RECORDS = {
+  CDR: { points: [79, 'Ryan Walsh', '2022-23'], goals: [35, 'Ross Colton', '2015-16'], assists: [52, 'Teddy Purcell', '2005-06'], wins: [37, 'Brady Hjelle', '2010-11'], shutouts: [8, 'Bobby Goepfert', '2001-02'] },
+  CHI: { points: [101, 'Sean Farrell', '2020-21'], goals: [48, 'Matt Coronato', '2020-21'], assists: [72, 'Sean Farrell', '2020-21'], wins: [25, 'Justin Robbins', '2018-19'], shutouts: [4, 'Ales Stezka', '2016-17'] },
+  DBQ: { points: [95, 'Stephen Halliday', '2021-22'], goals: [43, 'Noah Powell', '2023-24'], assists: [60, 'Stephen Halliday', '2021-22'], wins: [32, 'Hunter Miska', '2015-16'], shutouts: [4, 'Matt Morris', '2010-11'] },
+  GBG: { points: [77, 'Kyle Novak', '2012-13'], goals: [44, 'Will Zellers', '2024-25'], assists: [50, 'Kyle Novak', '2012-13'], wins: [34, 'Eric Pfligler', '2001-02'], shutouts: [6, 'Eric Pfligler', '2001-02'] },
+  MDS: { points: [71, 'Austin Burnevik', '2023-24'], goals: [40, 'Austin Burnevik', '2023-24'], assists: [39, 'Ben Dexheimer', '2021-22'], wins: [25, 'Caleb Heil', '2024-25'], shutouts: [3, 'Caleb Heil', '2025-26'] },
+  MSK: { points: [89, 'Rem Pitlick', '2015-16'], goals: [46, 'Rem Pitlick', '2015-16'], assists: [51, 'Jacob Guevin', '2021-22'], wins: [33, 'Brandon Bussi', '2018-19'], shutouts: [8, 'Kevin Lindskoug', '2012-13'] },
+  NTDP: { points: [54, 'Jack Hughes', '2017-18'], goals: [29, 'Cole Caufield', '2018-19'], assists: [36, 'Jack Hughes', '2018-19'], wins: [15, 'Drew DeRidder', '2017-18'], shutouts: [3, 'Collin Olson', '2010-11'] },
+  YTP: { points: [80, 'Kyle Connor', '2014-15'], goals: [37, 'Sam Anas', '2012-13'], assists: [48, 'Josh Melnick', '2014-15'], wins: [33, 'Melvin Strahl', '2024-25'], shutouts: [5, 'Sean Romeo', '2012-13'] },
+  DMB: { points: [82, 'Richard Purslow', '2006-07'], goals: [37, 'Alexander Materukhin', '2001-02'], assists: [55, 'Richard Purslow', '2006-07'], wins: [29, 'Roman Durny', '2018-19'], shutouts: [6, 'Roman Durny', '2018-19'] },
+  FRG: { points: [77, 'Mac Swanson', '2023-24'], goals: [37, 'Jack Adams', '2016-17'], assists: [51, 'Mac Swanson', '2023-24'], wins: [30, 'Matthew Murray', '2016-17'], shutouts: [7, 'Zane McIntyre', '2011-12'] },
+  LNC: { points: [104, 'Kevin Roy', '2011-12'], goals: [54, 'Kevin Roy', '2011-12'], assists: [58, 'Aidan Thompson', '2021-22'], wins: [29, 'Kevin Murdock', '2010-11'], shutouts: [6, 'Jean-Philippe Lamoureux', '2001-02'] },
+  OMH: { points: [86, 'Jake Randolph', '2013-14'], goals: [37, 'Matt Schepke', '2005-06'], assists: [60, 'Jake Randolph', '2013-14'], wins: [36, 'Jeff Lerg', '2004-05'], shutouts: [10, 'Marty Magers', '2001-02'] },
+  SCM: { points: [74, 'Giacomo Martino', '2024-25'], goals: [39, 'Ben Steeves', '2021-22'], assists: [47, 'Martin Pospisil', '2018-19'], wins: [36, 'Matiss Kivlenieks', '2016-17'], shutouts: [6, 'Matt Skoff', '2010-11'] },
+  SFS: { points: [91, 'Thomas Vanek', '2001-02'], goals: [46, 'Thomas Vanek', '2001-02'], assists: [53, 'Jamie Mattie', '2000-01'], wins: [35, 'Linards Feldbergs', '2025-26'], shutouts: [6, 'Clay Witt', '2009-10'] },
+  TCS: { points: [98, 'Jeremy Wilmer', '2021-22'], goals: [39, 'Mitchell Miller', '2021-22'], assists: [73, 'Jeremy Wilmer', '2021-22'], wins: [30, 'Arseni Sergeyev', '2021-22'], shutouts: [7, 'Aaron Rock', '2005-06'] },
+  WAT: { points: [93, 'Taylor Cammarata', '2012-13'], goals: [38, 'Taylor Cammarata', '2012-13'], assists: [58, 'Justin Kloos', '2012-13'], wins: [28, 'Kevin Regan', '2003-04'], shutouts: [6, 'Kevin Regan', '2003-04'] },
+};
+
 /** Which club book belongs to which league. A league absent here has none. */
 export const CLUB_RECORDS = {
   NHL: NHL_CLUB_RECORDS,
@@ -236,6 +472,17 @@ export const CLUB_RECORDS = {
   WHL: WHL_CLUB_RECORDS,
   QMJHL: QMJHL_CLUB_RECORDS,
   AHL: AHL_CLUB_RECORDS,
+  SHL: SHL_CLUB_RECORDS,
+  LIIGA: LIIGA_CLUB_RECORDS,
+  KHL: KHL_CLUB_RECORDS,
+  SWISS: SWISS_CLUB_RECORDS,
+  DEL: DEL_CLUB_RECORDS,
+  CZECH: CZECH_CLUB_RECORDS,
+  SLOVAK: SLOVAK_CLUB_RECORDS,
+  ICEHL: ICEHL_CLUB_RECORDS,
+  ECHL: ECHL_CLUB_RECORDS,
+  SPHL: SPHL_CLUB_RECORDS,
+  USHL: USHL_CLUB_RECORDS,
 };
 
 /** All-time single-season records for the league itself. */

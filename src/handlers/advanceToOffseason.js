@@ -179,14 +179,14 @@ export function advanceToOffseason(ctx) {
                     subLabel: 'Open the doors and let the kids who grew up watching you put their hands on it.',
                     isRisky: false,
                     feedback: 'The lineup went around the block. Every kid in town touched the Stanley Cup because of you.',
-                    effect: { fanStatus: 140, ovr: 0, rel: { teammates: 10, media: 20 } }
+                    effect: { fanStatus: 140, ovr: 0, rel: { teammates: 10, media: 20 }, community: 1 }
                   },
                   {
                     label: 'Spend the day at the children\'s hospital',
                     subLabel: 'Give the twenty-four hours away instead of celebrating with it.',
                     isRisky: false,
                     feedback: 'You wheeled the Cup from room to room until visiting hours ended. Nobody who was there will forget it.',
-                    effect: { fanStatus: 90, ovr: 0, rel: { media: 40, teammates: 15 } }
+                    effect: { fanStatus: 90, ovr: 0, rel: { media: 40, teammates: 15 }, community: 1 }
                   },
                   partyHard
               ],
@@ -310,6 +310,13 @@ export function advanceToOffseason(ctx) {
       if (s.league !== 'NHL' || s.team !== player.team || !sourYear(s)) break;
       barrenYears++;
   }
+  // A city that has had a parade is patient. Two quiet springs after three
+  // Cups in a row is a dynasty getting old, and nobody calls the radio about
+  // the man who won them. Each Cup he won here buys two years before the
+  // barren ones start to count.
+  const cupsHere = histForSour.filter(s => s.titleWon && s.team === player.team
+      && (s.titleLeague || s.league) === 'NHL').length;
+  barrenYears = Math.max(0, barrenYears - Math.min(8, cupsHere * 2));
 
   const sourStage = player.storylines?.fanSour || 0;
   const sourYearNum = 2026 + (player.stats?.seasonsPlayed || 0);
@@ -816,9 +823,9 @@ export function advanceToOffseason(ctx) {
         // Where he steps up to.
         //
         // Most junior sides are the junior side of a men's club and he simply
-        // moves up the corridor. Several are not: Djurgarden, AIK, Sodertalje,
-        // Mora, Bjorkloven, Jokerit and Assat field a junior team in this game
-        // and no senior one, which is true to life, and a player there signs
+        // moves up the corridor. Several are not: AIK, Sodertalje, Mora, Leksand
+        // and MoDo field a junior team in this game and no SHL one, which is
+        // true to life for 2026-27, and a player there signs
         // somewhere else when he turns professional. Stripping the tier off his
         // club id gave those players a phantom club named after the id.
         const juniorClub = getTeamData(player.team, currentLeague);

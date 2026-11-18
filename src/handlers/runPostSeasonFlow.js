@@ -261,8 +261,14 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         return;
     }
 
+    // A Cup here ends the story. The city wanted one and got it, and nobody on
+    // talk radio asks a Cup winner whether he can carry the franchise.
+    if ((hometownStage === 1 || hometownStage === 2) && wonHere) {
+        setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 3 } }));
+    }
+
     // STAGE 2: THE SLUMP (Failing to deliver a deep run)
-    if (hometownStage === 1 && currentLg === 'NHL' && !madePlayoffs && Math.random() < 0.5) {
+    if (hometownStage === 1 && !wonHere && currentLg === 'NHL' && !madePlayoffs && Math.random() < 0.5) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 2 } }));
         setActiveEvent({
             title: '📉 THE HONEYMOON IS OVER',
@@ -278,7 +284,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     }
 
     // STAGE 3: THE BREAKING POINT
-    if (hometownStage === 2 && currentLg === 'NHL' && Math.random() < 0.4) {
+    if (hometownStage === 2 && !wonHere && currentLg === 'NHL' && Math.random() < 0.4) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 3 } })); // End arc
         
         let pool = (getOpponentPool('NHL') || []).filter(t => t.id !== currentTeam);

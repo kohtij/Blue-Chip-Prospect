@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles, isLeagueCup } from '../utils/appHelpers';
 import { careerTrophies, formatMoney, withTeamArticle } from '../utils/gameHelpers';
-import { leagueLabel, seatPlayerPick } from '../utils/peers';
+import { flagFor, leagueLabel, seatPlayerPick } from '../utils/peers';
 import { careerRecords, formatRecord, RECORD_LABEL } from '../utils/records';
 import { computeCareerScore, hallOfFame, peerCareerScore } from '../utils/careerScore';
 import { buyoutOwed } from '../utils/bonuses';
@@ -34,8 +34,8 @@ const POS_NAME = { C: 'Centre', LW: 'Left Wing', RW: 'Right Wing', LD: 'Defence'
 // different band on the skyline and in the table. Gold stays with the
 // championships and green with you, so neither is used for a league.
 const LEAGUE_HUE = {
-  NHL: '#60a5fa', AHL: '#fb923c', ECHL: '#f87171',
-  OHL: '#2dd4bf', WHL: '#2dd4bf', QMJHL: '#2dd4bf', USHL: '#2dd4bf',
+  NHL: '#60a5fa', AHL: '#fb923c', ECHL: '#f87171', SPHL: '#f87171',
+  OHL: '#2dd4bf', WHL: '#2dd4bf', QMJHL: '#2dd4bf', USHL: '#2dd4bf', BCHL: '#2dd4bf',
   NCAA: '#c084fc',
   SHL: '#f472b6', LIIGA: '#f472b6', KHL: '#f472b6', SWISS: '#f472b6', DEL: '#f472b6', CZECH: '#f472b6',
   ICEHL: '#f472b6', SLOVAK: '#f472b6', J20: '#f472b6', U20: '#f472b6'
@@ -531,15 +531,6 @@ export default function RetirementScreen() {
   const skyPeak = skyline.reduce((best, b) => (b.value > (best?.value ?? -1) ? b : best), null);
   const leaguesPlayed = [...new Set(history.map(s => s.league).filter(Boolean))];
 
-  // The table in blocks: a new block every time he changes level, so the
-  // junior years, the minors and the NHL read as separate chapters.
-  const blocks = [];
-  clubRows.forEach(r => {
-    const last = blocks[blocks.length - 1];
-    if (last && last.league === r.league) last.rows.push(r);
-    else blocks.push({ league: r.league, rows: [r] });
-  });
-
   // ── Saving it to the Hall of Records ───────────────────────────────────────
 
   const finish = () => {
@@ -949,27 +940,17 @@ export default function RetirementScreen() {
                     <th className="pl-2 pr-4 sm:pr-6 py-2 text-right font-bold">{isGoalie ? 'SO' : 'Pts'}</th>
                   </tr>
                 </thead>
-                {blocks.map((blk, bi) => {
-                  const hue = hueOf(blk.league);
-                  const yrs = blk.rows.map(r => r.year);
-                  const seasons = new Set(yrs).size;
-                  return (
-                <tbody key={`${blk.league}-${bi}`} className="divide-y divide-[rgba(255,255,255,0.04)]"
-                       style={{ background: tint(hue, 4) }}>
-                  <tr>
-                    <td colSpan={7 + regCols} className="pl-4 sm:pl-6 pr-3 pt-3 pb-1.5"
-                        style={{ background: `linear-gradient(90deg, ${tint(hue, 22)}, transparent 70%)`, boxShadow: `inset 4px 0 0 0 ${hue}` }}>
-                      <span className="text-[12px] font-black" style={{ color: hue }}>{leagueLabel(blk.league)}</span>
-                      <span className="ml-2 text-[10px] font-bold text-slate-400">
-                        {seasons} {seasons === 1 ? 'season' : 'seasons'}, {seasonLabel(Math.min(...yrs))}{seasons > 1 ? ` to ${seasonLabel(Math.max(...yrs))}` : ''}
-                      </span>
-                    </td>
-                  </tr>
-                  {blk.rows.map((r, i) => {
+                {/* One run of seasons, each row in its league's colour, the way the
+                    national team table below does it. Every change of league
+                    used to open a banded header row, which in a career that
+                    went back and forth was most of the table. */}
+                <tbody className="divide-y divide-[rgba(255,255,255,0.04)]">
+                  {clubRows.map((r, i) => {
+                    const hue = hueOf(r.league);
                     const po = r.playoffGames > 0;
                     const cell = 'px-2 py-2 text-right number-font text-slate-300';
                     return (
-                      <tr key={`${r.year}-${r.team}-${i}`} className="hover:bg-[rgba(255,255,255,0.02)]">
+                      <tr key={`${r.year}-${r.team}-${i}`} style={{ background: tint(hue, 6) }}>
                         <td className="pl-4 sm:pl-6 pr-2 py-2 font-bold text-slate-300 number-font"
                             style={{ boxShadow: `inset 4px 0 0 0 ${hue}` }}>
                           <span className="flex items-center gap-1.5">
@@ -1016,8 +997,6 @@ export default function RetirementScreen() {
                     );
                   })}
                 </tbody>
-                  );
-                })}
                 <tfoot className="border-t-2 border-[rgba(255,255,255,0.1)]">
                   {leagueTotals.filter(t => t.games > 0).map(t => {
                     const po = t.poGames > 0;
@@ -1155,13 +1134,13 @@ export default function RetirementScreen() {
             ...classmates.map(c => {
               const n = nhlOf(c);
               return {
-                name: c.name, pos: c.pos, gp: n.gp || 0, pts: (n.g || 0) + (n.a || 0), sho: n.sho || 0,
+                name: c.name, nat: c.nat, pos: c.pos, gp: n.gp || 0, pts: (n.g || 0) + (n.a || 0), sho: n.sho || 0,
                 score: peerCareerScore(c), pick: c.pick, team: c.draftedBy,
                 cups: c.career.titles || 0, trophies: c.career.trophies || 0, me: false
               };
             }),
             {
-              name: 'You', pos: player.pos, gp: player.stats?.nhl?.games || 0,
+              name: 'You', nat: player.nat, pos: player.pos, gp: player.stats?.nhl?.games || 0,
               pts: (player.stats?.nhl?.goals || 0) + (player.stats?.nhl?.assists || 0),
               sho: player.stats?.nhl?.shutouts || 0, score: score.total,
               pick: player.draftPick, team: player.draftTeam,
@@ -1191,9 +1170,27 @@ export default function RetirementScreen() {
                     {shown.map((r) => (
                       <tr key={`${r.name}-${r.pick}`} className={r.me ? 'bg-[#22E748]/[0.08]' : ''}>
                         <td className="pl-4 sm:pl-6 pr-2 py-2 number-font text-slate-600">{rows.indexOf(r) + 1}</td>
-                        <td className={`px-2 py-2 font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-200'}`}>{r.name}</td>
+                        <td className={`px-2 py-2 font-bold ${r.me ? 'text-[#22E748]' : 'text-slate-200'}`}>
+                          <span className="flex items-center gap-2">
+                            {flagFor(r.nat)
+                              ? <img src={flagFor(r.nat)} alt={r.nat} className="w-5 h-3.5 object-cover rounded-[2px] shrink-0" />
+                              : <span className="w-5 shrink-0" />}
+                            {r.name}
+                          </span>
+                        </td>
                         <td className="px-2 py-2 text-slate-500 font-bold">{r.pos === 'LD' || r.pos === 'RD' ? 'D' : r.pos}</td>
-                        <td className="px-2 py-2 text-right text-slate-500">{r.pick ? `#${r.pick} ${r.team || ''}` : 'Undrafted'}</td>
+                        <td className="px-2 py-2 text-right text-slate-500">
+                          {r.pick ? (
+                            <span className="inline-flex items-center justify-end gap-1.5">
+                              {r.team && (
+                                <span className="w-5 h-5 shrink-0 flex items-center justify-center">
+                                  <TeamLogo teamId={r.team} league="NHL" size="tiny" />
+                                </span>
+                              )}
+                              #{r.pick} {r.team || ''}
+                            </span>
+                          ) : 'Undrafted'}
+                        </td>
                         <td className="px-2 py-2 text-right">
                           {r.cups > 0 && <span className="text-[#F59E0B] font-bold">{r.cups} {r.cups === 1 ? 'title' : 'titles'}</span>}
                           {r.cups > 0 && r.trophies > 0 && <span className="text-slate-600">, </span>}

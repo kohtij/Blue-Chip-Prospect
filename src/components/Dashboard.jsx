@@ -81,7 +81,7 @@ const FAN_LADDER = [
   { label: 'Known', at: 100 },
   { label: 'Loved', at: 300 },
   { label: 'Icon', at: 600 },
-  { label: 'Legend', at: 900 }
+  { label: 'Legend', at: 1000 }
 ];
 
 const Strip = ({ title, children, cols = 5 }) => (

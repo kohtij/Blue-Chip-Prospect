@@ -920,6 +920,10 @@ export function describeFinish(run) {
 export function commitRun({ run, player, safeNationalities, unlockAchievement }) {
   const nat = (safeNationalities || []).find(n => n.id === player.nat);
   const countryName = nat?.sentenceName || nat?.name || 'your country';
+  // The same name at the start of a sentence. sentenceName is written to sit
+  // mid-sentence ("the United States"), so a line that opened with it printed
+  // "You won it. the United States are champions".
+  const CountryName = countryName.charAt(0).toUpperCase() + countryName.slice(1);
   const outcome = describeFinish(run);
   const prestige = PRESTIGE[run.context] ?? 1;
 
@@ -948,7 +952,11 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
       ovrDelta = awardName === 'Gold' ? 1 : 0;
       headline = `${awardName} medal`;
       detail = awardName === 'Gold'
-        ? `You won it. ${countryName} are champions, and you were on the ice for it.`
+        ? (run.context === 'olympics'
+          ? `Olympic gold! ${CountryName} are champions, and you were on the ice when the horn went. There are gloves and sticks all over the ice, and somebody is already handing you a flag.`
+          : run.context === 'wjc'
+            ? `World junior champions! ${CountryName} are on top of the world, the bench empties over the boards, and you end up at the bottom of the pile in the corner with the whole team on top of you.`
+            : `World champions! The bench empties over the boards and you end up at the bottom of the pile with the rest of ${countryName}, and nobody is in any hurry to get up.`)
         : awardName === 'Silver'
           ? `One game short. Silver for ${countryName}, and it will take a while to feel like a medal.`
           : `A bronze medal for ${countryName} after falling in the semi-final.`;
@@ -958,19 +966,19 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
     case 'KO_EXIT': {
       fanDelta = Math.round(-8 * prestige);
       headline = 'Knocked out';
-      detail = `${countryName} are out at the ${outcome.lostAt === 'QF' ? 'quarter-final' : 'semi-final'} stage.`;
+      detail = `${CountryName} are out at the ${outcome.lostAt === 'QF' ? 'quarter-final' : 'semi-final'} stage.`;
       break;
     }
     case 'FOURTH': {
       fanDelta = Math.round(FINISH_VALUE.Fourth * prestige);
       headline = 'Fourth';
-      detail = `The worst seat in the building. ${countryName} lose the bronze game and go home with nothing.`;
+      detail = `The worst seat in the building. ${CountryName} lose the bronze game and go home with nothing.`;
       break;
     }
     case 'GROUP_EXIT': {
       fanDelta = Math.round(-14 * prestige);
       headline = 'Out in the group';
-      detail = `${countryName} didn't get out of the group. Nobody goes home from one of these happy.`;
+      detail = `${CountryName} didn't get out of the group. Nobody goes home from one of these happy.`;
       break;
     }
     case 'PROMOTED': {
@@ -982,19 +990,19 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
       fanDelta = Math.round(60 * prestige);
       awardName = 'Promotion';
       headline = 'Promoted';
-      detail = `${countryName} go up. They will be playing in ${newDiv} next time.`;
+      detail = `${CountryName} go up. They will be playing in ${newDiv} next time.`;
       break;
     }
     case 'PROMOTION_MISSED': {
       fanDelta = Math.round(-6 * prestige);
       headline = 'Promotion missed';
-      detail = `One game from the room above, and it got away. ${countryName} stay where they are.`;
+      detail = `One game from the room above, and it got away. ${CountryName} stay where they are.`;
       break;
     }
     case 'SURVIVED': {
       fanDelta = Math.round(25 * prestige);
       headline = 'Survived';
-      detail = `${countryName} stay up. It should never have been that close.`;
+      detail = `${CountryName} stay up. It should never have been that close.`;
       break;
     }
     case 'RELEGATED': {
@@ -1007,7 +1015,7 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
         setDivision(newTier, newDiv);
         fanDelta = Math.round(-30 * prestige);
         headline = 'Relegated';
-        detail = `${countryName} go down to ${newDiv}.`;
+        detail = `${CountryName} go down to ${newDiv}.`;
       } else {
         fanDelta = Math.round(-12 * prestige);
         headline = 'Beaten';
@@ -1020,8 +1028,8 @@ export function commitRun({ run, player, safeNationalities, unlockAchievement })
       fanDelta = Math.round((won ? 14 : -4) * prestige);
       headline = won ? 'Placement won' : 'Placement lost';
       detail = won
-        ? `${countryName} finish the tournament on a win. Not what anyone came for.`
-        : `${countryName} finish with a loss in a game nobody wanted to play.`;
+        ? `${CountryName} finish the tournament on a win. Not what anyone came for.`
+        : `${CountryName} finish with a loss in a game nobody wanted to play.`;
     }
   }
 

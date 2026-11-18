@@ -555,7 +555,8 @@ export default function PlayoffsScreen() {
                               }}
                               className="w-full py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40 rounded-xl font-black sports-font tracking-widest uppercase transition-all cursor-pointer text-sm"
                             >
-                              📢 CAPTAIN'S SPEECH (GUARANTEE NEXT WIN)
+                              <span className="block">📢 CAPTAIN'S SPEECH</span>
+                              <span className="block text-[10px] tracking-wider opacity-80">(Guaranteed next win)</span>
                             </button>
                             <p className="text-[9px] text-slate-500 font-bold uppercase text-center mt-1">Cost: -10 Coach Trust</p>
                         </div>

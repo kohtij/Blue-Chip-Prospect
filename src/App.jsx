@@ -1452,6 +1452,7 @@ function App() {
       if (item.effect?.stamina) next.stamina = cap((next.stamina ?? 50) + item.effect.stamina);
       if (item.effect?.hockeyIQ) next.hockeyIQ = cap((next.hockeyIQ ?? 50) + item.effect.hockeyIQ);
       if (item.effect?.fanStatus) next.fanStatus = fanGain(next.fanStatus, item.effect.fanStatus);
+      if (item.effect?.community) next.communityWork = (next.communityWork || 0) + item.effect.community;
       if (item.effect?.physicality) next.physicality = cap((next.physicality ?? 50) + item.effect.physicality);
       if (item.effect?.shooting) next.shooting = cap((next.shooting ?? 50) + item.effect.shooting);
       if (item.effect?.skating) next.skating = cap((next.skating ?? 50) + item.effect.skating);

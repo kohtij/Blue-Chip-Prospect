@@ -43,11 +43,12 @@ const effectChips = (item, isGoalie) => {
   return chips;
 };
 
-// A fan-status bump is a one-off award, so nothing about it persists. Anything
-// else with no duration is a gain the player keeps for the rest of the career.
+// A fan-status bump is a one-off award, so nothing about it persists, and
+// neither does a night of charity work. Anything else with no duration is a
+// gain the player keeps for the rest of the career.
 const lastsForever = (item) => {
   if (item.duration) return false;
-  return Object.keys(item.effect || {}).some(k => k !== 'fanStatus');
+  return Object.keys(item.effect || {}).some(k => k !== 'fanStatus' && k !== 'community');
 };
 
 export default function Store({ player, onBuy, onClose }) {

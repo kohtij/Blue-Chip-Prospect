@@ -382,6 +382,9 @@ export function handleEventChoice(ctx, choice) {
   const finalPlayer = {
     ...withOvr,
     fanStatus: fanGain(withOvr.fanStatus, outcomeEffect?.fanStatus || 0),
+    // Hospital visits, galas, a day with the Cup at the children's ward: the
+    // work a community award is given for.
+    communityWork: (withOvr.communityWork || 0) + (outcomeEffect?.community || 0),
     ovr: recomputeOvr(withOvr),
     stats: { ...withOvr.stats, earnings: (withOvr.stats?.earnings || 0) + (outcomeEffect?.money || 0) },
     relationships: {

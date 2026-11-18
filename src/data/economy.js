@@ -22,7 +22,7 @@ export const shopItems = [
   // Luxury & Lifestyle (Fan Status Sinks)
   { id: 'watch', type: 'luxury', name: 'Designer Watch', cost: 25000, desc: 'It shows up in every arrival photo and the kids notice.', effect: { fanStatus: 15 } },
   { id: 'sports_car', type: 'luxury', name: 'Custom Sports Car', cost: 180000, desc: 'Parked where the fans wait after games, which is half the point.', effect: { fanStatus: 100 } },
-  { id: 'charity_gala', type: 'luxury', name: 'Host Charity Gala', cost: 75000, desc: 'A black-tie night for the children\'s hospital. The city remembers who put it on.', effect: { fanStatus: 250 } },
+  { id: 'charity_gala', type: 'luxury', name: 'Host Charity Gala', cost: 75000, desc: 'A black-tie night for the children\'s hospital. The city remembers who put it on.', effect: { fanStatus: 250, community: 1 } },
   { id: 'hyperbaric', type: 'luxury', name: 'Hyperbaric Chamber', cost: 120000, desc: 'An hour under pressure in your own basement, every day, for the rest of your career.', effect: { stamina: 3 } },
 
   // The "Millionaire" Legacy Tier
@@ -125,7 +125,7 @@ export const eventDeck = [
     title: 'Charity Hospital Visit',
     desc: "The team is visiting a children's hospital, but it overlaps with your extra training session.",
     choices: [
-      { label: 'Go to the hospital', subLabel: "Skip your extra session to spend the day with the kids.", isRisky: false, feedback: 'The kids loved it, and so did the city.', effect: { fanStatus: 40, ovr: 0, money: 0 } },
+      { label: 'Go to the hospital', subLabel: "Skip your extra session to spend the day with the kids.", isRisky: false, feedback: 'The kids loved it, and so did the city.', effect: { fanStatus: 40, ovr: 0, money: 0, community: 1 } },
       { label: 'Hit the ice and train', subLabel: "Bank the extra work and hope nobody notices you were missing.", isRisky: true, successChance: 0.2, successFeedback: "The media didn't notice your absence, and the training paid off.", successEffect: { fanStatus: 0, ovr: 2, money: 0 }, failFeedback: 'The local paper roasted you for skipping the charity event.', failEffect: { fanStatus: -35, ovr: 1, money: 0 } }
     ]
   },
@@ -215,7 +215,7 @@ export const eventDeck = [
     title: 'The Hometown Charity Gala',
     desc: 'Your hometown is holding a charity gala in your honour, on the night before the hardest day of training camp.',
     choices: [
-      { label: 'Fly home for the kids', subLabel: "Make the trip the night before the hardest day of camp.", isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, the hometown loved it, and you still led the bag skate the next morning.', successEffect: { fanStatus: 75, ovr: 1, money: -50000, rel: { coach: 10 } }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { fanStatus: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 } } },
+      { label: 'Fly home for the kids', subLabel: "Make the trip the night before the hardest day of camp.", isRisky: true, successChance: 0.60, successFeedback: 'You made the trip, the hometown loved it, and you still led the bag skate the next morning.', successEffect: { fanStatus: 75, ovr: 1, money: -50000, rel: { coach: 10 }, community: 1 }, failFeedback: 'You flew home, but your flight back was delayed. You missed the start of camp and the coach is furious.', failEffect: { fanStatus: 50, ovr: -2, money: -50000, rel: { coach: -30, teammates: -10 }, community: 1 } },
       { label: 'Skip it for Hockey', subLabel: "Send a cheque and a video message instead.", isRisky: false, feedback: 'You sent a video and a cheque. The hometown was a little disappointed, and you had a strong camp.', effect: { fanStatus: -15, ovr: 2, money: -50000, rel: { coach: 15 } } }
     ]
   },

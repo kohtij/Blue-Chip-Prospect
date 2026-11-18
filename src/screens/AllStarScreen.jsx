@@ -87,7 +87,7 @@ const handleQuickSim = () => {
   const handleCaptainDraft = (strategy) => setCaptainStrategy(strategy);
 
   const handleCarpetChoice = (type) => {
-    let msg, fanHit = 0, mediaHit = 0, coachHit = 0;
+    let msg, fanHit = 0, mediaHit = 0, coachHit = 0, goodWork = 0;
 
     if (type === 'safe') {
       msg = "You spent an hour signing autographs for kids.";
@@ -102,13 +102,13 @@ const handleQuickSim = () => {
       }
     } else if (type === 'classy') {
       msg = "You went to the hospital fundraiser, and your coach and the media both noticed.";
-      fanHit = 10; mediaHit = 10; coachHit = 5;
+      fanHit = 10; mediaHit = 10; coachHit = 5; goodWork = 1;
     } else if (type === 'spicy') {
       msg = "You called out your division rivals in an interview. The fans loved it, and the media thought it was out of line.";
       fanHit = 25; mediaHit = -10;
     }
 
-    setCarpetFeedback({ msg, fanHit, mediaHit, coachHit });
+    setCarpetFeedback({ msg, fanHit, mediaHit, coachHit, goodWork });
     // Straight onto the ice. There used to be a panel here repeating what the
     // entrance earned, on a three second timer, and then the same numbers again
     // on the result screen at the end of the weekend.
@@ -129,6 +129,7 @@ const handleQuickSim = () => {
       return {
           ...withOvr,
           fanStatus: capFanStatus(withOvr.fanStatus + totalFans),
+          communityWork: (withOvr.communityWork || 0) + (carpetFeedback?.goodWork || 0),
           ovr: recomputeOvr(withOvr),
           relationships: {
              ...withOvr.relationships,

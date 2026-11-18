@@ -297,8 +297,8 @@ export const getFanTier = (pts, player = null) => {
   // No player passed means the old behaviour, for any caller that only has a
   // number to hand.
   if (!player) {
-    if (pts < 900) return { label: 'Icon', next: 900, req: 900 - pts, nextLabel: 'Legend' };
-    return { label: 'Legend', next: 900, req: 0, nextLabel: 'Legend' };
+    if (pts < 1000) return { label: 'Icon', next: 1000, req: 1000 - pts, nextLabel: 'Legend' };
+    return { label: 'Legend', next: 1000, req: 0, nextLabel: 'Legend' };
   }
 
   const h = careerHonours(player);
@@ -316,12 +316,15 @@ export const getFanTier = (pts, player = null) => {
   // told he is two hundred fans short of something he cannot reach.
   if (legendWeight < 2) {
     return {
-      label: 'Icon', next: 900, req: 0, nextLabel: 'Legend',
+      label: 'Icon', next: 1000, req: 0, nextLabel: 'Legend',
       need: 'You have enough of a fan base to be considered a Legend, but you need to back it up with more hardware'
     };
   }
-  if (pts < 900) return { label: 'Icon', next: 900, req: 900 - pts, nextLabel: 'Legend' };
-  return { label: 'Legend', next: 900, req: 0, nextLabel: 'Legend' };
+  // Legend is the full thousand. Once he has been there, the summer fade
+  // doesn't take the title away: a legend who drops to 940 fans is still one.
+  const beenThere = (player.peakFanStatus || 0) >= 1000 && pts >= 900;
+  if (pts < 1000 && !beenThere) return { label: 'Icon', next: 1000, req: 1000 - pts, nextLabel: 'Legend' };
+  return { label: 'Legend', next: 1000, req: 0, nextLabel: 'Legend' };
 };
 
 export const getTransferImpact = (oldTeamId, newTeamId) => {
@@ -627,7 +630,8 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
     const cutShort = !!lastYear && !!lastYear.injuryEnded && (lastYear.games || 0) <= 40;
     // Coming back is the condition, playing well is the case, and somebody
     // else in the league came back too.
-    if (cutShort && games >= Math.round(sched * 0.72) && rating >= drawComebackBar()) {
+    if (cutShort && !careerAwardList(player).includes(trophy.perseverance)
+        && games >= Math.round(sched * 0.72) && rating >= drawComebackBar()) {
       awards.push(trophy.perseverance);
     }
   }
@@ -639,14 +643,24 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // events he could have skipped for a training session and did not. The other
   // is the room and the result, which is the captain of a side that finished
   // near the top with the players behind him.
-  if (trophy.community && wearsALetter && fullish
+  //
+  // The community award is for work he did, so it needs some: a hospital
+  // visit, a gala, a day with the Cup at the children's ward, this season.
+  // Being famous and polite to reporters used to be enough, and a captain who
+  // never once chose the hospital won it year after year. It also goes to a
+  // man once. In thirty-eight years of the King Clancy only Henrik Sedin has
+  // won it twice, and the second was shared with his brother; the Messier
+  // and the Masterton have never had a repeat winner at all.
+  const wonBefore = (key) => !!trophy[key] && careerAwardList(player).includes(trophy[key]);
+  const goodWorks = (player.communityWork || 0) - (player.communityCounted || 0);
+  if (trophy.community && wearsALetter && fullish && goodWorks >= 1 && !wonBefore('community')
       && media >= 65 && (player.fanStatus || 0) >= drawCommunityBar()) {
     awards.push(trophy.community);
   }
   // On a team near the top of its own league: the top quarter. Top eight
   // was a quarter of the NHL and more than half of most European tables.
   const teamCount = (getOpponentPool(player.league) || []).length || 32;
-  if (trophy.leadership && player.isCaptain && fullish
+  if (trophy.leadership && player.isCaptain && fullish && !wonBefore('leadership')
       && standings <= Math.ceil(teamCount / 4) && teammates >= drawRoomBar()) {
     awards.push(trophy.leadership);
   }
@@ -657,9 +671,21 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // first season of the whole career" outside junior, which meant a player
   // who came up through junior could never be a rookie in the AHL or the NHL,
   // and in junior it was a sixteen-year-old only.
+  //
+  // And a rookie is new to the pro game, not just new to the league. The
+  // AHL's rule is the model: a man with a full season in the NHL or a top
+  // European league behind him isn't a rookie in Hershey, and the SHL handed
+  // its rookie award to a 37-year-old coming home from a career abroad. Under
+  // 26 everywhere, the NHL's cutoff, and no earlier full season in a pro
+  // league at least as strong as this one.
   const earlier = (player.seasonHistory || []).map(s => gamesInLeague(s, player.league));
+  const myLevel = leagueLevel(player.league);
+  const provenElsewhere = !isAmateurLeague(player.league) && (player.seasonHistory || []).some(s =>
+    (s.stints?.length ? s.stints : [{ league: s.league, games: s.games }]).some(st =>
+      st.league && st.league !== player.league && !isAmateurLeague(st.league)
+        && leagueLevel(st.league) <= myLevel && (st.games || 0) > 25));
   const isRookie = !earlier.some(n => n > 25) && earlier.filter(n => n > 6).length < 2
-    && (player.league !== 'NHL' || (player.age || 0) < 26);
+    && (player.age || 0) < 26 && !provenElsewhere;
   if (isRookie) {
     // ONE ROOKIE AWARD, THREE POSITIONS, ONE STANDARD.
     //
@@ -1756,6 +1782,12 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     hockeyIQ: cap(newIq),
     stamina: cap(newSta),
     fanStatus: fanGain(fanFade(p.fanStatus || 0), fanStatusGain),
+    // The most fans he has ever had. Legend is the full thousand, and the
+    // summer fade takes some of it back every year, so the tier reads this
+    // as well as the number on the day.
+    // The good works this season's awards have already looked at.
+    communityCounted: p.communityWork || 0,
+    peakFanStatus: Math.max(p.peakFanStatus || 0, p.fanStatus || 0, fanGain(fanFade(p.fanStatus || 0), fanStatusGain)),
     contract: { ...p.contract, splitYear: undefined, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,

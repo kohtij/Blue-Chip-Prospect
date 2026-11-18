@@ -297,7 +297,7 @@ export default function IntlTournamentScreen() {
               {TITLE[minigameContext] || 'WORLD CHAMPIONSHIP'}
             </h2>
             <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 break-words">
-              {countryName} · {run.division} · {run.year}
+              {nat?.name || countryName} · {run.division} · {run.year}
             </p>
             {/* The federation names its own leaders, and it is not the club's
                 letter: it is who has been here before and can play. */}
@@ -466,7 +466,7 @@ export default function IntlTournamentScreen() {
               </p>
               <p className="text-xs sm:text-sm text-slate-300 font-sans mt-1 leading-snug">
                 {isG
-                  ? `You made the team as ${countryName}'s backup. The starter has the net, and you'll get one group game.`
+                  ? `You made the team as ${countryName}${countryName.endsWith('s') ? "'" : "'s"} backup. The starter has the net, and you'll get one group game.`
                   : `You made the team as the extra ${isDefence(player.pos) ? 'defenceman' : 'forward'}, so you'll sit out some of the group games.`}
               </p>
             </div>

@@ -133,12 +133,12 @@ export default function DraftScreen() {
           <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
             The final board had you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> among
             the {many} in your class. You went {ordinal(seasonRecap.draftPick)} overall,
-            the <span className="text-white font-black">{ordinal(slot.slot)}</span> {one} off the board
+            the <span className="text-white font-black">{ordinal(slot.draftSlot)}</span> {one} taken in the whole draft
             {gap > 0
-              ? `, and watched ${gap} ${gap === 1 ? one : many} you were ranked above go first.`
+              ? `, and ${gap === 1 ? 'one' : gap} you were ranked above in your class went before you.`
               : gap < 0
-                ? `, ${-gap} spot${gap === -1 ? '' : 's'} higher than anybody had you.`
-                : ', exactly where they said you\'d.'}
+                ? `, ${-gap} spot${gap === -1 ? '' : 's'} higher than the board had you.`
+                : ', right where the board had you.'}
           </p>
         );
       })()}
