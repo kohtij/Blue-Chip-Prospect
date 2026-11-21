@@ -778,6 +778,10 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
                ]
              };
            }
+           // The derby against the club's actual rival, by name.
+           if (randomEvt.title === 'The Derby' && rivalObj) {
+             randomEvt = { ...randomEvt, desc: randomEvt.desc.replace("It's derby night.", `It's derby night against ${getFullTeamName(rivalObj.id, currentLg)}.`) };
+           }
            setActiveEvent({ ...randomEvt, isDemotionEvent: false, madePlayoffs: madePlayoffs });
            setScreen('event');
         } else {

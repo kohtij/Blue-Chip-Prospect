@@ -39,14 +39,16 @@ function midSeasonTermination(p, seg, year) {
     const t = nhlPool[Math.floor(Math.random() * nhlPool.length)];
     const salary = Math.max(775000, Math.round(Math.min(2000000, fair * 0.5) / 25000) * 25000);
     const name = getFullTeamName(t.id, 'NHL');
+    const role = getRole(salary, { ...p, league: 'NHL' });
     choices.push({
       label: `Sign with the ${name}`,
-      subLabel: `${formatMoney(salary)} for the rest of this season, then free agency.`,
+      subLabel: 'Then free agency in the summer.',
+      contract: { salary, role },
       isRisky: false,
       feedback: `You cleared waivers in the morning and signed with the ${name} that afternoon. You're in their lineup tomorrow night.`,
       effect: { fanStatus: 5, ovr: 0, rel: { coach: 10 } },
       action: 'MIDSEASON_SIGN',
-      actionData: { from: p.team, team: t.id, league: 'NHL', salary, role: getRole(salary, { ...p, league: 'NHL' }) }
+      actionData: { from: p.team, team: t.id, league: 'NHL', salary, role }
     });
   }
   const euroLg = Math.random() < 0.55 ? 'KHL' : 'SWISS';
@@ -55,14 +57,16 @@ function midSeasonTermination(p, seg, year) {
     const t = euroPool[Math.floor(Math.random() * euroPool.length)];
     const salary = Math.round((1000000 + Math.max(0, p.ovr - 70) * 120000) / 25000) * 25000;
     const name = getFullTeamName(t.id, euroLg);
+    const role = getRole(salary, { ...p, league: euroLg });
     choices.push({
       label: `Sign with ${name} in the ${euroLg === 'KHL' ? 'KHL' : 'Swiss league'}`,
-      subLabel: `${formatMoney(salary)} for the rest of this season, then free agency.`,
+      subLabel: 'Then free agency in the summer.',
+      contract: { salary, role },
       isRisky: false,
       feedback: `You were on a plane two days later. ${name} put you on their top line the night you landed.`,
       effect: { fanStatus: 0, ovr: 0, rel: { coach: 15 } },
       action: 'MIDSEASON_SIGN',
-      actionData: { from: p.team, team: t.id, league: euroLg, salary, role: getRole(salary, { ...p, league: euroLg }) }
+      actionData: { from: p.team, team: t.id, league: euroLg, salary, role }
     });
   }
   choices.push({
@@ -191,7 +195,13 @@ export function holdoutCall(player) {
   const club = getFullTeamName(ho.team || player.team, ho.league || 'NHL');
   const sign = {
     label: final ? 'Sign before the deadline' : 'Sign it',
-    subLabel: `A ${terms}. You'd be in the lineup for game ${missed + 1}.`,
+    subLabel: `You'd be in the lineup for game ${missed + 1}.`,
+    // Drawn as a contract block on the event screen. To the dollar, for the
+    // same reason as the line above.
+    contract: {
+      salary, years, exact: true, role: offer.role, ntc: !!offer.ntc, nmc: !!offer.nmc,
+      flaws: [{ name: 'Missed games', effect: `${missed} unpaid` }]
+    },
     isRisky: false,
     feedback: final
       ? `You signed with days to spare and skated with the team the next morning. ${missed} games in, the room is just glad to have you back.`
@@ -819,7 +829,8 @@ export function handleTrain(ctx, t) {
             choices: [
                 { 
                   label: 'Sign the extension', 
-                  subLabel: `${extTerm} at ${formatMoney(extSalary)}/yr, and no free agency.`, 
+                  subLabel: 'Lock in your future now and skip free agency in July.',
+                  contract: { salary: extSalary, years: extYears, role: 'Core Player', starts: 'Next season' },
                   isRisky: false, 
                   feedback: 'You signed the extension. The city loves you for staying, and you don\'t have to worry about July 1st.', 
                   effect: { fanStatus: 50, ovr: 0, rel: { coach: 25, teammates: 15 } },

@@ -405,21 +405,83 @@ export default function EventScreen() {
                  </div>
               </div>
 
-              {/* What the choice is actually worth. Only the premium trade and
-                  scholarship cards used to draw these, so an ordinary event had
-                  to smuggle the number into its own label text, as the local
-                  sponsorship did with "Do the Commercial ($50k)". A figure
-                  buried in a button is easy to miss and impossible to compare
-                  against the choice next to it. */}
+              {/* A CONTRACT ON OFFER, drawn the way the free agency cards draw
+                  one: the salary large in white with /YR beside it, the term
+                  under it, then labelled rows for the role and any clause, and
+                  the perks and flaws in their tinted blocks. The salary and
+                  term used to be written into the grey line under the label
+                  ("A 3-year deal at $1,775,000 a year"). */}
+              {displayChoice.contract && (() => {
+                const k = displayChoice.contract;
+                // As on the free agency cards, except where the offer is
+                // exact: the GM's raise during a holdout can be $25,000, which
+                // rounds away in millions.
+                const salaryText = k.exact ? `$${k.salary.toLocaleString('en-US')}`
+                  : k.salary >= 1000000 ? `$${(k.salary / 1000000).toFixed(1)}M` : `$${(k.salary / 1000).toFixed(0)}K`;
+                const rowCls = 'flex items-baseline gap-1 font-bold uppercase tracking-wider';
+                return (
+                  <div className="mt-4 w-full max-w-sm relative z-10">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={`text-3xl sm:text-4xl font-black sports-font tracking-tighter ${shortBy > 0 ? 'text-slate-500' : 'text-white'}`}>{salaryText}</span>
+                      {k.years > 0 && <span className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">/YR</span>}
+                    </div>
+                    <span className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                      {k.years > 0 ? `${k.years}-YEAR CONTRACT` : (k.caption || 'For the rest of this season')}
+                    </span>
+
+                    {(k.role || k.starts || k.ntc || k.nmc) && (
+                      <div className="mt-3 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
+                        {k.role && (
+                          <p className={rowCls}>
+                            <span className="text-slate-500 shrink-0">Role</span>
+                            <span className="ml-auto min-w-0 break-words text-right text-white">{k.role}</span>
+                          </p>
+                        )}
+                        {k.starts && (
+                          <p className={rowCls}>
+                            <span className="text-slate-500 shrink-0">Starts</span>
+                            <span className="ml-auto min-w-0 break-words text-right text-white">{k.starts}</span>
+                          </p>
+                        )}
+                        {(k.nmc || k.ntc) && (
+                          <p className={rowCls}>
+                            <span className="text-slate-500 shrink-0">Clause</span>
+                            <span className="ml-auto shrink-0 text-[#c084fc]">{k.nmc ? 'No-Movement' : 'No-Trade'}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {(k.perks?.length > 0 || k.flaws?.length > 0) && (
+                      <div className="flex flex-col gap-1.5 mt-3">
+                        {k.perks?.length > 0 && (
+                          <div className="rounded-lg bg-[#22E748]/[0.07] px-2.5 py-1">
+                            {k.perks.map((pk, i) => <PerkChip key={`kp-${i}`} perk={pk} />)}
+                          </div>
+                        )}
+                        {k.flaws?.length > 0 && (
+                          <div className="rounded-lg bg-[#ef4444]/[0.08] px-2.5 py-1">
+                            {k.flaws.map((fl, i) => <PerkChip key={`kf-${i}`} perk={fl} isFlaw />)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* What the choice is worth, one tinted cell per perk. Only the
+                  premium trade and scholarship cards used to draw these, so an
+                  ordinary event had to smuggle the number into its own label
+                  text, as the local sponsorship did with "Do the Commercial
+                  ($50k)". */}
               {(displayChoice.perks?.length > 0 || displayChoice.flaws?.length > 0) && (
                 <div className="flex flex-wrap gap-1.5 mt-3 w-full relative z-10">
-                  {/* Laid out in a row rather than a narrow stacked column, which
-                      left the right half of the choice empty. */}
                   {displayChoice.perks?.map((pk, pIdx) => (
-                    <PerkChip key={`crow-perk-${pIdx}`} perk={pk} inline />
+                    <PerkChip key={`crow-perk-${pIdx}`} perk={pk} cell />
                   ))}
                   {displayChoice.flaws?.map((fl, fIdx) => (
-                    <PerkChip key={`crow-flaw-${fIdx}`} perk={fl} isFlaw inline />
+                    <PerkChip key={`crow-flaw-${fIdx}`} perk={fl} isFlaw cell />
                   ))}
                 </div>
               )}

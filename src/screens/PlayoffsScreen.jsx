@@ -162,11 +162,13 @@ export default function PlayoffsScreen() {
             won,
             cup,
             score: isSingleGame ? null : `${won ? 'Won' : 'Lost'} the final ${playerWins}-${oppWins}`,
+            // The trophy gets a line of its own under the story of the final.
+            trophyLine: won ? `${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.` : null,
             line: won
-              ? (isSingleGame ? `One game for everything, and you took it. ${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.`
-                : isSweep ? `${['', 'One', 'Two', 'Three', 'Four'][wN] || wN} straight, and ${theCup} is yours. Nobody laid a glove on you.`
-                : isMaxGames ? `It went to a deciding game, and you won it. ${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.`
-                : `You won the final in ${games}. ${theCup.charAt(0).toUpperCase() + theCup.slice(1)} is yours.`)
+              ? (isSingleGame ? 'One game for everything, and you took it.'
+                : isSweep ? `${['', 'One', 'Two', 'Three', 'Four'][wN] || wN} straight, and nobody laid a glove on you.`
+                : isMaxGames ? 'It went to a deciding game, and you won it.'
+                : `You won the final in ${games}.`)
               : (isSingleGame ? `Sixty minutes from ${theCup}, and it got away.`
                 : isSwept ? `Swept in the final. You watched them lift ${theCup}.`
                 : isMaxGames ? `One game from ${theCup}, and it went the other way. You watched them lift it.`
@@ -241,68 +243,102 @@ export default function PlayoffsScreen() {
     }
   }, [activeMatch, isBadBlood, playerMatchIndex, playoffs.activeRoundIndex, setPlayer, setPlayoffs]);
 
+  // THE SCOREBOARD over the cards. His club sits on the left and the
+  // opponent on the right, each with a pip per win the round needs, and the
+  // series sits between them. It used to be the opponent alone with a "vs."
+  // over the name, and nothing on screen said where the series stood while
+  // the cards were being turned over.
+  const isLastRound = playoffs.activeRoundIndex === playoffs.bracket.length - 1;
+  const roundName = isLastRound
+    ? titles.final
+    : (getPlayoffRounds(playoffs.currentLg)[playoffs.activeRoundIndex]?.name || `Round ${playoffs.activeRoundIndex + 1}`);
+  const roundWinsNeeded = getWinsNeeded(playoffs.currentLg, playoffs.activeRoundIndex);
+  const myTeamId = activeMatch?.team1?.id || activeMatch?.team1 || player.team;
+  const myWins = activeMatch?.wins1 || 0;
+  const oppWins = activeMatch?.wins2 || 0;
+  const matchStatus = activeMatch?.status;
+  const statusLabel = matchStatus === 'won'
+    ? (isSingleGame ? 'Won' : 'Series won')
+    : matchStatus === 'lost'
+      ? 'Eliminated'
+      : (isSingleGame ? 'One game' : 'Series');
+  const statusTone = matchStatus === 'won' ? 'text-[#22E748]' : matchStatus === 'lost' ? 'text-[#ef4444]' : 'text-slate-400';
+  const scoreTone = matchStatus === 'won' ? 'text-[#22E748]' : matchStatus === 'lost' ? 'text-[#ef4444]' : (isSingleGame ? 'text-slate-400' : 'text-white');
+  const numberWord = (n) => ['zero', 'one', 'two', 'three', 'four', 'five'][n] || String(n);
+  const pickLine = board
+    ? (() => {
+        // The same board all tournament, so the line says where he is on it
+        // rather than what a series is.
+        const left = deck.length - revealedIdx.length;
+        return `One press, one game. ${left} square${left === 1 ? '' : 's'} left, ${pressesLeft} win${pressesLeft === 1 ? '' : 's'} from the title.`;
+      })()
+    : isSingleGame
+      ? 'One game, winner advances. Pick a card.'
+      : `Pick a card to play game ${myWins + oppWins + 1}. First to ${numberWord(roundWinsNeeded)} wins.`;
+
+  const renderSide = (teamId, wins, pipClass) => (
+    <div className="flex flex-col items-center gap-2 min-w-0 h-full">
+      <TeamLogo teamId={teamId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
+      <p className="text-[12px] sm:text-sm font-black text-white uppercase sports-font leading-tight text-center break-words">
+        {getFullTeamName(teamId, playoffs.currentLg)}
+      </p>
+      {!isSingleGame && (
+        <div className="flex gap-1 mt-auto" aria-label={`${wins} of ${roundWinsNeeded} wins`}>
+          {Array.from({ length: roundWinsNeeded }, (_, k) => (
+            <span key={k} className={`w-2 h-2 rounded-full ${k < wins ? pipClass : 'bg-white/10'}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // What happened, once it has. Bad Blood feedback wins over the generic line:
+  // it is the result of a call the player actually made, and it carries the
+  // fan and trust swing.
+  const resultLine = !activeMatch ? null : activeMatch.badBloodFeedback ? (
+    <p className={`font-sans font-bold text-xs sm:text-sm text-center max-w-md mx-auto leading-relaxed animate-fade-in ${activeMatch.status === 'won' ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
+      {activeMatch.badBloodFeedback}
+    </p>
+  ) : seriesFlavor && !finalResult ? (
+    <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md mx-auto leading-relaxed animate-fade-in">
+      {seriesFlavor}
+    </p>
+  ) : null;
+
   return (
     <div className="game-panel p-3 sm:p-6 mt-2 flex flex-col items-center relative">
       
-      {/* CARD MINIGAME GRID & NEXT ROUND PROCEED BUTTON */}
+      {/* CARD MINIGAME GRID & NEXT ROUND PROCEED BUTTON.
+          It sits straight on the panel, the same as the bracket below it. It
+          used to have a box of its own in a different shade, which read as a
+          second card dropped on top of the panel. */}
       {activeMatch && (
-          <div className="max-w-md sm:max-w-lg md:max-w-xl w-full bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 sm:p-5 rounded-xl text-center shadow-lg mx-auto mb-4 shrink-0">
+          <div className="max-w-md sm:max-w-lg md:max-w-xl w-full text-center mx-auto mb-6 sm:mb-8 shrink-0">
 
             {/* MATCHUP HEADER */}
             <div className="flex flex-col items-center w-full mb-5">
-              {/* FIXED STATUS BAR (Prevents top text shifting) */}
-              <div className="h-8 flex items-center justify-center w-full mb-4">
-                {activeMatch.status === 'playing' && (
-                  <span className={kickerClass('neutral')}>
-                      Round {playoffs.activeRoundIndex + 1}
+              <span className={`${kickerClass('neutral')} mb-4`}>{roundName}</span>
+              {/* The middle column has a fixed width, wide enough for its longest
+                  label ("Series won"), so the label and score changing never
+                  pushes the team names around. */}
+              <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] items-stretch gap-2 sm:gap-4 w-full">
+                {renderSide(myTeamId, myWins, 'bg-[#22E748]')}
+                <div className="flex flex-col items-center self-start pt-3 sm:pt-4">
+                  <span className={`text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${statusTone}`}>{statusLabel}</span>
+                  <span className={`sports-font font-black text-3xl sm:text-4xl leading-none mt-1.5 whitespace-nowrap tabular-nums ${scoreTone}`}>
+                    {isSingleGame ? 'VS' : `${myWins}-${oppWins}`}
                   </span>
-                )}
-                {activeMatch.status === 'won' && (
-                  <span className={kickerClass('green')}>
-                      {isSingleGame
-                        ? (playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? 'Champions' : 'Through to the next round')
-                        : `Series won ${activeMatch.wins1}-${activeMatch.wins2}`}
-                  </span>
-                )}
-                {activeMatch.status === 'lost' && (
-                  <span className={kickerClass('red')}>
-                      {isSingleGame ? 'Eliminated' : `Eliminated ${activeMatch.wins1}-${activeMatch.wins2}`}
-                  </span>
-                )}
+                </div>
+                {renderSide(activeOpponentId, oppWins, 'bg-[#ef4444]')}
               </div>
 
-              {/* FIXED TEAM LOGO & NAME ROW */}
-              <div className="flex items-center justify-start gap-4 w-full px-2">
-                <TeamLogo teamId={activeOpponentId} league={playoffs.currentLg} isAHL={playoffs.currentLg === 'AHL'} size="medium" />
-                <p className="text-sm text-slate-400 font-bold uppercase sports-font text-left leading-tight">
-                    {activeMatch.status === 'playing' ? 'vs.' : activeMatch.status === 'won' ? 'Defeated' : 'Defeated by'}{' '}
-                    <span className="text-white font-black text-lg sm:text-xl block mt-0.5">
-                      {getFullTeamName(activeOpponentId, playoffs.currentLg)}
-                    </span>
-                </p>
-              </div>
-
-              {/* FLAVOR / RESULT TEXT, the slot reserves enough room for the
-                  longest result line to wrap, so the card grid below never shifts
-                  when the text appears. Measured worst case is 39px on mobile and
-                  46px from sm up; anything longer added later would bump again. */}
-              <div className="w-full min-h-[40px] sm:min-h-[48px] flex items-center justify-center mt-3 px-2">
-                {/* Bad Blood feedback wins over the generic line: it is the result
-                    of a call the player actually made, and it carries the fan and
-                    trust swing. It used to sit below seriesFlavor, which is set for
-                    every finished series, so it could never be reached. Rendered as
-                    plain coloured text rather than a bordered box so it fits the
-                    same reserved slot and nothing shifts. */}
-                {activeMatch.badBloodFeedback ? (
-                  <p className={`font-sans font-bold text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in ${activeMatch.status === 'won' ? 'text-[#22E748]' : 'text-[#ef4444]'}`}>
-                    {activeMatch.badBloodFeedback}
-                  </p>
-                ) : seriesFlavor && !finalResult ? (
-                  <p className="text-slate-300 font-sans text-xs sm:text-sm text-center max-w-md leading-relaxed animate-fade-in">
-                    {seriesFlavor}
-                  </p>
-                ) : null}
-              </div>
+              {/* Off the card grid (the press box and the final) there is no
+                  button row below to carry the result line, so it goes here. */}
+              {/* The slot is held open the whole round so the bracket below
+                  doesn't move when the line appears. */}
+              {(isSidelined || isLastRound) && (
+                <div className="w-full min-h-[40px] sm:min-h-[48px] flex items-center justify-center mt-3 px-2">{resultLine}</div>
+              )}
 
               {/* THE FINAL, DECIDED.
                   Winning it used to get the same one grey line as winning a first
@@ -332,6 +368,7 @@ export default function PlayoffsScreen() {
                     )}
                     <p className={`mt-2 text-sm sm:text-base font-bold leading-snug max-w-md ${finalResult.won ? 'text-[#fef3c7]' : 'text-slate-300'}`}>
                       {finalResult.line}
+                      {finalResult.trophyLine && <span className="block mt-1">{finalResult.trophyLine}</span>}
                     </p>
                   </div>
                 </div>
@@ -436,11 +473,11 @@ export default function PlayoffsScreen() {
                     Each square shows the actual score once turned over,
                     rather than a plain win/loss letter, since one game is
                     worth seeing the final score of. */}
-                {isSingleGame && (
-                  <p className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest text-center mb-3 font-sans">
-                    One game, winner advances
-                  </p>
-                )}
+                {/* What to do, right over the cards. Once it's decided the line
+                    goes invisible rather than away, so the cards don't jump. */}
+                <p className={`text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3 ${activeMatch.status === 'playing' ? '' : 'invisible'}`}>
+                  {pickLine}
+                </p>
                 <div className={isSingleGame ? 'grid grid-cols-4 gap-1.5 sm:gap-2' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
                   {deck.map((item, cIndex) => {
                     const isRevealed = revealedIdx.includes(cIndex);
@@ -480,28 +517,12 @@ export default function PlayoffsScreen() {
                   })}
                 </div>
 
-                {/* BOTTOM ACTION AREA */}
-                <div className="mt-4 flex flex-col justify-center items-center w-full min-h-[110px] sm:min-h-[120px]">
+                {/* BOTTOM ACTION AREA. Its height is reserved for the tallest
+                    thing it ever holds (the result line over the button), so
+                    the bracket below stays put when a series ends. */}
+                <div className="mt-4 flex flex-col justify-start items-center w-full min-h-[100px] sm:min-h-[104px]">
                   {activeMatch.status === 'playing' ? (
                     <div className="w-full flex flex-col items-center">
-                      {(() => {
-                        const gpm = getGamesPerMatchup(playoffs.currentLg, playoffs.activeRoundIndex);
-                        const formatText = gpm === 1 ? 'Single Elimination' : `Best-of-${gpm}`;
-                        if (board) {
-                          // The same board all tournament, so the line says
-                          // where he is on it rather than what a series is.
-                          const left = deck.length - revealedIdx.length;
-                          return (
-                            <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">
-                              {`One press, one game. ${left} square${left === 1 ? '' : 's'} left, ${pressesLeft} win${pressesLeft === 1 ? '' : 's'} from the title.`}
-                            </p>
-                          );
-                        }
-                        return (
-                          <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3">{`Select a card to play the next game (${formatText})`}</p>
-                        );
-                      })()}
-
                       {/* CAPTAINCY ACTION */}
                       {/* Only the captain gives it. It used to follow a storyline flag,
                           which stayed set after he'd left the club that named him. */}
@@ -571,7 +592,9 @@ export default function PlayoffsScreen() {
                       )}
                     </div>
                   ) : (
-                    <div className="w-full max-w-xs mx-auto animate-fade-in mt-4">
+                    <div className="w-full flex flex-col items-center animate-fade-in">
+                      {resultLine && <div className="w-full mb-4 px-2">{resultLine}</div>}
+                      <div className="w-full max-w-xs">
                       {activeMatch.status === 'won' && playoffs.overallStatus !== 'won_cup' && (
                         <button onClick={advancePlayoffRound} className="btn-primary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest transition-transform hover:scale-105 cursor-pointer">
                           ADVANCE TO ROUND {playoffs.activeRoundIndex + 2}
@@ -579,10 +602,11 @@ export default function PlayoffsScreen() {
                       )}
                       
                       {activeMatch.status === 'lost' && (
-                        <button onClick={proceedFromPlayoffs} className="btn-secondary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest cursor-pointer mt-2">
+                        <button onClick={proceedFromPlayoffs} className="btn-secondary w-full py-3 px-6 rounded-xl font-black sports-font text-sm sm:text-base uppercase tracking-widest cursor-pointer">
                           PROCEED TO RECAP
                         </button>
                       )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -602,7 +626,7 @@ export default function PlayoffsScreen() {
       {/* BRACKET VIEW */}
       {/* Wider than a phone, so it scrolls sideways; focusable so the arrow
           keys can scroll it too. */}
-      <div tabIndex={0} role="region" aria-label="Playoff bracket" className="w-full overflow-x-auto pb-6 border-b border-[rgba(255,255,255,0.065)] scrollbar-hide">
+      <div tabIndex={0} role="region" aria-label="Playoff bracket" className="w-full overflow-x-auto pb-2 scrollbar-hide">
         <div className="flex items-stretch gap-1.5 sm:gap-2 w-max mx-auto px-2 min-h-[250px]">
           {playoffs.hasConfs ? (
             <>

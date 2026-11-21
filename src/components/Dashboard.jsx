@@ -520,22 +520,27 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               "GP" became "Games" to match the career strip below, which was
               labelling the identical quantity differently forty pixels
               away. */}
-          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 6 : 7} footer={(() => {
-            // Form and zone starts, during a season, as the bottom row of the
-            // season box in the same cell style. They aren't stats, so they
-            // sit under the stat row rather than in it.
+          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 5 : 7} footer={(() => {
+            // Form, ice time and zone starts as the bottom row of the season
+            // box, in the same cell style. They describe how he's being used
+            // more than what he's scored, and moving them down gives the
+            // scoring stats above more room.
             const segs = player.season?.stints || [];
             const lastSeg = inProgress ? segs[segs.length - 1] : null;
             const form = formOf(lastSeg);
             const stretch = form ? stretchLine(lastSeg, player.pos) : null;
             const oz = isGoalie ? null : (ls.ozPct ?? null);
+            const hasToi = !isGoalie && ls.avgToi > 0;
             const bits = [
-              form && { label: stretch ? `Form, ${stretch.value} ${stretch.label}` : 'Form', value: form.label, tone: form.tone },
+              // The form word explains itself, so the label under it is the stretch
+              // it's based on. "1 pts" reads as a typo, so one point is singular.
+              form && { label: stretch ? `${stretch.value.replace(/^1 pts$/, '1 pt')} ${stretch.label}` : 'Form', value: form.label, tone: form.tone },
+              hasToi && { label: 'TOI', value: toi, tone: 'text-sky-400' },
               oz != null && { label: 'OZ starts', value: `${oz}%`, sub: deploymentLabel(oz), tone: 'text-white' }
             ].filter(Boolean);
             if (!bits.length) return null;
             return (
-              <div className="grid divide-x divide-[rgba(255,255,255,0.05)] bg-[#0c100c] text-center" style={{ gridTemplateColumns: `repeat(${bits.length}, minmax(0, 1fr))` }}>
+              <div className="grid divide-x divide-[rgba(255,255,255,0.05)] border-t border-[rgba(255,255,255,0.05)] text-center" style={{ gridTemplateColumns: `repeat(${bits.length}, minmax(0, 1fr))` }}>
                 {bits.map(b => (
                   <div key={b.label} className="py-1.5 px-1">
                     <p className={`text-sm font-black number-font leading-none ${b.tone}`}>{b.value}{b.sub ? <span className="text-slate-400 text-[10px] ml-1">{b.sub}</span> : null}</p>
@@ -571,7 +576,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <Cell tone="text-[#22E748]" value={ls.goals || 0} label="Goals" />
                 <Cell value={ls.assists || 0} label="Assists" />
                 <Cell tone="text-[#c084fc]" value={ls.blocks || 0} label="Blocks" />
-                <Cell tone="text-sky-400" value={ls.avgToi ? toi : '--'} label="TOI" />
                 <Cell value={ls.games > 0 ? (ls.pim || 0) : '--'} label="PIM" />
               </>
             ) : (

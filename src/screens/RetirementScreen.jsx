@@ -1159,7 +1159,7 @@ export default function RetirementScreen() {
                       <th className="pl-4 sm:pl-6 pr-2 py-2 font-bold w-8">#</th>
                       <th className="px-2 py-2 font-bold">Player</th>
                       <th className="px-2 py-2 font-bold">Pos</th>
-                      <th className="px-2 py-2 font-bold text-right">Drafted</th>
+                      <th className="px-2 py-2 font-bold text-center">Drafted</th>
                       <th className="px-2 py-2 font-bold text-right">Honours</th>
                       <th className="px-2 py-2 font-bold text-right">NHL GP</th>
                       <th className="px-2 py-2 font-bold text-right">Points</th>
@@ -1179,15 +1179,24 @@ export default function RetirementScreen() {
                           </span>
                         </td>
                         <td className="px-2 py-2 text-slate-500 font-bold">{r.pos === 'LD' || r.pos === 'RD' ? 'D' : r.pos}</td>
-                        <td className="px-2 py-2 text-right text-slate-500">
+                        <td className="px-2 py-2 text-center text-slate-500">
+                          {/* Pick, crest, club, in that order. The pick is the
+                              one that changes width (#3 against #145), so it goes
+                              first and lines up on its right edge against the
+                              crest, and the crest and club sit together after it.
+                              With the crest in front, the pick's width pushed it
+                              back and forth down the column. The club's slot is
+                              sized to the widest abbreviation, so they still end
+                              on the same edge. The pick has a slot of fixed width too, so
+                              every row is the same width and the header can sit
+                              centred over all three. */}
                           {r.pick ? (
-                            <span className="inline-flex items-center justify-end gap-1.5">
-                              {r.team && (
-                                <span className="w-5 h-5 shrink-0 flex items-center justify-center">
-                                  <TeamLogo teamId={r.team} league="NHL" size="tiny" />
-                                </span>
-                              )}
-                              #{r.pick} {r.team || ''}
+                            <span className="inline-flex items-center justify-end gap-1">
+                              <span className="w-[34px] shrink-0 text-right tabular-nums">#{r.pick}</span>
+                              <span className="w-5 h-5 shrink-0 flex items-center justify-center">
+                                {r.team && <TeamLogo teamId={r.team} league="NHL" size="tiny" />}
+                              </span>
+                              <span className="w-[31px] shrink-0 text-right">{r.team || ''}</span>
                             </span>
                           ) : 'Undrafted'}
                         </td>

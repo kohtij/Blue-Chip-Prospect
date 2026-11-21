@@ -274,7 +274,7 @@ export function advanceToOffseason(ctx) {
           title: '🏥 THE REHABILITATION',
           desc: `The rehab has taken the whole summer. Your physios have given you two options: the team's standard recovery plan, which the club pays for, or an experimental treatment in Germany that you pay for yourself.`,
           choices: [
-              { label: 'Experimental rehab ($100k)', subLabel: 'Fly to Germany and pay for the treatment yourself.', isRisky: true, successChance: 0.75, successFeedback: 'It worked. You came back feeling quicker and stronger than before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'It did nothing. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
+              { label: 'Experimental rehab', subLabel: 'Fly to Germany and pay for the treatment yourself.', isRisky: true, successChance: 0.75, successFeedback: 'It worked. You came back feeling quicker and stronger than before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'It did nothing. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
               { label: 'Standard rehab (free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You\'re cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
           ],
           isOffseasonEvent: true
@@ -1181,8 +1181,8 @@ export function advanceToOffseason(ctx) {
                   // and a number buried in a button is easy to miss and
                   // impossible to compare.
                   { label: 'Do the commercial', subLabel: 'Easy money, but expect some ribbing in the room.', isRisky: false,
-                    perks: [{ name: '\ud83d\udcb0 Appearance Fee', effect: '$50K', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
-                    flaws: [{ name: '\u26a0\ufe0f Locker Room', effect: '-10 TEAM' }],
+                    perks: [{ name: 'Appearance fee', effect: '+$50K' }, { name: 'Fans', effect: '+5' }],
+                    flaws: [{ name: 'Teammates', effect: '-10' }],
                     feedback: 'You shot the dealership commercial and cashed the cheque. The boys haven\'t stopped quoting your acting since.', effect: { fanStatus: 5, ovr: 0, money: 50000, rel: { teammates: -10 } } },
                   { label: 'Pass on it', subLabel: 'Skip the payday and stay out of the group chat.', isRisky: false,
                     feedback: 'You turned the dealership commercial down. No cheque, but no clip of you in a bad suit either.', effect: { fanStatus: 0, ovr: 0, money: 0 } }
@@ -1201,11 +1201,11 @@ export function advanceToOffseason(ctx) {
               desc: `An equipment brand wants you as the face of its new stick. That means a long photo shoot and a summer of media days.`,
               choices: [
                   { label: 'Sign the deal', subLabel: 'Become a household name, at the cost of some ice time this summer.', isRisky: false,
-                    perks: [{ name: '\ud83d\udcb0 Endorsement', effect: '$250K', color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }],
-                    flaws: [{ name: '\u26a0\ufe0f Lost Training', effect: '-1 OVR' }],
+                    perks: [{ name: 'Endorsement', effect: '+$250K' }, { name: 'Fans', effect: '+50' }, { name: 'Media', effect: '+20' }],
+                    flaws: [{ name: 'Lost summer training', effect: '-1 OVR' }],
                     feedback: 'You signed the stick deal and spent the summer on billboards. The shoots ate the training time you\'d normally have had.', effect: { fanStatus: 50, ovr: -1, money: 250000, rel: { media: 20 } } },
                   { label: 'Focus on hockey', subLabel: 'Turn the campaign down and keep the summer for your game.', isRisky: false,
-                    perks: [{ name: '\ud83d\udcc8 Full Summer', effect: '+1 OVR', color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }],
+                    perks: [{ name: 'Full summer of training', effect: '+1 OVR' }],
                     feedback: 'You turned the stick campaign down and spent the summer training instead. No billboards, a better player.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
               ],
               isOffseasonEvent: true
@@ -1251,7 +1251,7 @@ export function advanceToOffseason(ctx) {
               desc: `You spent the summer enjoying the money and not training. You turned up to camp out of shape, and people are calling last season a fluke.`,
               choices: [
                   { label: 'Ignore the haters', subLabel: 'Save the money, but your game stays sluggish.', isRisky: false, feedback: 'You brushed off the media, and your game still looks sluggish.', effect: { fanStatus: -20, ovr: -3, money: 0 } },
-                  { label: 'Hire a private trainer ($250k)', subLabel: 'Spend to get back in shape and limit the damage.', isRisky: false, feedback: 'It cost a fortune, and you got most of the way back.', effect: { fanStatus: 10, ovr: -1, money: -250000 } }
+                  { label: 'Hire a private trainer', subLabel: 'Spend to get back in shape and limit the damage.', isRisky: false, feedback: 'It cost a fortune, and you got most of the way back.', effect: { fanStatus: 10, ovr: -1, money: -250000 } }
               ],
               isOffseasonEvent: true
           });

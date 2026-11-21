@@ -90,11 +90,23 @@ export const goalieTrainingPool = [
 // distributes it evenly across all five attributes so it persists.
 export const eventDeck = [
   {
+    // It used to be one line ("You play the local rivals tonight. The media
+    // asks for a quote.") and two answers. When the club has a rival on file,
+    // runPostSeasonFlow puts its name in the first sentence.
     title: 'The Derby',
-    desc: 'You play the local rivals tonight. The media asks for a quote.',
+    desc: "It's derby night. The game sold out in an hour, your family wants four more tickets, and the visiting fans have had the bar across the street since noon. A reporter stops you on the way into the room and asks if this one means more.",
     choices: [
-      { label: 'Trash talk them', subLabel: "Give the press a headline and hope you back it up.", isRisky: true, successChance: 0.5, successFeedback: 'The fans loved it, and you backed it up with a win.', successEffect: { fanStatus: 25, ovr: 0, money: 0 }, failFeedback: 'You talked big but took a bad penalty. The fans are turning on you.', failEffect: { fanStatus: -20, ovr: 0, money: 0 } },
-      { label: 'Give a boring PR answer', subLabel: "Say nothing quotable and keep the focus on the ice.", isRisky: false, feedback: 'Boring, but you stayed focused on the game.', effect: { fanStatus: -5, ovr: 1, money: 0 } }
+      { label: 'Give him a headline', subLabel: 'Say what the whole building thinks of them.', isRisky: true, successChance: 0.5,
+        successFeedback: "You said they'd be golfing by April, then went out and beat them. The clip was on every station in town by midnight.",
+        successEffect: { fanStatus: 25, ovr: 0, money: 0, rel: { media: 5 } },
+        failFeedback: 'They pinned your quote up in their room and won by three. Their fans chanted it at you for the whole third period.',
+        failEffect: { fanStatus: -20, ovr: 0, money: 0, rel: { coach: -5 } } },
+      { label: "Say it's for the city", subLabel: 'Tell the fans this one is for them.', isRisky: false,
+        feedback: 'The line ran under your photo in the morning paper, and the city loved it.',
+        effect: { fanStatus: 12, ovr: 0, money: 0, rel: { media: 5 } } },
+      { label: 'Give him nothing', subLabel: '"Good team, two points, we\'ll be ready." Then shut the door.', isRisky: false,
+        feedback: "Nobody will remember the quote. The coaches liked that you didn't give the other room anything to pin up.",
+        effect: { fanStatus: -5, ovr: 1, money: 0, rel: { coach: 5 } } }
     ]
   },
   {

@@ -1812,7 +1812,7 @@ function App() {
           blue the rest of the game does not own. The strip it was declared in
           stayed behind on desktop as an empty ruled line. It is one quiet line
           now, in the same place at every width. */}
-      <footer className="mt-auto w-full border-t border-[rgba(255,255,255,0.05)] px-4 pt-5 pb-7">
+      <footer className="mt-auto w-full px-4 pt-5 pb-7">
         <div className="mx-auto flex max-w-xl flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
           {/* The version used to sit here, derived from the git history at
               build time. It is gone: the feedback link is the only thing in
