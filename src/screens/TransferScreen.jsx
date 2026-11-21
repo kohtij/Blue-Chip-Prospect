@@ -77,7 +77,9 @@ export default function TransferScreen() {
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-5xl mx-auto pb-6 px-2 sm:px-0">
+            {/* Two offers a row at most: beside the player card there isn't room
+                for three without the terms and perks wrapping. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-5xl mx-auto pb-6 px-2 sm:px-0">
               {(() => {
                 // 1. Group offers perfectly: 1 Card per Team
                 const groupedOffers = {};
@@ -331,12 +333,16 @@ export default function TransferScreen() {
 
                         {hasChips && (
                           <div className="flex flex-col gap-1.5 mb-5 z-10 relative">
-                             {o.perks?.map((p, pIdx) => (
-                                <PerkChip key={`perk-${pIdx}`} perk={p} />
-                             ))}
-                             {o.flaws?.map((f, fIdx) => (
-                                <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />
-                             ))}
+                             {o.perks?.length > 0 && (
+                               <div className="rounded-lg bg-[#22E748]/[0.07] px-2.5 py-1">
+                                 {o.perks.map((p, pIdx) => <PerkChip key={`perk-${pIdx}`} perk={p} />)}
+                               </div>
+                             )}
+                             {o.flaws?.length > 0 && (
+                               <div className="rounded-lg bg-[#ef4444]/[0.08] px-2.5 py-1">
+                                 {o.flaws.map((f, fIdx) => <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />)}
+                               </div>
+                             )}
                           </div>
                         )}
 

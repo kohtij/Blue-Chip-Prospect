@@ -18,71 +18,71 @@ const A = 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30';  // amber, money
 
 const PERKS = {
   college: [
-    { name: '📈 Elite Coaching', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
-    { name: '🏟️ Facilities', effect: '+15 FAN', ovr: 0, fanStatus: 15, money: 0, color: G },
-    { name: '💰 NIL Deal', effect: '$75K', ovr: 0, fanStatus: 0, money: 75000, color: A },
-    { name: '⚡ High Tempo', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: G },
-    { name: '🎓 Academics', effect: '+10 FAN', ovr: 0, fanStatus: 10, money: 0, color: G },
-    { name: '🏒 NHL Pipeline', effect: '+25 FAN', ovr: 0, fanStatus: 25, money: 0, color: B }
+    { name: 'Top coaching staff', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
+    { name: 'New rink and facilities', effect: '+15 fans', ovr: 0, fanStatus: 15, money: 0, color: G },
+    { name: 'NIL sponsorship money', effect: '$75K', ovr: 0, fanStatus: 0, money: 75000, color: A },
+    { name: 'Fast-paced practices', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: G },
+    { name: 'Respected school', effect: '+10 fans', ovr: 0, fanStatus: 10, money: 0, color: G },
+    { name: 'Sends players to the NHL', effect: '+25 fans', ovr: 0, fanStatus: 25, money: 0, color: B }
   ],
   euro: [
-    { name: '⏱️ Top-6 Minutes', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
-    { name: '🧊 Big Ice', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: B },
-    { name: '💶 Signing Bonus', effect: '$40K', ovr: 0, fanStatus: 0, money: 40000, color: A },
-    { name: '🏆 Contender', effect: '+20 FAN', ovr: 0, fanStatus: 20, money: 0, color: G },
-    { name: '📺 Televised', effect: '+15 FAN', ovr: 0, fanStatus: 15, money: 0, color: G }
+    { name: 'Top-six minutes', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
+    { name: 'Big ice, more room', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: B },
+    { name: 'Signing bonus', effect: '$40K', ovr: 0, fanStatus: 0, money: 40000, color: A },
+    { name: 'Title contender', effect: '+20 fans', ovr: 0, fanStatus: 20, money: 0, color: G },
+    { name: 'Games on national TV', effect: '+15 fans', ovr: 0, fanStatus: 15, money: 0, color: G }
   ],
   nhl: [
-    { name: '🏆 Contender', effect: '+25 FAN', ovr: 0, fanStatus: 25, money: 0, color: G },
-    { name: '📈 Dev Staff', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
-    { name: '⚡ Powerplay', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: G },
-    { name: '💰 Signing Bonus', effect: '$250K', ovr: 0, fanStatus: 0, money: 250000, color: A },
-    { name: '📺 Media Market', effect: '+30 FAN', ovr: 0, fanStatus: 30, money: 0, color: G },
-    { name: '🏠 Low-Tax State', effect: '$150K', ovr: 0, fanStatus: 0, money: 150000, color: A }
+    { name: 'Cup contender', effect: '+25 fans', ovr: 0, fanStatus: 25, money: 0, color: G },
+    { name: 'Development coaches', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
+    { name: 'Power-play role', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: G },
+    { name: 'Signing bonus', effect: '$250K', ovr: 0, fanStatus: 0, money: 250000, color: A },
+    { name: 'Big market, more fans', effect: '+30 fans', ovr: 0, fanStatus: 30, money: 0, color: G },
+    { name: 'No state income tax', effect: '$150K', ovr: 0, fanStatus: 0, money: 150000, color: A }
   ],
   minor: [
-    { name: '🚀 Call-Up Path', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
-    { name: '⏱️ Top Minutes', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: G },
-    { name: '🏒 Skills Coach', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: B },
-    { name: '💰 Perf. Bonus', effect: '$25K', ovr: 0, fanStatus: 0, money: 25000, color: A }
+    { name: 'Clear path to a call-up', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
+    { name: 'Top-line minutes', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: G },
+    { name: 'Skills coach', effect: '+1 OVR', ovr: 1, fanStatus: 0, money: 0, color: B },
+    { name: 'Performance bonus', effect: '$25K', ovr: 0, fanStatus: 0, money: 25000, color: A }
   ],
   junior: [
-    { name: '📈 Dev Program', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
-    { name: '⏱️ Top Line', effect: '+15 FAN', ovr: 0, fanStatus: 15, money: 0, color: G },
-    { name: '🏟️ Packed Barn', effect: '+20 FAN', ovr: 0, fanStatus: 20, money: 0, color: G },
-    { name: '🏆 Cup Window', effect: '+15 FAN', ovr: 0, fanStatus: 15, money: 0, color: G }
+    { name: 'Development program', effect: '+2 OVR', ovr: 2, fanStatus: 0, money: 0, color: B },
+    { name: 'Top-line role', effect: '+15 fans', ovr: 0, fanStatus: 15, money: 0, color: G },
+    { name: 'Sold-out home rink', effect: '+20 fans', ovr: 0, fanStatus: 20, money: 0, color: G },
+    { name: 'Playing for the title', effect: '+15 fans', ovr: 0, fanStatus: 15, money: 0, color: G }
   ]
 };
 
 const FLAWS = {
   college: [
-    { name: '⚠️ Full Roster', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
-    { name: '⚠️ Strict System', effect: '-10 FAN', ovr: 0, fanStatus: -10, money: 0 },
-    { name: '⚠️ Small Market', effect: '-5 FAN', ovr: 0, fanStatus: -5, money: 0 },
-    { name: '⚠️ Rebuilding', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 }
+    { name: 'Crowded roster', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
+    { name: 'Strict, dull system', effect: '-10 fans', ovr: 0, fanStatus: -10, money: 0 },
+    { name: 'Small market, few fans', effect: '-5 fans', ovr: 0, fanStatus: -5, money: 0 },
+    { name: 'Weak supporting cast', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 }
   ],
   euro: [
-    { name: '⚠️ Long Trips', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
-    { name: '⚠️ Language Gap', effect: '-10 FAN', ovr: 0, fanStatus: -10, money: 0 },
-    { name: '⚠️ Defensive Sys', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
-    { name: '⚠️ Off The Radar', effect: '-15 FAN', ovr: 0, fanStatus: -15, money: 0 }
+    { name: 'Draining road trips', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
+    { name: 'Language barrier with fans', effect: '-10 fans', ovr: 0, fanStatus: -10, money: 0 },
+    { name: 'Defence-first system', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
+    { name: 'Few scouts watching', effect: '-15 fans', ovr: 0, fanStatus: -15, money: 0 }
   ],
   nhl: [
-    { name: '⚠️ Rebuilding', effect: '-15 FAN', ovr: 0, fanStatus: -15, money: 0 },
-    { name: '⚠️ Trap System', effect: '-15 FAN', ovr: 0, fanStatus: -15, money: 0 },
-    { name: '⚠️ Deep Lineup', effect: '-2 OVR', ovr: -2, fanStatus: 0, money: 0 },
-    { name: '⚠️ Media Glare', effect: '-20 FAN', ovr: 0, fanStatus: -20, money: 0 },
-    { name: '⚠️ Cap Trouble', effect: '-$100K', ovr: 0, fanStatus: 0, money: -100000 }
+    { name: 'Rebuilding, lots of losses', effect: '-15 fans', ovr: 0, fanStatus: -15, money: 0 },
+    { name: 'Dull trap system', effect: '-15 fans', ovr: 0, fanStatus: -15, money: 0 },
+    { name: 'Deep roster, less ice', effect: '-2 OVR', ovr: -2, fanStatus: 0, money: 0 },
+    { name: 'Harsh media glare', effect: '-20 fans', ovr: 0, fanStatus: -20, money: 0 },
+    { name: 'Tight salary cap', effect: '-$100K', ovr: 0, fanStatus: 0, money: -100000 }
   ],
   minor: [
-    { name: '⚠️ Bus League', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
-    { name: '⚠️ Buried', effect: '-2 OVR', ovr: -2, fanStatus: 0, money: 0 },
-    { name: '⚠️ No Spotlight', effect: '-10 FAN', ovr: 0, fanStatus: -10, money: 0 }
+    { name: 'Long bus rides', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
+    { name: 'Buried on the depth chart', effect: '-2 OVR', ovr: -2, fanStatus: 0, money: 0 },
+    { name: 'No media coverage', effect: '-10 fans', ovr: 0, fanStatus: -10, money: 0 }
   ],
   junior: [
-    { name: '⚠️ Veteran Room', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
-    { name: '⚠️ Last Place', effect: '-10 FAN', ovr: 0, fanStatus: -10, money: 0 },
-    { name: '⚠️ Long Commute', effect: '-5 FAN', ovr: 0, fanStatus: -5, money: 0 }
+    { name: 'Veterans get the minutes', effect: '-1 OVR', ovr: -1, fanStatus: 0, money: 0 },
+    { name: 'Last-place team', effect: '-10 fans', ovr: 0, fanStatus: -10, money: 0 },
+    { name: 'Far from home', effect: '-5 fans', ovr: 0, fanStatus: -5, money: 0 }
   ]
 };
 

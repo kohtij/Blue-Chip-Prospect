@@ -17,6 +17,7 @@
 // Nothing in here renders; the screen reads the run and calls back into it.
 
 import { getPlaybook } from '../data/intlPlaybook';
+import { inIihfEvents } from '../data/teams';
 import { PRESTIGE } from './stakes';
 import { fanGain, applyOvrDelta, recomputeOvr } from './gameHelpers';
 import { inTopOfLineup, nhlRegular } from './roster';
@@ -185,10 +186,11 @@ const shuffle = (a) => [...a].sort(() => 0.5 - Math.random());
 function drawField(player, safeNationalities, division, count) {
   const all = safeNationalities || [];
   const me = all.find(n => n.id === player.nat) || { id: player.nat, name: player.nat, tier: 4 };
-  let pool = all.filter(n => n.division === division && n.id !== player.nat);
+  // A suspended nation is in no draw. See IIHF_SUSPENDED.
+  let pool = all.filter(n => n.division === division && n.id !== player.nat && inIihfEvents(n.id));
   if (pool.length < count) {
     const filler = all
-      .filter(n => n.id !== player.nat && !pool.some(t => t.id === n.id))
+      .filter(n => n.id !== player.nat && inIihfEvents(n.id) && !pool.some(t => t.id === n.id))
       .sort((a, b) => Math.abs((a.tier || 4) - (me.tier || 4)) - Math.abs((b.tier || 4) - (me.tier || 4)));
     pool = [...pool, ...filler.slice(0, count - pool.length)];
   }
@@ -767,7 +769,8 @@ export function resolvePick(run, player, { playId, scoutedIds = [], rescued = nu
     ot: wentLong,
     score,
     line,
-    pts
+    pts,
+    playId
   };
 
   return {

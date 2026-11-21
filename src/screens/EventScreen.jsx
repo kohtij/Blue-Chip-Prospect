@@ -333,13 +333,17 @@ export default function EventScreen() {
 
                     {(displayChoice.perks?.length > 0 || displayChoice.flaws?.length > 0) && (
                       <div className="flex flex-col gap-1.5 mb-5 z-10 relative">
-                         {displayChoice.perks?.map((p, pIdx) => (
-                           <PerkChip key={`perk-${pIdx}`} perk={p} />
-                         ))}
-                         {displayChoice.flaws?.map((f, fIdx) => (
-                           <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />
-                         ))}
-                      </div>
+                             {displayChoice.perks?.length > 0 && (
+                               <div className="rounded-lg bg-[#22E748]/[0.07] px-2.5 py-1">
+                                 {displayChoice.perks.map((p, pIdx) => <PerkChip key={`perk-${pIdx}`} perk={p} />)}
+                               </div>
+                             )}
+                             {displayChoice.flaws?.length > 0 && (
+                               <div className="rounded-lg bg-[#ef4444]/[0.08] px-2.5 py-1">
+                                 {displayChoice.flaws.map((f, fIdx) => <PerkChip key={`flaw-${fIdx}`} perk={f} isFlaw />)}
+                               </div>
+                             )}
+                          </div>
                     )}
 
                     <div className="mt-auto flex flex-col gap-2 z-10 relative">

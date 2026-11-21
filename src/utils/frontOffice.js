@@ -1,6 +1,7 @@
 import { nhlTeams } from '../data/teams';
 import { teamStrengthOf } from './leagueState';
 import { gaussianNoise } from './production';
+import { staffName } from './staffNames';
 
 // THE FRONT OFFICES.
 //
@@ -17,10 +18,16 @@ import { gaussianNoise } from './production';
 // ones the club drafts, and a general manager keeps his habits until the owner
 // replaces him.
 
-// Made up, and checked against the men who have actually run NHL clubs, so
-// no club is handed a real general manager by accident.
-const GM_FIRST = ['Bill', 'Steve', 'Doug', 'Ken', 'Jim', 'Chuck', 'Brad', 'Ray', 'Don', 'Pierre', 'Lars', 'Kyle', 'Ron', 'Brian', 'Gord', 'Neil', 'Cliff', 'Jacques', 'Mats', 'Tom', 'Jeff', 'Frank', 'Ed', 'Rob'];
-const GM_LAST = ['Armitage', 'Caldwell', 'Hartigan', 'Kilbride', 'Mackey', 'Nordqvist', 'Oberg', 'Whitmore', 'Ashby', 'Cormier', 'Delorme', 'Fairbairn', 'Gillick', 'Haldane', 'Kinsella', 'Lundgren', 'Marchetti', 'Pellow', 'Rourke', 'Stenlund', 'Tallis', 'Vandermeer', 'Wexford', 'Brannock'];
+// Made up, and from one country at a time: mostly Canadians and Americans,
+// now and then a Swede, a Finn or a Czech, the way NHL front offices are.
+// See utils/staffNames.js.
+const GM_NATIONS = { CAN: 64, USA: 26, SWE: 4, FIN: 3, CZE: 3 };
+const weightedNat = () => {
+  const total = Object.values(GM_NATIONS).reduce((n, w) => n + w, 0);
+  let r = Math.random() * total;
+  for (const [k, w] of Object.entries(GM_NATIONS)) { r -= w; if (r <= 0) return k; }
+  return 'CAN';
+};
 
 const pickOf = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -47,14 +54,11 @@ const NATIONS = ['CAN', 'USA', 'SWE', 'FIN', 'RUS', 'CZE'];
  * player a few spots up a list, it doesn't put a third-rounder in the top ten.
  */
 export function makeGM({ year = 2026, avoid = [] } = {}) {
-  let name = '';
-  for (let tries = 0; tries < 12; tries++) {
-    name = `${pickOf(GM_FIRST)} ${pickOf(GM_LAST)}`;
-    if (!avoid.includes(name)) break;
-  }
+  const { name, nat } = staffName(weightedNat(), avoid);
   const r = () => Math.random();
   return {
     name,
+    nat,
     since: year,
     // A position he can't get enough of.
     likes: r() < 0.55 ? pickOf(LEANS) : null,
@@ -62,7 +66,8 @@ export function makeGM({ year = 2026, avoid = [] } = {}) {
     // few won't take one before the third round under any circumstances.
     goalies: r() < 0.16 ? 'early' : r() < 0.2 ? 'late' : 'normal',
     // A country his scouting staff knows better than anybody's.
-    nation: r() < 0.3 ? pickOf(NATIONS) : null,
+    // A European in the job usually knows his own country best.
+    nation: (nat !== 'CAN' && nat !== 'USA' && r() < 0.6) ? nat : r() < 0.3 ? pickOf(NATIONS) : null,
     // A development path he trusts.
     route: r() < 0.4 ? pickOf(['CHL', 'NCAA', 'EUR']) : null,
     // Ceiling or floor.

@@ -109,6 +109,9 @@ function App() {
   }, [unlockedAchievements, unlockAchievement]);
 
   const [isShopOpen, setIsShopOpen] = useState(false);
+  // On a phone the player card sits collapsed above the game: who you are and
+  // your attributes, with the rest a tap away. Desktop always shows it all.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [negotiation, setNegotiation] = useState(null);
   const [activeTrainings, setActiveTrainings] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
@@ -967,6 +970,8 @@ function App() {
   // just had and not on the one before it.
   const checkEarlyDemotion = (who = player) => {
     const player = who;
+    // Holding out, so he isn't at camp to be cut from it.
+    if (player.holdout) return null;
     const isUnder20 = player.age < 20;
     const isTop10Pick = seasonRecap?.draftPick <= 10;
     
@@ -1436,6 +1441,42 @@ function App() {
     if (signNow) signContract(updatedOffer);
     else { setFreeAgencyOffers(prev => prev.map(o => (o.team === updatedOffer.team && o.type === updatedOffer.type) ? updatedOffer : o)); setScreen('transfer'); }
   };
+
+  // AN RFA HOLDING OUT.
+  //
+  // He turns down his own club's last offer and signs nothing. The club still
+  // holds his rights, so he can't play anywhere else: he skips camp, trains on
+  // his own, and waits for the GM to call back (see holdoutCall in
+  // handleTrain). Not signed by December 1 and the season is gone.
+  //
+  // The contract on file stays his old one, for one more "year", paid at
+  // nothing. The salary has to stay on it: next summer's qualifying offer is
+  // worked out from it. Signing replaces the whole thing.
+  const startHoldout = () => {
+    const n = negotiation;
+    const o = n?.originalOffer;
+    if (!o) return;
+    const lg = o.league || 'NHL';
+    const p = player;
+    const held = {
+      ...p,
+      team: o.team, league: lg,
+      contract: { salary: p.contract?.salary || 0, years: 1, role: 'Holdout', nhl: true, holdout: true, splitYear: { paid: 0, share: 0 } },
+      holdout: {
+        team: o.team, league: lg, calls: 0,
+        last: { salary: n.currentSalary, years: n.currentYears, role: o.role, ntc: !!n.ntc && !n.nmc, nmc: !!n.nmc }
+      },
+      fanStatus: fanGain(p.fanStatus || 0, -10),
+      relationships: {
+        ...(p.relationships || {}),
+        coach: Math.max(0, (p.relationships?.coach ?? 50) - 10),
+        media: Math.max(0, (p.relationships?.media ?? 50) - 5)
+      }
+    };
+    setPlayer(held);
+    setPlayoffs({ bracket: [], activeRoundIndex: 0, overallStatus: 'playing' });
+    advanceToOffseason(held);
+  };
   
   const buyItem = (item) => {
     if (item.type === 'staff') unlockAchievement('staff_hired');
@@ -1651,7 +1692,7 @@ function App() {
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
     checkEarlyDemotion, combineColor, combinePhase, combineScore, currentYear,
-    eventFeedback, finishNegotiation, freeAgencyOffers, handleArbitration,
+    eventFeedback, finishNegotiation, startHoldout, freeAgencyOffers, handleArbitration,
     handleCombineReflex, handleDraftChoice, handleDraftDay, handleEndMemCup,
     handleEndPress, handleEventChoice, handleGridClick, handleInteractiveResult,
     handleMinigameChoice, handleNewGame, handlePressAnswer,
@@ -1719,7 +1760,7 @@ function App() {
           index.css: a strip across the top and a faint wash under it, so a
           season with one club looks like that club, and a trade or a call-up
           changes the room you're standing in. */}
-      <div className={`w-full mx-auto pb-10 flex-1 ${screen !== 'creation' && screen !== 'retirement' ? 'max-w-7xl flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch' : 'max-w-5xl'}`}
+      <div className={`w-full mx-auto pb-10 flex-1 ${screen !== 'creation' && screen !== 'retirement' ? 'max-w-7xl flex flex-col lg:flex-row gap-2 lg:gap-6 items-stretch' : 'max-w-5xl'}`}
            style={player?.team ? { '--club': teamAccent(getTeamData(player.team, player.league)) } : undefined}>
         {screen !== 'creation' && screen !== 'retirement' && (
           <aside aria-label="Your player" className="w-full lg:w-[440px] shrink-0 z-40 flex flex-col lg:sticky lg:top-6 lg:self-start">
@@ -1732,11 +1773,13 @@ function App() {
               onRetire={() => setScreen('retirement')}
               setActiveEvent={setActiveEvent}
               setScreen={setScreen}
+              compact={!sheetOpen}
+              onToggleCompact={() => setSheetOpen(o => !o)}
             />
           </aside>
         )}
 
-        <main id="main" ref={mainRef} tabIndex={-1} className="w-full flex-1 min-w-0 flex flex-col gap-4 mt-2 lg:mt-0 outline-none">
+        <main id="main" ref={mainRef} tabIndex={-1} className="w-full flex-1 min-w-0 flex flex-col gap-4 mt-0 outline-none">
           {/* Every screen titles itself with a second-level heading, so the
               page needs one first-level heading above them all. */}
           {screen !== 'creation' && screen !== 'retirement' && <h1 className="sr-only">Blue Chip Prospect</h1>}

@@ -262,7 +262,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
            role: actingLeague !== 'NHL' ? 'Pro Roster' : ((player.league === 'AHL' || player.ovr < (player.pos === 'G' ? 75 : 68)) ? 'Two-Way Deal (AHL Start)' : getRole(baseSalary, { ...player, league: 'NHL' })),
            fanHit: 10,
            state: ccState,
-           standing: currentClubStanding
+           standing: currentClubStanding,
+           // His own club, and they hold his rights: he can refuse and hold out.
+           ...(isRFA ? { rfaHoldout: true } : {})
          });
 
          // 2. Inject the bare-minimum Qualifying Offer (Legal requirement for RFAs)
@@ -307,19 +309,9 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
              });
          }
 
-         // NEW: RFA HOLDOUT OPTION
-         if (isRFA) {
-             offers.push({
-               team: actingTeam,
-               league: actingLeague,
-               type: 'HOLDOUT',
-               salary: Math.round((baseSalary * 1.30) / 25000) * 25000, // Demanding 30% above market
-               years: maxYears,
-               role: 'Holdout', // This string acts as our flag for training camp
-               fanHit: -30,
-               state: 'Skip Camp'
-             });
-         }
+         // Holding out isn't an offer the club makes. It's what he does when
+         // he won't sign theirs, from the negotiation on the extension. See
+         // startHoldout in App.
       }
     }
 
@@ -529,15 +521,10 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       // Inject NMC / Trade Protection directly into the perk arrays
       if (o.nmc && !oWithPerks.perks?.some(p => p.name?.includes('No-Move'))) {
          oWithPerks.perks = [{ name: '🔒 No-Movement Clause', effect: 'Full Control', ovr: 0, fanStatus: 15, money: 0, color: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' }, ...(oWithPerks.perks || [])];
-      } else if (o.league === 'NHL' && !o.nmc && o.type !== 'QUALIFYING OFFER' && o.type !== 'HOLDOUT' && o.type !== 'OFFER SHEET') {
-         oWithPerks.flaws = [{ name: '⚠️ No Trade Protection', effect: 'Can be moved', ovr: 0, fanStatus: 0, money: 0 }, ...(oWithPerks.flaws || [])];
+      } else if (o.league === 'NHL' && !o.nmc && o.type !== 'QUALIFYING OFFER' && o.type !== 'OFFER SHEET') {
+         oWithPerks.flaws = [{ name: 'No trade protection', effect: 'Can be traded', ovr: 0, fanStatus: 0, money: 0 }, ...(oWithPerks.flaws || [])];
       }
 
-      if (o.type === 'HOLDOUT') {
-         oWithPerks.flaws = [{ name: '🛑 Contract Stalemate', effect: 'Missing Camp', ovr: -1, fanStatus: -30, money: 0 }];
-         oWithPerks.perks = [{ name: '💰 Bet on Yourself', effect: 'Huge Payday', ovr: 0, fanStatus: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }];
-      }
-      
       return oWithPerks;
     }));
     

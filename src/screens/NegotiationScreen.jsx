@@ -22,6 +22,9 @@ import { bonusCeiling, SB_SHARE, veteranBonuses } from '../utils/bonuses';
 // are only allowed on a one-year deal at thirty-five or older.
 
 const round25k = (n) => Math.round(n / 25000) * 25000;
+// How much a money ask moves the number. Never the same twice: a GM doesn't
+// add an exact percentage, he gives what he decides to give in the moment.
+const between = (lo, hi) => lo + Math.random() * (hi - lo);
 
 // Two decimals in the millions, because a negotiation moves in steps of a
 // hundred thousand and $3.1M against $3.1M hides the difference.
@@ -71,16 +74,16 @@ function rollMove(type, { hasAgent, base, currentSalary, currentYears, ntcOdds, 
 
   if (type === 'safe') {
     damage = (Math.floor(Math.random() * 10) + 5) * dmgMult;
-    dSalary = round25k(base * 0.03);
+    dSalary = Math.max(25000, round25k(base * between(0.02, 0.045)));
     label = 'Asked for a bit more'; reply = say('safe'); trustHit = 2;
   } else if (type === 'hardball') {
     damage = (Math.floor(Math.random() * 25) + 15) * dmgMult;
-    dSalary = round25k(base * 0.08);
+    dSalary = Math.max(50000, round25k(base * between(0.055, 0.105)));
     label = 'Pushed hard'; reply = say('hardball'); trustHit = -15;
   } else if (type === 'bluff') {
     ok = Math.random() < (0.40 + succBoost);
     damage = (ok ? 5 : 45) * dmgMult;
-    dSalary = ok ? round25k(base * 0.15) : 0;
+    dSalary = ok ? Math.max(75000, round25k(base * between(0.11, 0.19))) : 0;
     label = 'Bluffed another offer'; reply = say(ok ? 'bluff_ok' : 'bluff_no'); trustHit = ok ? -10 : -25;
   } else if (type === 'term_up') {
     ok = Math.random() < (0.50 + succBoost) && currentYears < 8;
@@ -166,7 +169,7 @@ const Line = ({ label, children, tone = 'text-white' }) => (
 );
 
 export default function NegotiationScreen() {
-  const { finishNegotiation, negotiation, setNegotiation, player, setPlayer } = useAppContext();
+  const { finishNegotiation, startHoldout, negotiation, setNegotiation, player, setPlayer } = useAppContext();
   const hasAgent = (player.inventory || []).includes('agent');
   const n = negotiation;
   const offer = n.originalOffer;
@@ -176,6 +179,9 @@ export default function NegotiationScreen() {
   const accentText = readableAccent(accent);
 
   const live = n.status === 'playing';
+  // A restricted free agent talking to the club that holds his rights can
+  // refuse to sign anything and wait for a better offer. See startHoldout.
+  const canHoldOut = !!offer.rfaHoldout && !!startHoldout;
   const ntc = !!n.ntc;
   const nmc = !!n.nmc;
 
@@ -289,7 +295,7 @@ export default function NegotiationScreen() {
               {getFullTeamName(offer.team, lg)}
             </h2>
             <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: accentText }}>
-              {[lg, teamData?.div, offer.role].filter(Boolean).join(' · ')}
+              {[lg, teamData?.div].filter(Boolean).join(' · ')}
             </p>
           </div>
         </div>
@@ -305,6 +311,9 @@ export default function NegotiationScreen() {
         </div>
 
         <div className="relative mt-4 border-t border-[rgba(255,255,255,0.07)] pt-3 flex flex-col gap-1.5 text-[11px] sm:text-xs font-sans">
+          {/* The role he'd have is part of the deal, so it's listed with the
+              terms, not beside the club's league and division. */}
+          {offer.role && <Line label="Role">{offer.role}</Line>}
           <Line label="Total value">{money(total)}</Line>
           {salaryDelta !== 0 && (
             <Line label="On his first offer" tone={salaryDelta > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
@@ -379,18 +388,18 @@ export default function NegotiationScreen() {
         </button>
         {live ? (
           <>
-            {/* Money asks always move the number, so the line under them is
-                what you would get. Everything else might be refused, so the
-                line is how likely he is to agree. What each one costs you in
-                goodwill or salary is in the tooltip. */}
+            {/* Money asks always move the number, but by how much is his
+                call, so the line under them says what the ask risks.
+                Everything else might be refused, so the line is how likely he
+                is to agree. What each one costs in goodwill is in the tooltip. */}
             <Group title="Money">
-              <Move onPick={push} live={live} type="safe" title="A bit more" hint={`+${money(round25k(offer.salary * 0.03))}`} tone="#22E748"
-                    explain="About 3% more a year. He rarely minds." />
-              <Move onPick={push} live={live} type="hardball" title="Push hard" hint={`+${money(round25k(offer.salary * 0.08))}`} tone="#F59E0B"
-                    explain="About 8% more. He gives it, but it costs a lot of his patience." />
+              <Move onPick={push} live={live} type="safe" title="A bit more" hint="He rarely minds" tone="#22E748"
+                    explain="A little more a year. Most GMs will give you this much without a fight." />
+              <Move onPick={push} live={live} type="hardball" title="Push hard" hint="Tests his patience" tone="#F59E0B"
+                    explain="A real bump. He gives some of it, but it costs a lot of his patience." />
               <Move onPick={push} live={live} type="bluff" title="Bluff" danger wide
-                    hint={`+${money(round25k(offer.salary * 0.15))} · ${oddsOf(0.40 + (hasAgent ? 0.25 : 0)).word}`} tone="#f87171"
-                    explain="Tell him you have another offer. About 15% more if he believes you. If he doesn't, he nearly walks." />
+                    hint={`${oddsOf(0.40 + (hasAgent ? 0.25 : 0)).word}, he might walk`} tone="#f87171"
+                    explain="Tell him you have another offer. A big jump if he believes you. If he doesn't, he nearly walks." />
             </Group>
             <Group title="Term">
               <Move onPick={push} live={live} type="term_up" title="+1 year"
@@ -440,6 +449,16 @@ export default function NegotiationScreen() {
           <button onClick={() => finishNegotiation(false)} className="btn-secondary w-full py-3.5 rounded-xl font-black sports-font text-sm uppercase tracking-widest cursor-pointer">
             Back to offers
           </button>
+          {canHoldOut && (
+            <>
+              <button onClick={startHoldout} className="w-full py-3.5 rounded-xl font-black sports-font text-sm uppercase tracking-widest cursor-pointer border border-[#ef4444]/40 text-[#f87171] bg-[#ef4444]/5 hover:bg-[#ef4444]/10 transition-colors">
+                Hold out for a better offer
+              </button>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                You skip camp and wait for the GM to call back. They hold your rights, so you can't play anywhere else, and if you haven't signed by December 1 you miss the whole season.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

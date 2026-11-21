@@ -3,7 +3,7 @@ import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { priceOf, recentForm, majorCount } from '../utils/contracts';
-import { getOpponentPool, isAmateurLeague, LEAGUE_CONFIG } from '../data/teams';
+import { getOpponentPool, inIihfEvents, isAmateurLeague, LEAGUE_CONFIG } from '../data/teams';
 import { rollInjury, injuryLine, injuryEvent } from '../utils/injuries';
 import { coachOpening, ensureClub, playerArchetype, recordSeason, roomFor, roomTrust } from '../utils/roster';
 import { teamStrengthOf } from '../utils/leagueState';
@@ -163,6 +163,82 @@ export function midSeasonLetter(player, seg) {
   };
 }
 
+// --- THE HOLDOUT --------------------------------------------------------
+//
+// An RFA who wouldn't sign his club's offer in the summer (see startHoldout in
+// App). They hold his rights, so he sits at home while the season starts, and
+// the GM calls back twice: a couple of weeks in, and in the last days of
+// November, because under the CBA an RFA who hasn't signed by December 1 can't
+// play in the NHL that season. Clubs rarely move much on a holdout, so the
+// number goes up a little, if at all.
+const round25k = (n) => Math.round(n / 25000) * 25000;
+export function holdoutCall(player) {
+  const ho = player.holdout;
+  if (!ho) return null;
+  const final = (ho.calls || 0) >= 1;
+  const schedule = LEAGUE_CONFIG?.[ho.league || 'NHL']?.games || 82;
+  const missed = Math.round(schedule * (final ? 0.29 : 0.08));
+  const last = ho.last || { salary: 900000, years: 1 };
+  const improved = Math.random() < (final ? 0.4 : 0.55);
+  const salary = improved
+    ? Math.max(last.salary + 25000, round25k(last.salary * (1 + (final ? 0.005 + Math.random() * 0.015 : 0.01 + Math.random() * 0.025))))
+    : last.salary;
+  const offer = { ...last, salary };
+  const years = offer.years || 1;
+  // To the dollar, because a raise of twenty-five thousand rounds away in
+  // millions and "he found a little more money" sat beside the same figure.
+  const terms = `${years}-year deal at $${salary.toLocaleString('en-US')} a year`;
+  const club = getFullTeamName(ho.team || player.team, ho.league || 'NHL');
+  const sign = {
+    label: final ? 'Sign before the deadline' : 'Sign it',
+    subLabel: `A ${terms}. You'd be in the lineup for game ${missed + 1}.`,
+    isRisky: false,
+    feedback: final
+      ? `You signed with days to spare and skated with the team the next morning. ${missed} games in, the room is just glad to have you back.`
+      : 'You signed that afternoon and were on the ice for practice the next morning. Your legs felt every minute of it.',
+    effect: { fanStatus: final ? 0 : 5, ovr: 0, rel: { coach: 5, teammates: final ? -5 : 0 } },
+    action: 'HOLDOUT_SIGN',
+    actionData: { salary, years, role: offer.role, ntc: !!offer.ntc, nmc: !!offer.nmc, missed, share: Math.max(0, 1 - missed / schedule) }
+  };
+  if (!final) {
+    return {
+      title: '📞 THE GM CALLS',
+      desc: `The ${club} are two weeks into the season and you've missed ${missed} games. This morning the GM called your agent. He's offering a ${terms}. ${improved ? 'It\'s a little more than he offered in the summer.' : 'It\'s the same deal he offered in the summer, to the dollar.'}`,
+      choices: [
+        sign,
+        {
+          label: 'Keep holding out',
+          subLabel: 'Wait for a better number. Not signed by December 1 and you miss the season.',
+          isRisky: false,
+          feedback: 'You told your agent to keep saying no. October turned into November, and you watched the games from your couch.',
+          effect: { fanStatus: -10, ovr: 0, rel: { coach: -5, teammates: -5 } },
+          action: 'HOLDOUT_WAIT',
+          actionData: { last: offer }
+        }
+      ],
+      madePlayoffs: false,
+      isMidSeasonEvent: true
+    };
+  }
+  return {
+    title: '🗓️ THE DECEMBER 1 DEADLINE',
+    desc: `It's the last week of November and you've missed ${missed} games. An RFA who hasn't signed by December 1 can't play in the NHL this season, and the GM knows it as well as you do. He's called with what he says is his final offer: a ${terms}. ${improved ? 'He found a little more money.' : 'He hasn\'t moved a dollar.'}`,
+    choices: [
+      sign,
+      {
+        label: 'Sit out the season',
+        subLabel: 'Don\'t sign. You won\'t play this year, and the club still holds your rights next summer.',
+        isRisky: false,
+        feedback: `December 1 came and went. You won't play this season, and next summer you'll be back at the same table with the ${club}.`,
+        effect: { fanStatus: -40, ovr: -1, rel: { coach: -20, teammates: -15, media: -10 } },
+        action: 'HOLDOUT_SITOUT'
+      }
+    ],
+    madePlayoffs: false,
+    isMidSeasonEvent: true
+  };
+}
+
 export function handleTrain(ctx, t) {
   const {
     player, setHasDemandedTrade, setPendingSeasonResult,
@@ -182,6 +258,8 @@ export function handleTrain(ctx, t) {
   let gamesMissed = 0;
   if (player.storylines?.injury === 1) gamesMissed += 60; // the season-ending one keeps its own script
   if (player.storylines?.suspended) gamesMissed += 5;
+  // The games a holdout missed before he signed.
+  if (player.holdoutMissed) gamesMissed += player.holdoutMissed;
 
   // Last year's injury, if it was the sort that lingers.
   const lingering = player.storylines?.lingering || null;
@@ -229,6 +307,16 @@ export function handleTrain(ctx, t) {
     }));
   }
   const withRoom = club ? { ...player, rooms: club.rooms, coaches: club.coaches } : player;
+
+  // Holding out. Nothing is played until he signs or the deadline passes.
+  if (player.holdout && !player.season) {
+    const call = holdoutCall(player);
+    if (call) {
+      ctx.setActiveEvent(call);
+      ctx.setScreen('event');
+      return;
+    }
+  }
 
   // --- THE NINE-GAME TRIAL -----------------------------------------------
   // An eighteen or nineteen year old on an entry-level deal gets nine NHL games
@@ -526,7 +614,7 @@ export function handleTrain(ctx, t) {
     // Late December. An under-20 is released for the World Juniors, unless he is
     // a full-time NHL player, because NHL clubs do not let those go.
     const seg = playNext(0.40);
-    if (seg && player.age <= 19 && seg.league !== 'NHL' && Math.random() > 0.4) {
+    if (seg && player.age <= 19 && seg.league !== 'NHL' && inIihfEvents(player.nat) && Math.random() > 0.4) {
       goToTournament(stints, 1, 'wjc', true, false);
       return;
     }
@@ -675,7 +763,7 @@ export function handleTrain(ctx, t) {
 
       if (isOlympicYear) {
         const isTopDiv = resolveNatDivision(player, ctx.safeNationalities) === 'Top Division';
-        const goes = player.age > 19 && player.ovr >= 78 && (isTopDiv ? Math.random() > 0.35 : Math.random() > 0.75);
+        const goes = inIihfEvents(player.nat) && player.age > 19 && player.ovr >= 78 && (isTopDiv ? Math.random() > 0.35 : Math.random() > 0.75);
         if (goes) { goToTournament(stints, 2, 'olympics', false, true); return; }
       } else if (madeAllStarGame(player, seg)) {
         // Mark the selection so the end-of-season awards can tell a player who
@@ -877,7 +965,10 @@ export function handleTrain(ctx, t) {
       // got hurt. The season object knew and the history never recorded it, so
       // a career looked back on a thirteen-game year with no explanation in
       // it. Next season's Masterton reads this.
-      injuryEnded: !!season?.over || !!player.storylines?.injury,
+      injuryEnded: (!!season?.over && !season?.satOut) || !!player.storylines?.injury,
+      // An RFA holdout: the games he missed before signing, or the whole year
+      // when he never did.
+      ...(season?.satOut ? { heldOut: 'season' } : player.holdoutMissed ? { heldOut: player.holdoutMissed } : {}),
       // A tournament played inside the season finishes months before this entry
       // exists: the World Juniors in December, the Olympics in February. The run
       // parks its line on the player and the season picks it up here. It used to
@@ -967,6 +1058,8 @@ export function handleTrain(ctx, t) {
       }
   }
 
+  if (season?.satOut) recap.holdout = `You held out all season. December 1 passed without a deal, so you didn't play, and the ${getFullTeamName(player.team, player.league)} still hold your rights.`;
+  else if (player.holdoutMissed) recap.holdout = `You held out into the season and signed after missing ${player.holdoutMissed} games.`;
   if (thisYearInjury) recap.injury = injuryLine(thisYearInjury);
   else if (lingering) recap.injury = `The ${lingering.label} from last season was still bothering you in October, and it cost you the start of this one.`;
 
@@ -974,7 +1067,7 @@ export function handleTrain(ctx, t) {
   setPlayer({
     ...updatedPlayer,
     // pendingIntl has been written into the season above, so it is spent too.
-    trial: null, debut: null, season: null, pendingIntl: null,
+    trial: null, debut: null, season: null, pendingIntl: null, holdoutMissed: null,
     storylines: { ...(updatedPlayer.storylines || {}), allStarSelected: false }
   });
   setStatChanges(statChanges);

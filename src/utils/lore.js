@@ -17,6 +17,7 @@
 // picked from his name, so the same man always has the same story.
 
 import { COACH_SYSTEMS } from './roster';
+import { HOME_LEAGUE } from './staffNames';
 
 const hashOf = (s) => {
   let h = 2166136261;
@@ -36,6 +37,22 @@ const COACH_PAST = [
   () => 'He was fired by another club two years ago and spent the time since as a TV analyst. He says he learned more in the studio than he did behind the bench.',
   (s) => `He was a backup goalie for ${7 + (s % 5)} seasons, which he says taught him more about reading a game than playing ever did.`,
   () => 'He won a junior title with a team nobody picked to make the playoffs, and has been climbing ever since.'
+];
+
+// A coach from a European country, told with his own league in it. The
+// lines above are a North American career: the AHL, the NHL, a TV studio.
+const COACH_PAST_EURO = [
+  (s, lg) => `He played ${9 + (s % 8)} seasons in ${lg}, most of them as a defensive centre, and went straight behind the bench when he stopped.`,
+  (s, lg) => `He spent ${8 + (s % 6)} years in ${lg} as a defenceman nobody liked playing against, and he coaches the same way.`,
+  (s) => `He coached his country's under-18 and under-20 sides for ${4 + (s % 5)} years before a club gave him a bench of his own.`,
+  () => 'He never played at the top level. He started with the club\'s youth teams and worked his way up through every age group.',
+  (s, lg) => `He won ${lg} as an assistant ${2 + (s % 6)} years ago and has been waiting for a head job since.`,
+  (s, lg) => `He played ${5 + (s % 5)} seasons in ${lg} and a few more in North America, and he talks about the smaller rink more than anyone would like.`
+];
+const COACH_PAST_ABROAD = [
+  () => 'He came over from Canada after a career in the minors and has coached in Europe for more than a decade.',
+  (s) => `He played ${6 + (s % 6)} seasons in the AHL, came to Europe for one year at the end of it, and never went home.`,
+  () => 'He coached in the American League for years before taking a job over here, and he runs practice like it\'s still the AHL.'
 ];
 
 const SYSTEM_LINE = {
@@ -65,7 +82,15 @@ export function coachBackground(coach, archetype) {
   const fitLine = fits ? `Your game is the kind he wants.`
     : clashes ? `A ${archetype.toLowerCase()} isn't the kind of player he usually trusts, and you'll have to change his mind.`
       : `Where you fit in his lineup is still an open question.`;
-  return `${pickBy(s, COACH_PAST)(s)} ${SYSTEM_LINE[coach.system] || SYSTEM_LINE.balanced} ${reputation(coach.quality ?? 50)} ${fitLine}`;
+  const homeLg = HOME_LEAGUE[coach.nat];
+  const northAmerican = !coach.nat || coach.nat === 'CAN' || coach.nat === 'USA';
+  // A North American behind a European bench is an import, and his story is
+  // that one. Which league the club is in rides on the coach as hired.
+  const abroad = northAmerican && coach.euroBench;
+  const past = homeLg ? pickBy(s, COACH_PAST_EURO)(s, homeLg)
+    : abroad ? pickBy(s, COACH_PAST_ABROAD)(s)
+      : pickBy(s, COACH_PAST)(s);
+  return `${past} ${SYSTEM_LINE[coach.system] || SYSTEM_LINE.balanced} ${reputation(coach.quality ?? 50)} ${fitLine}`;
 }
 
 export function coachIntro(coach, { clubName, archetype }) {

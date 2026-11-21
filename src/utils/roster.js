@@ -1,3 +1,4 @@
+import { staffFor } from './staffNames';
 import { gaussianNoise } from './production';
 import { juniorLeagues } from '../data/teams';
 
@@ -421,11 +422,8 @@ export const closest = (rooms) => {
 // office under pressure, and the first thing a front office under pressure
 // does is fire the coach, not trade the star.
 
-// Invented surnames on purpose. The first list borrowed real NHL coaches'
-// surnames, which put a "Dave Berube" behind a fictional bench, and it was small
-// enough that a club could fire a man and hire his namesake.
-const COACH_FIRST = ['Mike', 'Dave', 'Rick', 'Craig', 'Paul', 'Gerard', 'Peter', 'Bruce', 'Jon', 'Andre', 'Martin', 'Travis', 'Dean', 'Glen', 'Barry', 'Kevin', 'Todd', 'Randy', 'Marc', 'Scott', 'Darryl', 'Wayne', 'Ron', 'Guy'];
-const COACH_LAST = ['Halloran', 'Desrosiers', 'Kowalchuk', 'Pellerin', 'Brannigan', 'Ostrander', 'Lavigne', 'McTavish', 'Strand', 'Danforth', 'Gendron', 'Holtzman', 'Rowntree', 'Beaudette', 'Sorensen', 'Wexler', 'Corrigan', 'Lachance', 'Pruitt', 'Harwood', 'Thibault', 'Kerrigan', 'Voss', 'Mulcahy'];
+// Invented names, and from the country the club hires from: a Liiga bench
+// gets a Finn, a DEL bench as often as not a Canadian. See utils/staffNames.js.
 
 /**
  * A system, and who it suits.
@@ -442,14 +440,16 @@ export const COACH_SYSTEMS = {
   balanced:  { label: 'Balanced',  likes: [], dislikes: [] }
 };
 
-export function makeCoach({ strength = 0.5, avoid = [] } = {}) {
+const EURO_BENCH = ['SHL', 'J20', 'LIIGA', 'U20', 'KHL', 'CZECH', 'SLOVAK', 'SWISS', 'DEL', 'ICEHL'];
+export function makeCoach({ strength = 0.5, avoid = [], league = 'NHL' } = {}) {
   const sysKeys = Object.keys(COACH_SYSTEMS);
   // Never the man he is replacing, and never anybody already behind a bench.
-  const taken = new Set(avoid.filter(Boolean));
-  let name = `${pick(COACH_FIRST)} ${pick(COACH_LAST)}`;
-  for (let i = 0; i < 40 && taken.has(name); i++) name = `${pick(COACH_FIRST)} ${pick(COACH_LAST)}`;
+  const { name, nat } = staffFor(league, avoid);
   return {
     name,
+    nat,
+    // A European club's bench, so an imported coach is told as one.
+    euroBench: EURO_BENCH.includes(league),
     system: pick(sysKeys),
     // How long he has been there, which is what a club's patience runs against.
     years: 0,
@@ -523,7 +523,7 @@ export function ensureClub(player, { teamId, league = 'NHL', strength = 0.5, cla
     fresh = true;
   }
   if (!coaches[teamId]) {
-    coaches[teamId] = makeCoach({ strength, avoid: Object.values(coaches).map(x => x?.name) });
+    coaches[teamId] = makeCoach({ strength, league, avoid: Object.values(coaches).map(x => x?.name) });
     fresh = true;
   }
   return { rooms, coaches, fresh };
@@ -624,6 +624,7 @@ export function summerAtClubs(player, { strengthOf = () => 0.5, barrenYears = 0,
     else {
       coaches[id] = makeCoach({
         strength: strengthOf(id),
+        league: rooms[id]?.league || 'NHL',
         avoid: Object.values(coaches).map(x => x?.name)
       });
       // A coach who'd just won is never fired; if he's gone, he chose to go.

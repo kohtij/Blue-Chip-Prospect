@@ -179,13 +179,29 @@ export function moveEvent(move, p, seg, teamName) {
     };
   }
 
-  if (move.type === 'CLAIMED') {
+  // THE WAIVER WIRE. A player who isn't exempt can't simply be sent down:
+  // every other club gets a day to claim him first. That day is shown as it
+  // happens, and the answer only arrives at the 2:00 PM deadline. The move
+  // itself has already been decided, so whichever way he waits, the reply is
+  // the outcome.
+  if (move.type === 'CLAIMED' || move.why === 'WAIVERS') {
+    const claimed = move.type === 'CLAIMED';
+    const ahlName = claimed ? null : toName;
+    const reveal = claimed
+      ? `At 2:04 your agent called. ${toName.charAt(0).toUpperCase() + toName.slice(1)} put in a claim, and you're theirs now. You're on a flight tonight, and you'll meet your new teammates at the morning skate.`
+      : `2:00 came and went and the phone never rang. Nobody claimed you, so you report to ${ahlName} in the morning.`;
+    const wait = (label, subLabel, extra, effect) => ({
+      label, subLabel, isRisky: false,
+      feedback: `${reveal} ${extra}`.trim(),
+      effect: { fanStatus: claimed ? 5 : -5, ovr: 0, ...effect }
+    });
     return {
-      title: '⏳ CLAIMED OFF WAIVERS',
-      desc: `${FromName} put you on waivers to send you down, and ${toName} put in a claim before the deadline. You're on a flight tonight, and you'll meet your new teammates in the morning.`,
+      title: '⏳ THE WAIVER WIRE',
+      desc: `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. The GM called you in after practice. ${FromName} need the roster spot. You aren't waiver-exempt any more, so you went on the wire at noon yesterday. Every other club has until 2:00 PM today to put in a claim. If nobody does, you go down to the AHL. If somebody does, you go to them.`,
       choices: [
-        { label: 'Fresh start', subLabel: 'A club that wanted you badly enough to claim you.', isRisky: false,
-          feedback: 'You landed after midnight. There was a stall with your name on it by morning skate.', effect: { fanStatus: 5, ovr: 0, rel: { coach: 10 } } }
+        wait('Sit by the phone', 'Watch the clock run down to 2:00.', claimed ? '' : 'You put the phone down and started packing.', { rel: { coach: claimed ? 0 : 4 } }),
+        wait('Go skate it off', 'Get on the ice and let your agent take the call.', claimed ? 'You were still in your gear when you heard.' : 'You found out in the parking lot, still sweating.', { rel: { coach: claimed ? 0 : 6 } }),
+        wait('Pack a bag either way', 'You\'re going somewhere tomorrow. Be ready for both.', claimed ? 'At least the bag was already packed.' : 'The bag was packed, so you were on the road by dinner.', { rel: { coach: 2 } })
       ],
       isMidSeasonEvent: true,
       isRosterMove: true
@@ -193,9 +209,7 @@ export function moveEvent(move, p, seg, teamName) {
   }
 
   // Sent down.
-  const desc = move.why === 'EXEMPT'
-    ? `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. The GM called you in after practice. You're going down to ${toName} to play big minutes and find your game. You're waiver-exempt, so nobody else got the chance to claim you.`
-    : `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. You went on waivers yesterday. Nobody claimed you, so you report to ${toName} in the morning.`;
+  const desc = `It hasn't been working: ${statLine(p, seg)}, and fewer minutes every week. The GM called you in after practice. You're going down to ${toName} to play big minutes and find your game. You're waiver-exempt, so nobody else got the chance to claim you.`;
   return {
     title: '📉 SENT DOWN TO THE AHL',
     desc,

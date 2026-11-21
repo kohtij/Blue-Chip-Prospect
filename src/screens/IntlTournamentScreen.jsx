@@ -17,6 +17,7 @@ import {
   prepareRound, resolvePick, advanceRun, commitRun, sitsOut, resolveSat, groupTable
 } from '../utils/intlRun';
 import PlayCard from '../components/PlayCard';
+import { intlTweets } from '../data/intlTweets';
 
 const GAME_TYPE_TO_KEY = {
   breakaway: 'breakaway', faceoff: 'faceoff', deflect: 'deflection', shootout: 'shootout',
@@ -95,21 +96,25 @@ function Flag({ nation, className = 'w-5 h-3.5' }) {
 // anybody else, so a group stage was three games with no table to finish in.
 // Now it's the group as it stands, everybody's games included, in the order
 // the IIHF ranks it, with a line where going through stops.
+// The group table's places that go through, and the one that goes down, are
+// shaded rows, explained by a legend under the table. Your own row is a
+// deeper shade of whatever zone it's in, or blue when it's in none.
+const ZONE_ROW = { through: 'bg-[#22E748]/[0.07]', promo: 'bg-[#22E748]/[0.07]', bye: 'bg-[#22E748]/[0.07]', releg: 'bg-[#ef4444]/[0.08]' };
+const ZONE_ME = { through: 'bg-[#22E748]/[0.16]', promo: 'bg-[#22E748]/[0.16]', bye: 'bg-[#22E748]/[0.16]', releg: 'bg-[#ef4444]/[0.18]' };
+const ZONE_KEY = { through: 'bg-[#22E748]/40', promo: 'bg-[#22E748]/40', bye: 'bg-[#22E748]/40', releg: 'bg-[#ef4444]/45' };
 function GroupTable({ run, nations }) {
   const rows = groupTable(run);
   if (!rows.length) return null;
   const last = rows.length;
-  // Where the lines go: under the places that go through, and over the one
-  // that plays to stay up.
-  const cutAfter = run.isOlympics ? [1]
-    : run.isTopDiv ? [3]
-      : [1, last - 1];
-  const caption = run.isOlympics
-    ? 'Nobody goes out in the group. The winner skips the qualification playoff.'
-    : run.isTopDiv
-      ? 'The top three go through. Last place plays a relegation game.'
-      : 'The winner plays for promotion. Last place plays to stay up.';
   const cols = ['GP', 'W', 'OTW', 'OTL', 'L', 'GD', 'PTS'];
+  // Which rows are shaded: the places that go through (or skip ahead), and
+  // the one that plays to stay up.
+  const zoneOf = (i) => run.isOlympics ? (i === 0 ? 'bye' : null)
+    : run.isTopDiv ? (i < 3 ? 'through' : i === last - 1 ? 'releg' : null)
+      : (i === 0 ? 'promo' : i === last - 1 ? 'releg' : null);
+  const legend = run.isOlympics ? [['bye', 'Skips the qualification playoff (nobody goes out in the group)']]
+    : run.isTopDiv ? [['through', 'Through to the knockouts'], ['releg', 'Relegation game']]
+      : [['promo', 'Plays for promotion'], ['releg', 'Plays to stay up']];
   return (
     <div className="mt-4 mb-1">
       <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 px-1">Group Standings</p>
@@ -128,8 +133,7 @@ function GroupTable({ run, nations }) {
               const gd = r.gf - r.ga;
               const nation = (nations || []).find(n => n.id === r.id);
               return (
-                <tr key={r.id} className={`${me ? 'bg-[#3b82f6]/[0.12]' : ''} ${
-                  cutAfter.includes(i + 1) && i + 1 < last ? 'border-b border-dashed border-[rgba(255,255,255,0.18)]' : 'border-b border-[rgba(255,255,255,0.04)] last:border-0'}`}>
+                <tr key={r.id} className={`${me ? (ZONE_ME[zoneOf(i)] || 'bg-[#3b82f6]/[0.12]') : (ZONE_ROW[zoneOf(i)] || '')} border-b border-[rgba(255,255,255,0.04)] last:border-0`}>
                   <td className="py-2 pl-2 text-slate-500 number-font font-black">{i + 1}</td>
                   <td className="py-2 pr-1">
                     <span className="flex items-center gap-1.5 min-w-0">
@@ -147,7 +151,14 @@ function GroupTable({ run, nations }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] sm:text-[11px] text-slate-500 font-sans mt-1.5 px-1">{caption}</p>
+      {/* What the shading means. */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 px-1">
+        {legend.map(([z, label]) => (
+          <span key={z} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+            <span className={`w-2.5 h-2.5 rounded-sm ${ZONE_KEY[z]}`} />{label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -202,9 +213,14 @@ export default function IntlTournamentScreen() {
   const settle = useCallback((playId, rescued, rescueKind = null) => {
     const res = resolvePick(run, player, { playId, scoutedIds: board.scoutedIds, rescued, rescueKind });
     const advanced = advanceRun(res.nextRun, { survived: res.survived });
-    setOutcome({ ...res, advanced });
+    // What the reporters said about it, written once, when the game ends.
+    const tweets = intlTweets({
+      player, entry: res.entry, countryName,
+      tourney: run.tournamentName || 'tournament', totals: res.nextRun.stats
+    });
+    setOutcome({ ...res, advanced, tweets });
     setRun(res.nextRun);
-  }, [run, player, board]);
+  }, [run, player, board, countryName]);
 
   const handlePick = (play) => {
     if (lockRef.current || outcome) return;
@@ -588,6 +604,27 @@ export default function IntlTournamentScreen() {
                   )}
                 </div>
               </div>
+              {/* WHAT THEY'RE SAYING. The reporters' posts on the game, his
+                  night first. Left-aligned like a feed, because that's what
+                  it is. */}
+              {!outcome.sat && outcome.tweets?.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2 text-left">
+                  {outcome.tweets.map((t, i) => (
+                    <div key={i} className="flex gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#101410] p-3">
+                      <div className="w-8 h-8 shrink-0 rounded-full bg-[rgba(255,255,255,0.08)] flex items-center justify-center text-[11px] font-black text-slate-300 sports-font">
+                        {t.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs leading-tight">
+                          <span className="font-bold text-white">{t.name}</span>{' '}
+                          <span className="text-slate-500 break-all">{t.handle}</span>
+                        </p>
+                        <p className="text-xs sm:text-sm text-slate-300 font-sans mt-1 leading-snug break-words">{t.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <button onClick={handleContinue} className="btn-primary w-full py-3.5 rounded-xl mt-4 sports-font tracking-widest cursor-pointer">
                 {outcome.advanced.finish ? 'SEE HOW IT ENDED' : 'NEXT GAME'}
               </button>
@@ -702,35 +739,22 @@ export default function IntlTournamentScreen() {
             </>
           )}
 
-          {/* WHAT THEY HAVE SEEN */}
-          {run.usedPlays.length > 0 && !done && (
-            <div className="mt-4">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">On tape</p>
-              <div className="flex flex-wrap gap-1.5">
-                {run.usedPlays.map(id => {
-                  const p = book.find(x => x.id === id);
-                  return p ? (
-                    <span key={id} className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border border-[rgba(255,255,255,0.1)] bg-[#151b15] text-slate-400">
-                      {p.name}
-                    </span>
-                  ) : null;
-                })}
-              </div>
-            </div>
-          )}
         </>
       )}
 
           {/* THE ROAD */}
           {run.road.length > 0 && (
             <div className="mt-5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">The road</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">The road and what's on tape</p>
               <div className="flex flex-col gap-1">
                 {run.road.map((r, i) => (
                   <div key={`${r.key}-${i}`} className="flex items-center gap-2 bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-lg px-2.5 py-1.5">
                     <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 w-10 sm:w-14 shrink-0">{r.short}</span>
                     <Flag nation={r.opponent} className="w-4 h-3" />
                     <span className="text-[10px] sm:text-xs font-bold text-slate-300 break-words min-w-0">{r.opponent?.name || r.opponent?.id}</span>
+                    {(() => { const p = book.find(x => x.id === r.playId); return p ? (
+                      <span title="On tape: they'll look for this play next time" className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border border-[rgba(255,255,255,0.1)] bg-[#151b15] text-slate-400 whitespace-nowrap">{p.name}</span>
+                    ) : null; })()}
                     <span className={`ml-auto shrink-0 text-[9px] sm:text-[10px] font-black sports-font px-2 py-0.5 rounded border ${
                       r.won ? 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30' : 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30'
                     }`}>

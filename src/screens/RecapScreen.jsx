@@ -788,6 +788,11 @@ export default function RecapScreen() {
                 {/* WHAT THE YEAR COST HIM.
                     Above the draft class, because a season spent watching is
                     the first thing a player would tell you about it. */}
+                {seasonRecap?.holdout && (
+                  <RecapRow accent="#F59E0B" label="🛑 The holdout">
+                    {seasonRecap.holdout}
+                  </RecapRow>
+                )}
                 {seasonRecap?.injury && (
                   <RecapRow accent="#ef4444" label="🏥 The treatment room">
                     {seasonRecap.injury}

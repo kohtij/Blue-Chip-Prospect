@@ -211,15 +211,36 @@ export function handleEventChoice(ctx, choice) {
         updated.team = offTeamId;
         updated.league = choice.actionData?.lg || 'NHL';
         updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), offTeamId]));
-  } else if (actionStr === 'RESOLVE_HOLDOUT') {
-    const wonHoldout = choice.actionData?.success ? (outcomeEffect === choice.successEffect) : false;
-    if (wonHoldout) {
-        // The massive salary they demanded was already stored in contract.salary by generateOffers
-        updated.contract = { ...updated.contract, role: 'Core Player', nmc: true };
-    } else {
-        // Cave and take the QO (roughly 75% of their massive demand, 1 year, no protection)
-        updated.contract = { salary: Math.max(850000, Math.floor((updated.contract.salary * 0.75) / 25000) * 25000), years: 1, role: 'Two-Way Deal', nmc: false, nhl: true };
-    }
+  } else if (actionStr === 'HOLDOUT_TRAIN') {
+    // Training on his own while camp goes on without him.
+    const st = choice.actionData?.stats || {};
+    ['shooting', 'skating', 'physicality', 'hockeyIQ', 'stamina'].forEach(k => {
+      if (st[k]) updated[k] = Math.min(99, (updated[k] ?? 50) + st[k]);
+    });
+  } else if (actionStr === 'HOLDOUT_SIGN') {
+    // He signs, part of the way into the season. The deal counts this year as
+    // its first, it pays only for the share of the season that's left, and the
+    // games he's missed come off his year (see holdoutMissed in handleTrain).
+    const d = choice.actionData || {};
+    updated.contract = {
+      salary: d.salary, years: d.years, role: d.role, nhl: true,
+      ...(d.nmc ? { nmc: true } : d.ntc ? { ntc: true } : {}),
+      splitYear: { paid: 0, share: d.share ?? 1 }
+    };
+    updated.holdoutMissed = d.missed || 0;
+    updated.holdout = null;
+  } else if (actionStr === 'HOLDOUT_WAIT') {
+    // Still saying no. The GM calls again before the deadline.
+    updated.holdout = { ...(updated.holdout || {}), calls: (updated.holdout?.calls || 0) + 1, last: choice.actionData?.last || updated.holdout?.last };
+  } else if (actionStr === 'HOLDOUT_SITOUT') {
+    // December 1 passes with nothing signed, and an RFA can't play in the NHL
+    // for the rest of the year. The season is written off with no games in it,
+    // and next summer he's back at the table with the club that holds his
+    // rights. The contract on file is the old one, paid at nothing, and runs
+    // out with this season.
+    updated.holdout = null;
+    updated.holdoutMissed = null;
+    updated.season = { stints: [], training: {}, gamesMissed: 999, stage: 3, over: true, satOut: true };
  } else if (actionStr === 'RESOLVE_NINE_GAME') {
     // The club has made its call. If he is going back, move him to the junior club
     // that holds his rights. The contract year is then protected by the ELC slide

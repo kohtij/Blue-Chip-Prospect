@@ -1332,7 +1332,7 @@ export function advanceToOffseason(ctx) {
     }
   }
 
-  if (done < LETTER && !player.isCaptain && !player.isAlternate && !player.storylines?.alternateGiven) {
+  if (done < LETTER && !player.holdout && !player.isCaptain && !player.isAlternate && !player.storylines?.alternateGiven) {
     const hist = player.seasonHistory || [];
     const lastSeason = hist[hist.length - 1];
     const sameRoom = lastSeason?.team === player.team && (lastSeason?.games || 0) >= 30;
@@ -1398,7 +1398,7 @@ export function advanceToOffseason(ctx) {
   // THE PEOPLE AROUND HIM. Now and then, at camp, one of them gets a proper
   // introduction: the coach at a club he's just joined, or a notable new face
   // in a room he stayed in. One at most a summer. See utils/lore.js.
-  if (done < CAMP_DONE && !marks.lore) {
+  if (done < CAMP_DONE && !marks.lore && !player.holdout) {
     mark('lore');
     const team = currentTeam;
     const lg = player.league;
@@ -1492,7 +1492,7 @@ export function advanceToOffseason(ctx) {
       && orgOf(lastCampSeason.team) !== orgOf(currentTeam);
     const arrivedMidSeason = !!lastCampSeason && lastCampSeason.tradedTo === currentTeam;
     const isContractYear = (updatedContract?.years || 0) === 1 && player.ovr >= 76 && !isCurrentlyAmateur;
-    const isHoldingOut = updatedContract?.role === 'Holdout';
+    const isHoldingOut = !!player.holdout || (updatedContract?.role === 'Holdout' && !updatedContract?.holdout && (updatedContract?.years || 0) > 0);
 
     // A captain's first camp wearing the C is a milestone and always fires. After
     // that it is occasional: an eight-year captain should not get the identical
@@ -1501,30 +1501,46 @@ export function advanceToOffseason(ctx) {
     const isCaptainCamp = player.isCaptain && (firstCaptainCamp || Math.random() < 0.3);
 
     if (isHoldingOut) {
+        // An RFA who wouldn't sign his club's offer. They hold his rights, so
+        // he can't play anywhere else, and camp goes on without him. What he
+        // does with the time is the choice. The GM calls back once the season
+        // is under way (see holdoutCall in handleTrain).
+        //
+        // A save from before this existed may carry the old "Holdout" offer
+        // card's contract with no holdout on the player. It's turned into one.
+        if (!player.holdout) {
+            setPlayer(p => ({ ...p, holdout: { team: currentTeam, league: 'NHL', calls: 0,
+              last: { salary: Math.round(((updatedContract?.salary || 900000) * 0.8) / 25000) * 25000, years: Math.max(1, updatedContract?.years || 2), role: getRole(updatedContract?.salary || 900000, { ...p, league: 'NHL' }) } } }));
+        }
+        const club = getFullTeamName(currentTeam, 'NHL');
+        const train = (stats) => ({ action: 'HOLDOUT_TRAIN', actionData: { stats } });
         ctx.setActiveEvent({
-            title: '🛑 RFA HOLDOUT',
-            desc: `You refused to sign your Qualifying Offer and are holding out of training camp for a big extension ($${(updatedContract?.salary || 0).toLocaleString()}/yr). Every day you stay away, the front office gets angrier and the coverage gets worse.`,
+            title: '🛑 CAMP OPENS WITHOUT YOU',
+            desc: `Training camp opened this morning and your stall is empty. You're holding out for a better deal, and the ${club} still hold your rights, so you can't sign or play anywhere else. Nobody can stop you training, though. Your agent expects the GM to call again once the season's a couple of weeks old.`,
             choices: [
                 {
-                    label: 'Hold the line',
-                    subLabel: 'Refuse to report until they meet your exact asking price.',
-                    isRisky: true,
-                    successChance: 0.4,
-                    successFeedback: 'The GM caved. You got your extension and reported to camp as the highest-paid player on the roster.',
-                    successEffect: { fanStatus: 20, ovr: 0, rel: { coach: -10, media: 20 } },
-                    failFeedback: 'The GM refused to budge and publicly called you selfish. You were forced to sign the baseline 1-year Qualifying Offer just to play this year.',
-                    failEffect: { fanStatus: -40, ovr: -2, rel: { coach: -40, teammates: -20 } },
-                    action: 'RESOLVE_HOLDOUT',
-                    actionData: { success: true }
+                    label: 'Rent ice with a skills coach',
+                    subLabel: 'Skate every morning at a rink across town.',
+                    isRisky: false,
+                    feedback: 'You skated every morning with a skills coach at a rink across town. Your hands are sharp. Playing with nobody else on the ice is another thing.',
+                    effect: { fanStatus: -5, ovr: 0, rel: { coach: -5 } },
+                    ...train({ skating: 1, shooting: 1 })
                 },
                 {
-                    label: 'Cave and sign the QO',
-                    subLabel: 'End the holdout, apologize, and accept a 1-year Qualifying Offer to get back on the ice.',
+                    label: 'Live in the gym',
+                    subLabel: 'Get stronger and fitter while you wait.',
                     isRisky: false,
-                    feedback: 'You folded and signed the 1-year Qualifying Offer. The holdout was for nothing, and the coach is furious you missed camp.',
-                    effect: { fanStatus: -15, ovr: -1, rel: { coach: -25, teammates: -10 } },
-                    action: 'RESOLVE_HOLDOUT',
-                    actionData: { success: false }
+                    feedback: 'You spent the fall in a private gym and came out of it in the best shape of your life.',
+                    effect: { fanStatus: -5, ovr: 0, rel: { coach: -5 } },
+                    ...train({ physicality: 1, stamina: 2 })
+                },
+                {
+                    label: 'Join the unsigned guys\' skate',
+                    subLabel: 'A few free agents run scrimmages at a community rink.',
+                    isRisky: false,
+                    feedback: 'A handful of unsigned veterans run scrimmages at a community rink, and you joined them. It isn\'t NHL pace, but it kept you thinking the game.',
+                    effect: { fanStatus: -5, ovr: 0, rel: { coach: -5, teammates: 5 } },
+                    ...train({ hockeyIQ: 1, skating: 1 })
                 }
             ],
             isOffseasonEvent: true

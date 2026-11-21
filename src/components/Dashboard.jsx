@@ -84,14 +84,17 @@ const FAN_LADDER = [
   { label: 'Legend', at: 1000 }
 ];
 
-const Strip = ({ title, children, cols = 5 }) => (
+const Strip = ({ title, children, cols = 5, footer = null }) => (
   <div>
     {title && <Heading>{title}</Heading>}
-    <div
-      className="grid bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-    >
-      {children}
+    <div className="bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden shadow-lg">
+      <div
+        className="grid divide-x divide-[rgba(255,255,255,0.05)] text-center"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {children}
+      </div>
+      {footer}
     </div>
   </div>
 );
@@ -103,7 +106,7 @@ const Bar = ({ pct, color, className = '' }) => (
   </div>
 );
 
-const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire, setActiveEvent, setScreen }) => {
+const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire, setActiveEvent, setScreen, compact = false, onToggleCompact = null }) => {
   const [showMore, setShowMore] = useState(false);
   const safeNationalities = nationalities || [];
   const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
@@ -317,7 +320,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   ];
 
   return (
-    <div className="w-full max-w-[440px] md:max-w-2xl lg:max-w-[440px] mx-auto mb-4 lg:mb-0 z-10 relative drop-shadow-2xl mt-2 flex-1 flex flex-col">
+    <div className={`w-full max-w-[440px] md:max-w-2xl lg:max-w-[440px] mx-auto mb-0 z-10 relative drop-shadow-2xl mt-1 lg:mt-2 flex-1 flex flex-col ${compact ? 'bcp-compact' : ''}`}>
       <div
         className="border border-[rgba(255,255,255,0.08)] border-t-0 rounded-[14px] overflow-hidden relative p-4 sm:p-5 flex-1 flex flex-col"
         style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${teamBg} 12%, #12161c) 0%, #0a0d0a 38%)` }}
@@ -404,7 +407,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                     on it before a single number. The same four facts read
                     perfectly well as words with colour on them, separated the
                     way the line above them already separates things. */}
-                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-wide mt-1.5 leading-snug break-words">
+                <p className="text-[0.625rem] font-bold uppercase tracking-tight mt-1.5 leading-snug break-words">
                   {(() => {
                     // Age leads this line now rather than the one above it.
                     // Everything here is a fact about his standing, and how
@@ -467,6 +470,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           </div>
 
           {/* WHAT YOU ARE MADE OF */}
+          <div className="bcp-attrs">
           <Strip title="Attributes">
             {[
               { label: isGoalie ? 'Reflexes' : 'Shooting', key: 'shooting' },
@@ -491,11 +495,19 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   <p className={`text-lg sm:text-xl font-black number-font leading-none ${up ? 'text-[#22E748]' : down ? 'text-[#ef4444]' : 'text-white'}`}>
                     {getActiveStat(player, attr.key)}
                   </p>
-                  <p className={`break-words px-0.5 mt-1 text-[7px] md:text-[8px] font-black uppercase tracking-normal ${up || down ? 'text-slate-400' : hue}`}>{attr.label}</p>
+                  <p className={`break-words px-0.5 mt-1 text-[10.5px] font-bold uppercase tracking-normal whitespace-nowrap ${up || down ? 'text-slate-400' : hue}`}>{attr.label}</p>
                 </div>
               );
             })}
           </Strip>
+          </div>
+          {onToggleCompact && (
+            <button type="button" onClick={onToggleCompact} aria-expanded={!compact}
+                    className="bcp-toggle lg:hidden -mt-1 w-full flex items-center justify-center gap-2 min-h-[40px] text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 hover:text-white cursor-pointer">
+              <span>{compact ? 'Season, contract and fans' : 'Hide the rest of your card'}</span>
+              <span aria-hidden="true" className={`transition-transform ${compact ? '' : 'rotate-180'}`}>▾</span>
+            </button>
+          )}
 
           {/* WHAT YOU HAVE DONE THIS YEAR.
               Labelled, which it never was: the same five numbers sat under the
@@ -508,7 +520,31 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               "GP" became "Games" to match the career strip below, which was
               labelling the identical quantity differently forty pixels
               away. */}
-          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 5 : 6}>
+          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 6 : 7} footer={(() => {
+            // Form and zone starts, during a season, as the bottom row of the
+            // season box in the same cell style. They aren't stats, so they
+            // sit under the stat row rather than in it.
+            const segs = player.season?.stints || [];
+            const lastSeg = inProgress ? segs[segs.length - 1] : null;
+            const form = formOf(lastSeg);
+            const stretch = form ? stretchLine(lastSeg, player.pos) : null;
+            const oz = isGoalie ? null : (ls.ozPct ?? null);
+            const bits = [
+              form && { label: stretch ? `Form, ${stretch.value} ${stretch.label}` : 'Form', value: form.label, tone: form.tone },
+              oz != null && { label: 'OZ starts', value: `${oz}%`, sub: deploymentLabel(oz), tone: 'text-white' }
+            ].filter(Boolean);
+            if (!bits.length) return null;
+            return (
+              <div className="grid divide-x divide-[rgba(255,255,255,0.05)] bg-[#0c100c] text-center" style={{ gridTemplateColumns: `repeat(${bits.length}, minmax(0, 1fr))` }}>
+                {bits.map(b => (
+                  <div key={b.label} className="py-1.5 px-1">
+                    <p className={`text-sm font-black number-font leading-none ${b.tone}`}>{b.value}{b.sub ? <span className="text-slate-400 text-[10px] ml-1">{b.sub}</span> : null}</p>
+                    <p className="text-[8px] font-black uppercase tracking-normal text-slate-500 mt-1">{b.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}>
             {isGoalie ? (
               <>
                 <Cell value={ls.games || 0} label="Games" />
@@ -536,6 +572,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <Cell value={ls.assists || 0} label="Assists" />
                 <Cell tone="text-[#c084fc]" value={ls.blocks || 0} label="Blocks" />
                 <Cell tone="text-sky-400" value={ls.avgToi ? toi : '--'} label="TOI" />
+                <Cell value={ls.games > 0 ? (ls.pim || 0) : '--'} label="PIM" />
               </>
             ) : (
               /* A forward's six, and a centre's six is not a winger's.
@@ -561,32 +598,10 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 )}
                 <Cell tone="text-[#F59E0B]" label="S%"
                       value={ls.sog > 0 ? (((ls.goals || 0) / ls.sog) * 100).toFixed(1) : '--'} />
+                <Cell value={ls.games > 0 ? (ls.pim || 0) : '--'} label="PIM" />
               </>
             )}
           </Strip>
-
-          {/* FORM AND USAGE.
-              Its own strip of four boxes, which made it look as important as
-              the season above it. It's one line under that season now: how
-              the last stretch went, and where the coach starts his shifts. */}
-          {(() => {
-            const segs = player.season?.stints || [];
-            const lastSeg = inProgress ? segs[segs.length - 1] : null;
-            const form = formOf(lastSeg);
-            const stretch = form ? stretchLine(lastSeg, player.pos) : null;
-            const oz = isGoalie ? null : (ls.ozPct ?? null);
-            // Penalty minutes, which decide the sportsmanship trophy and were
-            // shown nowhere in the game.
-            const pim = isGoalie || !(ls.games > 0) ? null : (ls.pim || 0);
-            if (!form && oz == null && pim == null) return null;
-            return (
-              <p className="-mt-2 px-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                {pim != null && <span>PIM <span className="text-slate-300 number-font">{pim}</span></span>}
-                {form && <span>Form <span className={form.tone}>{form.label}</span>{stretch ? <span className="text-slate-400 normal-case tracking-normal"> ({stretch.value} {stretch.label.toLowerCase()})</span> : null}</span>}
-                {oz != null && <span>OZ starts <span className="text-slate-300 number-font">{oz}%</span> <span className="text-slate-400">{deploymentLabel(oz)}</span></span>}
-              </p>
-            );
-          })()}
 
           {/* WHAT YOU ARE PAID.
               A sixteen-year-old in the OHL has no salary, no market value and

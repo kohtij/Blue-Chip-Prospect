@@ -134,7 +134,7 @@ export const getTrainingTierLabel = (q) => {
 // a fixed list of the North American cups plus anything ending in
 // "Championship", which is what every other league's title used to be saved as.
 const CUP_LEAGUES = ['NHL', 'AHL', 'ECHL', 'SPHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA',
-  'KHL', 'SHL', 'LIIGA', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+  'KHL', 'SHL', 'LIIGA', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', 'J20', 'U20'];
 export const isLeagueCup = (award) => {
   const a = String(award || '');
   if (/memorial cup/i.test(a)) return false;
@@ -159,7 +159,8 @@ export const getPlayoffTitles = (league) => {
         LIIGA: 'Kanada-malja', SPHL: "President's Cup", BCHL: 'BCHL Cup',
         DEL: 'Meisterpokal', ICEHL: 'Karl Nedwed Trophy', CZECH: 'Masaryk Cup',
         SLOVAK: 'Vladimír Dzurilla Trophy', SWISS: 'Swiss Championship',
-        NCAA: 'National Championship'
+        NCAA: 'National Championship',
+        J20: 'Swedish Junior Championship', U20: 'Finnish Junior Championship'
       }[league];
       if (named) return { banner: `${league} PLAYOFFS`, final: `${named.toUpperCase()} FINAL`, trophy: '🏆', cupName: named };
       return { banner: `${league || 'LEAGUE'} PLAYOFFS`, final: `${league || 'LEAGUE'} FINAL`, trophy: '🏆', cupName: `${league || 'League'} Championship` };

@@ -284,7 +284,8 @@ export default function CreationScreen() {
                     aria-label="Player name"
                     aria-describedby="name-hint"
                     autoComplete="off"
-                    className="w-full bg-transparent text-white placeholder:text-slate-500 border-b-2 border-slate-700 pb-2 text-center text-2xl sm:text-3xl font-black sports-font uppercase focus:border-slate-300 outline-none transition-all drop-shadow-sm"
+                    data-own-focus
+                    className="w-full bg-transparent text-white placeholder:text-slate-500 border-b-2 border-slate-700 pb-2 text-center text-2xl sm:text-3xl font-black sports-font uppercase focus:border-white outline-none transition-all drop-shadow-sm"
                     onChange={(e) => setPlayer({ ...player, name: e.target.value })}
                   />
                   {/* The start buttons stay disabled until there is a name, and
@@ -592,4 +593,4 @@ export default function CreationScreen() {
             </div>
           </div>
         );
-}
+}

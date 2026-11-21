@@ -36,11 +36,12 @@ export const LEAGUE_CONFIG = {
   USHL:  { name: 'United States Hockey League',      games: 62, playoffSpots: 8,  logo: leagueLogos.USHL,  conferences: ['East','West'], divisions: ['Eastern','Western'],                         playoffFormat: 'ushl-8' },
   NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
   SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 10,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'shl-10' },
-  // No playoff in the junior tiers: a season there is a development year and
-  // ends with the regular season. playoffSpots 0 is what says so, because a
-  // finish is only a playoff finish when it is inside the spots.
-  J20:   { name: 'J20 Nationell',                    games: 44, playoffSpots: 0,  logo: leagueLogos.J20,   conferences: [],              divisions: [], playoffFormat: null },
-  U20:   { name: 'U20 SM-sarja',                     games: 44, playoffSpots: 0,  logo: leagueLogos.U20,   conferences: [],              divisions: [], playoffFormat: null },
+  // Both junior tiers play for a national title. J20 Nationell sends sixteen
+  // clubs into the SM-slutspel: best-of-three eighth-finals and quarterfinals,
+  // then a one-game semifinal and a one-game final. U20 SM-sarja takes eight,
+  // and every round is best-of-five. They had no playoff here at all.
+  J20:   { name: 'J20 Nationell',                    games: 44, playoffSpots: 16, logo: leagueLogos.J20,   conferences: [],              divisions: [], playoffFormat: 'j20-16' },
+  U20:   { name: 'U20 SM-sarja',                     games: 44, playoffSpots: 8,  logo: leagueLogos.U20,   conferences: [],              divisions: [], playoffFormat: 'u20-8' },
   LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 12,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'liiga-12' },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
   SWISS: { name: 'National League',                  games: 52, playoffSpots: 10, logo: leagueLogos.SWISS, conferences: [],              divisions: [], playoffFormat: 'shl-10' },
@@ -128,6 +129,17 @@ export const PLAYOFF_ROUNDS = {
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
+  'j20-16': [
+    { name: 'Eighth-Final',      teams: 16, gamesPerMatchup: 3 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 3 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 1 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 1 }
+  ],
+  'u20-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 5 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
+  ],
   'shl-10': [
     { name: 'Play-In Round',     teams: 4,  gamesPerMatchup: 3 },
     { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
@@ -149,6 +161,13 @@ export const PLAYOFF_ROUNDS = {
 // ==========================================
 // NATIONALITIES (Ranked by IIHF Strength)
 // ==========================================
+// Nations the IIHF has suspended from its tournaments. Russia and Belarus
+// have been out since 2022: no World Juniors, no World Championship, no
+// Olympics. Their players, clubs and leagues are untouched, and so are the
+// nationalities.
+export const IIHF_SUSPENDED = ['RUS', 'BLR'];
+export const inIihfEvents = (nat) => !IIHF_SUSPENDED.includes(nat);
+
 export const nationalities = [
   // TIER 1: Top Division Superpowers
   { id: 'CAN', name: 'Canada', sentenceName: 'Canada', img: 'https://flagcdn.com/w40/ca.png', iihfRank: 1, tier: 1, division: 'Top Division' },
@@ -902,6 +921,8 @@ const LEAGUE_ROUND_NAMES = {
   KHL:    ['Conference Quarterfinal', 'Conference Semifinal', 'Conference Final', 'Gagarin Cup Final'],
   SHL:    ['Play-In', 'Quarterfinal', 'Semifinal', 'Le Mat Trophy Final'],
   LIIGA:  ['First Round', 'Quarterfinal', 'Semifinal', 'Kanada-malja Final'],
+  J20:    ['Eighth-Final', 'Quarterfinal', 'Semifinal', 'J20 SM Final'],
+  U20:    ['Quarterfinal', 'Semifinal', 'U20 SM Final'],
   DEL:    ['Pre-Playoffs', 'Viertelfinale', 'Halbfinale', 'DEL Final'],
   ICEHL:  ['Pre-Playoffs', 'Quarterfinal', 'Semifinal', 'ICEHL Final'],
   SWISS:  ['Play-In', 'Viertelfinal', 'Halbfinal', 'National League Final'],

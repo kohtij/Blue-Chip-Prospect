@@ -77,10 +77,10 @@ export default function PreseasonScreen() {
     switch (move.reason) {
       case 'CLAIMED':
         return { title: '⏳ CLAIMED OFF WAIVERS', type: 'DEMOTION', label: 'Fresh start', sub: 'A club that wanted you badly enough to claim you.',
-          desc: `Your GM put you on waivers to send you down, and another club put in a claim before the deadline. You play for ${withTeamArticle(getFullTeamName(move.team, 'NHL'), 'NHL')} now.` };
+          desc: `At 2:04 your agent called. ${withTeamArticle(getFullTeamName(move.team, 'NHL'), 'NHL', true)} put in a claim before the deadline, and you play for them now. You're on a flight tonight.` };
       case 'WAIVERS':
         return { title: '📉 CLEARED WAIVERS', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
-          desc: `Camp broke and your name went on the waiver wire. Nobody claimed you in the twenty-four hours, so you report to the ${ahl()} to start the year.` };
+          desc: `2:00 came and went and the phone never rang. Nobody claimed you, so you report to the ${ahl()} to start the year.` };
       case 'DEVELOPMENT':
         return { title: '📉 SENT DOWN TO THE AHL', type: 'DEMOTION', label: 'Head down, work', sub: 'Play your way back up.',
           desc: `The club would rather you played big minutes than sat in the press box. You start the year with the ${ahl()}. You're still waiver-exempt, so no other club got the chance to claim you.` };
@@ -127,11 +127,22 @@ export default function PreseasonScreen() {
       ...(who.offseason ? { offseason: { ...who.offseason, campMoved: true } } : {})
     };
     setPlayer(moved);
+    // On waivers, the answer waits for the 2:00 PM deadline. The first screen
+    // is the wait, and the result comes when he's done waiting.
+    if (move.reason === 'CLAIMED' || move.reason === 'WAIVERS') {
+      setRosterMoveNotice({
+        title: '⏳ THE WAIVER WIRE', label: 'Wait for 2:00 PM', sub: 'Every other club gets one day to claim you.',
+        desc: `Camp broke and your name wasn't on the opening-night roster. You aren't waiver-exempt any more, so you went on the wire at noon yesterday. Every other club has until 2:00 PM today to put in a claim. If nobody does, you start the year in the AHL. If somebody does, you go to them.`,
+        then: { ...move, ...noticeFor(move) }, next: moved
+      });
+      return;
+    }
     setRosterMoveNotice({ ...move, ...noticeFor(move), next: moved });
   };
 
   const handleAcknowledgeMove = () => {
     const next = rosterMoveNotice?.next;
+    if (rosterMoveNotice?.then) { setRosterMoveNotice({ ...rosterMoveNotice.then, next }); return; }
     setRosterMoveNotice(null);
     if (next) carryOn(next);
   };

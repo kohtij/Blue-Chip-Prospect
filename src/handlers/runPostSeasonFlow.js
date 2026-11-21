@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { getOpponentPool, getPrimaryRival } from '../data/teams';
+import { getOpponentPool, getPrimaryRival, inIihfEvents } from '../data/teams';
 import { lastTitle } from '../utils/titles';
 import { eventDeck } from '../data/economy';
 import { getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
@@ -470,7 +470,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // You go to the Worlds because your club season is already over. A player
     // still in the playoffs is unavailable, so the tournament fills up with
     // players whose teams missed or went out early.
-    if (pAge > 19 && pOvr >= 78 && !madePlayoffs) {
+    if (pAge > 19 && pOvr >= 78 && !madePlayoffs && inIihfEvents(player.nat)) {
        const isTopDiv = activeNatDiv === 'Top Division';
        // A top-division federation can pick from a deep pool, so a borderline
        // player is less certain of a call than one from a smaller nation.
