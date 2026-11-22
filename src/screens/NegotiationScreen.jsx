@@ -3,6 +3,7 @@ import TeamLogo from '../components/TeamLogo';
 import { getTeamData, readableAccent, teamAccent } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
 import { proSeasonsOf } from '../utils/waivers';
+import { formatMoney3 } from '../utils/gameHelpers';
 import { bonusCeiling, SB_SHARE, veteranBonuses } from '../utils/bonuses';
 
 // CONTRACT TALKS.
@@ -26,14 +27,9 @@ const round25k = (n) => Math.round(n / 25000) * 25000;
 // add an exact percentage, he gives what he decides to give in the moment.
 const between = (lo, hi) => lo + Math.random() * (hi - lo);
 
-// Two decimals in the millions, because a negotiation moves in steps of a
-// hundred thousand and $3.1M against $3.1M hides the difference.
-const money = (n) => {
-  const v = Math.abs(n || 0);
-  if (v >= 1000000) return `$${(v / 1000000).toFixed(2).replace(/0$/, '')}M`;
-  if (v >= 1000) return `$${Math.round(v / 1000)}K`;
-  return `$${v}`;
-};
+// Three significant figures, so a negotiation's steps still show ($3.15M
+// against $3.1M) without a big deal reading $15.13M. See formatMoney3.
+const money = (n) => formatMoney3(n);
 
 const MOOD = [
   { at: 70, word: 'Patient', tone: '#22E748' },
@@ -57,7 +53,7 @@ const REPLY = {
   ntc_no: ['He won\'t give up the right to trade you, at least not yet.'],
   nmc_ok: ['He gave you a full no-movement clause, took real money off for it, and still looked like he regretted it.'],
   nmc_no: ['He laughed, then saw you were serious, and stopped laughing.'],
-  sb_ok: ['He agreed to pay half of it as signing bonuses, and shaved a little off for the trouble.'],
+  sb_ok: ['He agreed to pay half of each year up front, and shaved a little off for the trouble.'],
   sb_no: ['He said the owner pays salary, not lump sums, and that was the end of it.'],
   gp_ok: ['He agreed to pay for games played: ten, forty and sixty.'],
   gp_no: ['He wants to see you play before he pays you for it.']
@@ -110,7 +106,7 @@ function rollMove(type, { hasAgent, base, currentSalary, currentYears, ntcOdds, 
     damage = (ok ? 8 : 18) * dmgMult;
     dSalary = ok ? -round25k(currentSalary * 0.02) : 0;
     grant = ok ? 'sb' : null;
-    label = 'Asked for signing bonuses'; reply = say(ok ? 'sb_ok' : 'sb_no'); trustHit = ok ? -2 : -6;
+    label = 'Asked for money up front'; reply = say(ok ? 'sb_ok' : 'sb_no'); trustHit = ok ? -2 : -6;
   } else if (type === 'gp') {
     ok = Math.random() < gpOdds;
     damage = (ok ? 5 : 12) * dmgMult;
@@ -173,6 +169,8 @@ export default function NegotiationScreen() {
   const hasAgent = (player.inventory || []).includes('agent');
   const n = negotiation;
   const offer = n.originalOffer;
+  // The one-off cash bonus from the offer's perks, if it carried one.
+  const cashBonus = (offer?.perks || []).filter(pk => /signing bonus/i.test(pk.name || '')).reduce((t, pk) => t + (pk.money || 0), 0);
   const lg = offer.league || 'NHL';
   const teamData = getTeamData(offer.team, lg);
   const accent = teamAccent(teamData);
@@ -315,6 +313,12 @@ export default function NegotiationScreen() {
               terms, not beside the club's league and division. */}
           {offer.role && <Line label="Role">{offer.role}</Line>}
           <Line label="Total value">{money(total)}</Line>
+          {/* A signing bonus that came on the offer card is already part of
+              the deal: one payment, the day he signs. It wasn't listed here,
+              so the card promised it and this screen showed nothing, beside
+              an option with the same name that is something else (half of
+              each year paid up front, now called that). */}
+          {cashBonus > 0 && <Line label="Signing bonus" tone="text-[#F59E0B]">{money(cashBonus)} when you sign</Line>}
           {salaryDelta !== 0 && (
             <Line label="On his first offer" tone={salaryDelta > 0 ? 'text-[#22E748]' : 'text-[#ef4444]'}>
               {salaryDelta > 0 ? '+' : '-'}{money(salaryDelta)}/YR
@@ -328,8 +332,8 @@ export default function NegotiationScreen() {
           {clauseLeague && (
             <>
               <Line label="Clause" tone={clauseText ? 'text-[#c084fc]' : 'text-slate-400'}>{clauseText || 'None'}</Line>
-              <Line label="Signing bonus" tone={sb ? 'text-[#F59E0B]' : 'text-slate-400'}>
-                {sb ? `${Math.round(SB_SHARE * 100)}% of each year` : 'None'}
+              <Line label="Paid up front" tone={sb ? 'text-[#F59E0B]' : 'text-slate-400'}>
+                {sb ? `${Math.round(SB_SHARE * 100)}% each July 1` : 'None'}
               </Line>
               {gp && (
                 <Line label="Games bonuses" tone="text-[#F59E0B]">Up to {money(bonusCeiling(veteranBonuses()))}</Line>
@@ -426,7 +430,7 @@ export default function NegotiationScreen() {
             )}
             {clauseLeague && (
               <Group title="How it's paid" note={gpBlocked && !gp ? `Games bonus: ${gpBlocked.toLowerCase()}` : null}>
-                <Move onPick={push} live={live} type="sb" title="Signing bonus" tone={oddsOf(sbOdds).tone}
+                <Move onPick={push} live={live} type="sb" title="Paid up front" tone={oddsOf(sbOdds).tone}
                       hint={sb ? 'In the deal' : oddsOf(sbOdds).word}
                       explain="Half of each year paid on July 1, where a buyout can't touch it. Takes about 2% off the money."
                       disabled={sb} />

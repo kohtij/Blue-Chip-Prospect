@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { getTeamData, juniorLeagues, nationalities } from '../data/teams';
 import { accruedSeasons, careerTrophies, formatMoney, getActiveStat, isRestricted, onNhlContract, ordinal, resolveRole, statBucketOf, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
-import { clubOutlook, teamStrengthOf } from '../utils/leagueState';
-import { compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
+import { classWord, compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
 import { deploymentLabel, isDefence } from '../utils/production';
 import { formOf, stretchLine } from '../utils/form';
 import { bonusCeiling, bonusLabels, salaryParts } from '../utils/bonuses';
 import { COACH_SYSTEMS, depthAhead, goaliePartner, lineFor, roomFor } from '../utils/roster';
-import { STAT_TEXT, statCode } from '../utils/statColors';
+import { STAT_TEXT, leagueHue, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 import LeagueTag from './LeagueTag';
 
@@ -188,12 +187,6 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   // numbers for the same career disagreed; both read careerTrophies now.
   const trophies = careerTrophies(player).total;
 
-  // Where the club is heading, for the line under his name. Only for leagues
-  // whose table the save actually tracks.
-  const outlook = ['NHL', 'AHL'].includes(player.league)
-    ? clubOutlook(teamStrengthOf(player.leagueState, player.team))
-    : null;
-
   // The role the engine will actually play him in, named.
   const role = resolveRole({
     contractRole: player.contract?.role || '',
@@ -319,6 +312,51 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
     { label: 'Media', key: 'media', color: '#F59E0B' }
   ];
 
+  // What the contract looks like in one cell: the years left on it, and under
+  // them the kind of deal. It used to be a line in the facts grid under his
+  // name and now sits with the money it describes.
+  const deal = (() => {
+    const junior = juniorLeagues.includes(player.league);
+    const years = player.contract?.years;
+    const yrs = years !== undefined ? `${years} ${years === 1 ? 'yr' : 'yrs'}` : null;
+    if (junior && player.age >= 20) return { term: 'Overager', status: 'Junior', tone: 'text-[#ef4444]' };
+    if (player.league === 'NCAA' || player.contract?.isScholarship) {
+      return yrs ? { term: yrs, status: 'Eligibility', tone: 'text-white' } : null;
+    }
+    if (junior || !yrs) return null;
+    if (!['NHL', 'AHL'].includes(player.league)) return { term: yrs, status: 'Left', tone: 'text-white' };
+    // The same rule free agency uses, so the two can't disagree. An AHL deal
+    // is with the AHL club alone and carries no NHL status at all.
+    const nhlDeal = onNhlContract(player);
+    if (!nhlDeal) return { term: yrs, status: `${player.league} deal`, tone: 'text-white' };
+    const isRFA = isRestricted(player);
+    const isELC = player.contract.salary === 925000
+      || (isRFA && accruedSeasons(player) < 3 && player.contract.salary <= 1000000);
+    return {
+      term: yrs,
+      status: isELC ? 'ELC' : isRFA ? 'RFA' : 'UFA',
+      tone: isELC ? 'text-[#22E748]' : isRFA ? 'text-[#F59E0B]' : 'text-[#c084fc]'
+    };
+  })();
+
+  const letter = player.isCaptain ? 'C' : player.isAlternate ? 'A' : null;
+  const flagImg = safeNationalities.find(n => n.id === player.nat)?.img;
+
+  // The name steps down a size when its longest word would otherwise break
+  // mid-word. Going by the whole name shrank "Bergeron-Lafontaine" as much as
+  // a single surname of the same length, though it can wrap at the hyphen.
+  const longestWord = Math.max(...player.name.split(/[\s-]+/).map(w => w.length));
+  const nameSize = longestWord > 14 ? 'text-sm sm:text-base'
+    : longestWord > 11 || player.name.length > 22 ? 'text-base sm:text-lg'
+      : player.name.length > 9 ? 'text-lg sm:text-xl'
+        : 'text-xl sm:text-2xl lg:text-3xl';
+
+  // Form is read off the stretch just played, so it only exists mid-season.
+  const segs = inProgress ? (player.season?.stints || []) : [];
+  const lastSeg = segs[segs.length - 1] || null;
+  const form = formOf(lastSeg);
+  const stretch = form ? stretchLine(lastSeg, player.pos) : null;
+
   return (
     <div className={`w-full max-w-[440px] md:max-w-2xl lg:max-w-[440px] mx-auto mb-0 z-10 relative drop-shadow-2xl mt-1 lg:mt-2 flex-1 flex flex-col ${compact ? 'bcp-compact' : ''}`}>
       <div
@@ -330,7 +368,14 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
         <div className="relative z-10 flex flex-col gap-3.5 h-full w-full flex-1">
 
-          {/* WHO YOU ARE */}
+          {/* WHO YOU ARE.
+              The rating, then three lines of text: the name, the club, and the
+              position and age. The captain's letter and the league used to sit
+              at the end of the name and the club, so a long name or club pushed
+              them about or onto a line of their own. They belong to the crest
+              now, which never changes size, and the text column holds nothing
+              but text. Role, contract and international standing moved down to
+              the sections they belong to. */}
           <div className="flex items-center justify-between gap-3 w-full min-w-0 shrink-0">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
               <div className="flex flex-col items-center shrink-0">
@@ -338,132 +383,51 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 leading-none">OVR</p>
               </div>
 
-              <div className="flex flex-col min-w-0 flex-1 justify-center">
-                <div className="flex items-center gap-2 mb-1 w-full min-w-0">
-                  <img src={safeNationalities.find(n => n.id === player.nat)?.img} alt={player.nat}
-                       className="h-3.5 md:h-4 w-[21px] md:w-[26px] shrink-0 rounded-[2px] object-cover border border-slate-700 shadow-sm" />
-                  <p className={`font-black sports-font leading-none text-white uppercase whitespace-nowrap tracking-tight ${
-                    player.name.length > 15 ? 'text-xs sm:text-sm'
-                      : player.name.length > 12 ? 'text-sm sm:text-base'
-                        : player.name.length > 9 ? 'text-base sm:text-lg'
-                          : 'text-xl sm:text-2xl lg:text-3xl'}`}>
+              <div className="flex flex-col min-w-0 flex-1 justify-center gap-1">
+                <div className="flex items-start gap-2 min-w-0">
+                  <img src={flagImg} alt={player.nat}
+                       className="h-3.5 md:h-4 w-[21px] md:w-[26px] shrink-0 mt-[3px] rounded-[2px] object-cover border border-slate-700 shadow-sm" />
+                  <p className={`min-w-0 font-black sports-font leading-[1.05] text-white uppercase break-words tracking-tight ${nameSize}`}>
                     {player.name}
                   </p>
                 </div>
-
-                {/* The club, and where the club is heading.
-                    leagueState has given every club a strength that persists
-                    and drifts for years, and that is what decides the standings
-                    now. Until this line nothing anywhere told the player any of
-                    it, so the window opened and closed around him
-                    invisibly. */}
-                {/* Grey, like every other label on the card. A blue club
-                    name next to a coloured outlook next to a coloured status
-                    line put three different highlight colours in the top
-                    inch, and the eye had nowhere to rest.
-                    The name has a line to itself and may wrap. It used to share
-                    one row with the league chip and the outlook, which left a
-                    club like the Wilkes-Barre/Scranton Penguins about half the
-                    width of the card and cut it off with an ellipsis. */}
                 <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 leading-tight break-words">
                   {getFullTeamName(player.team, player.league)}
                 </p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-w-0">
-                  {/* WHICH LEAGUE HE IS ACTUALLY IN.
-                      The card named his club and never his league, so a player
-                      sent down read "San Jose Barracuda" and nothing else: the
-                      biggest thing that can happen to a season was legible only
-                      if you already knew which clubs were farm clubs. The chip
-                      is grey in the top league he could be in and amber below
-                      it, so a demotion is visible from across the room and a
-                      recall is visible the same way. */}
-                  <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-1.5 py-[2px] rounded border ${
-                    ['AHL', 'ECHL', 'SPHL'].includes(player.league)
-                      ? 'text-[#F59E0B] border-[rgba(245,158,11,0.45)] bg-[rgba(245,158,11,0.10)]'
-                      : 'text-slate-400 border-[rgba(255,255,255,0.12)]'}`}>
-                    {player.league}
-                  </span>
-                  {outlook && (
-                    <span className={`shrink-0 text-[8px] font-black uppercase tracking-widest ${outlook.tone}`}>
-                      {outlook.label}
-                    </span>
-                  )}
-                </div>
-
-                {/* The deployment is the role he is actually being given.
-                    It used to be getDeployment(ovr), a pure function of
-                    ability, while the engine ran off contract.role: an 86 OVR
-                    on a bottom-six deal read as a first line centre here and
-                    was simulated as a checking forward. Both call resolveRole
-                    now. */}
-                <p className="text-[9px] font-bold uppercase tracking-tight text-slate-500 mt-1 leading-snug break-words">
-                  {player.pos}
-                  {player.archetype ? ` · ${player.archetype}` : ''} · {role.label}
-                </p>
-
-                {/* Where you stand: contract, status, letter, country.
-                    This was four outlined, tinted, filled pills in a row, and
-                    with the section chips below it the card had eight boxes
-                    on it before a single number. The same four facts read
-                    perfectly well as words with colour on them, separated the
-                    way the line above them already separates things. */}
-                <p className="text-[0.625rem] font-bold uppercase tracking-tight mt-1.5 leading-snug break-words">
-                  {(() => {
-                    // Age leads this line now rather than the one above it.
-                    // Everything here is a fact about his standing, and how
-                    // old he is belongs with how long he has left far more
-                    // than it belongs with what he plays.
-                    const bits = [[`${player.age} yrs`, 'text-slate-400']];
-                    const junior = juniorLeagues.includes(player.league);
-                    if (junior && player.age >= 20) {
-                      bits.push(['Overager', 'text-[#ef4444]']);
-                    } else if (!junior && player.league !== 'NCAA' && player.contract?.years !== undefined) {
-                      if (!['NHL', 'AHL'].includes(player.league)) {
-                        // A college player's "contract" is eligibility, not term.
-                        const scholarship = player.league === 'NCAA' || player.contract.isScholarship;
-                        bits.push([`${player.contract.years} yrs ${scholarship ? 'elig' : 'left'}`, 'text-slate-400']);
-                      } else {
-                        // The same rule free agency uses, so the two can't
-                        // disagree. This counted every season he'd played
-                        // anywhere, junior included, against the seven that
-                        // make a player unrestricted. An AHL deal is with the
-                        // AHL club alone and carries no NHL status at all.
-                        const nhlDeal = onNhlContract(player);
-                        const isRFA = isRestricted(player);
-                        const isELC = nhlDeal && (player.contract.salary === 925000
-                          || (isRFA && accruedSeasons(player) < 3 && player.contract.salary <= 1000000));
-                        bits.push([`${player.contract.years} ${player.contract.years === 1 ? 'yr' : 'yrs'} left`, 'text-slate-400']);
-                        bits.push(!nhlDeal ? [`${player.league} deal`, 'text-slate-400'] : [
-                          isELC ? 'ELC' : isRFA ? 'RFA' : 'UFA',
-                          isELC ? 'text-[#22E748]' : isRFA ? 'text-[#F59E0B]' : 'text-[#c084fc]'
-                        ]);
-                      }
-                    }
-                    if (player.isCaptain) bits.push(['Captain', 'text-[#ef4444]']);
-                    else if (player.isAlternate) bits.push(['Alternate', 'text-[#3b82f6]']);
-                    bits.push([intlStatus.label, intlStatus.text]);
-                    return bits.map(([text, cls], i) => (
-                      <span key={text}>
-                        {i > 0 && <span className="text-slate-700"> · </span>}
-                        <span className={cls}>{text}</span>
-                      </span>
-                    ));
-                  })()}
+                <p className="text-[11px] font-black uppercase tracking-tight leading-tight break-words text-white">
+                  <span className="text-slate-500">Pos </span>{player.pos}
+                  {player.archetype ? <><span className="text-slate-500"> · </span>{player.archetype}</> : null}
+                  <span className="text-slate-500"> · Age </span>{player.age}
                 </p>
               </div>
             </div>
 
-            {/* The crest, and under it the year.
-                The season used to open the metadata line, ahead of his age,
-                his position and his deployment, which put the one fact that
-                never changes within a season at the front of the four that
-                describe the player. It sits with the badge now, where it
-                reads as the date on the card rather than another attribute. */}
-            <div className="shrink-0 flex flex-col items-center gap-1">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
-                <TeamLogo teamId={player.team} league={player.league} isAHL={isAHL} />
+            {/* The crest, with the letter as a patch on its corner, and under
+                it the league, in the colour it has on the retirement screen's
+                season table, and the year. */}
+            {/* Nudged down so the crest lines up with the name rather than
+                sitting above it. A shift, not a margin, so the header keeps
+                its height. */}
+            <div className="shrink-0 flex flex-col items-center gap-1 translate-y-1.5 sm:translate-y-2">
+              <div className="relative">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
+                  <TeamLogo teamId={player.team} league={player.league} isAHL={isAHL} />
+                </div>
+                {letter && (
+                  <span className={`absolute -top-1 -right-2 w-[20px] h-[20px] rounded-[5px] text-[11px] font-black leading-none flex items-center justify-center text-white shadow-[0_0_0_2px_#0b0e0b] ${letter === 'C' ? 'bg-[#ef4444]' : 'bg-[#3b82f6]'}`}
+                        title={letter === 'C' ? 'Captain' : 'Alternate captain'}>
+                    {letter}
+                  </span>
+                )}
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 number-font leading-none whitespace-nowrap">
+              <p className="mt-0.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider leading-none"
+                 style={{ color: leagueHue(player.league) }}>
+                {leagueFlag(player.league) && (
+                  <img src={leagueFlag(player.league)} alt="" className="w-[13px] h-[9px] object-cover rounded-[1px]" />
+                )}
+                {leagueLabel(player.league)}
+              </p>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 number-font leading-none whitespace-nowrap">
                 {currentYear}/{String(nextYear).slice(2)}
               </span>
             </div>
@@ -520,30 +484,23 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
               "GP" became "Games" to match the career strip below, which was
               labelling the identical quantity differently forty pixels
               away. */}
-          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 5 : 7} footer={(() => {
-            // Form, ice time and zone starts as the bottom row of the season
-            // box, in the same cell style. They describe how he's being used
-            // more than what he's scored, and moving them down gives the
-            // scoring stats above more room.
-            const segs = player.season?.stints || [];
-            const lastSeg = inProgress ? segs[segs.length - 1] : null;
-            const form = formOf(lastSeg);
-            const stretch = form ? stretchLine(lastSeg, player.pos) : null;
-            const oz = isGoalie ? null : (ls.ozPct ?? null);
-            const hasToi = !isGoalie && ls.avgToi > 0;
+          <Strip title={inProgress ? 'This season' : 'Last season'} cols={isGoalie ? 4 : isDman ? 5 : 6} footer={(() => {
+            // How well he shoots, how he does on the draw and how often he
+            // scores. S% and FO% sat on the line above and crowded it; they
+            // read better as rates next to points per game. A defenceman takes
+            // no draws, so his row has two.
+            if (isGoalie || !(ls.games > 0)) return null;
+            const pts = (ls.goals || 0) + (ls.assists || 0);
             const bits = [
-              // The form word explains itself, so the label under it is the stretch
-              // it's based on. "1 pts" reads as a typo, so one point is singular.
-              form && { label: stretch ? `${stretch.value.replace(/^1 pts$/, '1 pt')} ${stretch.label}` : 'Form', value: form.label, tone: form.tone },
-              hasToi && { label: 'TOI', value: toi, tone: 'text-sky-400' },
-              oz != null && { label: 'OZ starts', value: `${oz}%`, sub: deploymentLabel(oz), tone: 'text-white' }
+              { label: 'S%', value: ls.sog > 0 ? (((ls.goals || 0) / ls.sog) * 100).toFixed(1) : '--', tone: 'text-[#F59E0B]' },
+              !isDman && { label: 'FO%', value: ls.fot > 0 ? ((ls.fow / ls.fot) * 100).toFixed(1) : '--', tone: 'text-[#c084fc]' },
+              { label: 'Points / game', value: (pts / ls.games).toFixed(2), tone: 'text-white' }
             ].filter(Boolean);
-            if (!bits.length) return null;
             return (
               <div className="grid divide-x divide-[rgba(255,255,255,0.05)] border-t border-[rgba(255,255,255,0.05)] text-center" style={{ gridTemplateColumns: `repeat(${bits.length}, minmax(0, 1fr))` }}>
                 {bits.map(b => (
                   <div key={b.label} className="py-1.5 px-1">
-                    <p className={`text-sm font-black number-font leading-none ${b.tone}`}>{b.value}{b.sub ? <span className="text-slate-400 text-[10px] ml-1">{b.sub}</span> : null}</p>
+                    <p className={`text-sm font-black number-font leading-none ${b.tone}`}>{b.value}</p>
                     <p className="text-[8px] font-black uppercase tracking-normal text-slate-500 mt-1">{b.label}</p>
                   </div>
                 ))}
@@ -579,33 +536,41 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 <Cell value={ls.games > 0 ? (ls.pim || 0) : '--'} label="PIM" />
               </>
             ) : (
-              /* A forward's six, and a centre's six is not a winger's.
-                 This was the strip every position read before the goalie and
-                 then the defenceman were given their own, and the two cells at
-                 the end were the weakest on the card: a plus-minus, which is
-                 four other men's work, and the minutes, which say what the
-                 coach thinks rather than what he did. Shots and the percentage
-                 he finished them at are his, and they are what tells a sniper
-                 from a distributor on a page where both of them had thirty
-                 goals. A centre trades the shot volume for the draws, because
-                 nobody else on the ice takes one. */
+              /* A forward's six. Plus-minus, which is four other men's work,
+                 and the minutes, which say what the coach thinks, were dropped
+                 from here long ago. Shots are his; the percentage he finished
+                 them at and his faceoffs are in the row below. */
               <>
                 <Cell value={ls.games || 0} label="Games" />
                 <Cell tone="text-[#22E748]" value={ls.goals || 0} label="Goals" />
                 <Cell value={ls.assists || 0} label="Assists" />
                 <Cell value={(ls.goals || 0) + (ls.assists || 0)} label="Points" />
-                {player.pos === 'C' ? (
-                  <Cell tone="text-[#c084fc]" label="FO%"
-                        value={ls.fot > 0 ? ((ls.fow / ls.fot) * 100).toFixed(1) : '--'} />
-                ) : (
-                  <Cell tone="text-sky-400" value={ls.sog || 0} label="SOG" />
-                )}
-                <Cell tone="text-[#F59E0B]" label="S%"
-                      value={ls.sog > 0 ? (((ls.goals || 0) / ls.sog) * 100).toFixed(1) : '--'} />
+                <Cell tone="text-sky-400" value={ls.sog || 0} label="SOG" />
                 <Cell value={ls.games > 0 ? (ls.pim || 0) : '--'} label="PIM" />
               </>
             )}
           </Strip>
+
+          {/* HOW YOU'RE BEING USED.
+              The role, the form he's in, his minutes and where his shifts
+              start. They describe what the coach does with him rather than
+              what he has scored, so they're a strip of their own. A goalie has
+              no minutes or zone starts to show. */}
+          {(() => {
+            const oz = isGoalie ? null : (ls.ozPct ?? null);
+            const words = role.label.split(' ');
+            return (
+              <Strip title="How you're used" cols={isGoalie ? 2 : 4}>
+                <Cell value={words.length > 2 ? words.slice(0, 2).join(' ') : role.label}
+                      label={words.length > 2 ? words.slice(2).join(' ') : 'Role'} />
+                {/* "1 pts" reads as a typo, so one point is singular. */}
+                <Cell value={form ? form.label : '--'} tone={form ? form.tone : 'text-slate-600'}
+                      label={stretch ? `${stretch.value.replace(/^1 pts$/, '1 pt')} ${stretch.label}` : 'Form'} />
+                {!isGoalie && <Cell value={ls.avgToi > 0 ? toi : '--'} label="TOI" tone="text-sky-400" />}
+                {!isGoalie && <Cell value={oz != null ? `${oz}%` : '--'} label={oz != null ? `OZ · ${deploymentLabel(oz)}` : 'OZ starts'} />}
+              </Strip>
+            );
+          })()}
 
           {/* WHAT YOU ARE PAID.
               A sixteen-year-old in the OHL has no salary, no market value and
@@ -614,7 +579,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           {(earnings > 0 || player.contract?.salary || player.stats?.value > 0) && (
           <div>
             <Heading>Contract &amp; earnings</Heading>
-            <div className="grid grid-cols-3 bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg">
+            <div className={`grid ${deal ? 'grid-cols-4' : 'grid-cols-3'} bg-[#101410] border border-[rgba(255,255,255,0.08)] rounded-xl overflow-hidden divide-x divide-[rgba(255,255,255,0.05)] text-center shadow-lg`}>
               <Cell value={formatMoney(earnings)} label="In the bank" tone="text-amber-300" />
               <Cell value={formatMoney(player.stats?.value || 0)} label="Market value" tone="text-sky-300" />
               <Cell
@@ -622,6 +587,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 label={player.contract?.salary ? 'Salary / yr' : 'No deal'}
                 tone={player.contract?.salary ? 'text-white' : 'text-slate-600'}
               />
+              {deal && <Cell value={deal.term} label={deal.status} tone={deal.tone} />}
             </div>
             {/* The small print: what the deal protects, how it is paid, what it
                 pays on top, and what an old club still owes him. */}
@@ -765,6 +731,18 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 })}
               </div>
               </div>
+
+              {/* Where he stands with his country, which was a line in the
+                  facts grid under his name. */}
+              {intlStatus?.label && (
+                <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[rgba(255,255,255,0.06)]">
+                  <span className="flex items-center gap-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    {flagImg && <img src={flagImg} alt="" className="h-2.5 w-4 rounded-[1px] object-cover" />}
+                    National team
+                  </span>
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${intlStatus.text}`}>{intlStatus.label}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -800,7 +778,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
           <div>
             <button type="button" onClick={() => setShowMore(v => !v)} aria-expanded={showMore}
                     className="w-full flex items-center justify-between py-2 px-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 hover:text-slate-300 cursor-pointer">
-              <span>{showMore ? 'Show less' : 'The room, your career and your draft class'}</span>
+              <span>{showMore ? 'Show less' : `The room, your career and your ${classWord(player)}`}</span>
               <span aria-hidden="true" className={`transition-transform ${showMore ? 'rotate-180' : ''}`}>▾</span>
             </button>
             {showMore && (
@@ -993,7 +971,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                 once, which means the numbers themselves need no suffix. */}
             {rival && rival.career.seasons > 1 && (
               <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)]">
-                <Heading>Your draft class</Heading>
+                <Heading>{classWord(player) === 'draft class' ? 'Your draft class' : 'Your draft year'}</Heading>
                 <p className="text-[10px] text-slate-500 leading-snug mb-2">
                   Career {compareUnit}, against the best of the {myGroup} in your year.
                 </p>

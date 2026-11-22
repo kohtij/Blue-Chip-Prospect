@@ -55,3 +55,17 @@ export const statCode = (key, isGoalie) => ({
   hockeyIQ: 'IQ',
   stamina: 'STM'
 }[key] || null);
+
+// Each level of hockey in its own colour, so a career reads at a glance: the
+// junior years, the college years, the minors, Europe and the NHL are each a
+// different band on the retirement screen's skyline and table, and the league
+// under the crest on the dashboard is written in the same colour. Gold stays
+// with the championships and green with you, so neither is used for a league.
+export const LEAGUE_HUE = {
+  NHL: '#60a5fa', AHL: '#fb923c', ECHL: '#f87171', SPHL: '#f87171',
+  OHL: '#2dd4bf', WHL: '#2dd4bf', QMJHL: '#2dd4bf', USHL: '#2dd4bf', BCHL: '#2dd4bf',
+  NCAA: '#c084fc',
+  SHL: '#f472b6', LIIGA: '#f472b6', KHL: '#f472b6', SWISS: '#f472b6', DEL: '#f472b6', CZECH: '#f472b6',
+  ICEHL: '#f472b6', SLOVAK: '#f472b6', J20: '#f472b6', U20: '#f472b6'
+};
+export const leagueHue = (lg) => LEAGUE_HUE[lg] || '#94a3b8';

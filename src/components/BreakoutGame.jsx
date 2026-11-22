@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Move, Surface } from './rink/Ice';
 import { SLOT, SLOT_VIEW, puckBeside } from './rink/geometry';
 import { Stage, Hud, Verdict, ActionButton } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
 
 // The breakout.
 //
@@ -83,8 +84,14 @@ export default function BreakoutGame({ player, onComplete, difficulty = 0 }) {
   const isOpen = phase === 'open';
   const right = status === 'out';
 
+  // Left, up and right (or 1, 2, 3) for the left wall, the middle and the
+  // right wall.
+  useGameKeys({ ArrowLeft: () => pass(0), '1': () => pass(0), ArrowUp: () => pass(1), '2': () => pass(1),
+    ArrowRight: () => pass(2), '3': () => pass(2) }, status === 'live');
+
   return (
     <Stage
+      keys="Left, up or right arrow (or 1, 2, 3) to make the pass"
       hud={
         <Hud
           left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">

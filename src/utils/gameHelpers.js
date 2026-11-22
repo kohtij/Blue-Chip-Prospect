@@ -118,6 +118,24 @@ export const fanGain = (current, delta) => {
 // before this year's is added.
 export const fanFade = (current) => Math.max(0, (current || 0) - Math.round((current || 0) * 0.015));
 
+// Contract figures, never more than three digits: $15.1M, $7.15M, $985K. The
+// negotiation screen printed two decimals in the millions, so a big deal read
+// $15.13M, and free agency printed one, so $7.15M read $7.2M. Both now keep
+// three significant figures and drop trailing zeros. The sign is the caller's.
+export const formatMoney3 = (amount) => {
+  const v = Math.abs(amount || 0);
+  // Rounded from the whole-dollar figure, so $1,775,000 is $1.78M: rounding
+  // 1.775 as a decimal gives 1.77, because 1.775 can't be stored exactly.
+  const sig = (unit) => {
+    const x = v / unit;
+    const f = x >= 100 ? 1 : x >= 10 ? 10 : 100;
+    return String(Math.round(v / (unit / f)) / f);
+  };
+  if (v >= 999500) return `$${sig(1000000)}M`;
+  if (v >= 1000) return `$${sig(1000)}K`;
+  return `$${Math.round(v)}`;
+};
+
 export const formatMoney = (amount) => {
   if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
   if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
@@ -413,6 +431,18 @@ const ovrGainFactor = (ovr) =>
           : ovr >= 75 ? 0.25
             : ovr >= 70 ? 0.60
               : 0.85;
+
+// What an OVR perk on an offer is really worth to this player. Gains shrink as
+// the rating climbs (see ovrGainFactor), so a card that said "+2 OVR" to an
+// 84 was promising two points and paying a fifth of one. The card prints this
+// instead. Losses count in full.
+export const realOvrGain = (player, delta) => (delta > 0 ? delta * ovrGainFactor(player?.ovr || 0) : delta);
+export const ovrEffectText = (player, delta) => {
+  const v = realOvrGain(player, delta);
+  if (v > 0 && v < 0.05) return '+<0.1 OVR';
+  const r = Math.round(v * 10) / 10;
+  return `${r > 0 ? '+' : ''}${r} OVR`;
+};
 
 export const applyOvrDelta = (player, delta) => {
   const rawOvr = recomputeOvr(player);
@@ -1810,7 +1840,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // time he walks into the room he has spent two or three seasons reading the
   // same names and watching himself move among them. His own place on it is
   // kept on the player so next summer's board can say which way he is going.
-  const undrafted = !p.rights && !p.draftTeam && (p.age + 1) <= 20;
+  // Only before his class goes. Once it has been drafted (he was passed over
+  // and is going round again) there is no board of his year left to read.
+  const undrafted = !p.rights && !p.draftTeam && (p.age + 1) <= 20 && !p.classDraftYear;
   const scoutBoard = undrafted
     ? scoutingBoard(nextPeers, updatedPlayer, 8, {
         pts: seasonTotal.g + seasonTotal.a, gp: seasonTotal.games,

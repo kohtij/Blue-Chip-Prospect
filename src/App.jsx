@@ -133,32 +133,9 @@ function App() {
 
   const [combinePhase, setCombinePhase] = useState(1);
   const [combineScore, setCombineScore] = useState(0);
-  const [combineColor, setCombineColor] = useState('red');
-  const combineTimeRef = useRef(0);
+  // The combine's old reaction test (a colour that turned green) lived here.
+  // CombineScreen runs its own tests and nothing read this any more.
   const minigameLockedRef = useRef(false);
-
-  useEffect(() => {
-     if (screen === 'combine' && combinePhase === 1) {
-       const timer = setTimeout(() => {
-         setCombineColor('green');
-         combineTimeRef.current = Date.now();
-       }, 1500 + Math.random() * 3000);
-       return () => clearTimeout(timer);
-     }
-  }, [screen, combinePhase]);
-
-  const handleCombineReflex = () => {
-     if (combineColor === 'red') {
-         setCombineScore(-2); 
-         setCombinePhase(2);
-     } else {
-         const reaction = Date.now() - combineTimeRef.current;
-         if (reaction < 300) setCombineScore(2);
-         else if (reaction < 450) setCombineScore(1);
-         else setCombineScore(0);
-         setCombinePhase(2);
-     }
-  };
 
   const [player, setPlayer] = useState(makeInitialPlayer);
 
@@ -467,14 +444,40 @@ function App() {
     // is made, so "the final board had you third" is the board he was actually
     // taken off.
     const scouted = { ...who, combineRaw: rawCombine };
-    const finalBoard = scoutingBoard(scouted.peers, scouted, 30);
+    // A class already drafted in an earlier year (he was passed over and is
+    // back as an over-ager) has no board left to redraw: they have their
+    // picks. classDraftYear is the year his class went, which is what
+    // "your draft class" means from then on.
+    const classDone = !!who.classDraftYear;
+    const finalBoard = classDone ? null : scoutingBoard(scouted.peers, scouted, 30);
 
     // The room decides. The lottery, the picks that have changed hands and
     // every club's own list, built from its prospect pool and its general
     // manager's habits. See utils/draftNight.js.
     const draftYear = 2026 + (who.stats?.seasonsPlayed || 0);
-    const result = runDraftNight(scouted, { combine: rawCombine, year: draftYear });
+    const result = runDraftNight(scouted, { combine: rawCombine, year: draftYear, classDone });
     const overallPick = result.night.myPick;
+
+    // PASSED OVER. Seven rounds and no club called his name. He hears it
+    // here, on the draft screen, instead of the night being skipped as if it
+    // never happened, and he is eligible again next summer while his age
+    // allows it.
+    if (!overallPick) {
+      setPlayer(p => ({
+        ...p,
+        peers: result.peers,
+        frontOffice: p.frontOffice && Object.keys(p.frontOffice).length
+          ? result.adds.reduce((o, a) => addToPool(o, a.team, a.pos, a.round), p.frontOffice)
+          : result.office,
+        classDraftYear: p.classDraftYear || draftYear,
+        passedOver: [...(p.passedOver || []), draftYear],
+        combineRaw: rawCombine,
+        scoutRank: finalBoard?.myRank ?? p.scoutRank
+      }));
+      setSeasonRecap(r => ({ ...r, draftPick: null, draftRound: null, draftedBy: null, undrafted: true, draftYear, juniorTeam: who.team, juniorLeague: who.league }));
+      setScreen('draft');
+      return;
+    }
     const round = Math.ceil(overallPick / 32);
     const draftedBy = (nhlTeams || []).find(t => t.id === result.night.myTeam) || null;
 
@@ -496,6 +499,8 @@ function App() {
       draftLeague: p.league,
       draftPick: overallPick,
       draftRound: round,
+      draftYear,
+      classDraftYear: p.classDraftYear || draftYear,
       combineRaw: rawCombine,
       scoutRank: finalBoard?.myRank ?? p.scoutRank,
       fanStatus: fanGain(p.fanStatus || 0, fanBoost)
@@ -507,7 +512,7 @@ function App() {
     // Champion achievement to anyone drafted out of college, whether or not
     // his team had won anything. The title is awarded where it's won.
 
-    setSeasonRecap(r => ({ ...r, draftPick: overallPick, draftRound: round, draftedBy: draftedBy, juniorTeam: who.team, juniorLeague: who.league }));
+    setSeasonRecap(r => ({ ...r, draftPick: overallPick, draftRound: round, draftedBy: draftedBy, undrafted: false, draftYear, classDone, juniorTeam: who.team, juniorLeague: who.league }));
     setScreen('draft');
   };
 
@@ -544,6 +549,8 @@ function App() {
        );
        setScreen('transfer');
        return;
+     } else if (actionName === 'UNDRAFTED') {
+       setEventFeedback(`You went back to ${player.league} with something to prove.`);
      } else {
        setEventFeedback(`You decided to return to ${player.league} for another year of development.`);
      }
@@ -1691,9 +1698,9 @@ function App() {
     OpenIceHitGame, DekeGame, ReboundGame,
     TeamLogo, activeEvent, activeMinigame, activePress,
     activeTrainings, advancePlayoffRound, advanceToOffseason, arbState,
-    checkEarlyDemotion, combineColor, combinePhase, combineScore, currentYear,
+    checkEarlyDemotion, combinePhase, combineScore, currentYear,
     eventFeedback, finishNegotiation, startHoldout, freeAgencyOffers, handleArbitration,
-    handleCombineReflex, handleDraftChoice, handleDraftDay, handleEndMemCup,
+    handleDraftChoice, handleDraftDay, handleEndMemCup,
     handleEndPress, handleEventChoice, handleGridClick, handleInteractiveResult,
     handleMinigameChoice, handleNewGame, handlePressAnswer,
     handleStart, handleTrain, hasDemandedTrade,

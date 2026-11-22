@@ -3,7 +3,7 @@ import { lerpDifficulty } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
 import { SLOT, SLOT_VIEW } from './rink/geometry';
-import { Stage, Hud, Pips, Verdict, Callout, ActionButton } from './minigame/Shell';
+import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 
 // The open-ice hit.
 //
@@ -199,19 +199,47 @@ export default function OpenIceHitGame({ player, onComplete, difficulty = 0 }) {
       <Surface view={SLOT_VIEW}>
         <SlotSheet seams={false} />
 
-        {/* How far a hit reaches. It lights when he's in it. */}
-        <circle cx={ME[0]} cy={ME[1]} r={reach} fill={inReach && phase === 'coming' ? 'rgba(34,231,72,0.06)' : 'none'}
-                stroke={inReach && phase === 'coming' ? 'rgba(34,231,72,0.55)' : 'rgba(255,255,255,0.14)'}
+        {/* How far a hit reaches. It lights green when he's in it with his
+            head down, and red when he's in it having seen you. */}
+        <circle cx={ME[0]} cy={ME[1]} r={reach}
+                fill={inReach && phase === 'coming' ? (headUp ? 'rgba(239,68,68,0.06)' : 'rgba(34,231,72,0.06)') : 'none'}
+                stroke={inReach && phase === 'coming' ? (headUp ? 'rgba(239,68,68,0.6)' : 'rgba(34,231,72,0.55)') : 'rgba(255,255,255,0.14)'}
                 strokeWidth="0.7" strokeDasharray="2.4 2.4" />
+
+        {/* Where he's looking. Head down, a short line to the puck at his
+            feet; head up, a red line straight at you. It used to be a thin
+            amber ring and a word at the top of the ice, which was easy to miss
+            while watching the gap close. */}
+        {phase === 'coming' && at && (headUp ? (
+          <line x1={at[0]} y1={at[1]} x2={ME[0]} y2={ME[1]} stroke="#ef4444" strokeWidth="0.9" strokeDasharray="1.8 1.6" opacity="0.9" />
+        ) : (
+          <line x1={at[0]} y1={at[1] + 3} x2={at[0] + 1.4} y2={at[1] + 5} stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+        ))}
 
         {/* The carrier, with the puck out in front of him. */}
         {coming && at && (
           <g opacity={flattened ? 0.5 : 1}>
             {headUp && phase === 'coming' && (
-              <circle cx={at[0]} cy={at[1]} r="7.4" fill="none" stroke="#F59E0B" strokeWidth="1.1" />
+              <circle cx={at[0]} cy={at[1]} r="7.4" fill="rgba(239,68,68,0.12)" stroke="#ef4444" strokeWidth="1.3" />
             )}
             <Marker at={at} kind="opp" label="F" r="4.6" />
             {!flattened && <Puck at={[at[0] + 1.5, at[1] + 6.4]} r="1.9" />}
+            {/* Beside him on the side away from you where it fits, otherwise
+                over him (or under him near the top), so it never runs off the
+                ice or sits on top of you. */}
+            {phase === 'coming' && (() => {
+              const W = 19;
+              const left = at[0] < ME[0] && at[0] - 9 - W > 0;
+              const right = !left && at[0] >= ME[0] && at[0] + 9 + W < 100;
+              const lx = left ? at[0] - 9 : right ? at[0] + 9 : at[0];
+              const ly = left || right ? at[1] + 1.2 : (at[1] > 14 ? at[1] - 8.6 : at[1] + 13);
+              return (
+              <text x={lx} y={ly} textAnchor={left ? 'end' : right ? 'start' : 'middle'} fontSize="3.4" fontWeight="900" letterSpacing="0.3"
+                    fill={headUp ? '#ef4444' : '#22E748'} style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                {headUp ? 'HEAD UP' : 'HEAD DOWN'}
+              </text>
+              );
+            })()}
           </g>
         )}
 
@@ -220,16 +248,15 @@ export default function OpenIceHitGame({ player, onComplete, difficulty = 0 }) {
         {flattened && <Puck at={[hitAt[0] + 7, hitAt[1] + 9]} r="1.9" />}
       </Surface>
 
-      {phase === 'coming' && headUp && <Callout text="Head up" tone="stop" y="14%" />}
 
       <div className="flex p-3">
         <ActionButton
           wide
           onClick={hit}
           disabled={phase !== 'coming'}
-          state={phase === 'result' ? (results[results.length - 1] ? 'right' : 'wrong') : 'idle'}
+          state={phase === 'result' ? (results[results.length - 1] ? 'right' : 'wrong') : headUp ? 'warn' : 'idle'}
         >
-          Hit him
+          {headUp && phase === 'coming' ? "Hit him (he's seen you)" : 'Hit him'}
         </ActionButton>
       </div>
     </Stage>

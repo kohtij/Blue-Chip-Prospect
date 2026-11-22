@@ -4,7 +4,8 @@ import { useAppContext } from '../AppContext';
 import TeamLogo from '../components/TeamLogo';
 import { getFullTeamName } from '../utils/appHelpers';
 import { getPrimaryRival, getTeamData, readableAccent, teamAccent } from '../data/teams';
-import { kickerClass, TAG_AMBER, TAG_GREEN, TAG_RED, TITLE_SM } from '../utils/ui';
+import { kickerClass, TAG_RED, TITLE_SM } from '../utils/ui';
+import { formatMoney3, ovrEffectText } from '../utils/gameHelpers';
 
 export default function EventScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -143,32 +144,30 @@ export default function EventScreen() {
                   // Written in the same shape as the free agency perks (a name
                   // and an effect), so the chips line up the same way on both
                   // screens instead of one long shouted string.
-                  const G = 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30';
-                  const B = 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/30';
                   if (isRival) {
-                      displayChoice.flaws.push({ name: '⚔️ Arch-Rival', effect: '-75 FAN' });
+                      displayChoice.flaws.push({ name: 'Arch-rival', effect: '-75 fans' });
                       displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 75;
                   }
 
                   if (displayChoice.actionData.madePlayoffs) {
-                      displayChoice.perks.push({ name: premiumLeague === 'NCAA' ? '🏆 Tournament Team' : '🏆 Cup Run', color: G });
+                      displayChoice.perks.push({ name: premiumLeague === 'NCAA' ? 'Tournament team' : 'Cup run' });
                       if (charCode % 2 === 0) {
-                          displayChoice.perks.push({ name: '📈 Elite Coaching', effect: '+1 OVR', color: B });
+                          displayChoice.perks.push({ name: 'Elite coaching', effect: ovrEffectText(player, 1) });
                           displayChoice.effect.ovr = (displayChoice.effect.ovr || 0) + 1;
                       }
                   } else {
-                      displayChoice.perks.push({ name: '⏱️ Top-6 Minutes', color: B });
+                      displayChoice.perks.push({ name: 'Top-six minutes' });
                       if (charCode % 2 !== 0) {
-                          displayChoice.flaws.push({ name: '⚠️ Rebuilding', effect: '-10 FAN' });
+                          displayChoice.flaws.push({ name: 'Rebuilding', effect: '-10 fans' });
                           displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 10;
                       }
                   }
 
                   if (charCode % 3 === 0) {
-                       displayChoice.perks.push({ name: '🏟️ Major Market', effect: '+15 FAN', color: G });
+                       displayChoice.perks.push({ name: 'Big market', effect: '+15 fans' });
                        displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) + 15;
                   } else if (charCode % 3 === 1) {
-                       displayChoice.flaws.push({ name: '⚠️ Small Market', effect: '-5 FAN' });
+                       displayChoice.flaws.push({ name: 'Small market', effect: '-5 fans' });
                        displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) - 5;
                   }
               }
@@ -241,9 +240,9 @@ export default function EventScreen() {
               const yrsLeft = player.contract?.years || 0;
               let hero;
               if (isNCAAChoice || (isTransfer && money > 0)) {
-                  hero = { value: formatMoney(money), unit: '/NIL', caption: isNCAAChoice ? '4-YEAR ELIGIBILITY' : 'NIL PACKAGE' };
+                  hero = { value: formatMoney3(money), unit: '/NIL', caption: isNCAAChoice ? '4-YEAR ELIGIBILITY' : 'NIL PACKAGE' };
               } else if (isTradeChoice && !isTransfer && salary > 0) {
-                  hero = { value: formatMoney(salary), unit: '/YR', caption: `YOUR CONTRACT, ${yrsLeft} ${yrsLeft === 1 ? 'YEAR' : 'YEARS'} LEFT` };
+                  hero = { value: formatMoney3(salary), unit: '/YR', caption: `YOUR CONTRACT, ${yrsLeft} ${yrsLeft === 1 ? 'YEAR' : 'YEARS'} LEFT` };
               } else {
                   hero = { value: `#${data?.teamStandings ?? '?'}`, unit: null, caption: 'PROJECTED FINISH' };
               }
@@ -382,27 +381,15 @@ export default function EventScreen() {
                          <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">{displayChoice.subLabel}</span>
                      )}
                  </div>
-                 <div className="flex flex-col items-end gap-2 shrink-0">
-                   {shortBy > 0 ? (
-                     <span className={TAG_RED}>
-                       {formatMoney(shortBy)} short
-                     </span>
-                   ) : (
-                     <>
-                       {/* What it costs, as a pill rather than a number smuggled
-                           into the label. The family investment was still
-                           carrying its price in its own text, "Fund the Startup
-                           ($125k)", which is the thing the money pill on the
-                           premium cards exists to stop: a figure written into a
-                           button cannot be compared against the choice beside
-                           it. Only shown when he can afford it, because the
-                           shortfall pill above says it louder when he cannot. */}
-                       {cost > 0 && <span className={TAG_AMBER}>{formatMoney(cost)}{displayChoice.isRisky ? ' at risk' : ' cost'}</span>}
-                       {!isRivalryNight && displayChoice.isDevBoost && <span className={TAG_GREEN}>+Dev boost</span>}
-                       {displayChoice.isRisky && <span className={TAG_RED}>Risky</span>}
-                     </>
-                   )}
-                 </div>
+                 {/* Only the risk flag stays up here as a tag. What a choice
+                     costs, what he's short and the development boost used to
+                     be pills in this corner too; they're tinted cells in the
+                     row under the label now, with the perks. */}
+                 {displayChoice.isRisky && shortBy <= 0 && (
+                   <div className="flex flex-col items-end gap-2 shrink-0">
+                     <span className={TAG_RED}>Risky</span>
+                   </div>
+                 )}
               </div>
 
               {/* A CONTRACT ON OFFER, drawn the way the free agency cards draw
@@ -416,8 +403,7 @@ export default function EventScreen() {
                 // As on the free agency cards, except where the offer is
                 // exact: the GM's raise during a holdout can be $25,000, which
                 // rounds away in millions.
-                const salaryText = k.exact ? `$${k.salary.toLocaleString('en-US')}`
-                  : k.salary >= 1000000 ? `$${(k.salary / 1000000).toFixed(1)}M` : `$${(k.salary / 1000).toFixed(0)}K`;
+                const salaryText = k.exact ? `$${k.salary.toLocaleString('en-US')}` : formatMoney3(k.salary);
                 const rowCls = 'flex items-baseline gap-1 font-bold uppercase tracking-wider';
                 return (
                   <div className="mt-4 w-full max-w-sm relative z-10">
@@ -475,16 +461,24 @@ export default function EventScreen() {
                   ordinary event had to smuggle the number into its own label
                   text, as the local sponsorship did with "Do the Commercial
                   ($50k)". */}
-              {(displayChoice.perks?.length > 0 || displayChoice.flaws?.length > 0) && (
-                <div className="flex flex-wrap gap-1.5 mt-3 w-full relative z-10">
-                  {displayChoice.perks?.map((pk, pIdx) => (
-                    <PerkChip key={`crow-perk-${pIdx}`} perk={pk} cell />
-                  ))}
-                  {displayChoice.flaws?.map((fl, fIdx) => (
-                    <PerkChip key={`crow-flaw-${fIdx}`} perk={fl} isFlaw cell />
-                  ))}
-                </div>
-              )}
+              {(() => {
+                // The price comes first: what he's short if he can't afford
+                // it, otherwise what it costs (or puts at risk, on a gamble).
+                const lead = [];
+                if (shortBy > 0) lead.push({ perk: { name: "Can't afford", effect: `${formatMoney(shortBy)} short` }, flaw: true });
+                else if (cost > 0) lead.push({ perk: { name: displayChoice.isRisky ? 'At risk' : 'Cost', effect: formatMoney(cost) }, flaw: true });
+                if (!isRivalryNight && displayChoice.isDevBoost && shortBy <= 0) lead.push({ perk: { name: 'Development boost' }, flaw: false });
+                const perks = displayChoice.perks || [];
+                const flaws = displayChoice.flaws || [];
+                if (!lead.length && !perks.length && !flaws.length) return null;
+                return (
+                  <div className="flex flex-wrap gap-1.5 mt-3 w-full relative z-10">
+                    {lead.map((c, i) => <PerkChip key={`crow-lead-${i}`} perk={c.perk} isFlaw={c.flaw} cell />)}
+                    {perks.map((pk, pIdx) => <PerkChip key={`crow-perk-${pIdx}`} perk={pk} cell />)}
+                    {flaws.map((fl, fIdx) => <PerkChip key={`crow-flaw-${fIdx}`} perk={fl} isFlaw cell />)}
+                  </div>
+                );
+              })()}
             </button>
           );
 
@@ -511,8 +505,10 @@ export default function EventScreen() {
                 {renderDesc(activeEvent.desc)}
               </p>
 
+              {/* Two cards a row at most, as on the free agency screen, so the
+                  college and trade cards have room for their text. */}
               {premiumChoices.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 font-sans items-stretch">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans items-stretch">
                   {premiumChoices.map(renderPremiumCard)}
                 </div>
               )}

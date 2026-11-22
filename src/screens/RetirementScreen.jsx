@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles, isLeagueCup } from '../utils/appHelpers';
 import { careerTrophies, formatMoney, withTeamArticle } from '../utils/gameHelpers';
-import { flagFor, leagueLabel, seatPlayerPick } from '../utils/peers';
+import { classWord, flagFor, leagueLabel, seatPlayerPick } from '../utils/peers';
 import { careerRecords, formatRecord, RECORD_LABEL } from '../utils/records';
 import { computeCareerScore, hallOfFame, peerCareerScore } from '../utils/careerScore';
 import { buyoutOwed } from '../utils/bonuses';
+import { leagueHue } from '../utils/statColors';
 import { getAwardImage } from '../data/awards';
 import { getTeamData, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
@@ -29,18 +30,9 @@ import TrophyImage from '../components/TrophyImage';
 
 const POS_NAME = { C: 'Centre', LW: 'Left Wing', RW: 'Right Wing', LD: 'Defence', RD: 'Defence', G: 'Goaltender' };
 
-// Each level of hockey in its own colour, so a career reads at a glance: the
-// junior years, the college years, the minors, Europe and the NHL are each a
-// different band on the skyline and in the table. Gold stays with the
-// championships and green with you, so neither is used for a league.
-const LEAGUE_HUE = {
-  NHL: '#60a5fa', AHL: '#fb923c', ECHL: '#f87171', SPHL: '#f87171',
-  OHL: '#2dd4bf', WHL: '#2dd4bf', QMJHL: '#2dd4bf', USHL: '#2dd4bf', BCHL: '#2dd4bf',
-  NCAA: '#c084fc',
-  SHL: '#f472b6', LIIGA: '#f472b6', KHL: '#f472b6', SWISS: '#f472b6', DEL: '#f472b6', CZECH: '#f472b6',
-  ICEHL: '#f472b6', SLOVAK: '#f472b6', J20: '#f472b6', U20: '#f472b6'
-};
-const hueOf = (lg) => LEAGUE_HUE[lg] || '#94a3b8';
+// Each league's colour comes from statColors, so the dashboard writes the
+// league in the same colour this table does.
+const hueOf = leagueHue;
 
 // The same for the national team: each tournament in its own colour, clear of
 // the league colours above and of gold and green.
@@ -1126,8 +1118,14 @@ export default function RetirementScreen() {
         {(() => {
           // A career drafted before the class was moved aside for him can still
           // have a classmate at his own pick. Seat him here too.
-          const peers = seatPlayerPick(player.peers, player.draftPick, player.draftTeam) || [];
-          const classmates = peers.filter(c => (c.career?.seasons || 0) > 0);
+          // Your draft class is the players taken in the same draft as you,
+          // so once you were drafted with your year the undrafted ones leave
+          // the table. If you went undrafted, or in a later draft, the table is
+          // your draft year instead and says so.
+          const isClass = classWord(player) === 'draft class';
+          const seatMe = isClass ? player.draftPick : null;
+          const peers = seatPlayerPick(player.peers, seatMe, isClass ? player.draftTeam : null) || [];
+          const classmates = peers.filter(c => (c.career?.seasons || 0) > 0 && (!isClass || c.pick));
           if (!classmates.length) return null;
           const nhlOf = (c) => c.career?.nhl || c.career || {};
           const rows = [
@@ -1151,7 +1149,13 @@ export default function RetirementScreen() {
           const top = rows.slice(0, 8);
           const shown = top.some(r => r.me) ? top : [...top, rows.find(r => r.me)];
           return (
-            <Section title="Your Draft Class">
+            <Section
+              title={isClass ? 'Your Draft Class' : 'Your Draft Year'}
+              meta={isClass
+                ? (player.classDraftYear ? `Taken in the ${player.classDraftYear} NHL Draft` : 'Taken in your NHL Draft')
+                : player.draftPick
+                  ? `Eligible in ${player.classDraftYear || 'your first year'}, you went in ${player.draftYear || 'a later draft'}`
+                  : 'You went undrafted'}>
               <div tabIndex={0} role="region" aria-label="Table, scrolls sideways" className="-mx-4 sm:-mx-6 overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left whitespace-nowrap text-[12px] sm:text-[13px]">
                   <thead>
@@ -1159,8 +1163,13 @@ export default function RetirementScreen() {
                       <th className="pl-4 sm:pl-6 pr-2 py-2 font-bold w-8">#</th>
                       <th className="px-2 py-2 font-bold">Player</th>
                       <th className="px-2 py-2 font-bold">Pos</th>
-                      <th className="px-2 py-2 font-bold text-center">Drafted</th>
-                      <th className="px-2 py-2 font-bold text-right">Honours</th>
+                      {/* Drafted spans three real columns (pick, crest, club) and
+                          Honours two (titles, awards), each header centred over
+                          its group. They used to be one cell each with the parts
+                          laid out inside, and the header never sat over them
+                          properly. */}
+                      <th colSpan={3} className="px-2 py-2 font-bold text-center">Drafted</th>
+                      <th colSpan={2} className="px-2 py-2 font-bold text-center">Honours</th>
                       <th className="px-2 py-2 font-bold text-right">NHL GP</th>
                       <th className="px-2 py-2 font-bold text-right">Points</th>
                       <th className="pl-2 pr-4 sm:pr-6 py-2 font-bold text-right">Score</th>
@@ -1179,33 +1188,31 @@ export default function RetirementScreen() {
                           </span>
                         </td>
                         <td className="px-2 py-2 text-slate-500 font-bold">{r.pos === 'LD' || r.pos === 'RD' ? 'D' : r.pos}</td>
-                        <td className="px-2 py-2 text-center text-slate-500">
-                          {/* Pick, crest, club, in that order. The pick is the
-                              one that changes width (#3 against #145), so it goes
-                              first and lines up on its right edge against the
-                              crest, and the crest and club sit together after it.
-                              With the crest in front, the pick's width pushed it
-                              back and forth down the column. The club's slot is
-                              sized to the widest abbreviation, so they still end
-                              on the same edge. The pick has a slot of fixed width too, so
-                              every row is the same width and the header can sit
-                              centred over all three. */}
-                          {r.pick ? (
-                            <span className="inline-flex items-center justify-end gap-1">
-                              <span className="w-[34px] shrink-0 text-right tabular-nums">#{r.pick}</span>
-                              <span className="w-5 h-5 shrink-0 flex items-center justify-center">
+                        {r.pick ? (
+                          <>
+                            <td className="pl-2 pr-0 py-2 text-right text-slate-500 tabular-nums">#{r.pick}</td>
+                            <td className="px-1.5 py-2 w-8">
+                              <span className="w-5 h-5 mx-auto flex items-center justify-center">
                                 {r.team && <TeamLogo teamId={r.team} league="NHL" size="tiny" />}
                               </span>
-                              <span className="w-[31px] shrink-0 text-right">{r.team || ''}</span>
-                            </span>
-                          ) : 'Undrafted'}
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          {r.cups > 0 && <span className="text-[#F59E0B] font-bold">{r.cups} {r.cups === 1 ? 'title' : 'titles'}</span>}
-                          {r.cups > 0 && r.trophies > 0 && <span className="text-slate-600">, </span>}
-                          {r.trophies > 0 && <span className="text-slate-300 font-bold">{r.trophies} {r.trophies === 1 ? 'award' : 'awards'}</span>}
-                          {!r.cups && !r.trophies && <Dash />}
-                        </td>
+                            </td>
+                            <td className="pl-0 pr-2 py-2 text-left text-slate-500">{r.team || ''}</td>
+                          </>
+                        ) : (
+                          <td colSpan={3} className="px-2 py-2 text-center text-slate-500">Undrafted</td>
+                        )}
+                        {r.cups > 0 || r.trophies > 0 ? (
+                          <>
+                            <td className="pl-2 pr-1.5 py-2 text-right">
+                              {r.cups > 0 && <span className="text-[#F59E0B] font-bold">{r.cups} {r.cups === 1 ? 'title' : 'titles'}</span>}
+                            </td>
+                            <td className="pl-1.5 pr-2 py-2 text-left">
+                              {r.trophies > 0 && <span className="text-slate-300 font-bold">{r.trophies} {r.trophies === 1 ? 'award' : 'awards'}</span>}
+                            </td>
+                          </>
+                        ) : (
+                          <td colSpan={2} className="px-2 py-2 text-center"><Dash /></td>
+                        )}
                         <td className="px-2 py-2 text-right number-font text-slate-400">{r.gp}</td>
                         <td className="px-2 py-2 text-right number-font text-slate-300">
                           {r.pos === 'G' ? <span>{r.sho} <span className="text-slate-500 text-[10px]">SO</span></span> : r.pts}

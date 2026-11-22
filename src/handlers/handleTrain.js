@@ -630,6 +630,25 @@ export function handleTrain(ctx, t) {
     }
     // Not going, so the tournament passes him by and the season runs straight on.
 
+    // A junior from a suspended federation would have been in the mix, and
+    // used to simply never hear about the tournament. He's told once, the
+    // first December it would have mattered, why there's no call coming.
+    if (seg && player.age <= 19 && seg.league !== 'NHL' && !inIihfEvents(player.nat) && !player.storylines?.iihfBanNoted) {
+      const country = player.nat === 'BLR' ? 'Belarus' : 'Russia';
+      advanceTo(stints, 1);
+      setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), iihfBanNoted: true } }));
+      ctx.setActiveEvent({
+        title: '🚫 NO WORLD JUNIORS',
+        desc: `The World Juniors start on Boxing Day, and ${country} isn't in them. The IIHF has kept Russia and Belarus out of its tournaments since 2022, so no call is coming this year, or for any other IIHF event while the suspension stands. Your teammates who are going leave tomorrow.`,
+        choices: [{ label: 'Back to work', subLabel: 'The season keeps going without the break.', isRisky: false,
+          feedback: 'You stayed with your club over the holidays while the tournament went on without you.',
+          effect: { fanStatus: 0, ovr: 0, money: 0 } }],
+        isMidSeasonEvent: true
+      });
+      ctx.setScreen('event');
+      return;
+    }
+
     if (tryRosterMove(seg, 1)) return;
 
     // December, with the first third of the year on the board: the other way

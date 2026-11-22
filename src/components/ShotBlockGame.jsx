@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
 import { SLOT, SLOT_MOUTH, SLOT_VIEW, wavePath } from './rink/geometry';
 import { Stage, Hud, Pips, Verdict, Clock, ActionButton } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
 
 // Blocking the shot, from the slot.
 //
@@ -112,11 +113,17 @@ export default function ShotBlockGame({ player, onComplete, difficulty = 0 }) {
     }
   };
 
+  // Left, up and right (or 1, 2, 3) for the strong side, the middle and the
+  // weak side.
+  useGameKeys({ ArrowLeft: () => commit(0), '1': () => commit(0), ArrowUp: () => commit(1), '2': () => commit(1),
+    ArrowRight: () => commit(2), '3': () => commit(2) }, status === 'live');
+
   const showShot = (phase === 'live' || phase === 'result') && lane !== null;
   const hitLane = picked === lane;
 
   return (
     <Stage
+      keys="Left, up or right arrow (or 1, 2, 3) to drop into a lane"
       hud={
         <Hud
           left={<Pips label="Blocked" filled={blocks} total={NEEDED} />}

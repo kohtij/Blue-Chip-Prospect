@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { classWord } from '../utils/peers';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { getOpponentPool, getPlayoffRounds, getPrimaryRival, LEAGUE_CONFIG, ncaaTeams } from '../data/teams';
@@ -155,6 +156,8 @@ function awardReason(award, r, player, leagues) {
 
 export default function RecapScreen() {
   const { advanceToOffseason, isJunior, player, playoffs, seasonEvents, seasonRecap, setActiveEvent, setPlayer, setScreen, unlockAchievement } = useAppContext();
+  // "draft class" once he's been drafted with his year, "draft year" before.
+  const cw = classWord(player);
   const [showAllMoments, setShowAllMoments] = useState(false);
   
   return (() => {
@@ -628,10 +631,10 @@ export default function RecapScreen() {
                       {bar.classBest && (
                         <span className="block text-slate-400 mt-1">
                           {mine > bar.classBest.pts
-                            ? `Nobody from your draft class in ${formatLeagueName(lg)} outscored you. ${bar.classBest.name} was the next best on ${bar.classBest.pts}.`
+                            ? `Nobody from your ${cw} in ${formatLeagueName(lg)} outscored you. ${bar.classBest.name} was the next best on ${bar.classBest.pts}.`
                             : mine === bar.classBest.pts
-                              ? `${bar.classBest.name}, drafted the same year as you, finished level with you on ${bar.classBest.pts} points.`
-                              : `${bar.classBest.name}, drafted the same year as you, was the best of your class in ${formatLeagueName(lg)} on ${bar.classBest.pts} points.`}
+                              ? `${bar.classBest.name}, from your ${cw}, finished level with you on ${bar.classBest.pts} points.`
+                              : `${bar.classBest.name} was the best of your ${cw} in ${formatLeagueName(lg)} on ${bar.classBest.pts} points.`}
                         </span>
                       )}
                     </RecapRow>
@@ -673,14 +676,14 @@ export default function RecapScreen() {
 
                   return (
                     <RecapRow accent={ahead ? '#22E748' : '#64748b'}
-                              label={isG ? '🥅 Your draft class in net' : '🛡️ Your draft class on the blue line'}
+                              label={isG ? `🥅 Your ${cw} in net` : `🛡️ Your ${cw} on the blue line`}
                               tint={ahead}>
                       {isG
                         ? (mySv == null
-                            ? `${cb.name} was the best goaltender of your draft class in ${lg} at ${fmt(cb.sv)}.`
+                            ? `${cb.name} was the best goaltender of your ${cw} in ${lg} at ${fmt(cb.sv)}.`
                             : ahead
-                              ? `No goaltender from your draft class in ${lg} stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
-                              : `${cb.name} was the best goaltender of your draft class in ${lg} at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
+                              ? `No goaltender from your ${cw} in ${lg} stopped more than you did. ${cb.name} was next at ${fmt(cb.sv)}.`
+                              : `${cb.name} was the best goaltender of your ${cw} in ${lg} at ${fmt(cb.sv)}. You finished on ${fmt(mySv)}.`)
                         : (() => {
                             // SAY WHY HE WON IT.
                             //
@@ -699,11 +702,11 @@ export default function RecapScreen() {
                             if (ahead) {
                               return outscored
                                 ? `${cb.name} outscored you, ${cb.pts} points to ${myPts}, and you still had the better year of it: ${myBlk} blocks to his ${hisBlk}, and the harder minutes.`
-                                : `No defenceman from your draft class in ${lg} had a better year than yours: ${myPts} points and ${myBlk} blocks. ${cb.name} was next, on ${cb.pts} and ${hisBlk}.`;
+                                : `No defenceman from your ${cw} in ${lg} had a better year than yours: ${myPts} points and ${myBlk} blocks. ${cb.name} was next, on ${cb.pts} and ${hisBlk}.`;
                             }
                             return myPts > cb.pts
-                              ? `You outscored every defenceman in your draft class in ${lg} on ${myPts} points, but ${cb.name} had the better season: ${cb.pts} points and ${hisBlk} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}.`
-                              : `${cb.name} was the best defenceman of your draft class in ${lg}: ${cb.pts} points and ${hisBlk} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}. You finished on ${myPts} and ${myBlk}.`;
+                              ? `You outscored every defenceman in your ${cw} in ${lg} on ${myPts} points, but ${cb.name} had the better season: ${cb.pts} points and ${hisBlk} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}.`
+                              : `${cb.name} was the best defenceman of your ${cw} in ${lg}: ${cb.pts} points and ${hisBlk} blocks${cb.toi ? ` at ${cb.toi.toFixed(1)} minutes a night` : ''}. You finished on ${myPts} and ${myBlk}.`;
                           })()}
                     </RecapRow>
                   );
@@ -802,7 +805,7 @@ export default function RecapScreen() {
                 {/* The rest of your draft class, when there is anything to
                     say. Most summers there is not. */}
                 {seasonRecap?.classNews && (
-                  <RecapRow accent="#c084fc" label="🏒 Your draft class">
+                  <RecapRow accent="#c084fc" label={`🏒 Your ${cw}`}>
                     {seasonRecap.classNews.line}
                   </RecapRow>
                 )}

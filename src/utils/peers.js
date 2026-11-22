@@ -1077,6 +1077,17 @@ const GROUP_NAME = {
   D: ['defenceman', 'defencemen']
 };
 
+// WHAT "YOUR DRAFT CLASS" MEANS.
+//
+// The players taken in the same draft as him. Before he's been drafted, and if
+// he was passed over and went in a later draft than the year group he came up
+// with, the same people are his draft year instead, not his class. Saves from
+// before the draft year was kept count as drafted with their class.
+export const classWord = (player) => (
+  player?.draftPick && (!player.classDraftYear || !player.draftYear || player.draftYear === player.classDraftYear)
+    ? 'draft class' : 'draft year'
+);
+
 export const compGroup = (pos) => (GROUP_NAME[pos] && pos !== 'F' && pos !== 'D' ? pos : 'C');
 
 export const groupName = (group, plural = true) =>

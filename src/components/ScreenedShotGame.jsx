@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { NetMouth, Goalie, Surface } from './rink/Ice';
 import { MOUTH, MOUTH_VIEW } from './rink/geometry';
 import { Stage, Hud, Verdict, ActionButton, Callout } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
 
 // The screened shot.
 //
@@ -79,11 +80,16 @@ export default function ScreenedShotGame({ player, onComplete, difficulty = 0 })
     }
   };
 
+  // Left, up and right (or 1, 2, 3) for glove side, the middle and blocker side.
+  useGameKeys({ ArrowLeft: () => commit(0), '1': () => commit(0), ArrowUp: () => commit(1), '2': () => commit(1),
+    ArrowRight: () => commit(2), '3': () => commit(2) }, status === 'live');
+
   const visible = phase === 'clear' || phase === 'result';
   const saved = status === 'saved';
 
   return (
     <Stage
+      keys="Left, up or right arrow (or 1, 2, 3) to commit"
       hud={
         <Hud
           left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">

@@ -276,7 +276,8 @@ const handleQuickSim = () => {
       )}
 
       {phase === 'declined' && (
-         <div className="max-w-2xl w-full mt-2 animate-fade-in bg-[#101410] border border-[#ef4444]/40 p-8 rounded-xl flex flex-col items-center">
+         // On the panel itself, not in a box inside it.
+         <div className="max-w-2xl w-full mt-2 animate-fade-in flex flex-col items-center">
             <h3 className="text-3xl font-black text-[#ef4444] sports-font uppercase mb-4">INVITATION DECLINED</h3>
             <p className="text-lg text-slate-300 mb-6 font-sans">
               You skipped the All-Star weekend to rest. Under league rules, that means an automatic <strong>1-game suspension</strong>. The media is questioning your commitment, and you got the rest you needed (+1 Stamina).
@@ -297,7 +298,7 @@ const handleQuickSim = () => {
       )}
 
       {phase === 'result' && skillsFeedback && carpetFeedback && (
-        <div className="max-w-2xl w-full mt-2 animate-fade-in bg-[#101410] border border-[#22E748]/40 p-8 rounded-xl flex flex-col items-center">
+        <div className="max-w-2xl w-full mt-2 animate-fade-in flex flex-col items-center">
            
            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{skillsFeedback.simmed ? 'YOUR WEEKEND' : 'SKILLS COMPETITION RESULT'}</p>
            <p className="text-3xl font-black text-white mb-4 sports-font uppercase text-center leading-snug">{skillsFeedback.msg}</p>

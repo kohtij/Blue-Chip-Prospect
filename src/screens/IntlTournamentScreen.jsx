@@ -356,11 +356,9 @@ export default function IntlTournamentScreen() {
           const decider = ['DECIDER', 'RELEG'].includes(round?.key);
           const stage = !round ? null
             : round.kind === 'group'
-              ? ['This game', run.isOlympics
-                  ? 'A group game. Nobody goes out in the group, but the winner skips the qualification playoff.'
-                  : run.isTopDiv
-                    ? 'A group game. The top three go through, and last place plays a relegation game.'
-                    : 'A group game. Win the group to play for promotion. Finish last and you play to stay up.']
+              // What each place leads to is shown on the table itself, shaded
+              // rows with a legend, so this line doesn't spell it out again.
+              ? ['This game', 'A group game. The shading on the table shows what each place leads to.']
               : decider
                 ? ['This game', `${round.label}. Get read and it's over, and there's no escape in one of these.`]
               : medal

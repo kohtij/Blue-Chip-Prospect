@@ -38,7 +38,9 @@ export default function PressResultScreen() {
                    })}
               </div>
 
-              <div className={`bg-black/40 border border-[rgba(255,255,255,0.065)] rounded-2xl p-6 text-center mb-8 flex flex-col items-center shadow-inner`}>
+              {/* The verdict, on the panel under the transcript rather than in
+                  a box of its own. */}
+              <div className="text-center mb-8 flex flex-col items-center">
                  <span className="text-3xl sm:text-4xl mb-3">🎤</span>
                  <h3 className={`text-xl sm:text-3xl font-black sports-font uppercase tracking-widest ${resultColor} mb-2`}>{resultTitle}</h3>
                  <p className="text-slate-400 text-sm sm:text-base font-sans">{resultText}</p>

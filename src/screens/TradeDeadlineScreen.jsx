@@ -350,7 +350,18 @@ export default function TradeDeadlineScreen() {
           };
 
           return (
-  <div className="w-full max-w-[420px] md:max-w-4xl lg:max-w-5xl mx-auto game-panel p-5 sm:p-8 mt-2 text-center">
+  <div className="w-full max-w-[420px] md:max-w-4xl lg:max-w-5xl mx-auto game-panel p-5 sm:p-8 mt-2 text-center relative overflow-hidden">
+    {/* The club paints the whole panel: its colour along the top edge and
+        washed in behind the title. That used to be a card of its own sitting
+        inside this panel, a box on a box that read as two screens stacked on
+        each other, the same problem the playoff bracket had. */}
+    <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />
+    <div
+      className="absolute inset-x-0 top-0 h-40 z-0 pointer-events-none opacity-[0.14]"
+      style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }}
+    />
+
+    <div className="relative z-10">
     <h2 className={`${TITLE_MD} mb-2`}>
       {isProgram ? 'THE STRETCH RUN' : 'TRADE DEADLINE'}
     </h2>
@@ -358,16 +369,9 @@ export default function TradeDeadlineScreen() {
       {pickFlavor(SUBTITLE[isCollege ? 'college' : isProgram ? 'program' : outlookKey], seed, 'subtitle')}
     </p>
 
-    {/* The club paints its own card, the same way the offer cards do. A screen
-        about one team that showed none of that team's colours read as a form. */}
-    <div className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.08)] rounded-xl mb-6 max-w-lg mx-auto text-left shadow-lg relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[3px] z-10" style={{ backgroundColor: accent }} />
-      <div
-        className="absolute inset-x-0 top-0 h-28 z-0 pointer-events-none opacity-[0.16]"
-        style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent} 0%, transparent 70%)` }}
-      />
-
-      <div className="p-5 sm:p-6 relative z-10">
+    {/* The club, its outlook and your place in it, straight on the panel. */}
+    <div className="mb-7 max-w-lg mx-auto text-left">
+      <div>
         <div className="flex items-center gap-3 mb-5">
           <div className="shrink-0">
             <TeamLogo teamId={res.currentTeam} league={res.currentLg || 'NHL'} isAHL={res.currentLg === 'AHL'} size="small" />
@@ -425,7 +429,7 @@ export default function TradeDeadlineScreen() {
         </div>
 
         {res.partial && (
-          <div className="mt-5 pt-5 border-t border-[rgba(255,255,255,0.065)]">
+          <div className="mt-6">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
               YOUR SEASON SO FAR
             </p>
@@ -459,7 +463,7 @@ export default function TradeDeadlineScreen() {
           </div>
         )}
 
-        <div className={`grid gap-4 mt-5 pt-5 border-t border-[rgba(255,255,255,0.065)] ${showContract && showRumour ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`grid gap-4 mt-6 ${showContract && showRumour ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
           {showContract && (
             <div>
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
@@ -568,6 +572,7 @@ export default function TradeDeadlineScreen() {
           )}
         </button>
       )}
+    </div>
     </div>
   </div>
 );

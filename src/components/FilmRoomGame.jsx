@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { ZoneSheet, Marker, Move, Puck, Surface } from './rink/Ice';
 import { ZONE_VIEW } from './rink/geometry';
-import { Pips } from './minigame/Shell';
+import { Pips, Clock } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
+import { decisionMs, useCountdown } from '../utils/decisionClock';
 
 // The film room.
 //
@@ -303,7 +305,7 @@ function Board({ diagram }) {
 
 const KEYS = ['A', 'B', 'C', 'D'];
 
-export default function FilmRoomGame({ onComplete }) {
+export default function FilmRoomGame({ onComplete, difficulty = 0 }) {
   const { player } = useAppContext();
   const [step, setStep] = useState(0);
   const [score, setScore] = useState(0);
@@ -316,11 +318,14 @@ export default function FilmRoomGame({ onComplete }) {
     return [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
   });
 
+  // opt is null when the clock ran out: the coach stops the tape and moves on,
+  // and it counts as a wrong read.
   const answer = (opt, i) => {
     if (shown) return;
-    setShown({ i, isCorrect: opt.isCorrect });
-    const next = score + (opt.isCorrect ? 1 : 0);
-    setMarks(m => [...m, opt.isCorrect]);
+    const right = !!opt?.isCorrect;
+    setShown({ i, isCorrect: right, late: !opt });
+    const next = score + (right ? 1 : 0);
+    setMarks(m => [...m, right]);
 
     setTimeout(() => {
       setScore(next);
@@ -337,6 +342,17 @@ export default function FilmRoomGame({ onComplete }) {
       }
     }, 1300);
   };
+
+  // THE CLOCK ON EACH CLIP. The film room was the one game you could sit on
+  // for as long as you liked. A coach running tape doesn't wait: read the
+  // diagram, answer, or he moves on without you.
+  const clipMs = decisionMs(difficulty, 9000, 6500);
+  const clipLeft = useCountdown(clipMs, !finished && !shown ? `clip-${step}` : null, () => answer(null, -1));
+
+  // A, B and C (or 1, 2 and 3) answer.
+  const pickKey = (i) => () => { const o = scenarios[step]?.options[i]; if (o) answer(o, i); };
+  useGameKeys({ a: pickKey(0), b: pickKey(1), c: pickKey(2), d: pickKey(3), '1': pickKey(0), '2': pickKey(1), '3': pickKey(2), '4': pickKey(3) },
+    !finished && !shown);
 
   if (!scenarios.length) return null;
 
@@ -383,6 +399,7 @@ export default function FilmRoomGame({ onComplete }) {
         <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
           Clip {step + 1} of {scenarios.length}
         </span>
+        <Clock msLeft={clipLeft} msTotal={clipMs} urgentAt={2500} />
         <span className="flex gap-1.5">
           {scenarios.map((_, i) => (
             <span
@@ -422,6 +439,10 @@ export default function FilmRoomGame({ onComplete }) {
         {current.question}
       </h3>
 
+      {shown?.late && (
+        <p className="mt-2 text-center text-xs sm:text-sm font-bold text-[#ef4444]">Too slow. The coach stopped the tape and moved on.</p>
+      )}
+
       <div className="mt-4 flex flex-col gap-2.5">
         {current.options.map((opt, i) => {
           const picked = shown?.i === i;
@@ -447,6 +468,9 @@ export default function FilmRoomGame({ onComplete }) {
           );
         })}
       </div>
+      <p className="mt-3 hidden [@media(pointer:fine)]:block text-center text-[10px] sm:text-[11px] text-slate-500">
+        A, B or C (or 1, 2, 3) to answer
+      </p>
     </div>
   );
 }

@@ -209,6 +209,7 @@ export function Callout({ text, tone = 'neutral', y = '50%' }) {
 export function ActionButton({ children, onClick, disabled, state = 'idle', wide }) {
   const cls = state === 'right' ? 'border-[#22E748] bg-[#22E748]/15 text-[#22E748]'
     : state === 'wrong' ? 'border-[#ef4444] bg-[#ef4444]/15 text-[#ef4444]'
+      : state === 'warn' ? 'border-[#ef4444]/60 bg-[#ef4444]/[0.06] text-[#fca5a5] hover:border-[#ef4444]'
       : state === 'spent' ? 'border-[rgba(255,255,255,0.08)] bg-[#0a0d0a] text-slate-600'
         : 'border-[rgba(255,255,255,0.14)] bg-[#101410] text-slate-200 hover:border-[#22E748]/70 hover:text-white';
   return (

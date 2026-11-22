@@ -4,7 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
 import { SLOT, SLOT_VIEW } from './rink/geometry';
 import { Stage, Hud, Clock, Verdict } from './minigame/Shell';
-import { isPress } from '../utils/a11y';
+import { isPress, useGameKeys } from '../utils/a11y';
 
 // The net-front battle.
 //
@@ -182,8 +182,14 @@ export default function ZoneBattleGame({ player, onComplete, difficulty = 0 }) {
   };
   const inLane = Math.abs(puck - me) <= REACH;
 
+  // The arrow keys (or A and D) work the two sides, one shove a press, the
+  // same as a tap on the buttons. Holding a key down doesn't repeat it.
+  useGameKeys({ ArrowLeft: () => shove(-1), a: () => shove(-1),
+    ArrowRight: () => shove(1), d: () => shove(1) }, status === 'live');
+
   return (
     <Stage
+      keys="Left and right arrows, or A and D, to work for position"
       hud={
         <Hud
           left={

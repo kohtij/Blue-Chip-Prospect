@@ -2,9 +2,9 @@ import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, 
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
-import { ATTR_FLOOR, formatMoney, gamesInLeague, nhlSeasonsOf, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
+import { ATTR_FLOOR, formatMoney, formatMoney3, gamesInLeague, nhlSeasonsOf, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
-import { buyoutTerms, salaryParts } from '../utils/bonuses';
+import { bonusCeiling, buyoutTerms, salaryParts, veteranBonuses } from '../utils/bonuses';
 import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
 import { teammatesFrom } from '../utils/peers';
 import { arrivalIntro, arrivalKind, coachBackground, coachIntro } from '../utils/lore';
@@ -275,7 +275,7 @@ export function advanceToOffseason(ctx) {
           desc: `The rehab has taken the whole summer. Your physios have given you two options: the team's standard recovery plan, which the club pays for, or an experimental treatment in Germany that you pay for yourself.`,
           choices: [
               { label: 'Experimental rehab', subLabel: 'Fly to Germany and pay for the treatment yourself.', isRisky: true, successChance: 0.75, successFeedback: 'It worked. You came back feeling quicker and stronger than before the injury.', successEffect: { fanStatus: 20, ovr: 4, money: -100000 }, failFeedback: 'It did nothing. You lost the money and still feel a step slow.', failEffect: { fanStatus: 0, ovr: 1, money: -100000 } },
-              { label: 'Standard rehab (free)', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You\'re cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
+              { label: 'Standard rehab', subLabel: 'Stick with the team\'s recovery program, no cost, no guarantees.', isRisky: false, feedback: 'You\'re cleared to play, and you have lost a step.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
           ],
           isOffseasonEvent: true
       });
@@ -577,9 +577,16 @@ export function advanceToOffseason(ctx) {
            choices.push({ label: 'Play out current contract', subLabel: 'Honour the deal and give it one more year.', isRisky: false, feedback: 'You\'ll play out the last year of your contract.', effect: { fanStatus: 10, ovr: -2, money: 0 } });
        } else {
            if (player.ovr >= 76 && player.league === 'NHL') {
-               choices.push({ label: 'Push for one more NHL season', subLabel: 'Sign a short veteran extension to chase one more shot.', isRisky: false, feedback: 'You signed a one-year extension for one more run at it.', effect: { fanStatus: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
+               // The deal is fixed (see VETERAN_EXTENSION), so it's shown as a
+               // contract like every other offer in an event.
+               choices.push({ label: 'Push for one more NHL season', subLabel: 'Sign a short veteran extension to chase one more shot.',
+                 contract: { salary: 850000, years: 1, role: 'Veteran',
+                   perks: (player.age || 0) >= 35 ? [{ name: 'Games bonuses', effect: `Up to ${formatMoney3(bonusCeiling(veteranBonuses()))}` }] : [] },
+                 isRisky: false, feedback: 'You signed a one-year extension for one more run at it.', effect: { fanStatus: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
            } else if (player.ovr >= 68) {
-               choices.push({ label: 'Attempt a comeback in the AHL', subLabel: 'Sign a two-way deal and grind it out for a shot back up.', isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { fanStatus: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
+               choices.push({ label: 'Attempt a comeback in the AHL', subLabel: 'Sign a two-way deal and grind it out for a shot back up.',
+                 contract: { salary: 150000, years: 1, role: 'Veteran Mentor' },
+                 isRisky: false, feedback: 'You signed a two-way deal to grind it out in the AHL.', effect: { fanStatus: 0, ovr: -1, money: 0 }, action: 'SIGN_TWILIGHT_AHL' });
            }
        }
 
@@ -1025,7 +1032,16 @@ export function advanceToOffseason(ctx) {
     // played a game. The gate only asked whether anybody held his rights,
     // and nobody did any more, so a European league counted as an amateur
     // route all over again. Having a professional contract now ends it.
-    if (isDraftEligibleAge && !hasSignedDeal
+    //
+    // A European club contract is different. Most European prospects are
+    // drafted while under contract at home, so a never-drafted player signed
+    // in Liiga or the SHL is in his draft like anyone else. He used to be
+    // skipped at eighteen for having one, and only reached the draft at
+    // twenty, as an over-ager, once it ran out. The Slovak case above was a
+    // player who had already been drafted, so a player who has been through a
+    // draft and been taken stays out.
+    const euroProspect = safeEuroLeagues.includes(currentLeague) && !player.draftPick && !player.draftTeam;
+    if (isDraftEligibleAge && (!hasSignedDeal || euroProspect)
         && (isCurrentlyAmateur || safeEuroLeagues.includes(currentLeague)) && !player.rights) {
       // THE RUSSIAN FACTOR.
       //

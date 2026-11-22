@@ -3,7 +3,7 @@ import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { formatComp } from '../utils/contracts';
-import { formatMoney, isRestricted, onNhlContract } from '../utils/gameHelpers';
+import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText } from '../utils/gameHelpers';
 import { bonusCeiling } from '../utils/bonuses';
 import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
@@ -248,7 +248,7 @@ export default function TransferScreen() {
                         <div className="flex flex-col z-10 relative mb-4">
                            <div className="flex items-baseline gap-1.5">
                              <span className="text-3xl sm:text-4xl font-black text-white sports-font tracking-tighter">
-                              {o.salary >= 1000000 ? `$${(o.salary / 1000000).toFixed(1)}M` : `$${(o.salary / 1000).toFixed(0)}K`}
+                              {formatMoney3(o.salary)}
                             </span>
                              <span className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">/{o.type === 'SCHOLARSHIP' ? 'NIL' : 'YR'}</span>
                            </div>
@@ -313,7 +313,7 @@ export default function TransferScreen() {
                            )}
                            {o.sbShare > 0 && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
-                               <span className="text-slate-500 shrink-0">Signing bonus</span>
+                               <span className="text-slate-500 shrink-0">Paid up front</span>
                                <span className="ml-auto shrink-0 whitespace-nowrap text-[#F59E0B]">{Math.round(o.sbShare * 100)}% each July 1</span>
                              </p>
                            )}
@@ -335,7 +335,7 @@ export default function TransferScreen() {
                           <div className="flex flex-col gap-1.5 mb-5 z-10 relative">
                              {o.perks?.length > 0 && (
                                <div className="rounded-lg bg-[#22E748]/[0.07] px-2.5 py-1">
-                                 {o.perks.map((p, pIdx) => <PerkChip key={`perk-${pIdx}`} perk={p} />)}
+                                 {o.perks.map((p, pIdx) => <PerkChip key={`perk-${pIdx}`} perk={p.ovr > 0 ? { ...p, effect: ovrEffectText(player, p.ovr) } : p} />)}
                                </div>
                              )}
                              {o.flaws?.length > 0 && (
@@ -359,7 +359,7 @@ export default function TransferScreen() {
                              >
                                <span>ACCEPT Q.O.</span>
                                <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
-                                 {qoOffer.salary >= 1000000 ? `$${(qoOffer.salary / 1000000).toFixed(1)}M/yr` : `$${(qoOffer.salary / 1000).toFixed(0)}K/yr`}
+                                 {`${formatMoney3(qoOffer.salary)}/yr`}
                                </span>
                              </button>
                              {qoOffer.arbitration && (
@@ -384,7 +384,7 @@ export default function TransferScreen() {
                            >
                              <span>HOMETOWN DISCOUNT</span>
                              <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
-                               Take {discountOffer.salary >= 1000000 ? `$${(discountOffer.salary / 1000000).toFixed(1)}M/yr` : `$${(discountOffer.salary / 1000).toFixed(0)}K/yr`} for +100 Fans
+                               Take {formatMoney3(discountOffer.salary)}/yr for +100 fans
                              </span>
                            </button>
                          )}

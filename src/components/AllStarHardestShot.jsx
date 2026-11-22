@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NetMouth, Surface } from './rink/Ice';
 import { MOUTH, MOUTH_VIEW, wavePath } from './rink/geometry';
 import { EventHeader, Stage, Pips, Verdict } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
 
 // Hardest shot.
 //
@@ -85,6 +86,10 @@ export default function AllStarHardestShot({ onComplete, strategy }) {
     }, 1500);
   };
 
+  // Space or Enter steps up, then lets each one go.
+  const press = () => (gameStarted ? handleShoot() : setGameStarted(true));
+  useGameKeys({ ' ': press, Enter: press }, !result);
+
   const live = gameStarted && !isStopping && attempts < 3;
 
   return (
@@ -99,6 +104,7 @@ export default function AllStarHardestShot({ onComplete, strategy }) {
 
       <div className="mt-4">
         <Stage
+          keys="Space or Enter to step up and shoot"
           hud={
             <div className="flex items-center justify-between gap-4 px-1">
               <Pips label="Attempts" filled={attempts} total={3} />

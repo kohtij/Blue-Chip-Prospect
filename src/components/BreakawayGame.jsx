@@ -3,7 +3,9 @@ import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Move, Surface } from './rink/Ice';
 import { SLOT_VIEW } from './rink/geometry';
-import { Stage, Hud, Verdict, ActionButton, Callout } from './minigame/Shell';
+import { Stage, Hud, Verdict, ActionButton, Callout, Clock } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
+import { decisionMs, useCountdown } from '../utils/decisionClock';
 
 // The breakaway.
 //
@@ -95,6 +97,22 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
         : 'he had already gone the other way');
   };
 
+  // He doesn't wait at the blue line while you think about it. Leave the
+  // decision too long and you're still standing square when he comes.
+  const setupMs = decisionMs(difficulty, 4500, 3000);
+  const setupLeft = useCountdown(setupMs, phase === 'setup', () => start('hold'));
+
+  // Keys: 1, 2 and 3 (or left, down and right) for the three plans, then the
+  // left and right arrows for the pads.
+  useGameKeys({
+    '1': () => phase === 'setup' && start('cheatLeft'),
+    '2': () => phase === 'setup' && start('hold'),
+    '3': () => phase === 'setup' && start('cheatRight'),
+    ArrowDown: () => phase === 'setup' && start('hold'),
+    ArrowLeft: () => (phase === 'setup' ? start('cheatLeft') : pad('left')),
+    ArrowRight: () => (phase === 'setup' ? start('cheatRight') : pad('right'))
+  }, status === 'live');
+
   // Where I am standing. Cheating a side shows before he has moved.
   const lean = plan === 'cheatLeft' ? -1 : plan === 'cheatRight' ? 1 : 0;
   const shift = dove ? (dove === 'left' ? -1 : 1) : lean;
@@ -104,7 +122,9 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
   if (phase === 'setup') {
     return (
       <div className="w-full max-w-xl mx-auto fade-up">
-        <p className="text-center text-sm sm:text-base text-slate-300 leading-relaxed">
+        <Hud left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">He's over the line</span>}
+             right={<Clock msLeft={setupLeft} msTotal={setupMs} />} />
+        <p className="mt-3 text-center text-sm sm:text-base text-slate-300 leading-relaxed">
           He's coming in alone. You can take the deke away by committing to a side early, or you
           can stay on your feet and back yourself to get there.
         </p>
@@ -127,12 +147,16 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
             </button>
           ))}
         </div>
+        <p className="mt-3 hidden [@media(pointer:fine)]:block text-center text-[10px] sm:text-[11px] text-slate-500">
+          1, 2 or 3 (or left, down, right) to choose
+        </p>
       </div>
     );
   }
 
   return (
     <Stage
+      keys={plan === 'hold' ? 'Left and right arrows for the pads' : null}
       hud={
         <Hud
           left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">

@@ -4,6 +4,7 @@ import { getActiveStat } from '../utils/gameHelpers';
 import { DotSheet, Surface, Puck } from './rink/Ice';
 import { DOT_VIEW } from './rink/geometry';
 import { Stage, Hud, Verdict, Callout } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
 
 // The draw.
 //
@@ -82,11 +83,15 @@ export default function FaceoffGame({ player, onComplete, difficulty = 0 }) {
     }
   };
 
+  // Space or Enter takes the draw, same as the button.
+  useGameKeys({ ' ': strike, Enter: strike }, phase !== 'done' && !outcome);
+
   const live = phase === 'live';
   const won = outcome?.kind === 'won';
 
   return (
     <Stage
+      keys="Space or Enter to take the draw"
       hud={
         <Hud
           left={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">

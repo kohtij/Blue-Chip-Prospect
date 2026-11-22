@@ -274,7 +274,7 @@ export default function PlayoffsScreen() {
       })()
     : isSingleGame
       ? 'One game, winner advances. Pick a card.'
-      : `Pick a card to play game ${myWins + oppWins + 1}. First to ${numberWord(roundWinsNeeded)} wins.`;
+      : `Pick a card to play Game ${myWins + oppWins + 1}. First to ${numberWord(roundWinsNeeded)} wins.`;
 
   const renderSide = (teamId, wins, pipClass) => (
     <div className="flex flex-col items-center gap-2 min-w-0 h-full">
@@ -473,11 +473,6 @@ export default function PlayoffsScreen() {
                     Each square shows the actual score once turned over,
                     rather than a plain win/loss letter, since one game is
                     worth seeing the final score of. */}
-                {/* What to do, right over the cards. Once it's decided the line
-                    goes invisible rather than away, so the cards don't jump. */}
-                <p className={`text-xs sm:text-sm text-slate-400 font-sans text-center w-full mb-3 ${activeMatch.status === 'playing' ? '' : 'invisible'}`}>
-                  {pickLine}
-                </p>
                 <div className={isSingleGame ? 'grid grid-cols-4 gap-1.5 sm:gap-2' : 'grid grid-cols-3 gap-2 sm:gap-3'}>
                   {deck.map((item, cIndex) => {
                     const isRevealed = revealedIdx.includes(cIndex);
@@ -517,12 +512,16 @@ export default function PlayoffsScreen() {
                   })}
                 </div>
 
-                {/* BOTTOM ACTION AREA. Its height is reserved for the tallest
-                    thing it ever holds (the result line over the button), so
-                    the bracket below stays put when a series ends. */}
-                <div className="mt-4 flex flex-col justify-start items-center w-full min-h-[100px] sm:min-h-[104px]">
+                {/* BOTTOM ACTION AREA. All the text about the series lives
+                    here, under the cards: what to do while it's on, and the
+                    result once it's over. The instruction used to sit over the
+                    cards and the result under them. Its height is reserved for
+                    the tallest thing it ever holds, so the bracket below stays
+                    put when a series ends. */}
+                <div className="mt-4 flex flex-col justify-start items-center w-full min-h-[132px] sm:min-h-[124px]">
                   {activeMatch.status === 'playing' ? (
                     <div className="w-full flex flex-col items-center">
+                      <p className="text-xs sm:text-sm text-slate-400 font-sans text-center w-full px-2 mb-3">{pickLine}</p>
                       {/* CAPTAINCY ACTION */}
                       {/* Only the captain gives it. It used to follow a storyline flag,
                           which stayed set after he'd left the club that named him. */}
@@ -585,8 +584,8 @@ export default function PlayoffsScreen() {
                       
                       {speechUsed && (
                           <div className="w-full mt-1 border border-[#F59E0B]/30 bg-[#F59E0B]/10 py-2 rounded-xl">
-                            <p className="text-[#F59E0B] font-black uppercase tracking-widest text-[10px] sm:text-xs animate-pulse">
-                                📢 SPEECH DELIVERED! CLICK THE GLOWING CARD!
+                            <p className="text-[#F59E0B] font-black uppercase tracking-widest text-[10px] sm:text-xs">
+                                📢 Speech given. The glowing card is a win.
                             </p>
                           </div>
                       )}

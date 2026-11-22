@@ -52,17 +52,20 @@ const FIRST = {
   DEN: ['Oliver', 'Nikolaj', 'Frederik', 'Lars', 'Mathias', 'Jesper']
 };
 
+// Made-up surnames. Real NHL ones (Marchessault, Keller, Lindholm, Sorokin,
+// Eichel, Ehlers and more) had crept in, which put a famous name on a fourth-
+// liner in your room. The coach pools already avoided them.
 const LAST = {
-  CAN: ['Prescott', 'Vandermeer', 'Boucher', 'Lalonde', 'Whitfield', 'Marchessault', 'Ironside', 'Beaulieu', 'Hargreaves', 'Dufresne', 'Kinsella', 'Rousseau', 'Tremblay', 'Hollingsworth', 'Gauthier'],
-  USA: ['Whitaker', 'Brennan', 'Sheffield', 'Caldwell', 'Mahoney', 'Donnelly', 'Keller', 'Brightwell', 'Rasmussen', 'Hollis', 'Vaughn', 'Kozlow'],
-  SWE: ['Lindholm', 'Bergqvist', 'Sandstrom', 'Ahlberg', 'Nystrom', 'Hedlund', 'Wallin', 'Forsling', 'Ostlund'],
-  FIN: ['Hakkarainen', 'Rautio', 'Virtanen', 'Lehtonen', 'Koskinen', 'Niemela', 'Salminen', 'Jarvinen'],
-  RUS: ['Volkov', 'Sorokin', 'Gusev', 'Romanov', 'Bragin', 'Zhuravlev', 'Panov', 'Yermolaev'],
+  CAN: ['Prescott', 'Vandermeer', 'Boucher', 'Lalonde', 'Whitfield', 'Larochelle', 'Ironside', 'Bellefeuille', 'Hargreaves', 'Dufresne', 'Kinsella', 'Rousseau', 'Tremblay', 'Hollingsworth', 'Gauthier'],
+  USA: ['Whitaker', 'Brennan', 'Sheffield', 'Caldwell', 'Mahoney', 'Donnelly', 'Haskell', 'Brightwell', 'Pemberton', 'Hollis', 'Vaughn', 'Kozlow'],
+  SWE: ['Lindroos', 'Bergqvist', 'Sandstrom', 'Ahlberg', 'Nystrom', 'Hedlund', 'Wallin', 'Fogelberg', 'Ostlund'],
+  FIN: ['Hakkarainen', 'Rautio', 'Vuorela', 'Lehtonen', 'Kaartinen', 'Niemela', 'Salminen', 'Jarvinen'],
+  RUS: ['Vorobyov', 'Seleznyov', 'Gubarev', 'Ryabinin', 'Bragin', 'Zhuravlev', 'Panov', 'Yermolaev'],
   CZE: ['Jelinek', 'Novotny', 'Riha', 'Svoboda', 'Kubat', 'Hruby', 'Marek'],
   SVK: ['Hudak', 'Slovak', 'Bucko', 'Kristof', 'Zeleznik', 'Mracko'],
-  SUI: ['Brunner', 'Hofmann', 'Keller', 'Zuber', 'Moser', 'Baumgartner'],
-  GER: ['Seidel', 'Brandt', 'Eichel', 'Hoffmann', 'Reichel', 'Kahun'],
-  DEN: ['Jensen', 'Poulsen', 'Lauridsen', 'Blichfeld', 'Ehlers']
+  SUI: ['Burkhalter', 'Gisler', 'Imhof', 'Zuber', 'Fassler', 'Baumgartner'],
+  GER: ['Seidel', 'Brandt', 'Eckert', 'Hoffmann', 'Reimann', 'Kuhnert'],
+  DEN: ['Jensen', 'Poulsen', 'Lindegaard', 'Bach', 'Ebbesen']
 };
 
 const NATS = ['CAN', 'CAN', 'CAN', 'USA', 'USA', 'SWE', 'FIN', 'RUS', 'CZE', 'SVK', 'SUI', 'GER', 'DEN'];

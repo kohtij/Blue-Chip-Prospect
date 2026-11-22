@@ -49,6 +49,43 @@ export function isPress(e) {
   return true;
 }
 
+// KEYBOARD CONTROLS FOR A MINIGAME.
+//
+// Every minigame plays from a keyboard the same way, through this one hook.
+// Some had their own listener, most had none, so the net-front battle could
+// only be played with a mouse or a finger while the breakaway next to it took
+// the arrow keys. map is { key: handler }, with letters written lower case and
+// the space bar as ' '. A key the focused button has already acted on (the
+// pointer-down buttons answer Enter and Space themselves, see isPress) is left
+// alone so nothing fires twice, and the browser's own Space and Enter click on
+// a focused button is cancelled for the keys the game uses.
+export function useGameKeys(map, enabled = true, { repeat = false } = {}) {
+  const mapRef = useRef(map);
+  useEffect(() => { mapRef.current = map; });
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const keyOf = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
+    const onDown = (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      const fn = mapRef.current[keyOf(e)];
+      if (!fn) return;
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+      if (e.repeat && !repeat) return;
+      fn(e);
+    };
+    const onUp = (e) => { if (mapRef.current[keyOf(e)] && (e.key === ' ' || e.key === 'Enter')) e.preventDefault(); };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, [enabled, repeat]);
+}
+
 // Text colour that reads on a given background, for badges drawn in a club's
 // own colours, where the two club colours can be too close to read.
 export function readableOn(hex, preferred) {

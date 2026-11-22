@@ -52,8 +52,10 @@ export default function MemorialCupScreen() {
                  </h2>
               </div>
 
-              {/* 2-STAGE TOURNAMENT TRACKER */}
-              <div className="flex items-center justify-center gap-2 sm:gap-4 w-full max-w-xl mb-6 bg-[#101410] p-2.5 sm:p-3 rounded-xl border border-[rgba(255,255,255,0.065)] font-sans">
+              {/* 2-STAGE TOURNAMENT TRACKER
+                  The two stages sit on the panel, the way the playoff bracket
+                  does. They used to be in a box of their own inside it. */}
+              <div className="flex items-center justify-center gap-2 sm:gap-4 w-full max-w-xl mb-6 font-sans">
                  <div className={`flex-1 p-2 rounded-lg text-center border transition-all ${
                    memCup.status === 'semi_won' || isFinal 
                      ? 'bg-[#22E748]/10 border-[#22E748] text-[#22E748]' 
@@ -129,7 +131,7 @@ export default function MemorialCupScreen() {
 
               {/* SEMI-FINAL VICTORY INTERMISSION SCREEN */}
               {memCup.status === 'semi_won' && (
-                <div className="w-full max-w-xl bg-gradient-to-b from-[#102010] to-[#081008] border-2 border-[#22E748] p-6 sm:p-8 rounded-2xl text-center mb-6">
+                <div className="w-full max-w-xl text-center mb-6">
                    <div className="text-4xl sm:text-5xl mb-3 animate-bounce">⚡</div>
                    <p className="text-xs font-black text-[#22E748] uppercase tracking-widest font-sans mb-1">SEMI-FINAL VICTORY!</p>
                    <h3 className="text-2xl sm:text-3xl font-black text-white sports-font uppercase mb-3">
@@ -149,8 +151,10 @@ export default function MemorialCupScreen() {
 
               {/* ACTIVE MATCHUP CHOICES */}
               {memCup.status === 'playing' && (
-                <div className="w-full max-w-2xl space-y-4">
-                  <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] p-4 rounded-xl text-center mb-6">
+                // The matchup and the game to play, on the panel. They were a
+                // box with a second box under it, inside the panel's own.
+                <div className="w-full max-w-2xl">
+                  <div className="text-center mb-6">
                     <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-widest mb-1 font-sans">
                       {isFinal ? '🏆 MEMORIAL CUP FINAL MATCHUP' : '🏒 SEMI-FINAL MATCHUP'}
                     </p>
@@ -159,7 +163,7 @@ export default function MemorialCupScreen() {
                     </h3>
                   </div>
 
-                  <div className={`bg-[#151b15] border ${isFinal ? 'border-[#F59E0B]/50' : 'border-[#3b82f6]/30 shadow-lg'} rounded-xl p-6 sm:p-8 text-center`}>
+                  <div className="text-center">
                      <div className="text-4xl mb-4 animate-bounce">{isFinal ? '🏆' : '🏒'}</div>
                      <h4 className="text-xl sm:text-2xl font-black text-white sports-font uppercase mb-3">LIVE MINIGAME SCENARIO</h4>
                      <p className="text-sm sm:text-base text-slate-300 font-sans mb-8 max-w-lg mx-auto">

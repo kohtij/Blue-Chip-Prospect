@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FullSheet, Marker, Surface } from './rink/Ice';
 import { LAP_D, LAP_LEN, LAP_START_X, lapPoint } from './rink/geometry';
 import { EventHeader, Stage, Verdict, ActionButton } from './minigame/Shell';
+import { useGameKeys } from '../utils/a11y';
 
 // Fastest skater.
 //
@@ -84,6 +85,14 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
     }, 1500);
   };
 
+  // Left and right arrows (or A and D) for the strides, Space or Enter to go.
+  // Holding a key doesn't stride for you.
+  useGameKeys({
+    ArrowLeft: () => handleStride('L'), a: () => handleStride('L'),
+    ArrowRight: () => handleStride('R'), d: () => handleStride('R'),
+    ' ': () => { if (!gameStarted) startGame(); }, Enter: () => { if (!gameStarted) startGame(); }
+  }, !result);
+
   const frac = Math.min(1, strides / targetStrides);
   const [sx, sy] = lapPoint(frac);
   const left = targetStrides - strides;
@@ -102,6 +111,7 @@ export default function AllStarFastestSkater({ onComplete, strategy }) {
 
       <div className="mt-4">
         <Stage
+          keys="Space to start, then left and right arrows (or A and D) to stride"
           verdict={
             <Verdict
               show={!!result}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { lerpDifficulty, MIN_REACTION_MS } from '../utils/stakes';
 import { getActiveStat } from '../utils/gameHelpers';
 import { SlotSheet, Marker, Puck, Surface } from './rink/Ice';
-import { SLOT, SLOT_MOUTH, SLOT_VIEW, wavePath } from './rink/geometry';
+import { SLOT, SLOT_MOUTH, SLOT_VIEW, wavePath, ICE, RED, BLUE } from './rink/geometry';
 import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 
 // End to end.
@@ -16,6 +16,76 @@ import { Stage, Hud, Pips, Verdict, ActionButton } from './minigame/Shell';
 // of the net. Beat all three and you're in on goal.
 
 const MEN = ['The first forechecker', 'The man in the middle', 'The last defenceman'];
+
+// WHERE ON THE ICE EACH MAN IS.
+//
+// All three used to be beaten on the same patch of ice in front of their net,
+// so nothing said you'd carried it anywhere. Each man now stands in his own
+// part of the rink, drawn the same way up as the rest (you skate down the
+// screen): your own end with your net behind you, the neutral zone with the
+// red line, and their end with their net ahead.
+const ZONES = ['Your end', 'Neutral zone', 'Their end'];
+
+function OwnEndSheet() {
+  const goal = 5;
+  const half = SLOT.netHalf;
+  return (
+    <g>
+      <rect x="0" y="0" width="100" height={SLOT.depth} fill={ICE} />
+      {/* Your net behind you, the paint opening down toward the play. */}
+      <rect x={50 - half} y={goal - SLOT.netDepth} width={half * 2} height={SLOT.netDepth} rx="1.1"
+            fill="rgba(255,255,255,0.12)" stroke="rgba(245,245,245,0.7)" strokeWidth="0.7" />
+      <line x1="0" y1={goal} x2="100" y2={goal} stroke={RED} strokeWidth="1.1" />
+      <path d={`M ${50 - SLOT.creaseHalf} ${goal} A ${SLOT.creaseHalf} ${SLOT.creaseHalf} 0 0 0 ${50 + SLOT.creaseHalf} ${goal}`}
+            fill="rgba(56,120,220,0.16)" stroke={BLUE} strokeWidth="0.7" />
+      {[13, 87].map(x => (
+        <g key={x}>
+          <circle cx={x} cy="22" r="2.6" fill="none" stroke={RED} strokeWidth="0.6" />
+          <circle cx={x} cy="22" r="1.15" fill={RED} />
+        </g>
+      ))}
+      {/* The way out of your zone, ahead of you. */}
+      <line x1="0" y1="74" x2="100" y2="74" stroke={BLUE} strokeWidth="2.4" />
+    </g>
+  );
+}
+
+function NeutralSheet() {
+  return (
+    <g>
+      <rect x="0" y="0" width="100" height={SLOT.depth} fill={ICE} />
+      <line x1="0" y1="5" x2="100" y2="5" stroke={BLUE} strokeWidth="2.4" />
+      <circle cx="50" cy="40" r="13" fill="none" stroke={BLUE} strokeWidth="0.6" opacity="0.7" />
+      <line x1="0" y1="40" x2="100" y2="40" stroke={RED} strokeWidth="2.2" />
+      <circle cx="50" cy="40" r="1.2" fill={BLUE} />
+      {[[16, 18], [84, 18], [16, 62], [84, 62]].map(([x, y]) => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.15" fill={RED} />
+      ))}
+      <line x1="0" y1="75" x2="100" y2="75" stroke={BLUE} strokeWidth="2.4" />
+    </g>
+  );
+}
+
+// The rink at the top of the game: where you started, where you are, and how
+// far there is still to go.
+function ZoneTrack({ at, done }) {
+  return (
+    <div className="mt-2 grid grid-cols-3 gap-1.5 px-1" aria-label={`${ZONES[Math.min(at, 2)]}, ${done} of 3 beaten`}>
+      {ZONES.map((z, i) => {
+        const past = i < done;
+        const here = i === at && !past;
+        return (
+          <div key={z} className={`rounded-md px-2 py-1.5 text-center text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] ${
+            past ? 'bg-[#22E748]/[0.10] text-[#22E748]'
+              : here ? 'bg-white/[0.08] text-white'
+                : 'bg-white/[0.03] text-slate-600'}`}>
+            {z}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 const ME = [50, SLOT.highRow];
 const HIS_CLOSE = SLOT.slotRow - 8;
 
@@ -126,12 +196,15 @@ export default function DekeGame({ player, onComplete, difficulty = 0 }) {
     <Stage
       keys="Left and right arrows to go"
       hud={
-        <Hud
-          left={<Pips label="Beaten" filled={beaten} total={MEN.length} />}
-          right={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-            {MEN[Math.min(man, MEN.length - 1)]}
-          </span>}
-        />
+        <>
+          <Hud
+            left={<Pips label="Beaten" filled={beaten} total={MEN.length} />}
+            right={<span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+              {MEN[Math.min(man, MEN.length - 1)]}
+            </span>}
+          />
+          <ZoneTrack at={man} done={beaten} />
+        </>
       }
       verdict={
         <Verdict
@@ -149,7 +222,10 @@ export default function DekeGame({ player, onComplete, difficulty = 0 }) {
       }
     >
       <Surface view={SLOT_VIEW}>
-        <SlotSheet seams={false} />
+        {/* Each man on his own stretch of ice, faded in as you get there. */}
+        <g key={`zone-${man}`} className="fade-up">
+          {man === 0 ? <OwnEndSheet /> : man === 1 ? <NeutralSheet /> : <SlotSheet seams={false} />}
+        </g>
 
         {/* The defender. Only the man you're beating now is on the ice. */}
         {phase !== 'beat' && !scored && (

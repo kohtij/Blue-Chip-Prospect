@@ -2,7 +2,7 @@ import { nhlTeams } from '../data/teams';
 import { draftOrder, teamStrengthOf } from './leagueState';
 import { gaussianNoise } from './production';
 import {
-  boardOrderPicks, classSalt, DRAFT_DAY_NOISE, LAST_PICK, peerBoardScore,
+  boardOrderPicks, classSalt, DRAFT_DAY_NOISE, peerBoardScore,
   playerBoardScore, projectedPeak, roomProspect
 } from './peers';
 import { addToPool, ensureFrontOffices, poolGroup, routeOf } from './frontOffice';
@@ -153,7 +153,11 @@ function taste(office, c, avgGap) {
  * and club and the reason they took him, the class with its picks and clubs
  * set, and the front offices with the night's picks in their pools.
  */
-export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
+// classDone: the class was drafted in an earlier year (he was passed over
+// then and is in the room again as an over-ager). His classmates already have
+// their picks, so they are not on the board a second time and the night leaves
+// them as they are.
+export function runDraftNight(player, { combine = 0, year = 2026, classDone = false } = {}) {
   const leagueState = player.leagueState;
   let office = ensureFrontOffices(player.frontOffice, leagueState, year);
   const standard = draftOrder(leagueState, nhlTeams || []);
@@ -165,7 +169,7 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
   // The class, in board order, with the board score each club starts from.
   const peers = boardOrderPicks(player.peers || []);
   const live = peers.filter(p => p.pick && !p.retired);
-  const cands = live.map(p => ({
+  const cands = (classDone ? [] : live).map(p => ({
     key: p.id, peerId: p.id, name: p.name, nat: p.nat, pos: p.pos,
     juniorTeam: p.juniorTeam, juniorLeague: p.juniorLeague,
     route: routeOf(p.juniorLeague), score: peerBoardScore(p),
@@ -186,7 +190,7 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
   // where his slot sits on the board, read off the classmates either side of
   // it, so the room is as deep as the class says it is.
   const skaters = live.filter(p => p.pos !== 'G').map(p => [p.pick, peerBoardScore(p)]).sort((a, b) => a[0] - b[0]);
-  const held = new Set(live.map(p => p.pick));
+  const held = new Set(classDone ? [] : live.map(p => p.pick));
   const scoreAt = (n) => {
     if (!skaters.length) return 60;
     if (n <= skaters[0][0]) return skaters[0][1] + (skaters[0][0] - n) * 1.0;
@@ -230,9 +234,9 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
       const v = c.score + t.total + gaussianNoise() * TASTE_NOISE;
       if (!best || v > best.v) best = { c, v, t };
     }
-    // The game has no undrafted path off draft night, so a player nobody has
-    // taken by the last pick is taken with it, as the old curve did.
-    if (slot.pick === LAST_PICK && available.includes(me)) best = { c: me, v: 0, t: taste(o, me, avgGap) };
+    // Nobody is taken with the last pick for being the last name left. A
+    // player no club wants by then goes undrafted, as most of a birth year
+    // does, and the caller tells him so. He used to be handed pick 224.
     if (!best) break;
     available = available.filter(c => c !== best.c);
     office = addToPool(office, slot.team, best.c.pos, slot.round);
@@ -255,7 +259,7 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
 
   // The class, with the night written onto it.
   const byPeer = new Map([...picks, ...late].filter(r => r.peerId).map(r => [r.peerId, r]));
-  const nextPeers = (player.peers || []).map(p => {
+  const nextPeers = classDone ? (player.peers || []) : (player.peers || []).map(p => {
     const r = byPeer.get(p.id);
     if (r) return { ...p, pick: r.pick, draftedBy: r.team };
     // In the class and not taken.
@@ -269,11 +273,13 @@ export function runDraftNight(player, { combine = 0, year = 2026 } = {}) {
       lottery: lottery.winners,
       // eslint-disable-next-line no-unused-vars
       picks: [...picks, ...late.filter(r => r.me)].map(({ parts, ...r }) => r),
-      myPick: mine.pick,
-      myTeam: mine.team,
-      myFrom: mine.from,
-      gm: office[mine.team]?.gm?.name || null,
-      reason: reasonFor(mine, office[mine.team], lottery.winners)
+      // All null when he went undrafted.
+      myPick: mine ? mine.pick : null,
+      myTeam: mine ? mine.team : null,
+      myFrom: mine ? mine.from : null,
+      gm: mine ? (office[mine.team]?.gm?.name || null) : null,
+      reason: mine ? reasonFor(mine, office[mine.team], lottery.winners) : null,
+      undrafted: !mine
     },
     peers: nextPeers,
     office,

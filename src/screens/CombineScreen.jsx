@@ -195,7 +195,7 @@ const Row = ({ label, children }) => (
 
 
 export default function CombineScreen() {
-  const { combinePhase, combineScore, handleDraftDay, player, setCombineClicks, setCombinePhase, setCombineScore } = useAppContext();
+  const { combinePhase, combineScore, handleDraftDay, player, setCombinePhase, setCombineScore } = useAppContext();
   
   const [interviewData, setInterviewData] = useState(null);
   const [interviewResult, setInterviewResult] = useState(null);
@@ -416,7 +416,6 @@ export default function CombineScreen() {
   const testResult = posGroup === 'F' ? bpResult : posGroup === 'D' ? vo2Result : rxResult;
   const testDone = posGroup === 'F' ? bpDone : posGroup === 'D' ? vo2Done : rxDone;
   const toneOf = (pts) => pts > 0 ? 'text-[#22E748]' : pts < 0 ? 'text-[#ef4444]' : 'text-slate-300';
-  const testValue = testResult ? `${testResult.finalScore} ${testResult.unit.toLowerCase()}` : null;
 
   // The test ends on its own (the clock runs out, or the fifth rep or the
   // first miss), so the result stays up where the test was for a moment and
@@ -433,12 +432,12 @@ export default function CombineScreen() {
   // The combine used to be seven screens in a row, each with one button: an
   // intro, the test, its result, the interview, its result, the verdict and
   // the draft. It's laid out the way the All-Star weekend is now, one header
-  // with the week's three steps under it and where he is in it lit up. A step
-  // he has finished shows how it went in place of its label.
+  // with the week's three steps under it and where he is in it lit up. The
+  // steps only say what each part is; how each went is in the verdict.
   const steps = [
-    { label: 'Testing', what: testName, done: combinePhase > 1 && testResult, result: testValue, tone: testResult && toneOf(testResult.pts) },
-    { label: 'Interview', what: interviewData ? interviewData.scout.name : 'The GMs', done: combinePhase > 2 && interviewResult, result: interviewResult && (interviewResult.isMatch ? 'Good fit' : 'Bad fit'), tone: interviewResult && (interviewResult.isMatch ? 'text-[#22E748]' : 'text-[#ef4444]') },
-    { label: 'Verdict', what: 'Draft stock', done: false }
+    { label: 'Testing', what: testName },
+    { label: 'Interview', what: interviewData ? interviewData.scout.name : 'The GMs' },
+    { label: 'Verdict', what: 'Draft stock' }
   ];
   const marquee = (
     <>
@@ -457,8 +456,8 @@ export default function CombineScreen() {
                 className={`rounded-xl border px-2 py-3 text-center transition-colors ${on
                   ? 'border-[#22E748]/70 bg-[#22E748]/[0.08]'
                   : 'border-[rgba(255,255,255,0.08)] bg-[#0a0d0a]'}`}>
-              <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] ${st.done ? st.tone : on ? 'text-[#22E748]' : 'text-slate-500'}`}>
-                {st.done ? st.result : st.label}
+              <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] ${on ? 'text-[#22E748]' : 'text-slate-500'}`}>
+                {st.label}
               </p>
               <p className={`mt-1 text-xs sm:text-sm font-black sports-font uppercase leading-tight ${on ? 'text-white' : 'text-slate-400'}`}>{st.what}</p>
             </li>
@@ -628,7 +627,6 @@ export default function CombineScreen() {
                    onClick={() => {
                      handleDraftDay(combineScore);
                      setCombinePhase(1);
-                     if (setCombineClicks) setCombineClicks(0);
                      setCombineScore(0);
                    }}
                    className={`mt-7 ${START_BTN}`}

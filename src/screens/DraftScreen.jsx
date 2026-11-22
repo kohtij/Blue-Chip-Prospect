@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { NO_ARTICLE_LEAGUES, ordinal, withTeamArticle } from '../utils/gameHelpers';
-import { classSalt, draftBoard, flagFor, groupName, positionDraftSlot, roomProspect } from '../utils/peers';
+import { classSalt, compGroup, draftBoard, flagFor, groupName, positionDraftSlot, roomProspect } from '../utils/peers';
 import LeagueTag from '../components/LeagueTag';
 import { kickerClass, TITLE_LG } from '../utils/ui';
 
@@ -40,6 +40,44 @@ export default function DraftScreen() {
     };
   });
 
+  // PASSED OVER. The whole night went by without his name.
+  if (seasonRecap?.undrafted) {
+    const nextAgeOut = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20'].includes(player.league) ? 21 : 22;
+    const againNextYear = (player.age + 1) < nextAgeOut;
+    const isUSHL = player.league === 'USHL';
+    const backLabel = player.league === 'NCAA' ? 'BACK TO THE NCAA'
+      : ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'].includes(player.league) ? `BACK TO ${player.league === 'LIIGA' ? 'LIIGA' : player.league}`
+        : 'BACK TO JUNIORS';
+    return (
+      <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
+        <span className={`${kickerClass('neutral')} mb-4`}>The {seasonRecap.draftYear} NHL draft</span>
+        {/* Straight on the panel. It sat in a box of its own inside it, a
+            card on a card holding nothing but three lines of text. */}
+        <div className="mt-2 mb-8 max-w-2xl mx-auto flex flex-col items-center">
+          <h2 className={`${TITLE_LG}`}>Not drafted</h2>
+          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-lg">
+            All 224 picks went by, and none of them had your name on it.
+          </p>
+          <p className="mt-3 text-sm sm:text-base text-slate-400 leading-relaxed max-w-lg">
+            {againNextYear
+              ? "You're eligible again next summer, and clubs take a second look at a player who's still getting better a year later. Plenty of NHL players were never drafted at all."
+              : "That was your last draft. The way in from here is a free-agent deal, and plenty of NHL players were never drafted at all."}
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+          <button onClick={() => handleDraftChoice('UNDRAFTED')} className="btn-primary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
+            {backLabel}
+          </button>
+          {isUSHL && (
+            <button onClick={() => handleDraftChoice('EXPLORE_OPTIONS')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
+              EXPLORE OPTIONS
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // The night around him: the lottery, and why the club that took him did.
   const clubName = (id) => withTeamArticle(getFullTeamName(id, 'NHL'), 'NHL');
   const ClubName = (id) => withTeamArticle(getFullTeamName(id, 'NHL'), 'NHL', true);
@@ -73,7 +111,7 @@ export default function DraftScreen() {
     <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
       
 
-      <span className={`${kickerClass('neutral')} mb-4`}>The NHL draft</span>
+      <span className={`${kickerClass('neutral')} mb-4`}>{seasonRecap?.draftYear ? `The ${seasonRecap.draftYear} NHL draft` : 'The NHL draft'}</span>
       
       <div className="bg-[#0d110d] border border-[rgba(255,255,255,0.08)] p-8 sm:p-12 rounded-2xl mb-10 max-w-2xl mx-auto relative overflow-hidden flex flex-col items-center">
         <div className="absolute top-0 w-full bg-[#2563eb] text-white font-black text-xs sm:text-sm py-1.5 text-center tracking-widest">
@@ -119,25 +157,34 @@ export default function DraftScreen() {
           since he was sixteen. Without this the board below is the first and
           only time the ranking is mentioned, and the two or three seasons he
           spent climbing it count for nothing on the night. */}
-      {player.scoutRank && seasonRecap?.draftPick && (() => {
-        // The board he has been reading every winter ranks him inside his own
-        // position, so his place on it only means something against the other
-        // players at that position. Set against the overall pick number it
-        // claimed he had been skipped by forty-five teams who were never
-        // choosing between him and a goaltender in the first place.
+      {/* WHERE THE BOARD HAD HIM, AND WHERE HE WENT, ON ONE SCALE.
+          The board he's read every winter ranks him among the prospects at his
+          position that the scouts followed in his draft year, so the night is
+          told against those same players: how many of them went before him.
+          It used to set that rank beside an estimate of how many players at
+          his position the whole draft had taken, and read "3rd on the board,
+          10th taken, right where the board had you". A player passed over in
+          an earlier year has no board in this draft, so he gets the plain
+          story instead. */}
+      {seasonRecap?.draftPick && seasonRecap?.classDone && (player.passedOver || []).length > 0 && (
+        <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
+          Passed over in {player.passedOver.join(' and ')}, you went {ordinal(seasonRecap.draftPick)} overall in {seasonRecap.draftYear}.
+        </p>
+      )}
+      {player.scoutRank && seasonRecap?.draftPick && !seasonRecap?.classDone && (() => {
         const slot = positionDraftSlot(player.peers, player.pos, seasonRecap.draftPick);
-        const one = groupName(slot.group, false);
         const many = groupName(slot.group);
+        const onBoard = (player.peers || []).filter(p => !p.retired && compGroup(p.pos) === slot.group).length + 1;
         const gap = slot.slot - player.scoutRank;
         return (
           <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
-            The final board had you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> among
-            the {many} in your class. You went {ordinal(seasonRecap.draftPick)} overall,
-            the <span className="text-white font-black">{ordinal(slot.draftSlot)}</span> {one} taken in the whole draft
+            The final board ranked you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> of
+            the {onBoard} {many} it followed in your draft year. You were the <span className="text-white font-black">{ordinal(slot.slot)}</span> of
+            them taken, {ordinal(seasonRecap.draftPick)} overall
             {gap > 0
-              ? `, and ${gap === 1 ? 'one' : gap} you were ranked above in your class went before you.`
+              ? `, so ${gap === 1 ? 'one player' : `${gap} players`} you were ranked above went before you.`
               : gap < 0
-                ? `, ${-gap} spot${gap === -1 ? '' : 's'} higher than the board had you.`
+                ? `, ${-gap} place${gap === -1 ? '' : 's'} earlier than the board had you.`
                 : ', right where the board had you.'}
           </p>
         );

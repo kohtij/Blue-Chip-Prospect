@@ -240,6 +240,9 @@ export function handleEventChoice(ctx, choice) {
     // out with this season.
     updated.holdout = null;
     updated.holdoutMissed = null;
+    // He isn't holding out any more, he's an unsigned RFA. The role read
+    // "Holdout" on his card all year and through the summer until he signed.
+    if (updated.contract) updated.contract = { ...updated.contract, role: 'Unsigned RFA' };
     updated.season = { stints: [], training: {}, gamesMissed: 999, stage: 3, over: true, satOut: true };
  } else if (actionStr === 'RESOLVE_NINE_GAME') {
     // The club has made its call. If he is going back, move him to the junior club
