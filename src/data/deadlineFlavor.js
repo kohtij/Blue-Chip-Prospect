@@ -18,8 +18,9 @@ import { euroLeagues } from './teams';
 //      directly under a header that says so.
 //   2. CONTRACT and SEASON lines appear on a buyer's card and a seller's card
 //      alike, so neither pool may assume the club is selling.
-//   3. Only North America trades draft picks. A line about picks on a
-//      Skellefteå card is wrong, so the seller outlook splits.
+//   3. Only some leagues trade draft picks (tradeMarketOf in data/teams.js).
+//      A line about picks on a Skellefteå card, or an ECHL one, is wrong, so
+//      the seller outlook splits three ways.
 
 const hash = (s) => {
   let h = 2166136261;
@@ -75,6 +76,20 @@ export const SUBTITLE = {
     'Nothing moves today. The tournament is weeks out and the portal doesn\'t open until spring.',
     'There\'s a season to finish. Whether you finish it here is up to you.'
   ],
+  // Junior hockey in Europe doesn't trade its players: they come up through a
+  // club and stay there until they move up or move on.
+  noMarketJunior: [
+    "Nobody trades junior players here. You're with this club until you move up or move on.",
+    "The men's teams have a transfer deadline. Junior hockey doesn't, and the next game is still Friday.",
+    'No calls today. Clubs here develop their juniors rather than deal them.',
+    "There's no deadline in junior hockey here, just a season to finish."
+  ],
+  // A men's league where clubs sign and release players and nobody trades.
+  noMarketPro: [
+    "Clubs in this league sign and release players. They don't trade them, so today is a normal training day.",
+    "There's no deadline here. The roster you have now is the one you finish with.",
+    'No calls today. Nobody in this league deals players in March.'
+  ],
   // The national program picks its players and keeps them. Nobody here is
   // getting a phone call, so the screen should not offer one.
   program: [
@@ -111,6 +126,14 @@ export const OUTLOOK = {
     'There\'s nothing to play for, so everybody is available.',
     'This far out of it, the staff are already planning for next season.',
     'Whatever comes back this week will be draft picks.'
+  ],
+  // A league that trades without a draft: players come back, or nothing does.
+  sellerPlayers: [
+    'The GM has spent the week taking calls rather than making them.',
+    'The season is written off. What is left is finding out who the other clubs want.',
+    "There's nothing to play for, so everybody is available.",
+    'This far out of it, the staff are already planning for next season.',
+    'Whatever comes back this week will be players for next year, or nothing at all.'
   ],
   // Same situation, a league that does not deal picks.
   sellerEuro: [
@@ -325,6 +348,15 @@ const TRADE_CALL = {
       "He knew the name of the club you were going to. He wasn't quite sure of yours."
     ]
   },
+  // A European club selling him for a fee. Only the biggest call changes,
+  // because "he traded you" is the one thing these clubs don't do.
+  sellingFees: {
+    prize: [
+      "Your GM shut the door and said it before either of you had sat down. Nobody in the building wanted to sell you. The offer was too big to turn down anyway.",
+      "The GM had the look of a man who had been argued into something. You were the best thing this club had, and he sold you regardless.",
+      "He told you he had spent three days trying to find another way to balance the books, and that there wasn't one. Then he shook your hand."
+    ]
+  },
   // The club is buying, and the player is part of what it is paying with.
   buying: {
     prize: [
@@ -341,6 +373,15 @@ const TRADE_CALL = {
       "The trade needed one more contract to make the money balance, and yours was the one that fit.",
       "Your GM called you in to say the deal was about somebody else entirely, and that you were going with it.",
       "Nobody on the other side asked for you by name. They needed the salary to match and yours did."
+    ]
+  },
+  // The same, in a league with no salary cap to balance: junior hockey, the
+  // BCHL and Europe.
+  buyingNoCap: {
+    piece: [
+      "Your GM called you in to say the deal was about somebody else entirely, and that you were going with it.",
+      'Nobody on the other side asked for you by name. You were the extra piece that got it signed.',
+      'The deal needed one more name on it, and yours was the one that fit.'
     ]
   }
 };
@@ -382,6 +423,25 @@ const TRADE_PACKAGE = {
       'There was a fee. Nobody has said what it was and nobody has asked.'
     ]
   },
+  // A league that trades without a draft (the ECHL, SPHL and BCHL), so
+  // nothing in the return can be a pick.
+  sellingPlayers: {
+    prize: [
+      "Two of their regulars came back the other way. In a league without a draft, that's as much as anyone ever gets.",
+      'The return was their leading scorer and a defenceman, and the local paper spent the evening arguing about whether it was enough.',
+      'They got two players and future considerations for you, which is a big haul in this league and still felt light.'
+    ],
+    solid: [
+      'A depth forward and future considerations came back the other way.',
+      'The club got a player back, the kind of return nobody writes a column about.',
+      'One player came the other way. The GM called it good business.'
+    ],
+    piece: [
+      'The club got future considerations, which usually means nothing at all.',
+      'The return was future considerations. Nobody asked what they were.',
+      "A player you'd never heard of came the other way. He hasn't heard of you either."
+    ]
+  },
   buying: {
     prize: [
       'Coming the other way is a name everybody in the league knows. You\'re the reason the deal could be done at all.',
@@ -397,6 +457,50 @@ const TRADE_PACKAGE = {
       'You were the salary that made the money work.',
       'The deal was built around somebody else. You went in the same envelope.',
       'Your contract fit a hole in the cap. That\'s why the call came.'
+    ]
+  },
+  // Junior hockey trades picks but has no salary to balance.
+  buyingJunior: {
+    solid: [
+      'The club brought in an older player to win now, and you and a pick paid for him.',
+      "A top-six forward is arriving for the playoff run, and you're most of what paid for him.",
+      'The club brought in a better player than you and sent you and a pick the other way.'
+    ],
+    piece: [
+      'The deal was built around somebody else. You went in the same envelope.',
+      'The other club needed a player back to stay under the roster limit, and you were it.',
+      'You were the last name added to get the deal signed.'
+    ]
+  },
+  // No draft, so no picks going out with him.
+  buyingPlayers: {
+    solid: [
+      "A top-six forward is arriving, and you're most of what paid for him.",
+      'The club brought in the piece it was missing, and you went the other way to get it.',
+      'The club brought in a better player than you and sent you the other way to get him.'
+    ],
+    piece: [
+      'The deal was built around somebody else. You went in the same envelope.',
+      "Nobody on the other side asked for you by name. They needed a player coming back, and you were it.",
+      'You were the last name added to get the deal signed.'
+    ]
+  },
+  // Europe, where a club that is buying swaps players rather than trading.
+  buyingFees: {
+    prize: [
+      "The club wanted a player another club wouldn't sell for money alone, and you were what they asked for in return.",
+      'It was a swap. The club got the player it has wanted all season, and the other side got you.',
+      "The other club wouldn't take a fee. They took you instead."
+    ],
+    solid: [
+      'A straight swap: you for a player the coach has wanted since the autumn.',
+      'The clubs swapped players, which happens about twice a season in this league, and you were one of them.',
+      "Money wasn't enough to get the deal done, so the club added you."
+    ],
+    piece: [
+      'The swap was about the other player. You were what made it even.',
+      'You went the other way in a swap nobody will remember.',
+      'The clubs needed one more player to even the deal out, and you were it.'
     ]
   }
 };
@@ -423,6 +527,13 @@ export const TRADE_TITLE = {
   piece: ["YOU'RE ON THE MOVE", 'PART OF THE DEAL', 'A NAME IN THE PAPERWORK']
 };
 
+// The same headlines for a transfer, where nobody is "traded".
+export const TRANSFER_TITLE = {
+  prize: ['THE BIG ONE', 'YOU WERE THE DEAL', 'A DEADLINE TRANSFER'],
+  solid: ['A DEADLINE TRANSFER', 'THE CALL CAME', "YOU'RE CHANGING CLUBS"],
+  piece: ["YOU'RE ON THE MOVE", 'MOVED ON', 'A LATE TRANSFER']
+};
+
 export const TRADE_FEEDBACK = [
   'You packed your bags and joined your new club.',
   'You were on a flight before the rink had emptied.',
@@ -434,13 +545,25 @@ export const TRADE_FEEDBACK = [
 // naming the new club, which the screen writes because only it can spell the
 // club's full name, and it is placed where a player would hear it: after the
 // call and the package, not before them.
-export const tradeStory = ({ standing, selling, euro, destLine, seed }) => {
+//
+// `market` is the league's (tradeMarketOf): 'picks', 'players' or 'fees'.
+// `junior` and `capped` pick out the lines that talk about picks without a
+// salary, or about a salary cap. A pool that only replaces some tiers falls
+// back to the general one for the rest.
+export const tradeStory = ({ standing, selling, market = 'picks', junior = false, capped = true, destLine, seed }) => {
   const side = selling ? 'selling' : 'buying';
-  const packKey = selling && euro ? 'sellingEuro' : side;
+  const callKey = selling
+    ? (market === 'fees' ? 'sellingFees' : 'selling')
+    : (capped ? 'buying' : 'buyingNoCap');
+  const packKey = selling
+    ? (market === 'fees' ? 'sellingEuro' : market === 'players' ? 'sellingPlayers' : 'selling')
+    : (market === 'fees' ? 'buyingFees' : market === 'players' ? 'buyingPlayers' : junior ? 'buyingJunior' : 'buying');
+  const call = TRADE_CALL[callKey]?.[standing] || TRADE_CALL[side][standing];
+  const pack = TRADE_PACKAGE[packKey]?.[standing] || TRADE_PACKAGE[side][standing];
   const parts = [
-    pickFlavor(TRADE_CALL[side][standing], seed, 'tradeCall'),
+    pickFlavor(call, seed, 'tradeCall'),
     destLine,
-    pickFlavor(TRADE_PACKAGE[packKey][standing], seed, 'tradePackage')
+    pickFlavor(pack, seed, 'tradePackage')
   ];
   const reaction = TRADE_REACTION[standing];
   if (reaction) parts.push(pickFlavor(reaction, seed, 'tradeReaction'));

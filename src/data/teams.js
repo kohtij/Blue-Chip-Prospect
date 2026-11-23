@@ -114,6 +114,37 @@ export const JUNIOR_PARENT_LEAGUE = {
 // The men's leagues outside North America, the KHL and Australia included.
 // Everything in the game that asks "is he playing pro in Europe" reads this.
 export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', ...extraOfKind('pro')];
+// HOW PLAYERS CHANGE CLUBS DURING A SEASON, LEAGUE BY LEAGUE.
+//
+// Only some hockey trades players, and only some of that pays in draft picks.
+// Everything at the deadline (whether you can be moved, what comes back for
+// you, whether there's a button to ask out) reads this one answer.
+//
+//   'picks'   Trades, paid for in draft picks. The NHL (the AHL's moves are
+//             the NHL club's), and the three CHL leagues and the USHL, which
+//             each run their own draft and trade those picks constantly.
+//   'players' Trades with no draft behind them: players, or "future
+//             considerations", come back. The ECHL, the SPHL and the BCHL.
+//   'fees'    Transfers. A club sells a player to another for a fee, or now
+//             and then two clubs swap players. Men's hockey in Europe and the
+//             KHL.
+//   null      Nobody moves at the deadline. College (the portal is its own
+//             thing), every European junior and under-18 league, the MHL, and
+//             the EIHL and AIHL, where clubs sign and release players rather
+//             than trade them.
+const TRADE_MARKET_BY_LEAGUE = {
+  NHL: 'picks', AHL: 'picks', OHL: 'picks', WHL: 'picks', QMJHL: 'picks', USHL: 'picks',
+  ECHL: 'players', SPHL: 'players', BCHL: 'players',
+  KHL: 'fees', SHL: 'fees', LIIGA: 'fees', SWISS: 'fees', DEL: 'fees', ICEHL: 'fees', CZECH: 'fees', SLOVAK: 'fees',
+  NCAA: null, J20: null, U20: null, EIHL: null, AIHL: null
+};
+export const tradeMarketOf = (league) => {
+  if (league in TRADE_MARKET_BY_LEAGUE) return TRADE_MARKET_BY_LEAGUE[league];
+  const extra = EXTRA_LEAGUES[league];
+  if (extra) return extra.kind === 'pro' ? 'fees' : null;
+  return null;
+};
+
 // The country each European league is in, for a step up that stays at home.
 export const LEAGUE_COUNTRY = {
   SHL: 'SWE', J20: 'SWE', LIIGA: 'FIN', U20: 'FIN', KHL: 'RUS', SWISS: 'SUI', DEL: 'GER',

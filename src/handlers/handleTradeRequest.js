@@ -1,4 +1,4 @@
-import { getOpponentPool, nhlTeams } from '../data/teams';
+import { getOpponentPool, nhlTeams, tradeMarketOf } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
 import { NO_ARTICLE_LEAGUES } from '../utils/gameHelpers';
 
@@ -21,6 +21,9 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
   unlockAchievement('trade_demanded');
 
   const successChance = Math.min(0.85, Math.max(0.35, 0.35 + ((player.ovr - 60) / 40)));
+  // A European club doesn't trade a player who wants out. It sells him, so the
+  // same request reads as a transfer.
+  const fees = tradeMarketOf(res.currentLg) === 'fees';
   const isSuccess = Math.random() < successChance;
 
   if (isSuccess) {
@@ -44,8 +47,12 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
         : Math.floor(Math.random() * 8) + playoffSpots + 1;
       const teamInPlayoffs = teamStandings <= playoffSpots;
 
-      let displayLabel = `Accept a trade to ${namedTeam(teamObj.id, tradeLg)}`;
-      let feedback = `The trade went through. You were dealt to ${namedTeam(teamObj.id, tradeLg)}.`;
+      let displayLabel = fees
+        ? `Accept a transfer to ${namedTeam(teamObj.id, tradeLg)}`
+        : `Accept a trade to ${namedTeam(teamObj.id, tradeLg)}`;
+      let feedback = fees
+        ? `The clubs agreed a fee, and you signed for ${namedTeam(teamObj.id, tradeLg)}.`
+        : `The trade went through. You were dealt to ${namedTeam(teamObj.id, tradeLg)}.`;
       let targetTeamObj = teamObj;
       let targetLg = tradeLg;
 
@@ -72,8 +79,10 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
     });
 
     setActiveEvent({
-      title: 'TRADE OFFERS RECEIVED',
-      desc: 'Your agent found interest around the league, and your GM has offers from several clubs. Where do you want to go?',
+      title: fees ? 'TRANSFER OFFERS RECEIVED' : 'TRADE OFFERS RECEIVED',
+      desc: fees
+        ? 'You told the club you want to leave, and your agent found clubs willing to pay a fee for you. Where do you want to go?'
+        : 'Your agent found interest around the league, and your GM has offers from several clubs. Where do you want to go?',
       choices,
       isTradeDeadlineEvent: true
     });
@@ -81,8 +90,10 @@ export function handleTradeRequest(ctx, { res, playoffSpots }) {
   } else {
     unlockAchievement('trade_rejected');
     setActiveEvent({
-      title: 'TRADE REQUEST REJECTED',
-      desc: 'Your GM publicly shut down your request: "We control his rights and he isn\'t going anywhere." The media is questioning your loyalty, your teammates have gone cold on you, and you have been benched.',
+      title: fees ? 'TRANSFER REQUEST REFUSED' : 'TRADE REQUEST REJECTED',
+      desc: fees
+        ? 'The club turned your request down in public: "He\'s under contract here and he isn\'t going anywhere." The media is questioning your loyalty, your teammates have gone cold on you, and you have been benched.'
+        : 'Your GM publicly shut down your request: "We control his rights and he isn\'t going anywhere." The media is questioning your loyalty, your teammates have gone cold on you, and you have been benched.',
       choices: [
         {
           label: 'Accept your fate and stay focused',

@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { isDefence } from '../utils/production';
-import { LEAGUE_CONFIG, LEAGUE_LEVEL, getOpponentPool, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
+import { LEAGUE_CONFIG, LEAGUE_LEVEL, getOpponentPool, getTeamData, juniorLeagues, nhlTeams, readableAccent, teamAccent, tradeMarketOf } from '../data/teams';
 import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTradeRequest';
 import { handleTransferPortal as _handleTransferPortal } from '../handlers/handleTransferPortal';
-import { hasProContract as _hasProContract } from '../utils/gameHelpers';
+import { hasProContract as _hasProContract, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
+import { leagueLabel } from '../utils/peers';
 import TeamLogo from '../components/TeamLogo';
-import { ACTION, CONTRACT, EURO_LEAGUES, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, TRADE_FEEDBACK, TRADE_TITLE, pickFlavor, tradeStanding, tradeStory } from '../data/deadlineFlavor';
+import { ACTION, CONTRACT, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, TRADE_FEEDBACK, TRADE_TITLE, TRANSFER_TITLE, pickFlavor, tradeStanding, tradeStory } from '../data/deadlineFlavor';
 import { TITLE_MD } from '../utils/ui';
 
 export default function TradeDeadlineScreen() {
@@ -25,11 +26,14 @@ export default function TradeDeadlineScreen() {
              );
           }
           
-          // Every professional league can trade. The old list left out the KHL, the
-          // Swiss NL, the DEL, the ICEHL and both Extraligas, so a player there had
-          // no way to ask for a move at all. The NCAA stays out: college players
-          // cannot be traded.
-          const isPro = res.currentLg !== 'NCAA' && !['', undefined, null].includes(res.currentLg);
+          // Whether this league moves players in March at all, and how: trades
+          // paid in picks, trades with no draft behind them, or transfers for a
+          // fee (tradeMarketOf in data/teams.js). It used to be every league but
+          // college, so a Finnish under-18 player could be traded for "a
+          // second-round pick" in a league that has no draft.
+          const market = tradeMarketOf(res.currentLg);
+          const isPro = !!market;
+          const isFees = market === 'fees';
           const playoffSpots = LEAGUE_CONFIG[res.currentLg]?.playoffSpots ?? 16;
           const standings = res.recap?.standings || 16;
           const isContender = standings <= playoffSpots;
@@ -74,7 +78,7 @@ export default function TradeDeadlineScreen() {
           // everyone who was not the perfect rental, so a thirty-year-old on an
           // expiring deal on the worst team in the league had the same odds as a
           // signed depth forward on the best one.
-          const tradeChance = (res.currentTeam === 'NTDP') ? 0
+          const tradeChance = (res.currentTeam === 'NTDP' || !market) ? 0
             : (isExpiring && isSelling && isElite) ? 0.40
             : (isExpiring && isSelling) ? 0.18
             : (isSelling && isElite) ? 0.10
@@ -95,7 +99,10 @@ export default function TradeDeadlineScreen() {
           // zero. The DEMAND TRADE button did not know that, so an NTDP player
           // could ask for a move the rest of the game says cannot happen, and
           // the request handler would happily find him a USHL club.
-          const isProgram = isCollege || res.currentTeam === 'NTDP';
+          // A league that doesn't trade gets the same quiet screen: no rumours,
+          // no button, a stretch run rather than a deadline.
+          const noMarket = !market && !isCollege;
+          const isProgram = isCollege || res.currentTeam === 'NTDP' || noMarket;
           const canBeTraded = isPro && res.currentTeam !== 'NTDP';
           const teamData = getTeamData(res.currentTeam, res.currentLg);
           const accent = teamAccent(teamData);
@@ -189,7 +196,7 @@ export default function TradeDeadlineScreen() {
           // European clubs sell players and pay transfer fees; they do not deal
           // draft picks. The old seller lines put "pays in one currency, and that
           // currency is draft picks" on a Skellefteå card.
-          const sellerKey = EURO_LEAGUES.includes(res.currentLg) ? 'sellerEuro' : 'seller';
+          const sellerKey = isFees ? 'sellerEuro' : market === 'players' ? 'sellerPlayers' : 'seller';
           const outlookPool = OUTLOOK[isContender ? 'contender' : isBottomTier ? sellerKey : 'fringe'];
 
           // Two of the three lower blocks only make sense in some careers. A
@@ -249,15 +256,17 @@ export default function TradeDeadlineScreen() {
                     let eventDesc = tradeStory({
                       standing: assetTier,
                       selling: isSelling,
-                      euro: EURO_LEAGUES.includes(tradeLg),
+                      market: tradeMarketOf(tradeLg),
+                      junior: juniorLeagues.includes(tradeLg),
+                      capped: ['NHL', 'ECHL', 'SPHL'].includes(tradeLg),
                       // The destination's position used to be bolted on to the end of
                       // the paragraph, after everything else had been said. It belongs
                       // in the same sentence as the name of the club, because that is
                       // the sentence a player listens for.
-                      destLine: `You're off to the **${getFullTeamName(destTeam.id, tradeLg)}**, who sit **#${destStandings}** and in a playoff spot.`,
+                      destLine: `You're off to ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)}, who sit **#${destStandings}** and in a playoff spot.`,
                       seed: `${seed}|trade|${destTeam.id}`
                     });
-                    let eventTitle = pickFlavor(TRADE_TITLE[assetTier], `${seed}|${destTeam.id}`, 'tradeTitle');
+                    let eventTitle = pickFlavor((isFees ? TRANSFER_TITLE : TRADE_TITLE)[assetTier], `${seed}|${destTeam.id}`, 'tradeTitle');
                     let feedback = pickFlavor(TRADE_FEEDBACK, `${seed}|${destTeam.id}`, 'tradeFeedback');
 
                     if (isAHL && destTeam.ahlId) {
@@ -281,8 +290,8 @@ export default function TradeDeadlineScreen() {
                            // player to waive a clause is asking him to be the price of
                            // somebody else's arrival, which is a different question.
                            desc: isSelling
-                             ? `Your GM called you in. The season is gone and the **${getFullTeamName(destTeam.id, tradeLg)}** have put a package on the table he can't ignore. You hold a ${clauseName}. Will you waive it?`
-                             : `Your GM called you in. The club has a deal agreed with the **${getFullTeamName(destTeam.id, tradeLg)}** for the player it has been chasing all year, and you're what they want back. You hold a ${clauseName}. Will you waive it?`,
+                             ? `Your GM called you in. The season is gone and ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)} have put a package on the table he can't ignore. You hold a ${clauseName}. Will you waive it?`
+                             : `Your GM called you in. The club has a deal agreed with ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)} for the player it has been chasing all year, and you're what they want back. You hold a ${clauseName}. Will you waive it?`,
                            choices: [
                               // showTeamCard gives this the full team card (logo, rank, perks and
                               // flaws) so the destination can be judged before waiving the clause.
@@ -367,10 +376,12 @@ export default function TradeDeadlineScreen() {
 
     <div className="relative z-10">
     <h2 className={`${TITLE_MD} mb-2`}>
-      {isProgram ? 'THE STRETCH RUN' : 'TRADE DEADLINE'}
+      {isProgram ? 'THE STRETCH RUN' : isFees ? 'TRANSFER DEADLINE' : 'TRADE DEADLINE'}
     </h2>
     <p className="text-slate-300 mb-6 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-      {pickFlavor(SUBTITLE[isCollege ? 'college' : isProgram ? 'program' : outlookKey], seed, 'subtitle')}
+      {pickFlavor(SUBTITLE[isCollege ? 'college'
+        : noMarket ? (juniorLeagues.includes(res.currentLg) ? 'noMarketJunior' : 'noMarketPro')
+          : isProgram ? 'program' : outlookKey], seed, 'subtitle')}
     </p>
 
     {/* The club, its outlook and your place in it, straight on the panel. */}
@@ -385,7 +396,7 @@ export default function TradeDeadlineScreen() {
               {getFullTeamName(res.currentTeam, res.currentLg)}
             </h3>
             <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block mt-1" style={{ color: accentText }}>
-              {[res.currentLg, teamData?.ncaaConf || teamData?.div].filter(Boolean).join(' · ')}
+              {[leagueLabel(res.currentLg), teamData?.ncaaConf || teamData?.div].filter(Boolean).join(' · ')}
             </span>
           </div>
         </div>
@@ -410,13 +421,13 @@ export default function TradeDeadlineScreen() {
             </p>
             <p className={`text-xl sm:text-2xl font-black sports-font uppercase leading-tight ${isContender ? 'text-[#22E748]' : isBottomTier ? 'text-[#ef4444]' : 'text-[#F59E0B]'}`}>
               {isProgram
-                ? (isContender ? 'TOURNAMENT PACE' : 'ON THE BUBBLE')
+                ? (isContender ? (noMarket ? 'PLAYOFF PACE' : 'TOURNAMENT PACE') : 'ON THE BUBBLE')
                 : isContender ? 'BUYING / CONTENDING'
                   : isBottomTier ? 'SELLING / REBUILDING'
                     : 'UNDECIDED / ON THE EDGE'}
             </p>
             <p className="text-xs sm:text-sm font-bold uppercase text-slate-400 mt-0.5">
-              #{standings} in the {res.currentLg}
+              #{standings} in {leagueWithArticle(res.currentLg)}
               {' · '}
               <span className={isContender ? 'text-[#22E748]' : 'text-[#ef4444]'}>
                 {isCollege
@@ -568,7 +579,7 @@ export default function TradeDeadlineScreen() {
               : 'btn-danger cursor-pointer'
           }`}
         >
-          <span className="text-lg leading-none">{hasDemandedTrade ? 'REQUEST SUBMITTED' : 'DEMAND TRADE'}</span>
+          <span className="text-lg leading-none">{hasDemandedTrade ? 'REQUEST SUBMITTED' : isFees ? 'ASK TO LEAVE' : 'DEMAND TRADE'}</span>
           {!hasDemandedTrade && (
             <span className="text-[10px] sm:text-xs font-bold tracking-[0.16em] uppercase leading-none opacity-80">
               Risky

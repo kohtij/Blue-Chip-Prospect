@@ -1,6 +1,6 @@
 import { capFanStatus, elcYears, fanGain, recomputeOvr, applyOvrDelta, withLuck } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
-import { getOpponentPool, isAmateurLeague, JUNIOR_PARENT_LEAGUE, LEAGUE_CONFIG } from '../data/teams';
+import { getOpponentPool, isAmateurLeague, JUNIOR_PARENT_LEAGUE, LEAGUE_CONFIG, tradeMarketOf } from '../data/teams';
 import { elcBonuses, salaryParts, veteranBonuses } from '../utils/bonuses';
 
 export function handleEventChoice(ctx, choice) {
@@ -530,13 +530,15 @@ export function handleEventChoice(ctx, choice) {
               ? Math.floor(Math.random() * spots) + 1
               : spots + 1 + Math.floor(Math.random() * Math.max(1, leagueSize - spots));
           
+          // A European club sells a player who won't play. It doesn't trade him.
+          const sold = tradeMarketOf(finalPlayer.league) === 'fees';
           setActiveEvent({
-              title: 'HOLDOUT RESOLVED: TRADED!',
-              desc: `Your holdout worked. Management gave in and traded you.`,
+              title: sold ? 'HOLDOUT RESOLVED: SOLD!' : 'HOLDOUT RESOLVED: TRADED!',
+              desc: sold ? 'Your holdout worked. The club gave in and sold you.' : 'Your holdout worked. Management gave in and traded you.',
               isTradeDeadlineEvent: activeEvent?.isTradeDeadlineEvent, // <-- Keeps the routing intact!
               choices: [
                   { 
-                     label: 'Accept the Trade and pack your bags', 
+                     label: sold ? 'Sign for your new club and pack your bags' : 'Accept the trade and pack your bags', 
                      action: 'ACCEPT_TRADE_DEADLINE', 
                      actionData: { teamObj: destTeamObj, lg: finalPlayer.league, madePlayoffs: willMakePlayoffs, teamStandings: generatedStandings, showTeamCard: true },
                      effect: { fanStatus: 10, ovr: 0, rel: { media: 10 } } 
@@ -561,7 +563,9 @@ export function handleEventChoice(ctx, choice) {
                      successEffect: { fanStatus: 15, ovr: 0, rel: { coach: 20 } }, 
                      failFeedback: finalPlayer.league === 'NHL' 
                          ? 'You were suspended, waived, and banished to the AHL for conduct detrimental to the team.' 
-                         : 'You were suspended indefinitely, then spite-traded to a new team for pennies on the dollar.', 
+                         : tradeMarketOf(finalPlayer.league) === 'fees'
+                           ? 'You were suspended indefinitely, then sold to a new club for a fraction of what you were worth.'
+                           : 'You were suspended indefinitely, then spite-traded to a new team for pennies on the dollar.', 
                      failEffect: { fanStatus: -40, ovr: -1, money: fineAmount, rel: { media: -30 } } 
                   }
               ]
