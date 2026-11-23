@@ -1,9 +1,10 @@
 import { getOpponentPool, nhlTeams } from '../data/teams';
 import { getFullTeamName } from '../utils/appHelpers';
+import { NO_ARTICLE_LEAGUES } from '../utils/gameHelpers';
 
 // North American clubs read naturally with "the" ("the Barrie Colts"); European
 // clubs do not ("Luleå HF"), so the article is decided by the league.
-const NON_NA_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+const NON_NA_LEAGUES = NO_ARTICLE_LEAGUES;
 const namedTeam = (teamId, lg) => {
   const name = getFullTeamName(teamId, lg);
   return NON_NA_LEAGUES.includes(lg) ? name : `the ${name}`;

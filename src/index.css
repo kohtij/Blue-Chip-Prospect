@@ -112,9 +112,16 @@
    BASE — body + stadium-glow atmosphere
    ============================================================ */
 
+/* The height is the small viewport (svh): the screen with Safari's address
+   bar showing. 100vh on an iPhone is the screen with the bar hidden, so a page
+   that fitted was still about 80px too tall, scrolled a little, and made the
+   bar collapse and spring back on every screen. dvh is no better here: it
+   changes while the bar animates, so everything sized by it reflows during the
+   scroll. svh never changes. 100vh stays first for browsers without svh. */
 html, body, #root {
   margin: 0;
   min-height: 100vh;
+  min-height: 100svh;
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -128,10 +135,18 @@ html, body, #root {
    picks up club colors when they're populated. This is the biggest
    single visual upgrade: the game stops being flat black and starts
    feeling like a stadium under lights. */
+/* Pinned to the large viewport (lvh) rather than inset: 0. A fixed layer with
+   inset: 0 is resized on every frame while Safari's address bar slides in or
+   out, and its gradients are redrawn at each new size, which is a visible
+   stutter behind the page. lvh doesn't change, so neither does the layer. */
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100lvh;
   z-index: -2;
   background:
     radial-gradient(120% 70% at 50% -10%,
@@ -144,19 +159,6 @@ body::before {
   pointer-events: none;
 }
 
-/* Subtle crowd-noise texture: only visible if you drop a crowd image
-   at /crowd.webp. Won't error if the file is missing. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image: url('/crowd.webp');
-  background-size: cover;
-  background-position: center top;
-  opacity: 0;
-  pointer-events: none;
-}
 
 
 /* ============================================================

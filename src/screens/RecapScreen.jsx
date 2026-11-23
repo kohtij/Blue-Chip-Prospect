@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { classWord } from '../utils/peers';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
-import { getOpponentPool, getPlayoffRounds, getPrimaryRival, LEAGUE_CONFIG, ncaaTeams } from '../data/teams';
+import { amateurLeagues, getOpponentPool, getPlayoffRounds, getPrimaryRival, LEAGUE_CONFIG, ncaaTeams } from '../data/teams';
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
@@ -14,7 +14,7 @@ import { TITLE_MD } from '../utils/ui';
 import TrophyImage from '../components/TrophyImage';
 
 // Leagues that don't count toward a player's pro season number.
-const AMATEUR_LEAGUES = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA', 'J20', 'U20'];
+const AMATEUR_LEAGUES = amateurLeagues;
 
 // Minutes as a clock, which is how ice time is read everywhere in hockey.
 const clock = (mins) => {
@@ -535,6 +535,14 @@ export default function RecapScreen() {
                                 ? `Eliminated by the ${seasonRecap.eliminatedByName} in the ${seasonRecap.eliminatedRound} after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`
                                 : `Eliminated after ${seasonRecap?.playoffWins || 0} playoff win${seasonRecap?.playoffWins === 1 ? '' : 's'}.`}
                     </li>
+                    {/* The game the two beaten semifinalists play for bronze. */}
+                    {seasonRecap?.bronzeGame && (
+                       <li className={`border-l-4 pl-4 pr-3 py-2.5 rounded-r-lg ${seasonRecap.bronzeGame.won ? 'border-[#D08A4F] bg-[#D08A4F]/[0.06] text-[#D08A4F] font-bold' : 'border-slate-600'}`}>
+                         {seasonRecap.bronzeGame.won
+                           ? `🥉 Won the bronze medal game${seasonRecap.bronzeGame.oppName ? ` against ${seasonRecap.bronzeGame.oppName}` : ''}.`
+                           : `Lost the bronze medal game${seasonRecap.bronzeGame.oppName ? ` to ${seasonRecap.bronzeGame.oppName}` : ''}, and finished fourth.`}
+                       </li>
+                    )}
                     {seasonRecap?.beatRivalRound && !seasonRecap?.lostToRival && (
                        <li className="border-l-4 border-[#F59E0B] pl-4 pr-3 py-2.5 rounded-r-lg bg-[#F59E0B]/[0.06] text-[#F59E0B] font-bold">
                          ⚔️ Put your arch-rivals, the {seasonRecap.beatRivalName}, out in the {seasonRecap.beatRivalRound}.

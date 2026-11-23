@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { isDefence } from '../utils/production';
-import { LEAGUE_CONFIG, getOpponentPool, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
+import { LEAGUE_CONFIG, LEAGUE_LEVEL, getOpponentPool, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import { handleTradeRequest as _handleTradeRequest } from '../handlers/handleTradeRequest';
 import { handleTransferPortal as _handleTransferPortal } from '../handlers/handleTransferPortal';
 import { hasProContract as _hasProContract } from '../utils/gameHelpers';
@@ -60,7 +60,11 @@ export default function TradeDeadlineScreen() {
             NHL: 82, AHL: 72, KHL: 74, SHL: 72, LIIGA: 72, SWISS: 72,
             DEL: 70, CZECH: 70, ICEHL: 68, SLOVAK: 68, ECHL: 66, SPHL: 60
           };
-          const eliteThreshold = ELITE_BY_LEAGUE[res.currentLg] ?? 62;
+          // The new leagues by how strong they are: a second tier's star is a
+          // 66, a part-time league's a 58.
+          const extraLevel = LEAGUE_LEVEL[res.currentLg];
+          const eliteThreshold = ELITE_BY_LEAGUE[res.currentLg]
+            ?? (extraLevel != null ? Math.max(56, 80 - extraLevel) : 62);
           const isElite = player.ovr >= eliteThreshold;
 
           // Who actually gets moved in March. An expiring contract on a club that is

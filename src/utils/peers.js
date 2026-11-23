@@ -1,7 +1,7 @@
 import {
   ahlTeams, nhlTeams, shlTeams, ohlTeams, whlTeams, qmjhlTeams,
   ushlTeams, ncaaTeams, j20Teams, u20Teams, czechTeams, slovakTeams,
-  swissTeams, delTeams, khlTeams, nationalities
+  swissTeams, delTeams, khlTeams, nationalities, EXTRA_LEAGUES, mhlTeams
 } from '../data/teams';
 import { draftOrder } from './leagueState';
 import { ageFactor, BLOCK_WORTH, curvesFor, D_TOI_REF, D_WEIGHT, defensiveHalf, drawLeagueBest, drawLeagueBestDman, drawLeagueBestSv, faceoffs, gaussianNoise, goalieAgeAdjust, isDefence, NHLE_STAR, nhlePerGame, paceOf, POS_PACE, rateSeason, seasonForm, shotsOnGoal, soften } from './production';
@@ -356,7 +356,8 @@ const HOME_JUNIOR = {
   SWE: [j20Teams, 'J20'],
   FIN: [u20Teams, 'U20'],
   DEN: [j20Teams, 'J20'],
-  RUS: [khlTeams, 'MHL'],
+  // The MHL has its own clubs now, the KHL sides' junior teams.
+  RUS: [mhlTeams, 'MHL'],
   CZE: [czechTeams, 'CZE20'],
   SVK: [slovakTeams, 'SVK20'],
   SUI: [swissTeams, 'SUI20'],
@@ -457,7 +458,8 @@ const LEAGUE_LABEL = {
   // The men's leagues whose internal id is a country rather than a league.
   CZECH: 'ELH',
   SLOVAK: 'EL',
-  SWISS: 'NL'
+  SWISS: 'NL',
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.abbr]))
 };
 
 export const leagueLabel = (id) => (id ? (LEAGUE_LABEL[id] || id) : '');
@@ -473,7 +475,8 @@ const LEAGUE_HOME = {
   CZE20: 'CZE', CZECH: 'CZE',
   SVK20: 'SVK', SLOVAK: 'SVK',
   SUI20: 'SUI', SWISS: 'SUI',
-  DNL: 'GER', DEL: 'GER'
+  DNL: 'GER', DEL: 'GER',
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.country]))
 };
 
 export const leagueNation = (id) => LEAGUE_HOME[id] || null;

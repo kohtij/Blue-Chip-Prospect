@@ -1,6 +1,6 @@
 // Extracted from App.jsx.
 // Takes an `ctx` object with the state, setters, and other handlers it needs.
-import { getOpponentPool, getPrimaryRival, inIihfEvents } from '../data/teams';
+import { getOpponentPool, getPrimaryRival, inIihfEvents, isAmateurLeague } from '../data/teams';
 import { lastTitle } from '../utils/titles';
 import { eventDeck } from '../data/economy';
 import { getJournalistsForLeague, getFullTeamName } from '../utils/appHelpers';
@@ -755,7 +755,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
         // The deck's own tags. minAge and proOnly were written on the cards
         // and never read, so a sixteen-year-old could be offered a Vegas trip
         // and a junior an endorsement deal.
-        const pro = !['OHL', 'WHL', 'QMJHL', 'USHL', 'NCAA', 'J20', 'U20', 'BCHL', 'NAHL'].includes(currentLg);
+        const pro = !isAmateurLeague(currentLg);
         deck = deck.filter(e => (!e.minAge || (player.age || 0) >= e.minAge) && (!e.proOnly || pro));
         // A captain isn't in a captaincy vote.
         if (player.isCaptain) deck = deck.filter(e => e.title !== 'The Captaincy Vote');

@@ -1,6 +1,6 @@
 import { staffFor } from './staffNames';
 import { gaussianNoise } from './production';
-import { juniorLeagues } from '../data/teams';
+import { juniorLeagues, EXTRA_LEAGUES } from '../data/teams';
 
 // HOW OLD A ROOM CAN BE.
 //
@@ -443,7 +443,7 @@ export const COACH_SYSTEMS = {
   balanced:  { label: 'Balanced',  likes: [], dislikes: [] }
 };
 
-const EURO_BENCH = ['SHL', 'J20', 'LIIGA', 'U20', 'KHL', 'CZECH', 'SLOVAK', 'SWISS', 'DEL', 'ICEHL'];
+const EURO_BENCH = ['SHL', 'J20', 'LIIGA', 'U20', 'KHL', 'CZECH', 'SLOVAK', 'SWISS', 'DEL', 'ICEHL', ...Object.keys(EXTRA_LEAGUES)];
 export function makeCoach({ strength = 0.5, avoid = [], league = 'NHL' } = {}) {
   const sysKeys = Object.keys(COACH_SYSTEMS);
   // Never the man he is replacing, and never anybody already behind a bench.

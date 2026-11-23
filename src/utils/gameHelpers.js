@@ -1,6 +1,6 @@
 import {
   nhlTeams, ahlTeams, ohlTeams, whlTeams, qmjhlTeams, juniorLeagues, euroLeagues,
-  LEAGUE_CONFIG, getOpponentPool, isAmateurLeague, leagueLevel
+  LEAGUE_CONFIG, getOpponentPool, isAmateurLeague, leagueLevel, EXTRA_LEAGUES
 } from '../data/teams';
 
 // WHICH CAREER TOTAL A SEASON COUNTS TOWARD.
@@ -1673,8 +1673,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     if (jr) return sum + Math.floor(worth / 20);
     // Every pro league that wasn't the AHL earned fans at the NHL's rate, so
     // a season in the SPHL made a player as famous as one in the NHL.
+    const lvl = EXTRA_LEAGUES[s.league]?.level;
     const rate = { NHL: 3, KHL: 12, SHL: 12, LIIGA: 12, SWISS: 12, AHL: 15, DEL: 15, CZECH: 15,
-      ICEHL: 15, SLOVAK: 15, ECHL: 18, SPHL: 25 }[s.league] ?? 15;
+      ICEHL: 15, SLOVAK: 15, ECHL: 18, SPHL: 25 }[s.league] ?? (lvl == null ? 15 : lvl <= 15 ? 18 : lvl <= 20 ? 22 : 28);
     return sum + Math.floor(worth / rate);
   }, 0);
 
@@ -1688,7 +1689,9 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   const maxVal = {
     NHL: 20000000, KHL: 5000000, AHL: 3000000, SWISS: 2000000, SHL: 1500000, LIIGA: 1500000,
     DEL: 1000000, CZECH: 1000000, ICEHL: 800000, SLOVAK: 600000, ECHL: 250000, SPHL: 100000
-  }[currentLg] ?? 500000;
+  }[currentLg] ?? (EXTRA_LEAGUES[currentLg]?.kind === 'pro'
+    ? (EXTRA_LEAGUES[currentLg].level <= 15 ? 500000 : EXTRA_LEAGUES[currentLg].level <= 20 ? 300000 : 120000)
+    : 500000);
   const decayedValue = Math.floor((p.stats.value || 50000) * 0.65);
   let newVal = Math.min(maxVal, Math.max(50000, decayedValue + valIncrease));
   
@@ -1970,15 +1973,25 @@ export const formatLeagueName = (league) => {
   if (league === 'SWISS') return 'Swiss National League';
   if (league === 'CZECH') return 'Czech Extraliga';
   if (league === 'SLOVAK') return 'Slovak Extraliga';
-  return league;
+  return EXTRA_LEAGUES[league]?.label || league;
 };
 
 // European clubs don't take "the", junior sides included.
-export const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', 'J20', 'U20'];
+// British and Australian club names do ("the Belfast Giants"), so the EIHL and
+// the AIHL are left out.
+export const NO_ARTICLE_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', 'J20', 'U20',
+  ...Object.keys(EXTRA_LEAGUES).filter(id => !['EIHL', 'AIHL'].includes(id))];
+
+// The league's own name is a separate question from its clubs'. Leksands IF
+// takes no "the", but you play in the SHL, the KHL and the Czech Extraliga.
+// The names that are a word rather than an initialism go without: in Liiga,
+// in HockeyAllsvenskan, in Mestis.
+const LEAGUE_NAME_NO_THE = ['LIIGA', 'ALLSV', 'ETTAN', 'MESTIS', 'SUOMI', 'U20M', 'U18M', 'METAL', 'MAGNUS',
+  'DEN1', 'DENU20', 'DENU18', 'NORU20', 'NORU18'];
 
 export const leagueWithArticle = (league) => {
   const formatted = formatLeagueName(league);
-  return NO_ARTICLE_LEAGUES.includes(league) ? formatted : `the ${formatted}`;
+  return LEAGUE_NAME_NO_THE.includes(league) ? formatted : `the ${formatted}`;
 };
 
 // The same no-article rule applied to club names. Takes an already-resolved

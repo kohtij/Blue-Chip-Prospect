@@ -1,6 +1,9 @@
 // ==========================================
 // LEAGUE LOGOS & CONFIGURATION
 // ==========================================
+import { EXTRA_LEAGUES, mhlTeams } from './euroLeagues';
+export { EXTRA_LEAGUES, mhlTeams };
+
 export const leagueLogos = {
   NHL: 'https://assets.nhle.com/logos/nhl/svg/NHL_light.svg',
   AHL: 'https://upload.wikimedia.org/wikipedia/en/thumb/7/7b/American_Hockey_League_logo.svg/250px-American_Hockey_League_logo.svg.png',
@@ -23,7 +26,9 @@ export const leagueLogos = {
   BCHL: '',
   SPHL: '',
   CZECH: '',
-  SLOVAK: ''
+  SLOVAK: '',
+  // The leagues in data/euroLeagues.js bring their own.
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.logo]))
 };
 
 export const LEAGUE_CONFIG = {
@@ -37,12 +42,17 @@ export const LEAGUE_CONFIG = {
   NCAA:  { name: 'NCAA Division I Hockey',           games: 34, playoffSpots: 16, logo: leagueLogos.NCAA,  conferences: [],              divisions: [], ncaaConferences: ['Hockey East','Big Ten','NCHC','ECAC','CCHA','Atlantic Hockey America','Independent'], playoffFormat: 'ncaa-3' },
   SHL:   { name: 'Swedish Hockey League',            games: 52, playoffSpots: 10,  logo: leagueLogos.SHL,   conferences: [],              divisions: [], playoffFormat: 'shl-10' },
   // Both junior tiers play for a national title. J20 Nationell sends sixteen
-  // clubs into the SM-slutspel: best-of-three eighth-finals and quarterfinals,
-  // then a one-game semifinal and a one-game final. U20 SM-sarja takes eight,
-  // and every round is best-of-five. They had no playoff here at all.
+  // clubs into the SM-slutspel, and every round is best-of-five. U20 SM-sarja
+  // takes twelve: fifth to twelfth play best-of-three eighth-finals while the
+  // top four wait, then best-of-five the rest of the way, with a bronze game
+  // for the two beaten semifinalists.
   J20:   { name: 'J20 Nationell',                    games: 44, playoffSpots: 16, logo: leagueLogos.J20,   conferences: [],              divisions: [], playoffFormat: 'j20-16' },
-  U20:   { name: 'U20 SM-sarja',                     games: 44, playoffSpots: 8,  logo: leagueLogos.U20,   conferences: [],              divisions: [], playoffFormat: 'u20-8' },
-  LIIGA: { name: 'Finnish Liiga',                    games: 60, playoffSpots: 12,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'liiga-12' },
+  U20:   { name: 'U20 SM-sarja',                     games: 44, playoffSpots: 12, logo: leagueLogos.U20,   conferences: [],              divisions: [], playoffFormat: 'u20-12', bronzeGame: true },
+  // Liiga 2026-27: seventeen clubs, twelve into the playoffs. Fifth to twelfth
+  // play a best-of-five first round, the quarterfinals are best-of-five too,
+  // the semifinals and final best-of-seven, and the beaten semifinalists play
+  // one game for bronze.
+  LIIGA: { name: 'Finnish Liiga',                    games: 64, playoffSpots: 12,  logo: leagueLogos.LIIGA, conferences: [],              divisions: [], playoffFormat: 'liiga-12', bronzeGame: true },
   KHL:   { name: 'Kontinental Hockey League',        games: 68, playoffSpots: 16, logo: leagueLogos.KHL,   conferences: ['West','East'], divisions: ['Bobrov','Tarasov','Kharlamov','Chernyshev'], playoffFormat: 'best-of-7-16' },
   SWISS: { name: 'National League',                  games: 52, playoffSpots: 10, logo: leagueLogos.SWISS, conferences: [],              divisions: [], playoffFormat: 'shl-10' },
   DEL:   { name: 'Deutsche Eishockey Liga',          games: 52, playoffSpots: 10,  logo: leagueLogos.DEL,   conferences: [],              divisions: [], playoffFormat: 'shl-10' },
@@ -53,14 +63,27 @@ export const LEAGUE_CONFIG = {
   BCHL:  { name: 'British Columbia Hockey League',   games: 54, playoffSpots: 16, logo: leagueLogos.BCHL,  conferences: ['Coastal','Interior'], divisions: ['Coastal West','Coastal East','Interior West','Interior East'], divisionalPlayoffs: true, playoffFormat: 'best-of-7-16' },
   SPHL:  { name: 'Southern Professional Hockey League', games: 58, playoffSpots: 8, logo: leagueLogos.SPHL, conferences: [], divisions: [], playoffFormat: 'best-of-7-8' },
   CZECH: { name: 'Czech Extraliga',                  games: 52, playoffSpots: 12, logo: leagueLogos.CZECH, conferences: [],              divisions: [], playoffFormat: 'best-of-7-12' },
-  SLOVAK: { name: 'Slovak Extraliga',                games: 54, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [],             divisions: [], playoffFormat: 'pre-10' }
+  SLOVAK: { name: 'Slovak Extraliga',                games: 54, playoffSpots: 10, logo: leagueLogos.SLOVAK, conferences: [],             divisions: [], playoffFormat: 'pre-10' },
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, {
+    name: l.name, games: l.games, playoffSpots: l.playoffSpots, logo: l.logo,
+    conferences: l.conferences || [], divisions: l.divisions || [], playoffFormat: l.playoffFormat,
+    ...(l.bronzeGame ? { bronzeGame: true } : {})
+  }]))
 };
+
+// The new leagues by kind. A junior league is where a sixteen-to-twenty-year-
+// old plays, an under-18 league is the tier below that, and everything else is
+// a men's league.
+const extraOfKind = (...kinds) => Object.keys(EXTRA_LEAGUES).filter(id => kinds.includes(EXTRA_LEAGUES[id].kind));
+// The under-18 tiers, and the junior tier each one moves a player up to.
+export const u18Leagues = extraOfKind('u18');
+export const U18_NEXT_LEAGUE = Object.fromEntries(u18Leagues.map(id => [id, EXTRA_LEAGUES[id].parentJunior]));
 
 // The Nordic junior tiers belong here and not in euroLeagues: they are where a
 // sixteen-year-old plays, so everything that treats a junior league as a junior
 // league, the slide rule, aging out, amateur graduation, the import draft,
 // applies to them the same way it does to the CHL.
-export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20'];
+export const juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20', ...extraOfKind('junior', 'u18')];
 // Everything a player is still an amateur in: junior and college.
 export const amateurLeagues = [...juniorLeagues, 'NCAA'];
 export const isAmateurLeague = (lg) => amateurLeagues.includes(lg);
@@ -74,15 +97,29 @@ export const minorProLeagues = ['AHL', 'ECHL', 'SPHL'];
 // deployed like a 65 in the AHL, on the fourth line.
 export const LEAGUE_LEVEL = {
   NHL: 0, KHL: 6, AHL: 8, SHL: 8, LIIGA: 8, SWISS: 8, DEL: 10, CZECH: 10,
-  ICEHL: 12, SLOVAK: 12, ECHL: 15, SPHL: 22
+  ICEHL: 12, SLOVAK: 12, ECHL: 15, SPHL: 22,
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.level]))
 };
 // Junior and college all sit where the old rule had them.
 export const leagueLevel = (lg) => LEAGUE_LEVEL[lg] ?? (isAmateurLeague(lg) ? 16 : 8);
-export const nordicJuniorLeagues = ['J20', 'U20'];
+// The junior tiers whose players step up to a men's team at home rather than
+// being drafted into a pro contract. The MHL is the KHL's junior league and
+// works the same way.
+export const nordicJuniorLeagues = ['J20', 'U20', 'U20M', 'DENU20', 'NORU20', 'MHL'];
 // Which senior league a junior tier feeds, for a call-up to the men's side.
-export const JUNIOR_PARENT_LEAGUE = { J20: 'SHL', U20: 'LIIGA' };
-// Added DEL and ICEHL to professional Euro loop
-export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+export const JUNIOR_PARENT_LEAGUE = {
+  J20: 'SHL', U20: 'LIIGA',
+  ...Object.fromEntries(extraOfKind('junior').map(id => [id, EXTRA_LEAGUES[id].parent]))
+};
+// The men's leagues outside North America, the KHL and Australia included.
+// Everything in the game that asks "is he playing pro in Europe" reads this.
+export const euroLeagues = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', ...extraOfKind('pro')];
+// The country each European league is in, for a step up that stays at home.
+export const LEAGUE_COUNTRY = {
+  SHL: 'SWE', J20: 'SWE', LIIGA: 'FIN', U20: 'FIN', KHL: 'RUS', SWISS: 'SUI', DEL: 'GER',
+  ICEHL: 'AUT', CZECH: 'CZE', SLOVAK: 'SVK',
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.country]))
+};
 
 export const PLAYOFF_ROUNDS = {
   'best-of-7-16': [
@@ -116,10 +153,11 @@ export const PLAYOFF_ROUNDS = {
   // Slovakia's wild-card round is best-of-five; the Swiss play-in is
   // best-of-three. Seventh to tenth either way, top six straight through.
   // Liiga: twelve in, fifth to twelfth play a best-of-five first round while
-  // the top four wait, and everything after that is best-of-seven.
+  // the top four wait, then best-of-five quarterfinals and best-of-seven
+  // semifinals and final. The bronze game is LEAGUE_CONFIG's bronzeGame.
   'liiga-12': [
     { name: 'First Round',       teams: 8,  gamesPerMatchup: 5 },
-    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 7 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
@@ -129,13 +167,17 @@ export const PLAYOFF_ROUNDS = {
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
   ],
+  // J20 Nationell: best-of-five from the eighth-finals to the final.
   'j20-16': [
-    { name: 'Eighth-Final',      teams: 16, gamesPerMatchup: 3 },
-    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 3 },
-    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 1 },
-    { name: 'Championship',      teams: 2,  gamesPerMatchup: 1 }
+    { name: 'Eighth-Final',      teams: 16, gamesPerMatchup: 5 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 5 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
   ],
-  'u20-8': [
+  // U20 SM-sarja: fifth to twelfth play best-of-three eighth-finals, the top
+  // four wait, and everything after is best-of-five.
+  'u20-12': [
+    { name: 'Eighth-Final',      teams: 8,  gamesPerMatchup: 3 },
     { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
     { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 5 },
     { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
@@ -155,6 +197,54 @@ export const PLAYOFF_ROUNDS = {
     { name: 'Regional Final',        teams: 8,  gamesPerMatchup: 1, short: 'REG. FINAL' },
     { name: 'Frozen Four',           teams: 4,  gamesPerMatchup: 1, short: 'FROZEN 4' },
     { name: 'National Championship', teams: 2,  gamesPerMatchup: 1, short: 'TITLE' }
+  ],
+  // The leagues in data/euroLeagues.js. Eight in and three rounds unless the
+  // name says otherwise.
+  'best-of-5-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 5 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
+  ],
+  'best-of-3-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 3 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 3 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 3 }
+  ],
+  'best-of-5-16': [
+    { name: 'First Round',       teams: 16, gamesPerMatchup: 5 },
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 5 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
+  ],
+  // Swedish junior hockey is best-of-five the whole way, under-18 included.
+  'j18-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 5 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
+  ],
+  // Hockeyettan's spring is short series between the two halves of the
+  // country, with a best-of-five to settle it.
+  'ettan-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 3 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 3 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 5 }
+  ],
+  'mestis-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 5 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 7 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 7 }
+  ],
+  // The EIHL's quarterfinals are a short series, then the four that are left
+  // go to Nottingham for a one-game semifinal and a one-game final.
+  'eihl-8': [
+    { name: 'Quarterfinal',      teams: 8,  gamesPerMatchup: 3 },
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 1 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 1 }
+  ],
+  // The AIHL's top four play one finals weekend: a semifinal and a final.
+  'aihl-4': [
+    { name: 'Semifinal',         teams: 4,  gamesPerMatchup: 1 },
+    { name: 'Championship',      teams: 2,  gamesPerMatchup: 1 }
   ]
 };
 
@@ -518,9 +608,10 @@ export const liigaTeams = [
 // men's name, which got the idea across and not much else: five of the clubs a
 // Swedish junior actually plays against have no men's team in this game at all,
 // and every badge on screen was the senior one. These are the real clubs with
-// their own J20 crests. seniorId is the men's side to be called up to, and null
-// where the club has none, which is a real thing: a Djurgården junior who turns
-// professional signs somewhere else.
+// their own J20 crests. seniorId is the men's side to be called up to. Five
+// of them (AIK, Leksand, MoDo, Mora and Södertälje) are in HockeyAllsvenskan
+// this season, so the step up finds the club in whichever tier it's in
+// (findClubLeague) rather than assuming the SHL.
 export const j20Teams = [
   { id: 'LHF-J20', city: 'Luleå', name: 'HF J20', bg: '#C8102E', color: '#FFB81C', rival: 'SAIK-J20', seniorId: 'LHF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/lule%C3%A5_hf_j20.png' },
   { id: 'SAIK-J20', city: 'Skellefteå', name: 'AIK J20', bg: '#000000', color: '#FFB81C', rival: 'LHF-J20', seniorId: 'SAIK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/skellefte%C3%A5_aik_j20.png' },
@@ -528,18 +619,18 @@ export const j20Teams = [
   { id: 'FHC-J20', city: 'Frölunda', name: 'HC J20', bg: '#C8102E', color: '#00471B', rival: 'FBK-J20', seniorId: 'FHC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/fr%C3%B6lunda_hc_j20.png' },
   { id: 'VHK-J20', city: 'Växjö', name: 'Lakers J20', bg: '#00205B', color: '#F26522', rival: 'RBK-J20', seniorId: 'VHK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/v%C3%A4xj%C3%B6_lakers_hc_j20.png' },
   { id: 'RBK-J20', city: 'Rögle', name: 'BK J20', bg: '#00471B', color: '#FFFFFF', rival: 'MIF-J20', seniorId: 'RBK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/r%C3%B6gle_bk_j20.png' },
-  { id: 'LIF-J20', city: 'Leksands', name: 'IF J20', bg: '#00205B', color: '#FFFFFF', rival: 'MORA-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/leksands_if_j20.png' },
+  { id: 'LIF-J20', city: 'Leksands', name: 'IF J20', bg: '#00205B', color: '#FFFFFF', rival: 'MORA-J20', seniorId: 'LIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/leksands_if_j20.png' },
   { id: 'MIF-J20', city: 'Malmö', name: 'Redhawks J20', bg: '#000000', color: '#C8102E', rival: 'RBK-J20', seniorId: 'MIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/if_malm%C3%B6_redhawks_j20.png' },
   { id: 'LHC-J20', city: 'Linköping', name: 'HC J20', bg: '#00205B', color: '#C8102E', rival: 'HV71-J20', seniorId: 'LHC', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/link%C3%B6ping_hc_j20.png' },
   { id: 'OHK-J20', city: 'Örebro', name: 'HK J20', bg: '#C8102E', color: '#000000', rival: 'TIK-J20', seniorId: 'OHK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/%C3%B6rebro_hk_j20.png' },
   { id: 'TIK-J20', city: 'Timrå', name: 'IK J20', bg: '#C8102E', color: '#FFFFFF', rival: 'OHK-J20', seniorId: 'TIK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/timr%C3%A5_ik_j20.png' },
   { id: 'HV71-J20', city: 'HV71', name: 'Jönköping J20', bg: '#00205B', color: '#FFB81C', rival: 'LHC-J20', seniorId: 'HV71', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/hv71_j20.png' },
   { id: 'BIF-J20', city: 'Brynäs', name: 'IF J20', bg: '#000000', color: '#C8102E', rival: 'LIF-J20', seniorId: 'BIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/bryn%C3%A4s_if_j20.png' },
-  { id: 'MODO-J20', city: 'MoDo', name: 'Hockey J20', bg: '#C8102E', color: '#00471B', rival: 'BJL-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/modo_hockey_j20.png' },
+  { id: 'MODO-J20', city: 'MoDo', name: 'Hockey J20', bg: '#C8102E', color: '#00471B', rival: 'BJL-J20', seniorId: 'MODO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/modo_hockey_j20.png' },
   { id: 'DIF-J20', city: 'Djurgårdens', name: 'IF J20', bg: '#002E5F', color: '#D2232A', rival: 'AIK-J20', seniorId: 'DIF', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/djurg%C3%A5rdens_if_j20.png' },
-  { id: 'AIK-J20', city: 'AIK', name: 'Stockholm J20', bg: '#000000', color: '#FFDA00', rival: 'DIF-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/aik_j20.png' },
-  { id: 'SSK-J20', city: 'Södertälje', name: 'SK J20', bg: '#C8102E', color: '#FFFFFF', rival: 'DIF-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/s%C3%B6dert%C3%A4lje_sk_j20.png' },
-  { id: 'MORA-J20', city: 'Mora', name: 'IK J20', bg: '#C8102E', color: '#000000', rival: 'LIF-J20', seniorId: null, logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/mora_ik_j20.png' },
+  { id: 'AIK-J20', city: 'AIK', name: 'Stockholm J20', bg: '#000000', color: '#FFDA00', rival: 'DIF-J20', seniorId: 'AIK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/aik_j20.png' },
+  { id: 'SSK-J20', city: 'Södertälje', name: 'SK J20', bg: '#C8102E', color: '#FFFFFF', rival: 'DIF-J20', seniorId: 'SSK', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/s%C3%B6dert%C3%A4lje_sk_j20.png' },
+  { id: 'MORA-J20', city: 'Mora', name: 'IK J20', bg: '#C8102E', color: '#000000', rival: 'LIF-J20', seniorId: 'MORA', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/mora_ik_j20.png' },
   { id: 'BJL-J20', city: 'Björklöven', name: 'Umeå J20', bg: '#00693E', color: '#FFB81C', rival: 'MODO-J20', seniorId: 'BJO', logo: 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/if_bj%C3%B6rkl%C3%B6ven_j20.png' }
 ];
 
@@ -787,7 +878,7 @@ export const icehlTeams = [
 export const getTeamData = (teamId, league) => {
   if (!teamId) return null;
   const pool = getOpponentPool(league);
-  const hit = pool.find(t => t.id === teamId);
+  const hit = pool.find(t => t.id === teamId) || homePool(league).find(t => t.id === teamId);
   if (hit) return hit;
 
   // A year spent on NHL paper in the minors gets recorded in places against the
@@ -809,7 +900,8 @@ export const getTeamData = (teamId, league) => {
   return { id: teamId, name: teamId, bg: '#101410', color: '#FFFFFF' };
 };
 
-export const getOpponentPool = (league) => {
+// Each league's own list of clubs, as it was drawn up for 2026-27.
+const homePool = (league) => {
   switch (league) {
     case 'NHL': return nhlTeams;
     case 'AHL': return ahlTeams;
@@ -831,9 +923,61 @@ export const getOpponentPool = (league) => {
     case 'SPHL': return sphlTeams;
     case 'CZECH': return czechTeams;
     case 'SLOVAK': return slovakTeams;
-    default: return nhlTeams;
+    default: return EXTRA_LEAGUES[league]?.teams || nhlTeams;
   }
 };
+
+// PROMOTION AND RELEGATION.
+//
+// Clubs go up and down between the Swedish, Finnish, German, Swiss and
+// Norwegian tiers every spring (see utils/proRel.js), so a league's clubs are
+// no longer fixed. The moves are kept on the save as { 'HOMELG:ID': league },
+// where HOMELG is the list the club is written in, and App hands them here
+// whenever they change. Everything that asks for a league's pool then sees the
+// clubs that are really in it this year.
+let CLUB_MOVES = {};
+let movedPools = {};
+export const setClubMoves = (moves) => {
+  const next = moves || {};
+  if (JSON.stringify(next) === JSON.stringify(CLUB_MOVES)) return;
+  CLUB_MOVES = next;
+  movedPools = {};
+};
+export const getClubMoves = () => CLUB_MOVES;
+
+export const getOpponentPool = (league) => {
+  const base = homePool(league);
+  const keys = Object.keys(CLUB_MOVES);
+  if (!keys.length) return base;
+  if (movedPools[league]) return movedPools[league];
+  const out = base.filter(t => {
+    const now = CLUB_MOVES[`${league}:${t.id}`];
+    return !now || now === league;
+  });
+  keys.forEach(k => {
+    if (CLUB_MOVES[k] !== league) return;
+    const [home, id] = k.split(':');
+    if (home === league) return;
+    const club = homePool(home).find(t => t.id === id);
+    if (club && !out.some(t => t.id === id)) out.push(club);
+  });
+  movedPools[league] = out;
+  return out;
+};
+
+// The men's leagues of a country from the top down, which is where a club
+// with a given id could be playing this year.
+export const countryProLeagues = (country) =>
+  euroLeagues.filter(lg => LEAGUE_COUNTRY[lg] === country)
+    .sort((a, b) => (LEAGUE_LEVEL[a] ?? 30) - (LEAGUE_LEVEL[b] ?? 30));
+
+// Which list a club is written in, among these leagues.
+export const homeLeagueOf = (id, leagues) =>
+  (leagues || []).find(lg => homePool(lg).some(t => t.id === id)) || null;
+
+// Which of these leagues a club is in right now, or null.
+export const findClubLeague = (id, candidates) =>
+  (candidates || []).find(lg => getOpponentPool(lg).some(t => t.id === id)) || null;
 
 export const getDeployment = (ovr, pos, league) => {
   // Read against his own league (see LEAGUE_LEVEL). Every league outside the
@@ -922,7 +1066,7 @@ const LEAGUE_ROUND_NAMES = {
   SHL:    ['Play-In', 'Quarterfinal', 'Semifinal', 'Le Mat Trophy Final'],
   LIIGA:  ['First Round', 'Quarterfinal', 'Semifinal', 'Kanada-malja Final'],
   J20:    ['Eighth-Final', 'Quarterfinal', 'Semifinal', 'J20 SM Final'],
-  U20:    ['Quarterfinal', 'Semifinal', 'U20 SM Final'],
+  U20:    ['Eighth-Final', 'Quarterfinal', 'Semifinal', 'U20 SM Final'],
   DEL:    ['Pre-Playoffs', 'Viertelfinale', 'Halbfinale', 'DEL Final'],
   ICEHL:  ['Pre-Playoffs', 'Quarterfinal', 'Semifinal', 'ICEHL Final'],
   SWISS:  ['Play-In', 'Viertelfinal', 'Halbfinal', 'National League Final'],
@@ -931,7 +1075,8 @@ const LEAGUE_ROUND_NAMES = {
   SPHL:   ['Quarterfinal', 'Semifinal', "President's Cup Final"],
   AHL:    ['Division Semifinal', 'Division Final', 'Conference Final', 'Calder Cup Final'],
   USHL:   ['Conference Semifinal', 'Conference Final', 'Clark Cup Final'],
-  NCAA:   ['Regional Semifinal', 'Regional Final', 'Frozen Four', 'National Championship']
+  NCAA:   ['Regional Semifinal', 'Regional Final', 'Frozen Four', 'National Championship'],
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.rounds]))
 };
 
 export const getPlayoffRounds = (league) => {

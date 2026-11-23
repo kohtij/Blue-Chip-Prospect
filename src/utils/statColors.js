@@ -1,3 +1,4 @@
+import { EXTRA_LEAGUES } from '../data/euroLeagues';
 // One colour per attribute, for the whole game.
 //
 // The training screen had this table inline and nothing else did, so the same
@@ -66,6 +67,9 @@ export const LEAGUE_HUE = {
   OHL: '#2dd4bf', WHL: '#2dd4bf', QMJHL: '#2dd4bf', USHL: '#2dd4bf', BCHL: '#2dd4bf',
   NCAA: '#c084fc',
   SHL: '#f472b6', LIIGA: '#f472b6', KHL: '#f472b6', SWISS: '#f472b6', DEL: '#f472b6', CZECH: '#f472b6',
-  ICEHL: '#f472b6', SLOVAK: '#f472b6', J20: '#f472b6', U20: '#f472b6'
+  ICEHL: '#f472b6', SLOVAK: '#f472b6', J20: '#f472b6', U20: '#f472b6',
+  // Every league in data/euroLeagues.js is European or Australian hockey, and
+  // goes in the same band.
+  ...Object.fromEntries(Object.keys(EXTRA_LEAGUES).map(id => [id, '#f472b6']))
 };
 export const leagueHue = (lg) => LEAGUE_HUE[lg] || '#94a3b8';

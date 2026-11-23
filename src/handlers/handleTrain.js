@@ -639,7 +639,7 @@ export function handleTrain(ctx, t) {
       setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), iihfBanNoted: true } }));
       ctx.setActiveEvent({
         title: '🚫 NO WORLD JUNIORS',
-        desc: `The World Juniors start on Boxing Day, and ${country} isn't in them. The IIHF has kept Russia and Belarus out of its tournaments since 2022, so no call is coming this year, or for any other IIHF event while the suspension stands. Your teammates who are going leave tomorrow.`,
+        desc: `The World Juniors start on Boxing Day, and ${country} isn't in them. The IIHF has kept Russia and Belarus out of its tournaments since 2022, so no call is coming this year, or for any other IIHF event while the suspension stands. Any teammates who made their own country's team fly out tomorrow, and you stay behind.`,
         choices: [{ label: 'Back to work', subLabel: 'The season keeps going without the break.', isRisky: false,
           feedback: 'You stayed with your club over the holidays while the tournament went on without you.',
           effect: { fanStatus: 0, ovr: 0, money: 0 } }],

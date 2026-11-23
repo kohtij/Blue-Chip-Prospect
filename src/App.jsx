@@ -2,7 +2,8 @@ import  { useState, useEffect, useCallback, useRef } from 'react';
 
 import {
   nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, j20Teams, u20Teams, ncaaTeams, echlTeams,
-  nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds, getTeamData, teamAccent
+  nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds, getTeamData, teamAccent, LEAGUE_CONFIG,
+  getOpponentPool, setClubMoves
 } from './data/teams';
 import { skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool, findMinigame } from './data/minigames';
@@ -11,7 +12,7 @@ import { FO_EDGE_CAP } from './utils/production';
 import {
   cap, elcYears, fanGain, gamesInLeague, getFanTier, applyOvrDelta, recomputeOvr, statBucketOf
 } from './utils/gameHelpers';
-import { createDraftClass, scoutingBoard } from './utils/peers';
+import { createDraftClass, leagueLabel, scoutingBoard } from './utils/peers';
 import { runDraftNight } from './utils/draftNight';
 import { addToPool } from './utils/frontOffice';
 import { recordTitle } from './utils/titles';
@@ -71,7 +72,8 @@ import { handleEventChoice as _handleEventChoice } from './handlers/handleEventC
 import { checkPlayoffs as _checkPlayoffs } from './handlers/checkPlayoffs';
 import { waiverExempt } from './utils/waivers';
 import { makesNhlRoster, parentOf } from './utils/rosterMoves';
-import { isNineGameCandidate, onNhlContract, withTeamArticle } from './utils/gameHelpers';
+import { formatMoney3, isNineGameCandidate, onNhlContract, withTeamArticle } from './utils/gameHelpers';
+import { clubMatchesOfferSheet, offerSheetCompLong } from './utils/contracts';
 
 function App() {
   const [screen, setScreen] = useState('creation');
@@ -138,6 +140,10 @@ function App() {
   const minigameLockedRef = useRef(false);
 
   const [player, setPlayer] = useState(makeInitialPlayer);
+  // Which clubs promotion and relegation have moved, for every pool the game
+  // reads. Set during render rather than in an effect, so a loaded save never
+  // draws a frame with last year's leagues. Cheap, and a no-op when unchanged.
+  setClubMoves(player.clubMoves);
 
   useEffect(() => {
     if (screen !== 'recap' || !seasonRecap) return;
@@ -356,7 +362,7 @@ function App() {
     let currentNat = player.nat;
 
     if (!lg || lg === 'RANDOM' || lg === 'ANY') {
-       const possibleLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20'];
+       const possibleLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'J18', 'U18', 'MHL'];
        lg = possibleLeagues[Math.floor(Math.random() * possibleLeagues.length)];
     }
 
@@ -368,7 +374,7 @@ function App() {
       OHL: ohlTeams, WHL: whlTeams, QMJHL: qmjhlTeams, USHL: ushlTeams,
       SHL: shlTeams, LIIGA: liigaTeams, J20: j20Teams, U20: u20Teams
     };
-    let pool = START_POOLS[lg] || ohlTeams;
+    let pool = START_POOLS[lg] || getOpponentPool(lg) || ohlTeams;
     pool = pool || [];
     
     // RULE: You must be American to play for the US National Team Development Program
@@ -1102,6 +1108,29 @@ function App() {
          if (pm.status === 'won') roundsWon++;
        }
     });
+    // THE BRONZE GAME.
+    //
+    // Some leagues play one more game after the semifinals, between the two
+    // clubs that lost them: the Liiga and the Finnish juniors give out bronze
+    // medals that way. A semifinal loss there isn't the end of the season.
+    // It's played out here as one game against the other semifinal's loser.
+    const bronze = (() => {
+      if (!LEAGUE_CONFIG[playoffs.currentLg]?.bronzeGame) return null;
+      const br = playoffs.bracket || [];
+      const sfIdx = br.length - 2;
+      if (sfIdx < 0) return null;
+      const mine = (br[sfIdx] || []).find(m => m.isPlayerSeries);
+      if (!mine || mine.status !== 'lost') return null;
+      const other = (br[sfIdx] || []).find(m => !m.isPlayerSeries);
+      const wn = getWinsNeeded(playoffs.currentLg, sfIdx);
+      const opp = other ? (other.wins1 >= wn ? other.team2 : other.team1) : null;
+      return { oppId: opp?.id || opp || null, won: Math.random() < 0.5 };
+    })();
+    if (bronze) {
+      playoffGames += 1;
+      if (bronze.won) totalWins += 1;
+    }
+
     // An injured player sat the run out, so they earn no playoff stats of their own.
     // The team result still counts.
     if (playoffs.playerSidelined) playoffGames = 0;
@@ -1184,7 +1213,8 @@ function App() {
        eliminatedRound: poLoss ? poLoss.roundName : null,
        lostToRival: !!(poLoss && rivalPoId && poLoss.oppId === rivalPoId),
        beatRivalRound: beatRival ? beatRival.roundName : null,
-       beatRivalName: beatRival ? getFullTeamName(beatRival.oppId, playoffs.currentLg) : null
+       beatRivalName: beatRival ? getFullTeamName(beatRival.oppId, playoffs.currentLg) : null,
+       bronzeGame: bronze ? { won: bronze.won, oppName: bronze.oppId ? getFullTeamName(bronze.oppId, playoffs.currentLg) : null } : null
     }));
     
     setPlayer(p => {
@@ -1212,6 +1242,7 @@ function App() {
         const alreadyAwarded = isCupWon && (cupInSeason || cupInCareer);
 
         const smytheLabel = `${currentYearString} ${poTrophy}`;
+        const bronzeLabel = bronze?.won ? `${currentYearString} ${leagueLabel(lg)} Bronze Medal` : null;
         const smytheNew = smytheEarned
           && !histAwards.some(x => String(x).includes(poTrophy))
           && !(p.stats?.awards || []).some(x => String(x).includes(poTrophy) && String(x).startsWith(currentYearString));
@@ -1242,7 +1273,8 @@ function App() {
                 awards: Array.from(new Set([
                   ...histAwards,
                   ...(isCupWon && !alreadyAwarded ? [cupLabel] : []),
-                  ...(smytheNew ? [smytheLabel] : [])
+                  ...(smytheNew ? [smytheLabel] : []),
+                  ...(bronzeLabel ? [bronzeLabel] : [])
                 ]))
             };
         }
@@ -1264,7 +1296,8 @@ function App() {
               awards: Array.from(new Set([
                  ...(p.stats.awards || []),
                  ...(isCupWon && !alreadyAwarded ? [cupLabel] : []),
-                 ...(smytheNew ? [smytheLabel] : [])
+                 ...(smytheNew ? [smytheLabel] : []),
+                 ...(bronzeLabel ? [bronzeLabel] : [])
               ])),
               careerHighGoals: Math.max(currentHigh, seasonGoals), 
               [poBucket]: {
@@ -1285,6 +1318,34 @@ function App() {
   const handleEndMemCup = () => { setSeasonRecap(r => ({ ...r, memCupStatus: memCup.status })); setScreen('recap'); };
 
   const signContract = (o) => {
+    // AN OFFER SHEET GOES TO THE CLUB THAT HOLDS HIS RIGHTS.
+    //
+    // Signing one used to move him to the new club on the spot, which is not
+    // what an offer sheet is: his club has the right to match it. Now they
+    // decide. Match, and he stays with them on exactly the sheet's terms;
+    // decline, and he goes, and they take draft picks for him.
+    if (o.type === 'OFFER SHEET' && !o.matchDecided) {
+      const parent = ['AHL', 'ECHL'].includes(player.league)
+        ? (nhlTeams || []).find(t => t.ahlId === player.team || t.echlId === player.team) : null;
+      const holder = parent ? parent.id : player.team;
+      const holderName = withTeamArticle(getFullTeamName(holder, 'NHL'), 'NHL', true);
+      const fair = o.market?.anchor || Math.round(o.salary / 1.3);
+      if (holder && holder !== o.team && clubMatchesOfferSheet(o.salary, fair, player.ovr)) {
+        setSeasonEvents(prev => [...prev, {
+          feedback: `${holderName} matched the offer sheet. You stay with them on the same terms: ${o.years} years at ${formatMoney3(o.salary)}.`,
+          effect: { fanStatus: 0, ovr: 0, money: 0 }
+        }]);
+        signContract({ ...o, team: holder, league: 'NHL', type: 'MATCHED OFFER SHEET', fanHit: 10, matchDecided: true });
+        return;
+      }
+      setSeasonEvents(prev => [...prev, {
+        feedback: `${holderName} declined to match the offer sheet and take ${offerSheetCompLong(o.salary)} as compensation.`,
+        effect: { fanStatus: 0, ovr: 0, money: 0 }
+      }]);
+      signContract({ ...o, matchDecided: true });
+      return;
+    }
+
     const rivalObj = getPrimaryRival(player.team, player.league);
     if (rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team)) unlockAchievement('betrayal');
     if (player.draftTeam === o.team && player.team !== o.team) {
@@ -1717,7 +1778,7 @@ function App() {
 
   return (
       <AppContext.Provider value={contextValue}>
-    <div className="min-h-screen p-2 sm:p-6 flex flex-col font-sans bg-[#040505] text-white relative">
+    <div className="min-h-svh p-2 sm:p-6 flex flex-col font-sans bg-[#040505] text-white relative">
       {/* NEW: Global style to fix iOS Safari white overscroll bleed */}
       <style>{`
         html, body { background-color: #040505; }

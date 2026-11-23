@@ -273,3 +273,34 @@ export function compLine({ comps, anchor, group }, offered) {
 }
 
 export { money as formatComp, groupName };
+
+// OFFER SHEET COMPENSATION.
+//
+// What the club that loses a restricted free agent to an offer sheet gets
+// back, by the average salary of the sheet. Written as rounds joined by a plus
+// for the card, which has about seventeen characters for it, and in full for
+// everything else. It lived in the free agency screen, and the club deciding
+// whether to match needs it too.
+const OFFER_SHEET_COMP = [
+  [1500000, 'None', 'no compensation'],
+  [2300000, '3rd', 'a third-round pick'],
+  [4600000, '2nd', 'a second-round pick'],
+  [6900000, '1st+3rd', 'a first- and a third-round pick'],
+  [9200000, '1st+2nd+3rd', 'a first-, a second- and a third-round pick'],
+  [11500000, '2×1st+2nd+3rd', 'two firsts, a second and a third'],
+  [Infinity, '4×1st', 'four first-round picks']
+];
+const compRow = (salary) => OFFER_SHEET_COMP.find(([cap]) => salary < cap) || OFFER_SHEET_COMP[6];
+export const offerSheetComp = (salary) => compRow(salary)[1];
+export const offerSheetCompLong = (salary) => compRow(salary)[2];
+
+// Whether the club holding his rights matches an offer sheet. A sheet near
+// what he's worth gets matched most of the time; the further over it goes,
+// the more often the club takes the picks instead. A star is matched almost
+// whatever it costs.
+export const clubMatchesOfferSheet = (salary, fairValue, ovr) => {
+  const over = salary / Math.max(1, fairValue || salary / 1.3);
+  let chance = over > 1.45 ? 0.3 : over > 1.25 ? 0.5 : 0.72;
+  if (ovr >= 86) chance += 0.2;
+  return Math.random() < Math.min(0.92, chance);
+};

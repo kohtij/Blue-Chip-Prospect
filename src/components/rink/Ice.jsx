@@ -430,7 +430,7 @@ export function Move({ move, tone, stops = [], scale = 1 }) {
 // other way: the rink shrank and sat between two black bars.
 export function Surface({ view, children, className = '' }) {
   return (
-    <svg viewBox={view} className={`w-full h-auto max-h-[calc(100dvh-12rem)] block ${className}`} preserveAspectRatio="xMidYMid meet">
+    <svg viewBox={view} className={`w-full h-auto max-h-[calc(100svh-12rem)] block ${className}`} preserveAspectRatio="xMidYMid meet">
       {children}
     </svg>
   );

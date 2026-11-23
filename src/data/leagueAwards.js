@@ -1,3 +1,4 @@
+import { EXTRA_LEAGUES } from './euroLeagues';
 // Who hands out what, per league.
 //
 // This used to be a switch statement inside _computeAwards with a case for the
@@ -70,7 +71,11 @@ export const LEAGUE_AWARDS = {
     community: 'Yanick Dupré Memorial Award (AHL Man of the Year)',
     playoffMvp: 'Jack A. Butterfield Trophy (Calder Cup Playoff MVP)'
   },
-  ECHL: generic('ECHL'),
+  ECHL: {
+    ...generic('ECHL'),
+    regular: 'Brabham Cup (ECHL Regular Season Champion)',
+    playoffMvp: 'ECHL Playoff MVP'
+  },
 
   OHL: {
     mvp: 'Red Tilson Trophy (OHL Most Outstanding Player)',
@@ -142,7 +147,8 @@ export const LEAGUE_AWARDS = {
     dman: 'Salming Trophy (SHL Best Defenceman)',
     goalie: 'Honkens Trophy (SHL Best Goaltender)',
     rookie: 'Årets Rookie (SHL Rookie of the Year)',
-    regular: 'SHL Regular Season Champion'
+    regular: 'SHL Regular Season Champion',
+    playoffMvp: 'Stefan Liv Memorial Trophy (SHL Playoff MVP)'
   },
   LIIGA: {
     mvp: 'Lasse Oksanen Trophy (Liiga Best Player)',
@@ -151,10 +157,12 @@ export const LEAGUE_AWARDS = {
     dman: 'Pekka Rautakallio Trophy (Liiga Best Defenceman)',
     goalie: 'Urpo Ylönen Trophy (Liiga Best Goaltender)',
     rookie: 'Jarmo Wasama Memorial Trophy (Liiga Rookie of the Year)',
-    regular: 'Liiga Regular Season Champion',
+    regular: 'Harry Lindblad Trophy (Liiga Regular Season Champion)',
     // The players' own vote, beside the Lasse Oksanen, the way the Ted
     // Lindsay sits beside the Hart.
-    players: 'Kultainen kypärä (Liiga Players\' Player of the Year)'
+    players: 'Kultainen kypärä (Liiga Players\' Player of the Year)',
+    sportsman: 'Raimo Kilpiö Trophy (Liiga Most Sportsmanlike Player)',
+    playoffMvp: 'Jari Kurri Trophy (Liiga Playoff MVP)'
   },
   KHL: {
     mvp: 'Golden Stick (KHL Most Valuable Player)',
@@ -163,7 +171,8 @@ export const LEAGUE_AWARDS = {
     dman: 'KHL Best Defenceman',
     goalie: 'KHL Top Goaltender',
     rookie: 'Alexei Cherepanov Award (KHL Top Rookie)',
-    regular: 'Continental Cup (KHL Regular Season Champion)'
+    regular: 'Continental Cup (KHL Regular Season Champion)',
+    playoffMvp: 'KHL Playoff MVP'
   },
   CZECH: {
     // Zlatá hokejka is the best Czech player anywhere, NHL included, not
@@ -186,4 +195,7 @@ export const LEAGUE_AWARDS = {
   U20: generic('U20 SM-sarja')
 };
 
-export const awardsFor = (league) => LEAGUE_AWARDS[league] || generic(league || 'League');
+// The leagues in data/euroLeagues.js use the generic set under their own name,
+// so it's "HockeyAllsvenskan Top Scorer" rather than one built from the id.
+export const awardsFor = (league) => LEAGUE_AWARDS[league]
+  || generic(EXTRA_LEAGUES[league]?.label || league || 'League');

@@ -174,11 +174,30 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'NORDIC_STEP_UP') {
     // Up from the club's junior side to its men's team. A first professional
     // deal in Sweden or Finland is a modest one, and it is still a job.
-    const seniorId = choice.actionData;
+    // The club's men's team can be in a lower tier, so the event says which
+    // league it found it in. An old save passes the id alone.
+    const seniorId = choice.actionData?.id || choice.actionData;
     updated.team = seniorId;
-    updated.league = JUNIOR_PARENT_LEAGUE[player.league] || 'SHL';
+    updated.league = choice.actionData?.league || JUNIOR_PARENT_LEAGUE[player.league] || 'SHL';
     updated.contract = { salary: 120000, years: 2, role: getRole(120000, player) };
     updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), seniorId]));
+  } else if (actionStr === 'CLUB_LEAGUE_MOVE') {
+    // His club was promoted or relegated and he goes with it.
+    if (choice.actionData?.league) updated.league = choice.actionData.league;
+  } else if (actionStr === 'RELEGATION_EXIT') {
+    // Released from the relegated club, to sign wherever the market below
+    // takes him. The club has gone down without him.
+    updated.contract = null;
+    if (choice.actionData?.league) updated.league = choice.actionData.league;
+  } else if (actionStr === 'JUNIOR_STEP_UP') {
+    // From the under-18s to an under-20 side. Still junior hockey, so no
+    // contract changes hands.
+    const { id, league } = choice.actionData || {};
+    if (id && league) {
+      updated.team = id;
+      updated.league = league;
+      updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), id]));
+    }
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
     updated.contract = { salary: 925000, years: elcYears(player.age), role: getRole(925000, player), bonuses: elcBonuses(player.pos), nhl: true };
@@ -458,6 +477,13 @@ export function handleEventChoice(ctx, choice) {
         ctx.generateOffers(false, finalPlayer.team, null, { europeOnly: true });
       } else {
         proceedToNextScreen({ ...activeEvent, euroMarket: true }, minigameContext, finalPlayer);
+      }
+  } else if (actionStr === 'RELEGATION_EXIT') {
+      setActiveEvent(null);
+      if (ctx.generateOffers) {
+        ctx.generateOffers(false, finalPlayer.team, null, { europeOnly: true, reason: 'relegation' });
+      } else {
+        proceedToNextScreen(activeEvent, minigameContext, finalPlayer);
       }
   } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
       // Same trap as the draft: these are summer beats, so the card handed out

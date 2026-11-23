@@ -4,6 +4,8 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { NO_ARTICLE_LEAGUES, ordinal, withTeamArticle } from '../utils/gameHelpers';
 import { classSalt, compGroup, draftBoard, flagFor, groupName, positionDraftSlot, roomProspect } from '../utils/peers';
 import LeagueTag from '../components/LeagueTag';
+import { euroLeagues, juniorLeagues } from '../data/teams';
+import { leagueLabel } from '../utils/peers';
 import { kickerClass, TITLE_LG } from '../utils/ui';
 
 export default function DraftScreen() {
@@ -42,11 +44,11 @@ export default function DraftScreen() {
 
   // PASSED OVER. The whole night went by without his name.
   if (seasonRecap?.undrafted) {
-    const nextAgeOut = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20'].includes(player.league) ? 21 : 22;
+    const nextAgeOut = juniorLeagues.includes(player.league) ? 21 : 22;
     const againNextYear = (player.age + 1) < nextAgeOut;
     const isUSHL = player.league === 'USHL';
     const backLabel = player.league === 'NCAA' ? 'BACK TO THE NCAA'
-      : ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'].includes(player.league) ? `BACK TO ${player.league === 'LIIGA' ? 'LIIGA' : player.league}`
+      : euroLeagues.includes(player.league) ? `BACK TO ${leagueLabel(player.league).toUpperCase()}`
         : 'BACK TO JUNIORS';
     return (
       <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
@@ -293,7 +295,7 @@ export default function DraftScreen() {
            </button>
         ) : (
            <button onClick={() => handleDraftChoice('RETURN')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
-             {player.league === 'NCAA' ? 'RETURN TO NCAA' : ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'].includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
+             {player.league === 'NCAA' ? 'RETURN TO NCAA' : euroLeagues.includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
            </button>
         )}
       </div>

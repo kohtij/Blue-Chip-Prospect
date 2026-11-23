@@ -7,7 +7,7 @@
 // matchup sits under it, and the only thing you ever do is pick a play out of
 // your own book while the pool gets smaller.
 
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { getPlaybook, PICK_PROMPT, viewFor } from '../data/intlPlaybook';
 import { getMinigamePool } from '../data/minigames';
@@ -260,6 +260,29 @@ export default function IntlTournamentScreen() {
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     lastChanceRef.current.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
   }, [lastChance]);
+  const medalGame = ['FINAL', 'BRONZE'].includes(round?.key);
+  const deciderGame = ['DECIDER', 'RELEG'].includes(round?.key);
+  const stageRule = !round || round.kind === 'group' ? null
+    : deciderGame ? "Get read and it's over, and there's no escape in one of these."
+      : medalGame ? "A medal game. Get read and it's over, and there's no escape in one of these."
+        : run?.escapeUsed
+          ? "Get read and you're out, and your escape is already spent."
+          : "Get read and you're out, unless you spend your one escape.";
+
+  // Every press swaps one block for another of a different height: the board
+  // for the result, the result for the next board. When the new one starts
+  // above the top of the screen, bring its top back to where the eye is, once
+  // and without animation, instead of leaving the player halfway down a card
+  // they can't see the start of. Below that, nothing is moved.
+  const matchupRef = useRef(null);
+  const doneRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = done ? doneRef.current : matchupRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (top < 0) window.scrollBy({ top: top - 12, behavior: 'auto' });
+  }, [outcome, board, done]);
+
   const handleWatch = () => {
     if (lockRef.current || outcome) return;
     lockRef.current = true;
@@ -336,63 +359,11 @@ export default function IntlTournamentScreen() {
         )}
       </div>
 
-      {/* HOW IT WORKS */}
-      {/* How it works.
-          This was one eighty-five word paragraph that buried four separate
-          rules inside a run of prose, so the thing you needed to know before
-          picking, what getting read actually costs you tonight, was the hardest
-          part to find. One rule per line instead. */}
-      <div className="border-y border-[rgba(255,255,255,0.065)] py-3 mb-4 space-y-1.5">
-        <p className="text-[11px] sm:text-xs text-slate-300 font-sans leading-snug">
-          Every game is one read: pick a play, and hope their video staff hasn't already picked it apart.
-        </p>
-        {/* Only the stage you are standing in.
-            All four rules used to sit here at once, so a group game told you
-            what happens in a medal game and a medal game told you about an
-            escape that does not exist in one. The tape rule holds all
-            tournament rather than belonging to a stage, so it stays. */}
-        {(() => {
-          const medal = ['FINAL', 'BRONZE'].includes(round?.key);
-          const decider = ['DECIDER', 'RELEG'].includes(round?.key);
-          const stage = !round ? null
-            : round.kind === 'group'
-              // What each place leads to is shown on the table itself, shaded
-              // rows with a legend, so this line doesn't spell it out again.
-              ? ['This game', 'A group game. The shading on the table shows what each place leads to.']
-              : decider
-                ? ['This game', `${round.label}. Get read and it's over, and there's no escape in one of these.`]
-              : medal
-                ? ['This game', 'A medal game. Get read and it\'s over, and there\'s no escape in one of these.']
-                : ['This game', run?.escapeUsed
-                    ? 'A knockout. Get read and you\'re out, and your escape is already spent.'
-                    : 'A knockout. Get read and you\'re out, unless you spend your one escape.'];
-          return [
-            stage,
-            round?.kind === 'group' ? ['Points', '3 for a win, 2 for a win in overtime, 1 for a loss in overtime, none for a loss in regulation.'] : null,
-            ['On tape', 'Every play you run gets watched. They look there first next time.']
-          ].filter(Boolean);
-        })().map(([term, rule]) => (
-          <p key={term} className="flex gap-2 text-[11px] sm:text-xs text-slate-400 font-sans leading-snug">
-            <span className="shrink-0 w-[72px] sm:w-[84px] font-black uppercase tracking-widest text-[9px] sm:text-[10px] text-slate-500 pt-px">
-              {term}
-            </span>
-            <span>{rule}</span>
-          </p>
-        ))}
-      </div>
-
       <RunLine run={run} />
-
-      {/* The group, while it's being played and for the game that comes out
-          of it. */}
-      {!done && run.group && (round?.kind === 'group' || outcome?.entry?.kind === 'group'
-        || ['RELEG', 'DECIDER'].includes(round?.key)) && (
-        <GroupTable run={run} nations={safeNationalities} />
-      )}
 
       {/* TOURNAMENT OVER */}
       {done ? (
-        <div className="max-w-xl mx-auto mt-6 fade-up text-center">
+        <div ref={doneRef} className="max-w-xl mx-auto mt-6 fade-up text-center scroll-mt-3">
           <div className={`rounded-2xl border-2 p-6 sm:p-8 ${
             done.medal ? MEDAL_STYLE[done.medal].box : 'border-[rgba(255,255,255,0.1)] bg-[#101410]'
           }`}>
@@ -490,7 +461,8 @@ export default function IntlTournamentScreen() {
               follow it sits the same distance away. The three branches below
               each carried their own top margin and one of them carried none, so
               the verdict text came up hard against this box. */}
-          <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl px-4 py-3 mt-3 mb-6 sm:mb-8 flex items-center justify-between gap-3">
+          <div ref={matchupRef} className="bg-[#101410] border border-[rgba(255,255,255,0.065)] rounded-xl px-4 py-3 mt-3 mb-4 sm:mb-6 scroll-mt-3">
+           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] text-[#3b82f6] mb-1">
                 {round?.label}
@@ -514,6 +486,12 @@ export default function IntlTournamentScreen() {
             }`}>
               {round?.kind === 'knockout' ? 'Win or go home' : 'Group'}
             </span>
+           </div>
+            {/* What getting read costs you in this game. A group game's cost is
+                on the table below, so it says nothing. */}
+            {stageRule && (
+              <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-snug mt-2">{stageRule}</p>
+            )}
           </div>
 
           {/* LAST CHANCE */}
@@ -706,8 +684,7 @@ export default function IntlTournamentScreen() {
                   {run.timeoutUsed ? 'Timeout spent' : 'Get the scouting report'}
                 </button>
                 <p className="text-[9px] text-slate-500 font-sans mt-2 leading-snug">
-                  Shows you one of the plays they have scouted. Needs the room behind you: 75 teammate trust, or a letter.
-                  One per tournament, and not in the final.
+                  Shows you one play they've scouted. Needs 75 teammate trust or a letter. One per tournament, and not in the final.
                 </p>
               </div>
 
@@ -728,9 +705,8 @@ export default function IntlTournamentScreen() {
                   </span>
                 </div>
                 <p className="text-[9px] text-slate-500 font-sans leading-snug">
-                  The first time a knockout game gets read, it comes down to one moment you play yourself. It
-                  happens on its own, there is nothing to press, there is no second one, and it does not exist
-                  in a medal game.
+                  The first knockout game where they read you comes down to one moment you play yourself. It
+                  happens on its own, only once, and never in a medal game.
                 </p>
               </div>
               </div>
@@ -738,6 +714,41 @@ export default function IntlTournamentScreen() {
           )}
 
         </>
+      )}
+
+      {/* The group, while it's being played and for the game that comes out
+          of it. Under the game, so a result changing the table doesn't move
+          the board or the result card you're looking at. */}
+      {!done && run.group && (round?.kind === 'group' || outcome?.entry?.kind === 'group'
+        || ['RELEG', 'DECIDER'].includes(round?.key)) && (
+        <GroupTable run={run} nations={safeNationalities} />
+      )}
+
+      {/* HOW IT WORKS.
+          Below the game rather than above it. It sat between the title and the
+          board, so every game started with scrolling past the same rules to get
+          to the plays. What this game costs you is said on the matchup now, and
+          the rules that hold all tournament are here for anyone who wants them. */}
+      {!done && (
+        <div className="mt-5">
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 px-1">How It Works</p>
+          <div className="space-y-1.5 px-1">
+            <p className="text-[11px] sm:text-xs text-slate-400 font-sans leading-snug">
+              Every game is one read: pick a play, and hope their video staff hasn't already picked it apart.
+            </p>
+            {[
+              round?.kind === 'group' ? ['Points', '3 for a win, 2 for a win in overtime, 1 for a loss in overtime, none for a loss in regulation.'] : null,
+              ['On tape', 'Every play you run gets watched. They look there first next time.']
+            ].filter(Boolean).map(([term, rule]) => (
+              <p key={term} className="flex gap-2 text-[11px] sm:text-xs text-slate-400 font-sans leading-snug">
+                <span className="shrink-0 w-[72px] sm:w-[84px] font-black uppercase tracking-widest text-[9px] sm:text-[10px] text-slate-500 pt-px">
+                  {term}
+                </span>
+                <span>{rule}</span>
+              </p>
+            ))}
+          </div>
+        </div>
       )}
 
           {/* THE ROAD */}

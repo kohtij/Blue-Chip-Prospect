@@ -1,4 +1,5 @@
 import { classPressQuestion } from '../utils/peers';
+import { euroLeagues, juniorLeagues } from './teams';
 
 // What the press asks, and who it makes sense to ask it of.
 //
@@ -18,8 +19,8 @@ import { classPressQuestion } from '../utils/peers';
 // three-question hand so a press conference is not all praise or all knives.
 
 // J20, U20 and the BCHL were missing and fell through to the NHL's set.
-const JUNIOR = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20'];
-const EURO = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+const JUNIOR = juniorLeagues;
+const EURO = euroLeagues;
 const MINOR = ['AHL', 'ECHL', 'SPHL'];
 
 /** One tag per league, which every question's `scope` is matched against. */

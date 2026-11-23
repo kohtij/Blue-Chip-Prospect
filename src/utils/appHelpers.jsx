@@ -2,7 +2,7 @@
 // Imported by App.jsx and by every extracted screen so no helper is
 // re-declared in multiple places.
 
-import { getTeamData, getPlayoffRounds, getDeployment, isAmateurLeague, leagueLevel } from '../data/teams';
+import { getTeamData, getPlayoffRounds, getDeployment, isAmateurLeague, leagueLevel, EXTRA_LEAGUES } from '../data/teams';
 import { getAwardImage } from '../data/awards';
 
 export const makeInitialPlayer = () => ({
@@ -115,6 +115,9 @@ export const getTrainingQuality = (p) => {
   const leagueTier = lg === 'NHL' ? 1
      : ['AHL', 'KHL', 'SHL', 'LIIGA', 'SWISS'].includes(lg) ? 0.6
      : ['DEL', 'CZECH', 'ICEHL', 'SLOVAK', 'ECHL', 'NCAA'].includes(lg) ? 0.4
+     // The second tiers are full-time clubs with a real staff; the rest of the
+     // new leagues are part-time or junior.
+     : EXTRA_LEAGUES[lg]?.kind === 'pro' && EXTRA_LEAGUES[lg].level <= 15 ? 0.4
      : 0.2;
   const clamp01 = v => Math.min(1, Math.max(0, v));
   const trust = clamp01(((p?.relationships?.coach ?? 50) - 40) / 50);
@@ -134,7 +137,7 @@ export const getTrainingTierLabel = (q) => {
 // a fixed list of the North American cups plus anything ending in
 // "Championship", which is what every other league's title used to be saved as.
 const CUP_LEAGUES = ['NHL', 'AHL', 'ECHL', 'SPHL', 'OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'NCAA',
-  'KHL', 'SHL', 'LIIGA', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', 'J20', 'U20'];
+  'KHL', 'SHL', 'LIIGA', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK', 'J20', 'U20', ...Object.keys(EXTRA_LEAGUES)];
 export const isLeagueCup = (award) => {
   const a = String(award || '');
   if (/memorial cup/i.test(a)) return false;
@@ -163,6 +166,20 @@ export const getPlayoffTitles = (league) => {
         J20: 'Swedish Junior Championship', U20: 'Finnish Junior Championship'
       }[league];
       if (named) return { banner: `${league} PLAYOFFS`, final: `${named.toUpperCase()} FINAL`, trophy: '🏆', cupName: named };
+      const extra = EXTRA_LEAGUES[league];
+      if (extra) {
+        // A trophy with a name of its own keeps it; a league that just plays
+        // for its title calls the series by the league.
+        const ownName = !/championship$/i.test(extra.cup);
+        return {
+          banner: `${extra.label.toUpperCase()} PLAYOFFS`,
+          // The bracket column is narrow, and HOCKEYALLSVENSKAN is one word
+          // that won't wrap. Swedes say Allsvenskan anyway.
+          final: ownName ? `${extra.cup.toUpperCase()} FINAL` : `${extra.label.replace('HockeyAllsvenskan', 'Allsvenskan').toUpperCase()} FINAL`,
+          trophy: '🏆',
+          cupName: extra.cup
+        };
+      }
       return { banner: `${league || 'LEAGUE'} PLAYOFFS`, final: `${league || 'LEAGUE'} FINAL`, trophy: '🏆', cupName: `${league || 'League'} Championship` };
     }
   }
@@ -307,7 +324,8 @@ const REGION_BY_LEAGUE = {
   OHL: 'JUNIOR', WHL: 'JUNIOR', QMJHL: 'JUNIOR', USHL: 'JUNIOR',
   // The Nordic junior tiers are junior hockey, but covered from Europe.
   J20: ['JUNIOR', 'EU'], U20: ['JUNIOR', 'EU'],
-  SHL: 'EU', LIIGA: 'EU', KHL: 'EU', SWISS: 'EU', DEL: 'EU', ICEHL: 'EU', CZECH: 'EU', SLOVAK: 'EU'
+  SHL: 'EU', LIIGA: 'EU', KHL: 'EU', SWISS: 'EU', DEL: 'EU', ICEHL: 'EU', CZECH: 'EU', SLOVAK: 'EU',
+  ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.kind === 'pro' ? 'EU' : ['JUNIOR', 'EU']]))
 };
 
 export const getJournalistsForLeague = (league) => {

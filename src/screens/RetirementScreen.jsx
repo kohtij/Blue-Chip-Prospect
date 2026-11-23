@@ -560,7 +560,7 @@ export default function RetirementScreen() {
   const regCols = isGoalie ? 5 : 4;
 
   return (
-    <div className="min-h-screen px-3 py-4 sm:p-8 bg-[#040505] text-white font-sans" style={{ '--club': tone }}>
+    <div className="min-h-svh px-3 py-4 sm:p-8 bg-[#040505] text-white font-sans" style={{ '--club': tone }}>
       <div className="w-full max-w-4xl mx-auto space-y-3 sm:space-y-4">
 
         {/* THE SEND-OFF.
@@ -903,7 +903,7 @@ export default function RetirementScreen() {
             // they scrolled away after a few seasons, and GP, G, A and Pts were
             // four unlabelled numbers from then on.
             <div tabIndex={0} role="region" aria-label="Table, scrolls both ways"
-                 className="-mx-4 sm:-mx-6 overflow-auto max-h-[75vh] overscroll-contain">
+                 className="-mx-4 sm:-mx-6 overflow-auto max-h-[75svh] overscroll-contain">
               <table className="w-full min-w-[620px] text-left whitespace-nowrap text-[12px] sm:text-[13px]">
                 <thead className="sticky top-0 z-10 bg-[#0a0d0a] shadow-[0_6px_10px_-6px_rgba(0,0,0,0.8)]">
                   <tr className="text-[10px] font-bold text-slate-600 bg-[#0a0d0a]">

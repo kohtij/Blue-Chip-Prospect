@@ -1,4 +1,4 @@
-import { ahlTeams, liigaTeams, nhlTeams, shlTeams, echlTeams, khlTeams, swissTeams, sphlTeams, czechTeams, slovakTeams, delTeams, icehlTeams, j20Teams, u20Teams, isAmateurLeague } from '../data/teams';
+import { ahlTeams, nhlTeams, echlTeams, sphlTeams, j20Teams, u20Teams, getOpponentPool, isAmateurLeague } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { arbitrationEligible, elcYears, gamesInLeague, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
 import { nhlGamesIn } from '../utils/rosterMoves';
@@ -42,16 +42,33 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       // veteran is not signing in the KHL, but Slovakia, Austria and the Czech
       // league will all take a former NHL player who can still skate, and the
       // old flat list offered every one of them to everybody.
+      //
+      // The second tiers are the other end of it: they'll take anyone, and a
+      // player good enough for a top league doesn't hear from them (maxOvr).
+      // Pools are read live, because promotion and relegation move clubs.
       const EURO = [
-        { lg: 'KHL', pool: khlTeams, pay: 1.9, minOvr: 74 },
-        { lg: 'SHL', pool: shlTeams, pay: 1.00, minOvr: 70 },
-        { lg: 'SWISS', pool: swissTeams, pay: 1.35, minOvr: 68 },
-        { lg: 'LIIGA', pool: liigaTeams, pay: 0.92, minOvr: 65 },
-        { lg: 'DEL', pool: delTeams, pay: 1.05, minOvr: 61 },
-        { lg: 'CZECH', pool: czechTeams, pay: 0.80, minOvr: 57 },
-        { lg: 'ICEHL', pool: icehlTeams, pay: 0.85, minOvr: 50 },
-        { lg: 'SLOVAK', pool: slovakTeams, pay: 0.70, minOvr: 0 }
-      ].filter(e => (e.pool || []).length);
+        { lg: 'KHL', pay: 1.9, minOvr: 74 },
+        { lg: 'SHL', pay: 1.00, minOvr: 70 },
+        { lg: 'SWISS', pay: 1.35, minOvr: 68 },
+        { lg: 'LIIGA', pay: 0.92, minOvr: 65 },
+        { lg: 'DEL', pay: 1.05, minOvr: 61 },
+        { lg: 'CZECH', pay: 0.80, minOvr: 57 },
+        { lg: 'ICEHL', pay: 0.85, minOvr: 50 },
+        { lg: 'SLOVAK', pay: 0.70, minOvr: 0 },
+        { lg: 'VHL', pay: 0.65, minOvr: 0, maxOvr: 72 },
+        { lg: 'ALLSV', pay: 0.55, minOvr: 0, maxOvr: 70 },
+        { lg: 'SL', pay: 0.70, minOvr: 0, maxOvr: 68 },
+        { lg: 'DEL2', pay: 0.55, minOvr: 0, maxOvr: 68 },
+        { lg: 'EIHL', pay: 0.50, minOvr: 0, maxOvr: 70 },
+        { lg: 'MESTIS', pay: 0.40, minOvr: 0, maxOvr: 66 },
+        { lg: 'MAGNUS', pay: 0.45, minOvr: 0, maxOvr: 66 },
+        { lg: 'METAL', pay: 0.45, minOvr: 0, maxOvr: 64 },
+        { lg: 'EHL', pay: 0.45, minOvr: 0, maxOvr: 64 },
+        { lg: 'ALPS', pay: 0.40, minOvr: 0, maxOvr: 62 }
+      ].map(e => ({ ...e, pool: (getOpponentPool(e.lg) || []).filter(t => t.id !== player.team) }))
+        // A player leaving a relegated club is looking for a top league, not
+        // another second tier.
+        .filter(e => e.pool.length && !(opts.reason === 'relegation' && e.maxOvr));
 
       // The name on the back of the sweater is worth something over there. A
       // long NHL career gets a club to pick up the phone it would not have
@@ -63,7 +80,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       // somewhere to play, so the list is topped up from the least fussy
       // leagues rather than left short: a market that opens with nothing on it
       // is the bug this whole screen exists to avoid.
-      const within = EURO.filter(e => standing >= e.minOvr);
+      const within = EURO.filter(e => standing >= e.minOvr && standing <= (e.maxOvr ?? 999));
       const spare = EURO.filter(e => standing < e.minOvr).sort((a, b) => a.minOvr - b.minOvr);
       const count = Math.min(EURO.length, standing >= 78 ? 5 : standing >= 68 ? 4 : 3);
       const board = [...within.sort(() => 0.5 - Math.random()), ...spare];
@@ -78,14 +95,18 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
           league: entry.lg,
           salary,
           years: 1 + Math.floor(Math.random() * 2),
-          role: 'Veteran Leader',
+          role: (player.age || 0) >= 32 ? 'Veteran Leader' : 'Pro Roster',
           fanHit: 0,
           state: 'Europe'
         };
       });
 
       setFreeAgencyOffers(euroOffers.map(o => withOfferPerks(o)));
-      if (setEventFeedback) setEventFeedback('Your agent made the calls. These are the clubs that want a veteran.');
+      if (setEventFeedback) {
+        setEventFeedback(opts.reason === 'relegation'
+          ? 'Your agent made the calls. These are the clubs that want you.'
+          : 'Your agent made the calls. These are the clubs that want a veteran.');
+      }
       setScreen('transfer');
       return true;
     }
@@ -349,34 +370,24 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                targetLg = isUnder18 ? 'U20' : 'ECHL';
             } else {
                const roll = Math.random();
-               if (isUnder18) {
-                   pool = roll > 0.50 ? (shlTeams || []) : 
-                          roll > 0.25 ? (liigaTeams || []) : 
-                          roll > 0.10 ? (czechTeams || []) : (slovakTeams || []);
-                   targetLg = pool === shlTeams ? 'SHL' : 
-                              pool === liigaTeams ? 'LIIGA' : 
-                              pool === czechTeams ? 'CZECH' : 'SLOVAK';
-               } else {
-                   pool = roll > 0.75 ? (ahlTeams || []) : 
-                          roll > 0.60 ? (shlTeams || []) : 
-                          roll > 0.45 ? (liigaTeams || []) : 
-                          roll > 0.25 ? (czechTeams || []) : (slovakTeams || []);
-                   targetLg = pool === ahlTeams ? 'AHL' : 
-                              pool === shlTeams ? 'SHL' : 
-                              pool === liigaTeams ? 'LIIGA' : 
-                              pool === czechTeams ? 'CZECH' : 'SLOVAK';
-               }
+               // An adult at this level also hears from the second tiers in
+               // Sweden and Germany, which is where most of them actually go.
+               targetLg = isUnder18
+                 ? (roll > 0.50 ? 'SHL' : roll > 0.25 ? 'LIIGA' : roll > 0.10 ? 'CZECH' : 'SLOVAK')
+                 : (roll > 0.75 ? 'AHL' : roll > 0.62 ? 'SHL' : roll > 0.50 ? 'LIIGA'
+                   : roll > 0.36 ? 'CZECH' : roll > 0.24 ? 'SLOVAK' : roll > 0.12 ? 'ALLSV' : 'DEL2');
+               pool = getOpponentPool(targetLg) || [];
             }
         } else if (player.ovr < 75 && i === offerCount - 1) {
             const roll = Math.random();
             if (roll > 0.6) {
-                pool = khlTeams || [];
+                pool = getOpponentPool('KHL') || [];
                 targetLg = 'KHL';
             } else if (roll > 0.3) {
-                pool = swissTeams || [];
+                pool = getOpponentPool('SWISS') || [];
                 targetLg = 'SWISS';
             } else {
-                pool = isUnder18 ? (shlTeams || []) : (ahlTeams || []);
+                pool = isUnder18 ? (getOpponentPool('SHL') || []) : (ahlTeams || []);
                 targetLg = isUnder18 ? 'SHL' : 'AHL';
             }
         }
@@ -477,7 +488,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     
     // RUSSIAN FACTOR KHL MEGADEAL INJECTION
     if (player.storylines?.russianFactorChoice === 'KHL' && !offers.some(o => o.league === 'KHL')) {
-      const khlPool = khlTeams || [];
+      const khlPool = getOpponentPool('KHL') || [];
       const randomKhlTeam = khlPool[Math.floor(Math.random() * khlPool.length)]?.id || 'CSKA';
       
       offers.push({
@@ -494,7 +505,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
 
     if (offers.length === 0) {
       const isUnder18 = player.age < 18;
-      const fallbackPool = isUnder18 ? (shlTeams || []) : (ahlTeams || []);
+      const fallbackPool = isUnder18 ? (getOpponentPool('SHL') || []) : (ahlTeams || []);
       const fallbackLg = isUnder18 ? 'SHL' : 'AHL';
       offers = [{
         team: (fallbackPool && fallbackPool.length > 0) ? fallbackPool[0].id : 'UNK',

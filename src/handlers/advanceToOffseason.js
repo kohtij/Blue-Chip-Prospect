@@ -1,4 +1,4 @@
-import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues } from '../data/teams';
+import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues, u18Leagues, U18_NEXT_LEAGUE, LEAGUE_COUNTRY, countryProLeagues, findClubLeague } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
@@ -12,6 +12,7 @@ import { isCorePlayer } from '../utils/rosterMoves';
 import { teamStrengthOf } from '../utils/leagueState';
 import { advanceFrontOffices, ensureFrontOffices } from '../utils/frontOffice';
 import { careerEndingVerdict, endingLabel } from '../utils/injuries';
+import { runProRel } from '../utils/proRel';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -41,7 +42,8 @@ export function advanceToOffseason(ctx) {
     stage: FRESH,
     rating: seasonRecap?.rating || 5,
     wonTitle: seasonRecap?.titleWon === 1,
-    wonMemCup: seasonRecap?.memCupStatus === 'won'
+    wonMemCup: seasonRecap?.memCupStatus === 'won',
+    standing: seasonRecap?.standings || null
   };
   const done = off.stage;
 
@@ -496,6 +498,84 @@ export function advanceToOffseason(ctx) {
     if (news.length) setSeasonEvents(prev => [...prev, ...news]);
   }
 
+  // PROMOTION AND RELEGATION.
+  //
+  // Clubs in Sweden, Finland, Germany, Switzerland and Norway go up and down
+  // between tiers. Every league's is settled here, once a summer, and his own
+  // club's move, if it has one, is put to him. See utils/proRel.js.
+  if (!marks.proRel) {
+    mark('proRel');
+    const summer = 2026 + (player.stats?.seasonsPlayed || 0);
+    const pr = runProRel({
+      summer,
+      leagueState: player.leagueState,
+      moves: player.clubMoves,
+      me: { team: player.team, league: player.league, standing: off.standing, title: !!off.wonTitle }
+    });
+    setPlayer(p => ({ ...p, clubMoves: pr.moves }));
+    if (pr.news.length) {
+      setSeasonEvents(prev => [...prev, ...pr.news.map(text => ({
+        title: '🔁 PROMOTION AND RELEGATION', feedback: text, effect: { fanStatus: 0, ovr: 0, money: 0 }
+      }))]);
+    }
+    if (pr.mine) {
+      const club = getFullTeamName(player.team, player.league);
+      const where = leagueWithArticle(pr.mine.to);
+      const move = { action: 'CLUB_LEAGUE_MOVE', actionData: { league: pr.mine.to } };
+      const expiring = !(player.contract?.years > 0);
+      if (pr.mine.dir === 'up') {
+        setActiveEvent({
+          title: '⬆️ PROMOTED',
+          desc: `${club} won promotion. Next season they play in ${where}, and so do you.${expiring ? ' Your contract is up, so the club will have to sign you again first.' : ''}`,
+          choices: [{
+            label: 'Go up with them',
+            subLabel: 'Better teams every night, and more people watching.',
+            isRisky: false,
+            feedback: `You celebrated promotion with the fans. Next season is a step up for everyone in the room.`,
+            effect: { fanStatus: 20, ovr: 0, money: 0, rel: { teammates: 5 } },
+            ...move
+          }],
+          isOffseasonEvent: true
+        });
+      } else {
+        setActiveEvent({
+          title: '⬇️ RELEGATED',
+          desc: expiring
+            ? `${club} are going down to ${where}. Your contract is up, so where you play next season is decided in free agency.`
+            : `${club} are going down to ${where}. The club wants to keep the group together and come straight back up, and you're under contract for ${player.contract.years === 1 ? 'one more year' : `${['two', 'three', 'four', 'five'][player.contract.years - 2] || player.contract.years} more years`}.`,
+          choices: expiring ? [{
+            label: 'See what free agency brings',
+            subLabel: 'Your club can still make you an offer.',
+            isRisky: false,
+            feedback: 'You thanked the fans and left the next move to your agent.',
+            effect: { fanStatus: 0, ovr: 0, money: 0 },
+            ...move
+          }] : [
+            {
+              label: 'Stay and get them back up',
+              subLabel: `Play in ${where} and be one of the best players in it.`,
+              isRisky: false,
+              feedback: "You told the club you're staying. The fans won't forget it.",
+              effect: { fanStatus: 15, ovr: 0, money: 0, rel: { coach: 8, teammates: 8 } },
+              ...move
+            },
+            {
+              label: 'Ask for a move',
+              subLabel: 'Your agent looks for a club in a top league.',
+              isRisky: false,
+              feedback: 'You asked to leave. The club agreed to let you go rather than keep a player who wants out.',
+              effect: { fanStatus: -15, ovr: 0, money: 0, rel: { coach: -10 } },
+              action: 'RELEGATION_EXIT', actionData: { league: pr.mine.to }
+            }
+          ],
+          isOffseasonEvent: true
+        });
+      }
+      setScreen('event');
+      return;
+    }
+  }
+
   // THE SUMMER, AT EVERY CLUB HE KNOWS.
   //
   // Rooms age: a year on everybody, the worn-out ones gone, a replacement in
@@ -648,49 +728,69 @@ export function advanceToOffseason(ctx) {
     // Where he went in the import draft. It's two rounds, one pick a club a
     // round, so about 120 picks; a better prospect goes earlier. The event
     // used to say only that a club "took you".
-    const importPick = () => {
-      const n = Math.max(1, Math.min(120, Math.round((84 - (player.ovr || 60)) * 3 + Math.random() * 24)));
+    const importPickNo = () => Math.max(1, Math.min(120, Math.round((84 - (player.ovr || 60)) * 3 + Math.random() * 24)));
+    const ordinal = (n) => {
       const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
       return `${n}${tail}`;
     };
 
-    if (isImportEligible && !player.storylines?.importDraft && !player.chlRights && (player.age === 16 || player.age === 17) && safeEuroLeagues.includes(player.league) && Math.random() > 0.4) {
-        setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), importDraft: 1 } }));
-        const chlLeagues = ['OHL', 'WHL', 'QMJHL'];
-        const randomLg = chlLeagues[Math.floor(Math.random() * chlLeagues.length)];
-        let pool = getOpponentPool(randomLg) || [];
-        if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team', city: '' }];
-        const draftingTeam = pool[Math.floor(Math.random() * pool.length)];
-        const fullTeamName = draftingTeam.fullName || (draftingTeam.city ? `${draftingTeam.city} ${draftingTeam.name}` : draftingTeam.name);
+    // THE CHL IMPORT DRAFT.
+    //
+    // There used to be two of these, one for a European in a men's league and
+    // one for a seventeen-year-old in J20 or U20. The second only ever came
+    // from the OHL, had no perks or flaws, and could fire after the first had
+    // already given his rights away. It's one event now, drawn the way the
+    // college recruitment is: the club that picked him as a card with what it
+    // offers and what it costs, and staying home as the other choice.
+    const importDraftEvent = () => {
+      const chlLeagues = ['OHL', 'WHL', 'QMJHL'];
+      const lg = chlLeagues[Math.floor(Math.random() * chlLeagues.length)];
+      let pool = getOpponentPool(lg) || [];
+      if (pool.length === 0) return null;
+      const team = pool[Math.floor(Math.random() * pool.length)];
+      const fullName = getFullTeamName(team.id, lg);
+      const pick = importPickNo();
+      const { perks, flaws } = rollOfferPerks(lg, { maxPerks: 2, maxFlaws: 2 });
+      const tot = [...perks, ...flaws].reduce((acc, x) => ({
+        ovr: acc.ovr + (x.ovr || 0), fans: acc.fans + (x.fanStatus || 0), money: acc.money + (x.money || 0)
+      }), { ovr: 0, fans: 0, money: 0 });
+      return {
+        title: '🇨🇦 THE CHL IMPORT DRAFT',
+        desc: `${withTeamArticle(fullName, lg, true)} took you ${ordinal(pick)} overall in the CHL Import Draft. They want you to leave Europe and play major junior in North America, on the smaller ice you'd play on as a pro.`,
+        choices: [
+          {
+            label: `Sign with ${withTeamArticle(fullName, lg)}`,
+            subLabel: 'Move to North America for a full junior season on the smaller ice.',
+            perks, flaws,
+            isRisky: false,
+            feedback: `You signed with ${withTeamArticle(fullName, lg)}. The smaller ice takes some getting used to, and NHL scouts are watching closely.`,
+            effect: { fanStatus: tot.fans + 10, ovr: Math.max(0, tot.ovr + 1), money: tot.money },
+            action: 'ACCEPT_IMPORT_DRAFT',
+            actionData: { teamObj: team, league: lg, importPick: pick }
+          },
+          {
+            label: 'Stay in Europe',
+            subLabel: `Keep developing at home. ${team.name} keep your CHL rights in case you change your mind.`,
+            isRisky: false,
+            feedback: `You stayed in Europe. ${withTeamArticle(fullName, lg)} keep your CHL rights in case you change your mind.`,
+            effect: { fanStatus: 5, ovr: 1, money: 0 },
+            action: 'DECLINE_IMPORT_DRAFT',
+            actionData: { teamObj: team, league: lg }
+          }
+        ],
+        isOffseasonEvent: true
+      };
+    };
 
-        setActiveEvent({
-            title: '🇨🇦 THE CHL IMPORT DRAFT',
-            desc: `The ${fullTeamName} (${randomLg}) selected you with the ${importPick()} pick in the CHL Import Draft. They want you to leave Europe and play major junior in North America, on the smaller ice you'd play on as a pro.`,
-            choices: [
-                {
-                    label: 'Pack your bags for North America',
-                    subLabel: 'Leave Europe to adjust to the smaller ice ahead of your draft year.',
-                    isRisky: false,
-                    feedback: `You signed with ${draftingTeam.name}. The smaller ice is an adjustment, but NHL scouts are watching closely.`,
-                    effect: { fanStatus: 15, ovr: 1, money: 0 },
-                    action: 'ACCEPT_IMPORT_DRAFT',
-                    actionData: { teamObj: draftingTeam, league: randomLg }
-                },
-                {
-                    label: 'Stay in Europe',
-                    subLabel: 'Keep developing against grown men, retaining your CHL rights for later.',
-                    isRisky: false,
-                    feedback: `You decided to stay and play against grown men in Europe. ${draftingTeam.name} will retain your CHL rights just in case you change your mind later.`,
-                    effect: { fanStatus: 5, ovr: 1, money: 0 },
-                    action: 'DECLINE_IMPORT_DRAFT',
-                    actionData: { teamObj: draftingTeam, league: randomLg }
-                }
-            ],
-            isOffseasonEvent: true
-        });
-        enterStage(SUMMER_DONE);
-        setScreen('event');
-        return;
+    if (isImportEligible && !player.storylines?.importDraft && !player.chlRights && (player.age === 16 || player.age === 17) && safeEuroLeagues.includes(player.league) && Math.random() > 0.4) {
+        const ev = importDraftEvent();
+        if (ev) {
+          setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), importDraft: 1 } }));
+          setActiveEvent(ev);
+          enterStage(SUMMER_DONE);
+          setScreen('event');
+          return;
+        }
     }
 
     const newBuffs = (player.buffs || []).map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0);
@@ -792,23 +892,72 @@ export function advanceToOffseason(ctx) {
     // both places or the import draft never reaches the players it is for.
     const importHome = safeEuroLeagues.includes(currentLeague)
       || nordicJuniorLeagues.includes(currentLeague);
-    if (player.age === 17 && importHome && Math.random() > 0.4) {
-         const pool = ohlTeams || [];
-         const chlTeam = pool[Math.floor(Math.random() * pool.length)];
-         if (chlTeam) {
-           setActiveEvent({
-             title: 'CHL IMPORT DRAFT',
-             desc: `The ${getFullTeamName(chlTeam, 'OHL')} selected you with the ${importPick()} pick in the CHL Import Draft. Will you leave Europe to play major junior in North America?`,
-             choices: [
-               { label: 'Move to Canada (join the OHL)', subLabel: 'Leave Europe to prepare for your draft year in the OHL.', isRisky: false, feedback: 'You packed your bags for North America to prepare for your draft year.', effect: { fanStatus: 5, ovr: 2, money: 0 }, action: 'JOIN_CHL', actionData: chlTeam.id },
-               { label: 'Stay in Europe', subLabel: 'Stay close to home for now.', isRisky: false, feedback: 'You decided to stay close to home.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
-             ],
-             isOffseasonEvent: true
-           });
+    if (player.age === 17 && importHome && isImportEligible && !player.storylines?.importDraft
+        && !player.chlRights && Math.random() > 0.4) {
+         const ev = importDraftEvent();
+         if (ev) {
+           setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), importDraft: 1 } }));
+           setActiveEvent(ev);
            enterStage(SUMMER_DONE);
            setScreen('event');
            return;
          }
+    }
+
+    // ==========================================
+    // UP FROM THE UNDER-18 SIDE
+    // ==========================================
+    // A sixteen-year-old in Sweden, Finland, Denmark or Norway is usually in his
+    // club's under-18 team. The good ones are moved up to the under-20 side at
+    // seventeen, and everyone is there by eighteen, because that's where the
+    // age groups end.
+    if (u18Leagues.includes(currentLeague) && player.age >= 17) {
+      const nextLeague = U18_NEXT_LEAGUE[currentLeague];
+      const rating = seasonRecap?.rating || 5;
+      const ready = player.ovr >= 57 || rating >= 7;
+      const forced = player.age >= 18;
+      if (nextLeague && (ready || forced)) {
+        const myClub = getTeamData(player.team, currentLeague);
+        const nextPool = getOpponentPool(nextLeague) || [];
+        // The same club's older side where it has one, and otherwise a club
+        // that wants him.
+        const own = myClub?.seniorId && nextPool.find(t => t.seniorId === myClub.seniorId);
+        const club = own || nextPool[Math.floor(Math.random() * nextPool.length)];
+        if (club) {
+          const clubName = getFullTeamName(club, nextLeague);
+          const step = {
+            label: `Move up to ${clubName}`,
+            subLabel: own ? 'Same club, older dressing room.' : 'A new club, and a better league to play in.',
+            isRisky: false,
+            feedback: own
+              ? "You moved up a dressing room. Same rink, same badge, bigger and older players."
+              : `You packed a bag and signed with ${clubName}.`,
+            effect: { fanStatus: 8, ovr: 1, money: 0 },
+            action: 'JUNIOR_STEP_UP',
+            actionData: { id: club.id, league: nextLeague }
+          };
+          setActiveEvent({
+            title: '⬆️ UP TO THE UNDER-20s',
+            desc: forced
+              ? `You're too old for the under-18s now, so you're going up. ${own ? `${clubName} have a place for you.` : `Your club had nothing for you at that level, and ${clubName} did.`}`
+              : `${own ? `The club wants you up with ${clubName}` : `${clubName} want you in their under-20 team`} a year early. You'd be one of the youngest in the league, against players two years older than you.`,
+            choices: forced ? [step] : [
+              step,
+              {
+                label: 'Stay in the under-18s',
+                subLabel: 'One more year as the best player in your age group.',
+                isRisky: false,
+                feedback: 'You stayed down. Top line, first power play, and the puck on your stick.',
+                effect: { fanStatus: 4, ovr: 1, money: 0 }
+              }
+            ],
+            isOffseasonEvent: true
+          });
+          enterStage(SUMMER_DONE);
+          setScreen('event');
+          return;
+        }
+      }
     }
 
     // ==========================================
@@ -835,14 +984,23 @@ export function advanceToOffseason(ctx) {
         // true to life for 2026-27, and a player there signs
         // somewhere else when he turns professional. Stripping the tier off his
         // club id gave those players a phantom club named after the id.
+        //
+        // A club's men's team can be in any of its country's tiers, and it moves
+        // between them with promotion and relegation, so it's looked up rather
+        // than assumed to be in the top league.
         const juniorClub = getTeamData(player.team, currentLeague);
+        const ownLeague = juniorClub?.seniorId
+          ? findClubLeague(juniorClub.seniorId, countryProLeagues(LEAGUE_COUNTRY[currentLeague]))
+          : null;
+        const ownClub = !!ownLeague;
         const seniorPool = getOpponentPool(seniorLeague) || [];
-        const seniorId = juniorClub?.seniorId
-          || seniorPool[Math.floor(Math.random() * seniorPool.length)]?.id;
+        const stepLeague = ownLeague || seniorLeague;
+        const seniorId = ownClub
+          ? juniorClub.seniorId
+          : seniorPool[Math.floor(Math.random() * seniorPool.length)]?.id;
         if (!seniorId) return;
-        const seniorClub = getTeamData(seniorId, seniorLeague);
-        const seniorName = getFullTeamName(seniorClub, seniorLeague);
-        const ownClub = !!juniorClub?.seniorId;
+        const seniorClub = getTeamData(seniorId, stepLeague);
+        const seniorName = getFullTeamName(seniorClub, stepLeague);
 
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, nordicStepUp: true } }));
         setActiveEvent({
@@ -853,12 +1011,12 @@ export function advanceToOffseason(ctx) {
           choices: [
             {
               label: `Go up to ${seniorName}`,
-              subLabel: `Take the place in ${seniorLeague} and fight men for your minutes.`,
+              subLabel: `Take the place in ${leagueWithArticle(stepLeague)} and fight men for your minutes.`,
               isRisky: false,
               feedback: `You signed with the senior side. Fourth line, hard minutes, and a locker room where nobody cares how good you were in junior.`,
               effect: { fanStatus: 25, ovr: 1, money: 0 },
               action: 'NORDIC_STEP_UP',
-              actionData: seniorId
+              actionData: { id: seniorId, league: stepLeague }
             },
             {
               label: 'Stay down another year',
@@ -1309,7 +1467,7 @@ export function advanceToOffseason(ctx) {
   // goes to the best player in the room once he's been there a season and is
   // eighteen, or sooner for a generational talent; an A to anyone among its
   // best three. He has to have played most of last season with this club.
-  const JUNIOR_LETTERS = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL', 'J20', 'U20', 'NCAA'];
+  const JUNIOR_LETTERS = [...juniorLeagues, 'NCAA'];
   if (done < LETTER && JUNIOR_LETTERS.includes(player.league) && !player.isCaptain && player.pos !== 'G') {
     const hist = player.seasonHistory || [];
     const lastSeason = hist[hist.length - 1];

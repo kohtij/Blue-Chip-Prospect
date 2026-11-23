@@ -2,8 +2,8 @@ import 'react';
 import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { formatComp } from '../utils/contracts';
-import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText } from '../utils/gameHelpers';
+import { formatComp, offerSheetComp, offerSheetCompLong } from '../utils/contracts';
+import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText, withTeamArticle } from '../utils/gameHelpers';
 import { bonusCeiling } from '../utils/bonuses';
 import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
@@ -16,29 +16,11 @@ import { TITLE_MD } from '../utils/ui';
 // small enough to ignore was a smudge. A thin strip of the club's colour does
 // the job in a tenth of the space.
 
-// OFFER SHEET COMPENSATION MATH
-//
-// Written as rounds joined by a plus, because the long form did not fit the
-// row it is printed in. "1st, 2nd & 3rd Round Picks" is twenty-six characters
-// against about seventeen of space once the Compensation label has taken its
-// share, so at two columns it wrapped onto a second line with an orphaned
-// "3RD" on it, which also made that card's stat block a line taller than
-// every other card in the row and pushed its buttons out of alignment.
-// Compensation on an offer sheet is draft picks and nothing else, so the word
-// "picks" was carrying no information. The full phrasing is kept for the
-// title attribute.
-const COMPENSATION = [
-  [1500000, 'None', 'No compensation'],
-  [2300000, '3rd', 'A third round pick'],
-  [4600000, '2nd', 'A second round pick'],
-  [6900000, '1st+3rd', 'A first and a third round pick'],
-  [9200000, '1st+2nd+3rd', 'A first, a second and a third round pick'],
-  [11500000, '2×1st+2nd+3rd', 'Two firsts, a second and a third round pick'],
-  [Infinity, '4×1st', 'Four first round picks']
-];
-
-const getCompensation = (salary) => (COMPENSATION.find(([cap]) => salary < cap) || COMPENSATION[6])[1];
-const compensationLong = (salary) => (COMPENSATION.find(([cap]) => salary < cap) || COMPENSATION[6])[2];
+// Offer sheet compensation is written as rounds joined by a plus, because the
+// long form did not fit the row it is printed in. The table lives in
+// utils/contracts.js now, since the club deciding whether to match needs it.
+const getCompensation = (salary) => offerSheetComp(salary);
+const compensationLong = (salary) => offerSheetCompLong(salary);
 
 export default function TransferScreen() {
   const { freeAgencyOffers, player, signContract, startNegotiation, handleArbitration } = useAppContext();
@@ -57,6 +39,10 @@ export default function TransferScreen() {
   
   const owningTeamName = getFullTeamName(owningTeam, owningLeague);
   const teamDidNotOffer = !freeAgencyOffers.some(o => o.team === owningTeam);
+  // "The Luleå HF" read wrong. European clubs take no article.
+  const OwnerThe = withTeamArticle(owningTeamName, owningLeague, true);
+  // The Europe-only market: a farewell tour, or a way out of a relegated club.
+  const europeBoard = freeAgencyOffers.length > 0 && freeAgencyOffers.every(o => o.state === 'Europe');
 
   return (
           <div className="game-panel p-6 sm:p-10 mt-2">
@@ -68,12 +54,22 @@ export default function TransferScreen() {
                 ? "Your agent has several trade offers. Pick where you want to go."
                 : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type))
                   ? "You're looking at other routes: an NCAA scholarship, or a pro contract in Europe."
+                  : europeBoard
+                    ? "Every club on this board is in Europe. Pick where you play next season."
                   : freeAgencyOffers.some(o => o.type === 'QUALIFYING OFFER' || o.type === 'RFA EXTENSION')
-                    ? `You're a restricted free agent. The ${owningTeamName} hold your rights, but other clubs can still send you an offer sheet.`
+                    ? (() => {
+                        // What a qualifying offer is, said once, here. The card
+                        // used to carry a small "ACCEPT Q.O." button with no
+                        // word on what taking it meant.
+                        const qo = freeAgencyOffers.find(o => o.type === 'QUALIFYING OFFER');
+                        return qo
+                          ? `You're a restricted free agent. The ${owningTeamName} qualified you at ${formatMoney3(qo.salary)} for one year, which keeps your rights with them. Take their longer deal, sign the qualifying offer and be restricted again next summer${qo.arbitration ? ', or file for arbitration' : ''}. Other clubs can send you an offer sheet, and the ${owningTeamName} can match it.`
+                          : `You're a restricted free agent. The ${owningTeamName} hold your rights, and other clubs can send you an offer sheet that they can match.`;
+                      })()
                     : teamDidNotOffer
                         ? (isRestricted(player)
-                            ? `The ${owningTeamName} elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent testing the open market.`
-                            : `The ${owningTeamName} elected not to offer you a new contract. You're on the open market.`)
+                            ? `${OwnerThe} elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent testing the open market.`
+                            : `${OwnerThe} elected not to offer you a new contract. You're on the open market.`)
                         : "You have reached Unrestricted Free Agency. You can re-sign with your current club or explore options elsewhere."}
             </p>
 
@@ -323,6 +319,27 @@ export default function TransferScreen() {
                                <span className="ml-auto shrink-0 whitespace-nowrap text-[#F59E0B]">Up to {formatMoney(bonusCeiling(o.bonuses))}</span>
                              </p>
                            )}
+                           {/* The qualifying offer is a fact about the club's
+                               card, not a second offer squeezed into a button:
+                               the least they can offer and keep his rights. */}
+                           {qoOffer && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500 shrink-0">Qualifying offer</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-white">{formatMoney3(qoOffer.salary)} · 1 yr</span>
+                             </p>
+                           )}
+                           {(qoOffer?.arbitration || (o.type === 'QUALIFYING OFFER' && o.arbitration)) && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500 shrink-0">Arbitration</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-white">Eligible</span>
+                             </p>
+                           )}
+                           {o.type === 'OFFER SHEET' && (
+                             <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
+                               <span className="text-slate-500 shrink-0">Your club</span>
+                               <span className="ml-auto shrink-0 whitespace-nowrap text-white">Can match it</span>
+                             </p>
+                           )}
                            {o.type === 'OFFER SHEET' && (
                              <p className="flex items-baseline gap-1 font-bold uppercase tracking-wider">
                                <span className="text-slate-500 shrink-0">Compensation</span>
@@ -348,32 +365,32 @@ export default function TransferScreen() {
 
                       <div className="mt-auto flex flex-col gap-2 z-10 relative">
                          
-                         {/* INJECTED QUALIFYING OFFER & ARBITRATION BUTTONS */}
-                         {/* Arbitration is only there for a player who has earned
-                             the right to file. See arbitrationEligible. */}
+                         {/* THE QUALIFYING OFFER AND ARBITRATION.
+                             Two actions with a line each on what they mean.
+                             They used to be a pair of small buttons, "ACCEPT
+                             Q.O." and "ARBITRATION", that said nothing about
+                             the one-year term or what came after it. */}
                          {qoOffer && (
-                           <div className="w-full flex gap-2 mb-1">
-                             <button 
-                               onClick={() => signContract(qoOffer)} 
-                               className="btn-secondary flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest text-[9px] sm:text-[10px] flex flex-col items-center leading-tight"
-                             >
-                               <span>ACCEPT Q.O.</span>
-                               <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
-                                 {`${formatMoney3(qoOffer.salary)}/yr`}
-                               </span>
-                             </button>
-                             {qoOffer.arbitration && (
-                             <button 
-                               onClick={() => handleArbitration(qoOffer)} 
-                               className="btn-danger flex-1 py-2 rounded-xl cursor-pointer sports-font tracking-widest text-[9px] sm:text-[10px] flex flex-col items-center leading-tight"
-                             >
-                               <span>ARBITRATION</span>
-                               <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
-                                 1-Yr Hearing
-                               </span>
-                             </button>
-                             )}
-                           </div>
+                           <button
+                             onClick={() => signContract(qoOffer)}
+                             className="btn-secondary w-full py-2.5 mb-1 rounded-xl cursor-pointer sports-font tracking-widest text-[10px] sm:text-xs flex flex-col items-center leading-tight"
+                           >
+                             <span>SIGN QUALIFYING OFFER</span>
+                             <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
+                               {formatMoney3(qoOffer.salary)} for 1 year, then restricted again
+                             </span>
+                           </button>
+                         )}
+                         {(qoOffer?.arbitration || (o.type === 'QUALIFYING OFFER' && o.arbitration)) && (
+                           <button
+                             onClick={() => handleArbitration(qoOffer || o)}
+                             className="btn-secondary w-full py-2.5 mb-1 rounded-xl cursor-pointer sports-font tracking-widest text-[10px] sm:text-xs flex flex-col items-center leading-tight"
+                           >
+                             <span>FILE FOR ARBITRATION</span>
+                             <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
+                               An arbitrator sets a one-year salary
+                             </span>
+                           </button>
                          )}
 
                          {/* INJECTED SECONDARY DISCOUNT BUTTON (MOVED UP) */}
@@ -394,13 +411,8 @@ export default function TransferScreen() {
                              back, so it sits at the bottom edge of every card, in
                              the same place whether or not there is anything above
                              it. */}
-                         {((o.type === 'QUALIFYING OFFER' && o.arbitration) || (!o.negotiated && o.type !== 'SCHOLARSHIP' && o.type !== 'QUALIFYING OFFER')) && (
+                         {(!o.negotiated && o.type !== 'SCHOLARSHIP' && o.type !== 'QUALIFYING OFFER') && (
                            <div className="flex gap-2 mb-1">
-                             {o.type === 'QUALIFYING OFFER' && o.arbitration && !qoOffer && (
-                               <button onClick={() => handleArbitration(o)} className="btn-danger flex-1 py-2 rounded-xl sports-font tracking-widest text-[9px] sm:text-[10px] cursor-pointer">
-                                 ARBITRATION
-                               </button>
-                             )}
                              {!o.negotiated && o.type !== 'QUALIFYING OFFER' && o.type !== 'SCHOLARSHIP' && (
                                <button onClick={() => startNegotiation(o)} className="btn-secondary flex-1 py-2 rounded-xl sports-font tracking-widest text-[9px] sm:text-[10px] cursor-pointer">
                                  NEGOTIATE
@@ -417,7 +429,9 @@ export default function TransferScreen() {
                              isRival ? 'btn-danger' : 'btn-primary'
                            }`}
                          >
-                           {isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}
+                           {o.type === 'QUALIFYING OFFER' ? 'SIGN QUALIFYING OFFER'
+                             : o.type === 'OFFER SHEET' ? (isRival ? 'BETRAY & SIGN SHEET' : 'SIGN OFFER SHEET')
+                               : isReturnHome ? 'RETURN HOME' : isRival ? 'BETRAY & SIGN' : 'SIGN DEAL'}
                          </button>
                         </div>
                       </div>

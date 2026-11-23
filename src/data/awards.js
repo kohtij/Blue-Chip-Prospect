@@ -163,6 +163,15 @@ export const AWARD_IMAGES = {
   'KHL Top Sniper':           `${AWARDS}/national_hockey_league_award_goals.png`,
   'KHL Top Scoring Defenceman': `${AWARDS}/national_hockey_league_award_best_defender.png`,
   'KHL Best Defenceman':      `${AWARDS}/national_hockey_league_award_best_defender.png`,
+  // Playoff MVPs and the Liiga's team and sportsmanship trophies. The ECHL
+  // has its own artwork; the rest borrow the NHL's like everything above.
+  'ECHL Playoff MVP':         `${AWARDS}/echl_award_playoff_mvp.png`,
+  'Stefan Liv':               `${AWARDS}/national_hockey_league_award_playoff_mvp.png`,
+  'Jari Kurri':               `${AWARDS}/national_hockey_league_award_playoff_mvp.png`,
+  'KHL Playoff MVP':          `${AWARDS}/national_hockey_league_award_playoff_mvp.png`,
+  'Harry Lindblad':           `${AWARDS}/national_hockey_league_award_TEAM_MOST_POINTS.png`,
+  'Raimo Kilpi':              `${AWARDS}/national_hockey_league_award_SPORTSMANSHIP.png`,
+  'Brabham Cup':              `${AWARDS}/echl_award_TEAM_MOST_POINTS.png`,
 
   // And the plain forms every remaining league builds its award names from.
   // Last in the object, so nothing more specific is ever shadowed.
@@ -191,7 +200,11 @@ export const PLAYOFF_TROPHY_IMAGES = {
   OHL:   `${PO}/ontario_hockey_league_po_trophy.png`,
   WHL:   `${PO}/western_hockey_league_po_trophy.png`,
   QMJHL: `${PO}/quebec_major_junior_hockey_league_po_trophy.png`,
-  USHL:  `${PO}/united_states_hockey_league_po_trophy.png`
+  USHL:  `${PO}/united_states_hockey_league_po_trophy.png`,
+  // Both were in the repository and never used: the Kelly Cup and the
+  // Gagarin Cup were drawn by the stand-in trophy.
+  ECHL:  `${PO}/echl_po_trophy.png`,
+  KHL:   `${PO}/kontinental_hockey_league_po_trophy.png`
 };
 
 // Cup name → playoff trophy. Same map keyed by championship cup names, which
@@ -202,7 +215,9 @@ export const CUP_IMAGES = {
   'J. Ross Robertson Cup':  PLAYOFF_TROPHY_IMAGES.OHL,
   'Ed Chynoweth Cup':       PLAYOFF_TROPHY_IMAGES.WHL,
   'Gilles-Courteau Trophy': PLAYOFF_TROPHY_IMAGES.QMJHL,
-  'Clark Cup':              PLAYOFF_TROPHY_IMAGES.USHL
+  'Clark Cup':              PLAYOFF_TROPHY_IMAGES.USHL,
+  'Kelly Cup':              PLAYOFF_TROPHY_IMAGES.ECHL,
+  'Gagarin Cup':            PLAYOFF_TROPHY_IMAGES.KHL
 };
 
 // Substring lookup, first matching key wins. Returns URL or null.

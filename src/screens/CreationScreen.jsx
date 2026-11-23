@@ -3,6 +3,7 @@ import { useAppContext } from '../AppContext';
 import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
 import { formatMoney } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
+import { leagueNation } from '../utils/peers';
 
 export default function CreationScreen() {
   const { handleStart, player, safeNationalities, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements } = useAppContext();
@@ -54,9 +55,13 @@ export default function CreationScreen() {
   const START_LEAGUES = {
     CAN: [['OHL', 34], ['WHL', 30], ['QMJHL', 26], ['USHL', 10]],
     USA: [['USHL', 62], ['OHL', 16], ['WHL', 14], ['QMJHL', 8]],
-    SWE: [['J20', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
-    FIN: [['U20', 80], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
-    DEN: [['J20', 55], ['U20', 10], ['OHL', 14], ['WHL', 11], ['QMJHL', 10]],
+    // A sixteen-year-old Swede or Finn is usually in his club's under-18 team,
+    // and the best of them are already a level up.
+    SWE: [['J18', 55], ['J20', 25], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
+    FIN: [['U18', 55], ['U20', 25], ['OHL', 8], ['WHL', 7], ['QMJHL', 5]],
+    RUS: [['MHL', 76], ['OHL', 10], ['WHL', 8], ['QMJHL', 6]],
+    DEN: [['DENU18', 30], ['DENU20', 15], ['J20', 25], ['OHL', 12], ['WHL', 10], ['QMJHL', 8]],
+    NOR: [['NORU18', 30], ['NORU20', 15], ['J20', 25], ['OHL', 12], ['WHL', 10], ['QMJHL', 8]],
     DEFAULT: [['J20', 34], ['U20', 30], ['OHL', 14], ['WHL', 12], ['QMJHL', 10]]
   };
 
@@ -76,16 +81,26 @@ export default function CreationScreen() {
     { id: 'QMJHL', label: 'QMJHL' },
     { id: 'USHL', label: 'USHL' },
     { id: 'J20', label: 'J20' },
-    { id: 'U20', label: 'U20' }
-  ];
+    { id: 'U20', label: 'U20' },
+    { id: 'J18', label: 'J18' },
+    { id: 'U18', label: 'U18' },
+    { id: 'MHL', label: 'MHL' },
+    // Only shown to a Dane or a Norwegian, where they're home.
+    { id: 'DENU18', label: 'DEN U18', nat: 'DEN' },
+    { id: 'DENU20', label: 'DEN U20', nat: 'DEN' },
+    { id: 'NORU18', label: 'NOR U18', nat: 'NOR' },
+    { id: 'NORU20', label: 'NOR U20', nat: 'NOR' }
+  ].filter(l => !l.nat || l.nat === player.nat);
 
   const homeLeague = player.nat
     ? (START_LEAGUES[player.nat] || START_LEAGUES.DEFAULT)[0][0]
     : null;
   const homeLabel = LEAGUE_OPTIONS.find(l => l.id === homeLeague)?.label || homeLeague;
   const natName = (safeNationalities || []).find(n => n.id === player.nat)?.name || 'young';
+  // Home first, then the rest of his own country's leagues, then the others.
+  const rank = (id) => (id === homeLeague ? 0 : leagueNation(id) === player.nat ? 1 : 2);
   const orderedLeagues = homeLeague
-    ? [...LEAGUE_OPTIONS].sort((a, b) => (b.id === homeLeague) - (a.id === homeLeague))
+    ? [...LEAGUE_OPTIONS].sort((a, b) => rank(a.id) - rank(b.id))
     : LEAGUE_OPTIONS;
 
   // Seven nations cover most of hockey; the other nineteen are a click away.
@@ -97,7 +112,9 @@ export default function CreationScreen() {
   // already said he wants to go elsewhere.
   const pickNationality = (natId) => {
     const nextHome = (START_LEAGUES[natId] || START_LEAGUES.DEFAULT)[0][0];
-    const stillDefault = !player.startLeague || player.startLeague === homeLeague;
+    // A Danish or Norwegian junior league isn't on offer to anyone else.
+    const lockedElsewhere = /^(DEN|NOR)U/.test(player.startLeague || '') && !player.startLeague.startsWith(natId);
+    const stillDefault = !player.startLeague || player.startLeague === homeLeague || lockedElsewhere;
     setPlayer(p => ({
       ...p,
       nat: natId,
@@ -118,13 +135,14 @@ export default function CreationScreen() {
   };
 
   return (
-          <div className="min-h-screen flex items-center justify-center p-6 text-white relative">
+          <div className="min-h-svh flex items-center justify-center p-6 text-white relative">
 
             {/* LAYER 1: base radial ambient glow, dim green heartbeat at center,
-                fading to deep black at the edges. Using fixed positioning ensures 
-                it covers the entire browser window seamlessly. */}
+                fading to deep black at the edges. Fixed, and as tall as the screen with
+                Safari's address bar hidden (lvh), so it covers the window and
+                doesn't resize while the bar slides. */}
             <div
-              className="fixed inset-0 pointer-events-none z-[-1]"
+              className="fixed inset-x-0 top-0 h-lvh pointer-events-none z-[-1]"
               style={{
                 background: 'radial-gradient(ellipse 80% 60% at center, rgba(16, 40, 24, 1) 0%, rgba(8, 16, 12, 1) 40%, #030303 100%)'
               }}
@@ -133,7 +151,7 @@ export default function CreationScreen() {
             {/* LAYER 2: spotlight cone from above, like arena rigging casting
                 a soft beam down onto the panel. */}
             <div
-              className="fixed inset-0 pointer-events-none z-[-1]"
+              className="fixed inset-x-0 top-0 h-lvh pointer-events-none z-[-1]"
               style={{
                 background: 'radial-gradient(ellipse 50% 90% at center top, rgba(34, 231, 72, 0.10) 0%, transparent 60%)'
               }}
@@ -417,7 +435,7 @@ export default function CreationScreen() {
                         key={lg.id}
                         onClick={() => setPlayer({ ...player, startLeague: lg.id, team: null })}
                         aria-pressed={player.startLeague === lg.id}
-                        className={`relative py-2.5 px-2 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
+                        className={`relative pt-3.5 pb-2.5 px-2 rounded-xl border transition-colors cursor-pointer ${player.startLeague === lg.id ? 'border-[#3b82f6] bg-[#3b82f6]/10' : 'border-[rgba(255,255,255,0.065)] bg-[#101410] hover:border-slate-500'}`}
                       >
                         <span className="block text-sm sm:text-base font-black text-white sports-font tracking-wide">{lg.label}</span>
                         {lg.id === homeLeague && (

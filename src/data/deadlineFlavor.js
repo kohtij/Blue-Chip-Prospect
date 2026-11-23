@@ -1,3 +1,5 @@
+import { euroLeagues } from './teams';
+
 // What the deadline screen says, and why it does not say it twice.
 //
 // Every line on that screen used to be a constant. Play three seasons and you
@@ -38,7 +40,7 @@ export const pickFlavor = (pool, seed, salt = '') => {
 
 // Clubs here sign and release players and pay transfer fees. They do not trade
 // draft picks, so the seller outlook needs its own lines.
-export const EURO_LEAGUES = ['SHL', 'LIIGA', 'KHL', 'SWISS', 'DEL', 'ICEHL', 'CZECH', 'SLOVAK'];
+export const EURO_LEAGUES = euroLeagues;
 
 export const SUBTITLE = {
   contender: [

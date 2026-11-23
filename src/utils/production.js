@@ -1,3 +1,5 @@
+import { EXTRA_LEAGUES } from '../data/euroLeagues';
+
 // How a season's numbers come out, given a player who is this good.
 //
 // The engine used to answer that with `0.85 + Math.random() * 0.3`: a flat
@@ -161,7 +163,8 @@ const CURVES = {
 // country's men's league, so there was no junior environment for him to be
 // in and nothing to add to this list.
 const JUNIOR_ENV = ['OHL', 'WHL', 'QMJHL', 'USHL', 'J20', 'U20', 'NCAA',
-  'MHL', 'CZE20', 'SVK20', 'SUI20', 'DNL'];
+  'MHL', 'CZE20', 'SVK20', 'SUI20', 'DNL',
+  ...Object.keys(EXTRA_LEAGUES).filter(id => EXTRA_LEAGUES[id].kind !== 'pro')];
 
 // The curves are season totals, set for the schedule each kind of league
 // usually plays: 82 games in the NHL, 68 in major junior, 72 in the AHL. A
@@ -220,7 +223,17 @@ const PACE = {
   SVK20: { par: 0.80, star: 1.56, svPar: 0.890, svStar: 0.901 },
   SUI20: { par: 0.82, star: 1.58, svPar: 0.889, svStar: 0.900 },
   DNL: { par: 0.84, star: 1.62, svPar: 0.887, svStar: 0.898 },
-  ECHL: { par: 0.52, star: 1.05, svPar: 0.900, svStar: 0.911 }
+  ECHL: { par: 0.52, star: 1.05, svPar: 0.900, svStar: 0.911 },
+  // The new junior and under-18 tiers score like the junior leagues above, a
+  // little more the younger and thinner they are.
+  J18: { par: 0.82, star: 1.58, svPar: 0.893, svStar: 0.904 },
+  U18: { par: 0.82, star: 1.58, svPar: 0.893, svStar: 0.904 },
+  U20M: { par: 0.82, star: 1.58, svPar: 0.892, svStar: 0.903 },
+  U18M: { par: 0.86, star: 1.64, svPar: 0.888, svStar: 0.899 },
+  DENU20: { par: 0.84, star: 1.62, svPar: 0.887, svStar: 0.898 },
+  NORU20: { par: 0.84, star: 1.62, svPar: 0.887, svStar: 0.898 },
+  DENU18: { par: 0.88, star: 1.68, svPar: 0.884, svStar: 0.895 },
+  NORU18: { par: 0.88, star: 1.68, svPar: 0.884, svStar: 0.895 }
 };
 
 // Everything else is a European senior league: lower event totals than the
@@ -256,7 +269,14 @@ const NHLE = {
   OHL: 0.144, USHL: 0.143, MHL: 0.143, WHL: 0.141, QMJHL: 0.113,
   // The under-20 leagues, where the gap the old board could not see is widest:
   // Sweden's J20 is worth nearly four times Germany's DNL per point.
-  J20: 0.091, U20: 0.083, CZE20: 0.074, SUI20: 0.049, SVK20: 0.044, DNL: 0.024
+  J20: 0.091, U20: 0.083, CZE20: 0.074, SUI20: 0.049, SVK20: 0.044, DNL: 0.024,
+  // The leagues in data/euroLeagues.js. These aren't measured the way the rest
+  // are; they're placed by where each league sits against its neighbours here.
+  VHL: 0.300, ALLSV: 0.290, SL: 0.250, MESTIS: 0.230, DEL2: 0.210, EIHL: 0.200,
+  MAGNUS: 0.180, ALPS: 0.150, METAL: 0.170, EHL: 0.160, ETTAN: 0.100, SUOMI: 0.090,
+  DEN1: 0.060, NOR1: 0.060, AIHL: 0.050,
+  U20M: 0.050, DENU20: 0.025, NORU20: 0.025,
+  J18: 0.040, U18: 0.038, U18M: 0.022, DENU18: 0.012, NORU18: 0.012
 };
 
 // A league the table has never heard of is read as a European senior league,

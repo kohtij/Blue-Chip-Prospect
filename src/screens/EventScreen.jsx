@@ -3,7 +3,7 @@ import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import TeamLogo from '../components/TeamLogo';
 import { getFullTeamName } from '../utils/appHelpers';
-import { getPrimaryRival, getTeamData, readableAccent, teamAccent } from '../data/teams';
+import { LEAGUE_CONFIG, getPrimaryRival, getTeamData, readableAccent, teamAccent } from '../data/teams';
 import { kickerClass, TAG_RED, TITLE_SM } from '../utils/ui';
 import { formatMoney3, ovrEffectText } from '../utils/gameHelpers';
 
@@ -111,7 +111,13 @@ export default function EventScreen() {
           const prepared = (activeEvent.choices || []).map((c, i) => {
               const isTradeChoice = (c.action === 'ACCEPT_TRADE_DEADLINE' || c.action === 'TRADE_HOLDOUT') && c.actionData?.showTeamCard;
               const isNCAAChoice = c.action === 'JOIN_NCAA' && c.actionData;
-              const isPremiumChoice = isTradeChoice || isNCAAChoice;
+              // A major junior club offering a place, from the import draft or
+              // from the club holding his rights. It used to be a plain row of
+              // text next to the college programmes' cards, so the same kind
+              // of decision looked like two different things.
+              const isCHLChoice = (c.action === 'ACCEPT_IMPORT_DRAFT' || c.action === 'JOIN_CHL')
+                  && c.actionData && typeof c.actionData === 'object' && !!(c.actionData.teamObj?.id || c.actionData.id);
+              const isPremiumChoice = isTradeChoice || isNCAAChoice || isCHLChoice;
 
               let premiumTeamId = '';
               let premiumLeague = '';
@@ -122,6 +128,9 @@ export default function EventScreen() {
               } else if (isNCAAChoice) {
                   premiumTeamId = c.actionData;
                   premiumLeague = 'NCAA';
+              } else if (isCHLChoice) {
+                  premiumTeamId = c.actionData.teamObj?.id || c.actionData.id;
+                  premiumLeague = c.actionData.league || 'OHL';
               }
 
               // CLONE THE CHOICE TO SAFELY INJECT DYNAMIC DATA
@@ -191,7 +200,7 @@ export default function EventScreen() {
                   .filter(m => typeof m === 'number');
               const cost = branches.length ? -Math.min(0, ...branches) : 0;
 
-              return { key: i, displayChoice, isPremiumChoice, isTradeChoice, isNCAAChoice, premiumTeamId, premiumLeague, isRival, cost };
+              return { key: i, displayChoice, isPremiumChoice, isTradeChoice, isNCAAChoice, isCHLChoice, premiumTeamId, premiumLeague, isRival, cost };
           });
 
           // Nothing is ever priced out of reach if it would leave the player
@@ -215,7 +224,7 @@ export default function EventScreen() {
           // bottom. The trade cards used to carry a coloured ribbon and outline
           // of their own, so the two screens showed the same kind of decision
           // in two different languages.
-          const renderPremiumCard = ({ key, displayChoice, isTradeChoice, isNCAAChoice, premiumTeamId, premiumLeague, isRival }) => {
+          const renderPremiumCard = ({ key, displayChoice, isTradeChoice, isNCAAChoice, isCHLChoice, premiumTeamId, premiumLeague, isRival }) => {
               const data = displayChoice.actionData;
               const money = displayChoice.effect?.money || 0;
               const fanStatus = displayChoice.effect?.fanStatus || 0;
@@ -239,7 +248,14 @@ export default function EventScreen() {
               const salary = player.contract?.salary || 0;
               const yrsLeft = player.contract?.years || 0;
               let hero;
-              if (isNCAAChoice || (isTransfer && money > 0)) {
+              if (isCHLChoice) {
+                  // Junior clubs pay no salary worth a headline. The import
+                  // draft card leads with where he was taken; the club holding
+                  // his rights leads with the season he'd be signing up for.
+                  hero = data?.importPick
+                      ? { value: `#${data.importPick}`, unit: null, caption: 'IMPORT DRAFT PICK' }
+                      : { value: `${LEAGUE_CONFIG[premiumLeague]?.games || 68}`, unit: 'GAMES', caption: 'FULL JUNIOR SEASON' };
+              } else if (isNCAAChoice || (isTransfer && money > 0)) {
                   hero = { value: formatMoney3(money), unit: '/NIL', caption: isNCAAChoice ? '4-YEAR ELIGIBILITY' : 'NIL PACKAGE' };
               } else if (isTradeChoice && !isTransfer && salary > 0) {
                   hero = { value: formatMoney3(salary), unit: '/YR', caption: `YOUR CONTRACT, ${yrsLeft} ${yrsLeft === 1 ? 'YEAR' : 'YEARS'} LEFT` };
@@ -256,7 +272,7 @@ export default function EventScreen() {
               // below stay level.
               const tag = isRival ? { text: 'Arch-rival', cls: 'text-[#ef4444]' } : null;
 
-              const ctaText = (isNCAAChoice || isTransfer) ? 'COMMIT' : 'ACCEPT TRADE';
+              const ctaText = isCHLChoice ? 'SIGN' : (isNCAAChoice || isTransfer) ? 'COMMIT' : 'ACCEPT TRADE';
 
               return (
                 <div key={key} className="bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] rounded-xl relative overflow-hidden flex flex-col transition-all hover:scale-[1.02] shadow-lg group">
@@ -349,7 +365,7 @@ export default function EventScreen() {
                       <button
                         disabled={isProcessing}
                         onClick={() => fireChoice(displayChoice)}
-                        aria-label={`${ctaText === 'COMMIT' ? 'Commit to' : 'Accept the trade to'} ${fullName}`}
+                        aria-label={`${ctaText === 'COMMIT' ? 'Commit to' : ctaText === 'SIGN' ? 'Sign with' : 'Accept the trade to'} ${fullName}`}
                         className={`w-full py-3 rounded-xl sports-font tracking-widest text-sm sm:text-base active:scale-[0.98] ${
                           isRival ? 'btn-danger' : 'btn-primary'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                       >

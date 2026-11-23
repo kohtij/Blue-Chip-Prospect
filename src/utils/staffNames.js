@@ -51,6 +51,34 @@ const POOLS = {
   SUI: {
     first: ['Reto', 'Urs', 'Beat', 'Christian', 'Marco', 'Patrick', 'Daniel', 'Luca', 'Jean-Marc', 'Didier'],
     last: ['Ammann', 'Bühler', 'Christen', 'Fehr', 'Gerber', 'Lüthi', 'Probst', 'Rüegg', 'Steiner', 'Zurbriggen', 'Bonvin', 'Rochat']
+  },
+  DEN: {
+    first: ['Jesper', 'Henrik', 'Søren', 'Mads', 'Jens', 'Lars', 'Morten', 'Kim', 'Bo', 'Niels', 'Rasmus', 'Torben'],
+    last: ['Kjærgaard', 'Holmgaard', 'Damgaard', 'Bækgaard', 'Lindholt', 'Østergaard', 'Brøndum', 'Skovsted', 'Nørgaard', 'Hvidberg', 'Mølholm', 'Kragelund']
+  },
+  NOR: {
+    first: ['Petter', 'Ole', 'Tore', 'Espen', 'Knut', 'Geir', 'Stian', 'Trond', 'Bjørn', 'Rune', 'Håvard', 'Eirik'],
+    last: ['Haugland', 'Bråten', 'Myrvold', 'Solheim', 'Fjeldstad', 'Lysgaard', 'Strømsnes', 'Aasland', 'Vikhammer', 'Grøndahl', 'Ekornes', 'Tveit']
+  },
+  FRA: {
+    first: ['Philippe', 'Laurent', 'Stéphane', 'Pierre', 'Julien', 'Olivier', 'Yann', 'Sébastien', 'Benoît', 'Fabrice'],
+    last: ['Bertrand', 'Chauvel', 'Delattre', 'Fournel', 'Garnier', 'Lemaître', 'Marchal', 'Perrin', 'Rousseau', 'Vasseur', 'Boisset', 'Ternier']
+  },
+  GBR: {
+    first: ['Gary', 'Neil', 'Ian', 'Stuart', 'Colin', 'Graham', 'Martin', 'Andy', 'Steve', 'Paul'],
+    last: ['Ashworth', 'Brindley', 'Catterall', 'Fenwick', 'Hepburn', 'Lockwood', 'Moffat', 'Pennington', 'Rawcliffe', 'Strachan', 'Thwaite', 'Whitlock']
+  },
+  ITA: {
+    first: ['Marco', 'Luca', 'Stefano', 'Andrea', 'Paolo', 'Giorgio', 'Matteo', 'Fabio', 'Roberto', 'Davide'],
+    last: ['Bernardi', 'Casagrande', 'Dalmonte', 'Fontana', 'Gasser', 'Lazzaro', 'Moroder', 'Pichler', 'Rinaldi', 'Senoner', 'Tessaro', 'Zanon']
+  },
+  SVN: {
+    first: ['Matjaž', 'Tomaž', 'Gregor', 'Boštjan', 'Rok', 'Uroš', 'Jure', 'Aleš', 'Marko', 'Primož'],
+    last: ['Kranjc', 'Novak', 'Zupančič', 'Hribar', 'Kos', 'Vidmar', 'Golob', 'Rozman', 'Kavčič', 'Jerman']
+  },
+  AUS: {
+    first: ['Brett', 'Shane', 'Darren', 'Glenn', 'Wade', 'Craig', 'Luke', 'Troy', 'Nathan', 'Jason'],
+    last: ['Ashcroft', 'Bramwell', 'Cullinan', 'Dempster', 'Fitzroy', 'Harrold', 'McAllister', 'Penrose', 'Tilbury', 'Wakefield']
   }
 };
 
@@ -69,7 +97,31 @@ const HIRES = {
   SLOVAK: { SVK: 70, CZE: 20, CAN: 6, FIN: 4 },
   SWISS:  { SUI: 40, CAN: 30, SWE: 12, FIN: 10, USA: 8 },
   DEL:    { GER: 35, CAN: 40, USA: 15, FIN: 5, SWE: 5 },
-  ICEHL:  { AUT: 35, CAN: 35, USA: 10, FIN: 10, GER: 10 }
+  ICEHL:  { AUT: 35, CAN: 35, USA: 10, FIN: 10, GER: 10 },
+  ALLSV:  { SWE: 92, FIN: 4, CAN: 4 },
+  ETTAN:  { SWE: 100 },
+  J18:    { SWE: 100 },
+  MESTIS: { FIN: 96, SWE: 4 },
+  SUOMI:  { FIN: 100 },
+  U20M:   { FIN: 100 },
+  U18:    { FIN: 100 },
+  U18M:   { FIN: 100 },
+  METAL:  { DEN: 60, SWE: 20, CAN: 12, FIN: 8 },
+  DEN1:   { DEN: 90, SWE: 10 },
+  DENU20: { DEN: 100 },
+  DENU18: { DEN: 100 },
+  EHL:    { NOR: 65, SWE: 25, FIN: 10 },
+  NOR1:   { NOR: 90, SWE: 10 },
+  NORU20: { NOR: 100 },
+  NORU18: { NOR: 100 },
+  SL:     { SUI: 70, CAN: 15, FIN: 10, SWE: 5 },
+  DEL2:   { GER: 50, CAN: 35, USA: 10, FIN: 5 },
+  ALPS:   { AUT: 35, ITA: 35, SVN: 15, CAN: 15 },
+  MAGNUS: { FRA: 60, CAN: 25, FIN: 10, SWE: 5 },
+  EIHL:   { CAN: 45, GBR: 35, USA: 20 },
+  VHL:    { RUS: 95, BLR: 5 },
+  MHL:    { RUS: 100 },
+  AIHL:   { AUS: 40, CAN: 40, USA: 20 }
 };
 const NA_LEAGUES = ['NHL', 'AHL', 'ECHL', 'SPHL', 'OHL', 'WHL', 'QMJHL', 'BCHL'];
 

@@ -110,7 +110,7 @@ export default function ArbitrationScreen() {
   }, [arbState.rounds, arbState.currentRuling, arbState.offerData.team, player, setActiveEvent, setScreen]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-[#040505]">
+    <div className="min-h-svh flex items-center justify-center p-4 sm:p-8 bg-[#040505]">
       <div className="w-full max-w-2xl space-y-6">
         <div className="game-panel p-6 sm:p-8 border border-[rgba(255,255,255,0.08)] bg-[#0a0d0a] shadow-2xl relative">
           
