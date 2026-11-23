@@ -111,6 +111,14 @@ export const PRESS_QUESTIONS = [
   {
     q: "The team's been streaking. What's clicking in the room?",
     forPos: 'all', tag: 'positive',
+    // A goalie doesn't get pucks deep. See goalieAnswers, below the list.
+    goalieAnswers: {
+      professional: [
+        "Systems. We're executing the game plan for a full sixty minutes now.",
+        "We're playing a strong 200-foot game and managing the puck well.",
+        "Just taking it one game at a time and giving the guys a chance every night."
+      ]
+    },
     answers: {
       professional: [
         "Systems. We're executing the game plan for a full sixty minutes now.",
@@ -189,6 +197,13 @@ export const PRESS_QUESTIONS = [
   {
     q: "You've played heavy minutes for weeks now. How's the body holding up?",
     forPos: 'all', tag: 'neutral',
+    goalieAnswers: {
+      passionate: [
+        "You could take a leg off me and I'd still want the next start.",
+        "I'll sleep in the summer. Right now I want every start they'll give me.",
+        "Tired is a word for February. We're past that."
+      ]
+    },
     answers: {
       professional: [
         "This time of year nobody's a hundred percent. You manage it and you play.",
@@ -215,6 +230,23 @@ export const PRESS_QUESTIONS = [
   {
     q: "There have been some changes to the lineup this week. How's that settling?",
     forPos: 'all', tag: 'neutral',
+    goalieAnswers: {
+      professional: [
+        "That's the coach's call. My job is to be ready whenever I'm in.",
+        "We've got enough depth that it shouldn't change how we play.",
+        "New faces in front of me take a few games to learn. We'll work through it."
+      ],
+      humble: [
+        "Not my decision to make. I just try to make it easy on whoever's in front of me.",
+        "The guys coming in are good players. They'll make us better.",
+        "I'll stop what I can and let the coaches sort the rest. That's genuinely all I care about."
+      ],
+      cocky: [
+        "Put anyone in front of me and we'll win. That's not the issue here.",
+        "I make whoever's in front of me look better. Always have.",
+        "Doesn't matter to me. Whoever's out there gets bailed out either way."
+      ]
+    },
     answers: {
       professional: [
         "That's the coach's call. My job is to be ready wherever I'm put.",
@@ -241,6 +273,13 @@ export const PRESS_QUESTIONS = [
   {
     q: "It's been a frustrating few weeks around here. What has to change?",
     forPos: 'all', tag: 'negative',
+    goalieAnswers: {
+      cocky: [
+        "Give me more starts. That's a start.",
+        "Some guys need to look in the mirror. I know what I'm giving this team.",
+        "It'll turn. Teams like this don't stay down with a goalie like me behind them."
+      ]
+    },
     answers: {
       professional: [
         "Details. We're losing games in the margins and that's fixable.",
@@ -799,7 +838,9 @@ export const PRESS_QUESTIONS = [
   },
   {
     q: "There's a trade deadline in this league too, and your name's been mentioned.",
-    scope: ['junior'], forPos: 'all', tag: 'negative',
+    // Only North American junior hockey trades its players, and only it
+    // billets them. See naJuniorOnly.
+    scope: ['junior'], naJuniorOnly: true, forPos: 'all', tag: 'negative',
     answers: {
       professional: [
         "I've heard it. It's not something a player my age should be managing.",
@@ -825,7 +866,7 @@ export const PRESS_QUESTIONS = [
   },
   {
     q: "You're billeted a long way from home at your age. How's that been?",
-    scope: ['junior'], forPos: 'all', tag: 'neutral',
+    scope: ['junior'], naJuniorOnly: true, forPos: 'all', tag: 'neutral',
     answers: {
       professional: [
         "It's part of the path. Every guy in that room has done the same thing.",
@@ -999,7 +1040,14 @@ export function selectPressQuestions(player, league, count = 3) {
   const lgTag = leagueTag(league);
   const mediaTrust = player?.relationships?.media ?? 50;
 
-  const eligible = PRESS_QUESTIONS.filter(q => fitsPosition(q.forPos, posTag) && fitsLeague(q.scope, lgTag));
+  // A question can carry goalieAnswers, which replace the answers a goalie
+  // can't honestly give ("put anyone on my wing"). And a European junior
+  // isn't billeted or traded, so the questions that assume he is are kept
+  // for the CHL, the USHL and the BCHL.
+  const naJunior = ['OHL', 'WHL', 'QMJHL', 'USHL', 'BCHL'].includes(league);
+  const eligible = PRESS_QUESTIONS
+    .filter(q => fitsPosition(q.forPos, posTag) && fitsLeague(q.scope, lgTag) && (!q.naJuniorOnly || naJunior))
+    .map(q => (posTag === 'goalie' && q.goalieAnswers ? { ...q, answers: { ...q.answers, ...q.goalieAnswers } } : q));
 
   // One question in the hand can be about the man you were drafted with. It
   // has to be generated rather than stored, because it names him.

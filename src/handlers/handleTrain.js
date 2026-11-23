@@ -63,7 +63,9 @@ function midSeasonTermination(p, seg, year) {
       subLabel: 'Then free agency in the summer.',
       contract: { salary, role },
       isRisky: false,
-      feedback: `You were on a plane two days later. ${name} put you on their top line the night you landed.`,
+      feedback: p.pos === 'G'
+        ? `You were on a plane two days later. ${name} started you the night you landed.`
+        : `You were on a plane two days later. ${name} put you on their top line the night you landed.`,
       effect: { fanStatus: 0, ovr: 0, rel: { coach: 15 } },
       action: 'MIDSEASON_SIGN',
       actionData: { from: p.team, team: t.id, league: euroLg, salary, role }
@@ -715,7 +717,9 @@ export function handleTrain(ctx, t) {
             successChance: 0.50,
             successFeedback: 'You played through it, and the room hasn\'t stopped talking about it.', 
             successEffect: { fanStatus: 30, ovr: 1, rel: { teammates: 40, coach: 20 } }, 
-            failFeedback: 'You played through it, the fracture got worse, and your shot hasn\'t been the same since.', 
+            failFeedback: player.pos === 'G'
+              ? 'You played through it, the fracture got worse, and your blocker hand hasn\'t been the same since.'
+              : 'You played through it, the fracture got worse, and your shot hasn\'t been the same since.', 
             failEffect: { fanStatus: 10, ovr: -2, rel: { teammates: 20 } } 
           }
         ],
@@ -1212,7 +1216,7 @@ export function handleTrain(ctx, t) {
              moveDesc = `For the second year running, you didn't make the NHL roster out of camp. You spent the season back with your junior club, using up the last of your junior eligibility.`;
          } else {
              moveTitle = '📉 9-GAME TRYOUT CONCLUDED';
-             moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season playing top-line minutes in juniors.`;
+             moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season ${player.pos === 'G' ? 'as the starter in juniors' : ['LD', 'RD'].includes(player.pos) ? 'playing top-pairing minutes in juniors' : 'playing top-line minutes in juniors'}.`;
              ctx.setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), hadNineGameTryout: true } }));
          }
      } else if (wasNHLtoAHL) {

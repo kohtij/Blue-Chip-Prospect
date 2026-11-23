@@ -1,6 +1,6 @@
-import { ahlTeams, nhlTeams, echlTeams, sphlTeams, j20Teams, u20Teams, getOpponentPool, isAmateurLeague } from '../data/teams';
+import { ahlTeams, nhlTeams, echlTeams, sphlTeams, j20Teams, u20Teams, getOpponentPool, isAmateurLeague, euroLeagues, countryProLeagues, LEAGUE_COUNTRY } from '../data/teams';
 import { shopItems } from '../data/economy';
-import { arbitrationEligible, elcYears, gamesInLeague, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract } from '../utils/gameHelpers';
+import { arbitrationEligible, elcYears, gamesInLeague, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract, rightsExpiryYear } from '../utils/gameHelpers';
 import { nhlGamesIn } from '../utils/rosterMoves';
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
@@ -27,6 +27,48 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     // amateur a page of NHL contract offers. A trade request is a different thing
     // and is exempt. Returns false so the caller can carry on with the offseason
     // instead of stalling on a screen that should never have opened.
+    // AN UNSIGNED PICK BETWEEN CONTRACTS IN EUROPE.
+    //
+    // He isn't a free agent in the NHL sense. One club holds his NHL rights,
+    // so it's the only NHL club that can offer him anything, and no AHL club
+    // can sign him out from under it. His summer is a choice between a new
+    // deal in Europe (his own club, or another) and that club's entry-level
+    // contract, if it offers one. He used to get the open market, labelled
+    // a UFA, with an AHL club bidding against the team that drafted him.
+    const rightsHeld = player.rights && !onNhlContract(player);
+    if (!isTradeRequest && !opts.europeOnly && rightsHeld && euroLeagues.includes(overrideLeague || player.league)) {
+      const lg = overrideLeague || player.league;
+      const home = overrideTeam || player.team;
+      const PAY = { KHL: 1.9, SHL: 1.0, SWISS: 1.35, LIIGA: 0.92, DEL: 1.05, CZECH: 0.8, ICEHL: 0.85, SLOVAK: 0.7 };
+      const base = 110000 + Math.max(0, (player.ovr || 50) - 55) * 10500;
+      const euroOffer = (team, league, type, state) => ({
+        team, league, type, state, fanHit: type === 'EXTENSION' ? 10 : 0, role: 'Pro Roster', rightsSummer: true,
+        salary: Math.round((base * (PAY[league] ?? 0.55) * (0.85 + Math.random() * 0.3)) / 5000) * 5000,
+        years: 1 + Math.floor(Math.random() * 2)
+      });
+      const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
+      const rightsOffers = [euroOffer(home, lg, 'EXTENSION', 'Current Club')];
+      // Another club in his league, and one from the tier above or below at
+      // home when there is one.
+      const sameLeague = (getOpponentPool(lg) || []).filter(t => t.id !== home);
+      if (sameLeague.length) rightsOffers.push(euroOffer(pickOne(sameLeague).id, lg, 'FREE AGENCY', 'Europe'));
+      const ladder = countryProLeagues(LEAGUE_COUNTRY[lg]);
+      const near = ladder[ladder.indexOf(lg) + ((player.ovr || 0) >= 66 ? -1 : 1)];
+      const nearPool = near ? (getOpponentPool(near) || []) : [];
+      if (nearPool.length) rightsOffers.push(euroOffer(pickOne(nearPool).id, near, 'FREE AGENCY', 'Europe'));
+      // The drafting club, when it thinks he's ready.
+      if ((player.ovr || 0) >= (player.pos === 'G' ? 63 : 65)) {
+        rightsOffers.push({
+          team: player.rights, league: 'NHL', type: 'ENTRY-LEVEL CONTRACT', state: 'Holds your rights',
+          salary: 925000, years: elcYears(player.age), role: getRole(925000, { ...player, league: 'NHL' }),
+          fanHit: 10, rightsSummer: true, rightsUntil: rightsExpiryYear(player)
+        });
+      }
+      setFreeAgencyOffers(rightsOffers.map(o => withOfferPerks(o, { maxPerks: 2, maxFlaws: 2 })));
+      setScreen('transfer');
+      return true;
+    }
+
     if (!isTradeRequest && !opts.europeOnly && !isNhlFreeAgentEligible(player, ctx.safeJuniorLeagues)) {
        return false;
     }
@@ -390,6 +432,11 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
                 pool = isUnder18 ? (getOpponentPool('SHL') || []) : (ahlTeams || []);
                 targetLg = isUnder18 ? 'SHL' : 'AHL';
             }
+        }
+
+        // An AHL club can't sign a player whose NHL rights someone else holds.
+        if (targetLg === 'AHL' && rightsHeld) {
+            pool = [];
         }
 
         if (targetLg === 'NHL' && currentRights) {

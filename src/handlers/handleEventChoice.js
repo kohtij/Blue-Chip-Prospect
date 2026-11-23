@@ -159,7 +159,12 @@ export function handleEventChoice(ctx, choice) {
     // sign him is not on the list of clubs offering him a contract days later.
     const heldBy = player.rights || player.draftTeam || null;
     updated.rights = null;
-    if (heldBy && activeEvent?.title === 'RIGHTS EXPIRED') updated.rightsLapsedBy = heldBy;
+    if (heldBy && ['RIGHTS EXPIRED', 'RIGHTS DEADLINE'].includes(activeEvent?.title)) updated.rightsLapsedBy = heldBy;
+  } else if (actionStr === 'RIGHTS_LAPSE') {
+    // The drafting club's rights ran out while he was signed in Europe. He
+    // stays where he is, and when that deal ends any NHL club can sign him.
+    updated.rights = null;
+    updated.rightsLapsedBy = player.rights || null;
   } else if (actionStr === 'JOIN_NCAA') {
     const teamId = choice.actionData?.id || choice.actionData;
     updated.team = teamId; updated.league = 'NCAA';

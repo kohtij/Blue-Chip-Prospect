@@ -44,6 +44,7 @@ import CreaseGame from './components/CreaseGame';
 import FilmRoomGame from './components/FilmRoomGame';
 import DeflectionGame from './components/DeflectionGame';
 import ShotBlockGame from './components/ShotBlockGame';
+import { juniorDraftHistory } from './utils/juniorDrafts';
 import BreakawayGame from './components/BreakawayGame';
 import OneTimerGame from './components/OneTimerGame';
 import ZoneBattleGame from './components/ZoneBattleGame';
@@ -417,7 +418,11 @@ function App() {
         peers: createDraftClass(p.age || 16, 28, p.pos, p.leagueState),
         leagueState: {}
       };
-      return { ...updated, ovr: recomputeOvr(updated) };
+      const ovr = recomputeOvr(updated);
+      // The CHL and USHL drafts he went through before the game starts. Kept,
+      // not shown. See utils/juniorDrafts.js.
+      const junior = juniorDraftHistory({ nat: currentNat, league: lg, team: startTeam.id, ovr, age: p.age || 16 });
+      return { ...updated, ovr, ...junior };
     });
     
     generateTraining(player.pos, player);
@@ -506,6 +511,9 @@ function App() {
       draftPick: overallPick,
       draftRound: round,
       draftYear,
+      // How long the club has to sign him. See rightsExpiryYear.
+      draftAge: who.age,
+      rightsUntil: draftYear + (who.age <= 18 ? 4 : 3),
       classDraftYear: p.classDraftYear || draftYear,
       combineRaw: rawCombine,
       scoutRank: finalBoard?.myRank ?? p.scoutRank,
@@ -1689,7 +1697,7 @@ function App() {
          advanceToOffseason(currentPlayer);
          return;
        }
-       const goesToFreeAgency = ['AMATEUR GRADUATION', 'RIGHTS EXPIRED'].includes(currentEvent.title) && currentPlayer.league !== 'NHL';
+       const goesToFreeAgency = ['AMATEUR GRADUATION', 'RIGHTS EXPIRED', 'RIGHTS DEADLINE'].includes(currentEvent.title) && currentPlayer.league !== 'NHL';
        // If the market declines to open (an amateur who should never have been
        // routed here), fall through to the rest of the summer rather than leaving
        // the player stranded on a screen with nothing on it.

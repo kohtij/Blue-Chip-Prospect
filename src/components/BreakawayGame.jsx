@@ -25,7 +25,7 @@ const CHOICES = [
   { id: 'cheatRight', label: 'Cheat to your right', kind: 'gamble' }
 ];
 
-export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
+function OneBreakaway({ player, onComplete, difficulty = 0 }) {
   const iq = getActiveStat(player, 'hockeyIQ');
 
   const [phase, setPhase] = useState('setup');   // setup, closing, deking, result
@@ -230,5 +230,55 @@ export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
         </div>
       )}
     </Stage>
+  );
+}
+
+// A RUN OF THEM.
+//
+// One breakaway was a coin flip with a reflex test on half of it, and in a
+// final that decided a championship. Now it's a run: three of them, or five
+// once the stakes are high (a semi-final, a medal game, a Cup final), and
+// you have to stop most of them. It ends as soon as the result is settled.
+export default function BreakawayGame({ player, onComplete, difficulty = 0 }) {
+  const total = difficulty >= 0.5 ? 5 : 3;
+  const need = Math.floor(total / 2) + 1;
+  const [results, setResults] = useState([]);
+  const resultsRef = useRef([]);
+  const settledRef = useRef(false);
+
+  const handle = useCallback((win) => {
+    if (settledRef.current) return;
+    const next = [...resultsRef.current, win];
+    resultsRef.current = next;
+    const saves = next.filter(Boolean).length;
+    const goals = next.length - saves;
+    if (saves >= need || goals > total - need) {
+      settledRef.current = true;
+      onComplete(saves >= need);
+      return;
+    }
+    setResults(next);
+  }, [need, total, onComplete]);
+
+  const saves = results.filter(Boolean).length;
+  return (
+    <div className="w-full">
+      {/* The tally. Always the same height, above the game, so a new
+          breakaway starting doesn't move anything. */}
+      <div className="w-full max-w-xl mx-auto flex items-center justify-between gap-3 mb-3">
+        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+          Breakaway {results.length + 1} · Stop {need} of {total}
+        </span>
+        <span className="flex items-center gap-1.5" aria-label={`${saves} saved, ${results.length - saves} scored`}>
+          {Array.from({ length: total }, (_, i) => (
+            <span key={i} className={`w-2.5 h-2.5 rounded-full border ${
+              i < results.length
+                ? (results[i] ? 'bg-[#22E748] border-[#22E748]' : 'bg-[#ef4444] border-[#ef4444]')
+                : 'border-[rgba(255,255,255,0.25)]'}`} />
+          ))}
+        </span>
+      </div>
+      <OneBreakaway key={results.length} player={player} difficulty={difficulty} onComplete={handle} />
+    </div>
   );
 }

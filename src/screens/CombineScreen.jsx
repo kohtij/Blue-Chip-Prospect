@@ -616,7 +616,8 @@ export default function CombineScreen() {
                     )}
                     {/* "Up 29" didn't say up from what. It's the number of draft
                         spots this week moved him against an average combine,
-                        so it says that, and where the average week had him. */}
+                        so it says that, and where an average combine would
+                        have left him. */}
                     <Row label="Draft stock">
                       <span className="flex flex-col items-end text-right">
                         <span className={`number-font text-xl sm:text-2xl font-black ${boostColor}`}>
@@ -626,8 +627,10 @@ export default function CombineScreen() {
                         </span>
                         <span className="mt-0.5 text-[11px] sm:text-xs font-semibold text-slate-500">
                           {moved === 0
-                            ? `An average week had you at #${neutral.pick} too`
-                            : `An average week had you at #${neutral.pick}`}
+                            ? 'Where an average combine would have left you'
+                            : neutral.pick > 224
+                              ? 'An average combine would have left you undrafted'
+                              : `An average combine would have left you at #${neutral.pick}`}
                         </span>
                       </span>
                     </Row>

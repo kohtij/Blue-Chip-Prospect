@@ -88,7 +88,9 @@ export function handleTransferPortal(ctx, { res }) {
           successChance: 0.35,
           successFeedback: 'Word got back that you were serious. Your minutes went up, and so did your stock.',
           successEffect: { fanStatus: 10, ovr: 1, rel: { coach: -10 } },
-          failFeedback: 'The staff moved on without you. You spent the rest of the year on the fourth line watching.',
+          failFeedback: player.pos === 'G'
+            ? 'The staff moved on without you. You spent the rest of the year as the third goalie, watching.'
+            : 'The staff moved on without you. You spent the rest of the year on the fourth line watching.',
           failEffect: { fanStatus: -25, ovr: -2, rel: { coach: -30 } }
         }
       ],

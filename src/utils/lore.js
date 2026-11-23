@@ -18,6 +18,8 @@
 
 import { COACH_SYSTEMS } from './roster';
 import { HOME_LEAGUE } from './staffNames';
+import { NO_ARTICLE_LEAGUES } from './gameHelpers';
+import { tradeMarketOf } from '../data/teams';
 
 const hashOf = (s) => {
   let h = 2166136261;
@@ -93,13 +95,13 @@ export function coachBackground(coach, archetype) {
   return `${past} ${SYSTEM_LINE[coach.system] || SYSTEM_LINE.balanced} ${reputation(coach.quality ?? 50)} ${fitLine}`;
 }
 
-export function coachIntro(coach, { clubName, archetype }) {
+export function coachIntro(coach, { clubName, archetype, league }) {
   if (!coach) return null;
   const sys = COACH_SYSTEMS[coach.system] || COACH_SYSTEMS.balanced;
   const fits = archetype && sys.likes.includes(archetype);
   return {
     title: '👔 THE NEW COACH',
-    desc: `Your coach with the ${clubName} is ${coach.name}. ${coachBackground(coach, archetype)}`,
+    desc: `Your coach with ${theClub(clubName, league)} is ${coach.name}. ${coachBackground(coach, archetype)}`,
     choices: [
       { label: 'Ask what he wants from you', subLabel: 'Knock on his door before camp starts.', isRisky: false,
         feedback: 'He talked for forty minutes and drew three diagrams. You left knowing exactly where you stand.',
@@ -111,6 +113,11 @@ export function coachIntro(coach, { clubName, archetype }) {
     isOffseasonEvent: true
   };
 }
+
+// A club's name with "the" where its league's clubs take one (the Toronto
+// Maple Leafs) and without where they don't (Färjestad BK, Ilves U18).
+const theClub = (name, league, capital = false) =>
+  (NO_ARTICLE_LEAGUES.includes(league) ? name : `${capital ? 'The' : 'the'} ${name}`);
 
 // WHO JUST WALKED INTO THE ROOM.
 //
@@ -127,17 +134,27 @@ export function arrivalKind(man, room, player) {
   return hashOf(man.name) % 10 < 3 ? 'problem' : null;
 }
 
-export function arrivalIntro(man, kind, { clubName, fromName, samePos }) {
+export function arrivalIntro(man, kind, { clubName, fromName, samePos, league }) {
   if (!man || !kind) return null;
   const s = hashOf(man.name);
-  const how = s % 2 === 0 ? `traded for ${man.name}` : `signed ${man.name}`;
-  const from = fromName ? ` from the ${fromName}` : '';
+  // How he got here depends on the league. Only North America trades, a
+  // European men's club buys or signs, and a junior club in Europe just has
+  // a new player turn up from another club's academy. The Club line is the
+  // sentence's subject, so it takes "The" only where the league's clubs do.
+  const market = tradeMarketOf(league);
+  const how = market === 'picks' || market === 'players'
+    ? (s % 2 === 0 ? `traded for ${man.name}` : `signed ${man.name}`)
+    : market === 'fees'
+      ? (s % 2 === 0 ? `bought ${man.name}` : `signed ${man.name}`)
+      : `brought in ${man.name}`;
+  const from = fromName ? ` from ${theClub(fromName, league)}` : '';
+  const Club = theClub(clubName, league, true);
   const pos = POS_WORD[man.pos] || 'player';
   const rivalry = samePos ? ` He plays your position, and he didn't come here to sit behind you.` : '';
 
   if (kind === 'star') return {
     title: '⭐ A STAR IN THE ROOM',
-    desc: `The ${clubName} ${how}${from} this summer. He's a ${man.age}-year-old ${pos} and one of the best players in the league.${rivalry} Every reporter at camp wants to know how the two of you will get on.`,
+    desc: `${Club} ${how}${from} this summer. He's a ${man.age}-year-old ${pos} and one of the best players in the league.${rivalry} Every reporter at camp wants to know how the two of you will get on.`,
     choices: [
       { label: 'Welcome him', subLabel: 'Show him round and make him feel at home.', isRisky: false,
         feedback: 'You took him to dinner the first night. By the end of camp the two of you were the room\'s loudest table.',
@@ -151,7 +168,7 @@ export function arrivalIntro(man, kind, { clubName, fromName, samePos }) {
 
   if (kind === 'problem') return {
     title: '⚠️ A NEW FACE, AND A REPUTATION',
-    desc: `The ${clubName} ${how}${from}. He's a ${man.age}-year-old ${pos} with real talent, and he's also been suspended twice and fallen out with his last coach.${rivalry} The room's split on whether he's worth the trouble.`,
+    desc: `${Club} ${how}${from}. He's a ${man.age}-year-old ${pos} with real talent, and he's also been suspended twice and fallen out with his last coach.${rivalry} The room's split on whether he's worth the trouble.`,
     choices: [
       { label: 'Give him a fair chance', subLabel: "Judge him on what he does here.", isRisky: true, successChance: 0.6,
         successFeedback: 'He turned out to be a lot better company than his reputation. He remembers who was decent to him.', successEffect: { fanStatus: 0, ovr: 0, rel: { teammates: 6 } },
@@ -165,7 +182,7 @@ export function arrivalIntro(man, kind, { clubName, fromName, samePos }) {
 
   if (kind === 'veteran') return {
     title: '🧓 A VETERAN ARRIVES',
-    desc: `The ${clubName} ${how}${from}. He's ${man.age}, he's been around this league longer than anyone in the room, and he wants one more run. The younger players were asking him questions before his bag was unpacked.`,
+    desc: `${Club} ${how}${from}. He's ${man.age}, he's been around this league longer than anyone in the room, and he wants one more run. The younger players were asking him questions before his bag was unpacked.`,
     choices: [
       { label: 'Learn from him', subLabel: 'Ask how he lasted this long.', isRisky: false,
         feedback: 'He showed you how he prepares for a game, down to what he eats and when he sleeps. You started doing the same.',
@@ -180,7 +197,7 @@ export function arrivalIntro(man, kind, { clubName, fromName, samePos }) {
   // The kid.
   return {
     title: '🌱 THE CLUB\'S NEW PROSPECT',
-    desc: `The ${clubName} ${how}${from}. He's ${man.age}, a ${pos} the scouts can't stop talking about, and he's been told he'll get his chances this year.${rivalry}`,
+    desc: `${Club} ${how}${from}. He's ${man.age}, a ${pos} the scouts can't stop talking about, and he's been told he'll get his chances this year.${rivalry}`,
     choices: [
       { label: 'Take him under your wing', subLabel: 'Help him find his feet.', isRisky: false,
         feedback: 'He sat beside you on every bus trip and asked about everything. The coaches noticed who was looking after him.',

@@ -2,7 +2,7 @@ import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, 
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
-import { ATTR_FLOOR, formatMoney, formatMoney3, gamesInLeague, nhlSeasonsOf, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle } from '../utils/gameHelpers';
+import { ATTR_FLOOR, formatMoney, formatMoney3, gamesInLeague, nhlSeasonsOf, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle, rightsExpiryYear, lastDraftAge } from '../utils/gameHelpers';
 import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
 import { bonusCeiling, buyoutTerms, salaryParts, veteranBonuses } from '../utils/bonuses';
 import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
@@ -947,7 +947,9 @@ export function advanceToOffseason(ctx) {
                 label: 'Stay in the under-18s',
                 subLabel: 'One more year as the best player in your age group.',
                 isRisky: false,
-                feedback: 'You stayed down. Top line, first power play, and the puck on your stick.',
+                feedback: player.pos === 'G'
+                  ? 'You stayed down. The starting job, most of the games, and every big save is yours.'
+                  : 'You stayed down. Top line, first power play, and the puck on your stick.',
                 effect: { fanStatus: 4, ovr: 1, money: 0 }
               }
             ],
@@ -1011,9 +1013,15 @@ export function advanceToOffseason(ctx) {
           choices: [
             {
               label: `Go up to ${seniorName}`,
-              subLabel: `Take the place in ${leagueWithArticle(stepLeague)} and fight men for your minutes.`,
+              // The terms, which he signs here and never used to see: the
+              // same two years at $120K that NORDIC_STEP_UP writes.
+              subLabel: player.pos === 'G'
+                ? `A two-year contract at $120K a season, and a fight for starts in ${leagueWithArticle(stepLeague)}.`
+                : `A two-year contract at $120K a season, and a fight for minutes in ${leagueWithArticle(stepLeague)}.`,
               isRisky: false,
-              feedback: `You signed with the senior side. Fourth line, hard minutes, and a locker room where nobody cares how good you were in junior.`,
+              feedback: player.pos === 'G'
+                ? `You signed a two-year deal with the senior side. Third goalie, practice reps, and a dressing room where nobody cares how good you were in junior.`
+                : `You signed a two-year deal with the senior side. Fourth line, hard minutes, and a dressing room where nobody cares how good you were in junior.`,
               effect: { fanStatus: 25, ovr: 1, money: 0 },
               action: 'NORDIC_STEP_UP',
               actionData: { id: seniorId, league: stepLeague }
@@ -1022,7 +1030,9 @@ export function advanceToOffseason(ctx) {
               label: 'Stay down another year',
               subLabel: 'Go back to the junior side and be the best player in the league.',
               isRisky: false,
-              feedback: 'You stayed in junior. Top line, first unit, and the puck on your stick every shift.',
+              feedback: player.pos === 'G'
+                ? 'You stayed in junior. The starting job, most of the games, and the net is yours every night.'
+                : 'You stayed in junior. Top line, first unit, and the puck on your stick every shift.',
               effect: { fanStatus: 10, ovr: 2, money: 0 }
             }
           ],
@@ -1179,8 +1189,15 @@ export function advanceToOffseason(ctx) {
     const ncaaSeasons = (player.seasonHistory || []).filter(s => s.league === 'NCAA').length;
     const isNcaaAgedOut = currentLeague === 'NCAA' && ncaaSeasons >= 4;
 
-    // A player is draft eligible if they are 18 or older, but haven't aged out of amateur eligibility
-    const isDraftEligibleAge = player.age >= 18 && player.age < amateurAgeOut && !isNcaaAgedOut;
+    // THE DRAFTS HE GETS. Eighteen, nineteen and twenty, and twenty-one as
+    // well for a player from outside North America (lastDraftAge). Once per
+    // summer: a player passed over this summer was sent to camp and came back
+    // through here, met the same test, and was put through the draft again,
+    // for ever. passedOver and draftYear both carry the summer of the draft.
+    const thisSummer = 2026 + (player.stats?.seasonsPlayed || 0);
+    const draftedOrPassedThisSummer = (player.passedOver || []).includes(thisSummer) || player.draftYear === thisSummer;
+    const isDraftEligibleAge = player.age >= 18 && player.age <= lastDraftAge(player)
+      && !isNcaaAgedOut && !draftedOrPassedThisSummer;
 
     // A SIGNED PROFESSIONAL IS NOT IN THE DRAFT.
     //
@@ -1244,60 +1261,88 @@ export function advanceToOffseason(ctx) {
       return;
     }
 
-    const rightsExpireAge = (player.draftLeague && ['OHL', 'WHL', 'QMJHL'].includes(player.draftLeague)) ? 20 : 22;
-
-    const needsRightsDecision = isCurrentlyAmateur && player.rights && (player.age >= rightsExpireAge || isNcaaAgedOut);
+    // AN UNSIGNED DRAFT PICK.
+    //
+    // The club that drafted him holds his rights until rightsExpiryYear (four
+    // summers for a player taken at eighteen, three for one taken older), and
+    // until then it's the only NHL club he can sign with. This used to be an
+    // age (twenty for a CHL player, twenty-two for everyone else) and only for
+    // amateurs, so a European pick whose club contract ran out was put on the
+    // open market as an unrestricted free agent, with the drafting club and
+    // an AHL club both bidding.
+    const unsignedPick = !!player.rights && !onNhlContract(player);
+    const rightsEnd = unsignedPick ? rightsExpiryYear(player) : null;
+    const inCollege = currentLeague === 'NCAA' && !isNcaaAgedOut;
+    const inEurope = safeEuroLeagues.includes(currentLeague);
+    const rightsRunOut = unsignedPick && player.draftYear !== thisSummer
+      && ((rightsEnd && thisSummer >= rightsEnd && !inCollege) || (currentLeague === 'NCAA' && isNcaaAgedOut));
     const isAgingOut = isCurrentlyAmateur && !player.rights && (player.age >= amateurAgeOut || isNcaaAgedOut);
+    const clubWantsYou = player.ovr >= (player.pos === 'G' ? 63 : 65);
 
-    if (needsRightsDecision || isAgingOut) {
-       if (player.rights) {
-           const teamWantsYou = player.ovr >= 65;
-           const teamName = getFullTeamName(player.rights, 'NHL');
-           if (teamWantsYou) {
-               setActiveEvent({
-                   title: 'AMATEUR GRADUATION',
-                   desc: `Your development window has closed. The ${teamName} still hold your draft rights and have offered you an Entry-Level Contract. If you decline, your rights will expire and you'll become an Unrestricted Free Agent.`,
-                   choices: [
-                       { label: `Sign ELC with ${teamName}`, subLabel: 'Turn pro immediately on your entry-level deal.', isRisky: false, feedback: 'You signed your entry-level contract and are heading to pro camp.', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
-                       { label: 'Test free agency', subLabel: 'Let your rights expire and look for a better opportunity elsewhere.', isRisky: false, feedback: 'You let your draft rights expire to test the open market.', effect: { fanStatus: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
-                   ],
-                   isOffseasonEvent: true
-               });
-           } else {
-               setActiveEvent({
-                   title: 'RIGHTS EXPIRED',
-                   desc: `Your development window has closed. The ${teamName} have decided not to offer you a contract. Your draft rights have expired and you're now an Unrestricted Free Agent.`,
-                   choices: [
-                       { label: 'Enter free agency', subLabel: 'Look for a team willing to take a chance on you.', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
-                   ],
-                   isOffseasonEvent: true
-               });
-           }
-       } else {
-           setActiveEvent({
-               title: 'AMATEUR GRADUATION',
-               desc: `You have aged out of amateur hockey as an undrafted free agent. It's time to see if any pro teams are interested in signing you.`,
-               choices: [
-                   { label: 'Enter free agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You\'re looking for your first pro contract.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
-               ],
-               isOffseasonEvent: true
-           });
-       }
+    if (rightsRunOut) {
+       const teamName = getFullTeamName(player.rights, 'NHL');
+       // Still under contract in Europe: letting the rights go just means he
+       // carries on where he is, and is a free agent when that deal is done.
+       const stillSigned = inEurope && hasSignedDeal;
+       const here = getFullTeamName(currentTeam, currentLeague);
+       const lapseChoice = stillSigned
+         ? { label: `Stay with ${here}`, subLabel: "Finish your contract. After that you're free to sign with any NHL club.", isRisky: false,
+             feedback: `You let the ${teamName}' rights run out and stayed with ${here}.`, effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'RIGHTS_LAPSE' }
+         : { label: 'Let the rights run out', subLabel: 'Become a free agent and sign with anyone.', isRisky: false,
+             feedback: 'You let your draft rights run out to test the open market.', effect: { fanStatus: -5, ovr: 0, money: 0 }, action: 'BECOME_UFA' };
+       setActiveEvent({
+         // 'RIGHTS DEADLINE' and 'RIGHTS EXPIRED' open the free agent market
+         // afterwards (see proceedToNextScreen). 'LAST CHANCE TO SIGN' doesn't,
+         // because he's still signed in Europe.
+         title: stillSigned ? 'LAST CHANCE TO SIGN' : clubWantsYou ? 'RIGHTS DEADLINE' : 'RIGHTS EXPIRED',
+         desc: clubWantsYou
+           ? `The ${teamName} have until June 1 to sign you, or their rights to you run out. They've offered you an entry-level contract.${stillSigned ? ` Sign it and they'll settle things with ${here}.` : ''}`
+           : `The ${teamName} have decided not to sign you, and their rights to you run out on June 1.${stillSigned ? ` You're still under contract with ${here}, and after that you can sign with any NHL club.` : " You're a free agent, and any club can sign you."}`,
+         choices: clubWantsYou
+           ? [{ label: `Sign with the ${teamName}`, subLabel: 'Turn pro on your entry-level deal.', isRisky: false, feedback: 'You signed your entry-level contract and are heading to pro camp.', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' }, lapseChoice]
+           : [stillSigned ? lapseChoice : { label: 'Enter free agency', subLabel: 'Look for a team willing to take a chance on you.', isRisky: false, feedback: 'Time to find a pro team that believes in you.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }],
+         isOffseasonEvent: true
+       });
        enterStage(SUMMER_DONE);
        setScreen('event');
        return;
     }
 
-    // Was `!player.contract`, which is never true: the object always exists, it
-    // just holds zeros until something is signed. So the entry-level offer never
-    // fired at all. It also excluded prospects developing in Europe, who are
-    // exactly the players an NHL club signs out of their draft rights.
-    if ((isCurrentlyAmateur || isUnsignedProspect) && player.rights && !hasSignedDeal && player.age > 18 && player.age < rightsExpireAge) {
+    if (isAgingOut) {
+       setActiveEvent({
+           title: 'AMATEUR GRADUATION',
+           desc: `You have aged out of amateur hockey as an undrafted free agent. It's time to see if any pro teams are interested in signing you.`,
+           choices: [
+               { label: 'Enter free agency', subLabel: 'Try to catch on with a pro team as an undrafted free agent.', isRisky: false, feedback: 'You\'re looking for your first pro contract.', effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'BECOME_UFA' }
+           ],
+           isOffseasonEvent: true
+       });
+       enterStage(SUMMER_DONE);
+       setScreen('event');
+       return;
+    }
+
+    // A European pick whose club contract has run out, with the rights still
+    // running. He isn't a free agent: his choice is a new deal in Europe or
+    // the drafting club's entry-level contract, and generateOffers builds
+    // exactly that board.
+    if (unsignedPick && inEurope && !hasSignedDeal && player.draftYear !== thisSummer) {
+       if (generateOffers(ctx, false, currentTeam, currentLeague) !== false) {
+         enterStage(SUMMER_DONE);
+         return;
+       }
+    }
+
+    // A junior or college pick, or a European one between deals, any summer
+    // after the one he was drafted in. The club offers the entry-level deal
+    // when it thinks he's ready, and he can say yes or go back for a year.
+    if ((isCurrentlyAmateur || isUnsignedProspect) && unsignedPick && !hasSignedDeal && player.age > 18 && player.draftYear !== thisSummer) {
        const teamName = getFullTeamName(player.rights, 'NHL');
-       if (player.ovr >= 65) {
+       const until = rightsEnd ? ` They hold your rights until the summer of ${rightsEnd}.` : '';
+       if (clubWantsYou) {
            setActiveEvent({
              title: 'PRO CONTRACT OFFER',
-             desc: `The ${teamName} believe you're ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${leagueWithArticle(currentLeague)} for another year of development.`,
+             desc: `The ${teamName} believe you're ready. They have offered you an Entry-Level Contract. You can turn pro now, or return to ${leagueWithArticle(currentLeague)} for another year of development.${until}`,
              choices: [
                { label: 'Sign your entry-level contract', subLabel: 'Turn pro now and report to NHL training camp.', isRisky: false, feedback: 'You signed your entry-level contract and are off to your first NHL training camp.', effect: { fanStatus: 10, ovr: 0, money: 0 }, action: 'SIGN_ELC' },
                { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: 'Spend one more year developing before turning pro.', isRisky: false, feedback: 'You chose to develop for another year.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
@@ -1307,7 +1352,7 @@ export function advanceToOffseason(ctx) {
        } else {
            setActiveEvent({
              title: 'NOT READY FOR PRO',
-             desc: `The ${teamName} still hold your rights, but their front office doesn't believe you're ready for pro hockey yet. You must return to ${leagueWithArticle(currentLeague)} for another season.`,
+             desc: `The ${teamName} still hold your rights, but their front office doesn't believe you're ready for pro hockey yet. You must return to ${leagueWithArticle(currentLeague)} for another season.${until}`,
              choices: [
                { label: `Return to ${leagueWithArticle(currentLeague)}`, subLabel: "Keep developing until the organization believes you're ready.", isRisky: false, feedback: 'You\'re determined to prove them wrong next season.', effect: { fanStatus: 0, ovr: 1, money: 0 } }
              ],
@@ -1602,7 +1647,7 @@ export function advanceToOffseason(ctx) {
     const newMet = coachKey && !met.includes(coachKey) ? [coachKey] : [];
     let newMen = [];
     if (newMet.length && !stayed && Math.random() < 0.55) {
-      lore = coachIntro(coach, { clubName, archetype });
+      lore = coachIntro(coach, { clubName, archetype, league: lg });
     } else if (stayed) {
       const room = rooms[team];
       const arrivals = (room?.men || []).filter(m => (m.years || 0) === 0 && (m.gp || 0) === 0 && !metMen.includes(m.id));
@@ -1614,7 +1659,7 @@ export function advanceToOffseason(ctx) {
         const pool = (getOpponentPool(lg) || []).filter(t => t.id !== team);
         const from = pool.length ? pool[(notable.m.name.length * 31) % pool.length] : null;
         lore = arrivalIntro(notable.m, notable.kind, {
-          clubName, fromName: from ? getFullTeamName(from.id, lg) : null, samePos: notable.m.pos === player.pos
+          clubName, fromName: from ? getFullTeamName(from.id, lg) : null, samePos: notable.m.pos === player.pos, league: lg
         });
       }
     }

@@ -97,6 +97,8 @@ export default function PlayoffsScreen() {
   const isSidelined = !!playoffs.playerSidelined;
   // Injured players watch from the press box, so there is no Bad Blood moment.
   const isBadBlood = !isSidelined && (isRivalMatchup || isFormerTeam);
+  // The question is still waiting for an answer.
+  const badBloodPending = isBadBlood && !!activeMatch && !activeMatch.badBloodAnswered && activeMatch.status === 'playing';
 
   // Round-by-round results of the team's run, for the press box summary.
   const sidelinedRuns = isSidelined
@@ -404,8 +406,15 @@ export default function PlayoffsScreen() {
                     </button>
                   </div>
                </div>
-            ) : isBadBlood && !activeMatch.badBloodAnswered && activeMatch.status === 'playing' ? (
-               <div className="w-full flex flex-col items-center pb-2 animate-fade-in">
+            ) : playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? (
+              <div className="grid w-full">
+                {/* The Bad Blood question shares this space with what comes
+                    after it, stacked in one grid cell. It used to replace it,
+                    and the cards are taller than the question, so answering
+                    it pushed the bracket down. The cell is as tall as the
+                    taller of the two for the whole round. */}
+                {isBadBlood && (
+               <div className={`[grid-area:1/1] w-full flex flex-col items-center pb-2 ${badBloodPending ? 'animate-fade-in' : 'invisible pointer-events-none'}`} aria-hidden={!badBloodPending}>
                   <span className={`${kickerClass('red')} mb-2`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
                   <h2 className={`${TITLE_SM} mb-3`}>Bad blood</h2>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
@@ -430,7 +439,8 @@ export default function PlayoffsScreen() {
                      </button>
                   </div>
                </div>
-            ) : playoffs.activeRoundIndex === playoffs.bracket.length - 1 ? (
+                )}
+              <div className={`[grid-area:1/1] w-full ${badBloodPending ? 'invisible pointer-events-none' : ''}`} aria-hidden={badBloodPending}>
               <div className="w-full flex flex-col items-center pb-3 animate-fade-in">
                  {activeMatch.status === 'playing' ? (
                    <>
@@ -462,8 +472,43 @@ export default function PlayoffsScreen() {
                    </div>
                  )}
               </div>
+              </div>
+              </div>
             ) : (
-              <>
+              <div className="grid w-full">
+                {/* The Bad Blood question shares this space with what comes
+                    after it, stacked in one grid cell. It used to replace it,
+                    and the cards are taller than the question, so answering
+                    it pushed the bracket down. The cell is as tall as the
+                    taller of the two for the whole round. */}
+                {isBadBlood && (
+               <div className={`[grid-area:1/1] w-full flex flex-col items-center pb-2 ${badBloodPending ? 'animate-fade-in' : 'invisible pointer-events-none'}`} aria-hidden={!badBloodPending}>
+                  <span className={`${kickerClass('red')} mb-2`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
+                  <h2 className={`${TITLE_SM} mb-3`}>Bad blood</h2>
+                  <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
+                     You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
+                  </p>
+                  <div className="flex flex-col gap-3 w-full">
+                     {/* The same choice rows as every event in the game. */}
+                     <button onClick={() => handleBadBloodAnswer('guarantee')} className={CHOICE_ROW}>
+                       <span className="flex justify-between items-start gap-4 w-full">
+                         <span className="flex flex-col min-w-0">
+                           <span className="font-bold leading-tight text-sm sm:text-base text-white">Guarantee a series win</span>
+                           <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">Win it and the city loves you. Lose it and they never let you forget.</span>
+                         </span>
+                         <span className={TAG_RED}>Risky</span>
+                       </span>
+                     </button>
+                     <button onClick={() => handleBadBloodAnswer('safe')} className={CHOICE_ROW}>
+                       <span className="flex flex-col min-w-0">
+                         <span className="font-bold leading-tight text-sm sm:text-base text-white">Play it safe</span>
+                         <span className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">The usual answers. Talk about the hockey.</span>
+                       </span>
+                     </button>
+                  </div>
+               </div>
+                )}
+              <div className={`[grid-area:1/1] w-full ${badBloodPending ? 'invisible pointer-events-none' : ''}`} aria-hidden={badBloodPending}>
                 {/* CARD GRID. A series deals nine squares holding exactly the
                     wins the format needs: four in a best-of-seven, three in a
                     best-of-five, two in a best-of-three. Single elimination
@@ -609,7 +654,8 @@ export default function PlayoffsScreen() {
                     </div>
                   )}
                 </div>
-              </>
+              </div>
+              </div>
             )}
           </div>
       )}

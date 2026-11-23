@@ -2068,6 +2068,29 @@ export const hasProContract = (p) => {
 // the low hundreds of thousands, and an NHL deal assigned to the minors pays
 // at least the NHL minimum. An NHL deal can also have him loaned back to
 // junior.
+// HOW LONG A CLUB HOLDS AN UNSIGNED PICK.
+//
+// The 2025 CBA, which covers every draft from 2027 on: a club keeps the rights
+// to a player it drafted at eighteen until the fourth June 1 after the draft,
+// and to one drafted older until the third. It's the same for a junior, a
+// college player and a European. Returns the summer they run out in (the
+// club has until that June 1 to sign him), or null if nobody holds them.
+// A player still in college when it comes round stays the club's until he
+// leaves school; the offseason handles that case.
+export const rightsExpiryYear = (p) => {
+  if (!p?.rights || !p.draftYear) return null;
+  if (p.rightsUntil) return p.rightsUntil;
+  return p.draftYear + ((p.draftAge ?? 18) <= 18 ? 4 : 3);
+};
+
+// HOW MANY DRAFTS HE GETS.
+//
+// Eligible the summer he's eighteen, and again at nineteen and twenty if
+// nobody takes him. A player from outside North America stays eligible one
+// more year, at twenty-one. After that, nobody drafts him and he signs where
+// he likes.
+export const lastDraftAge = (p) => (['CAN', 'USA'].includes(p?.nat) ? 20 : 21);
+
 export const onNhlContract = (p) => {
   const c = p?.contract;
   if (!c || !((c.salary || 0) > 0) || c.isScholarship) return false;

@@ -1,6 +1,6 @@
-import { staffFor } from './staffNames';
+import { staffFor, staffName } from './staffNames';
 import { gaussianNoise } from './production';
-import { juniorLeagues, EXTRA_LEAGUES } from '../data/teams';
+import { juniorLeagues, EXTRA_LEAGUES, LEAGUE_COUNTRY } from '../data/teams';
 
 // HOW OLD A ROOM CAN BE.
 //
@@ -72,6 +72,30 @@ const NATS = ['CAN', 'CAN', 'CAN', 'USA', 'USA', 'SWE', 'FIN', 'RUS', 'CZE', 'SV
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// WHERE THE MEN IN A EUROPEAN ROOM ARE FROM.
+//
+// Every room was drawn from the same list, three-in-thirteen Canadian, so a
+// Swedish under-18 side was half North Americans. A junior team in Europe is
+// the club's own local kids with the odd one from next door; a men's team is
+// mostly local with a handful of imports. North American rooms keep NATS.
+const NEIGHBOURS = {
+  SWE: ['FIN', 'DEN'], FIN: ['SWE'], DEN: ['SWE'], NOR: ['SWE', 'DEN'], RUS: ['RUS'],
+  CZE: ['SVK'], SVK: ['CZE'], SUI: ['GER'], GER: ['SUI'], AUT: ['GER']
+};
+const IMPORTS = ['CAN', 'CAN', 'USA', 'FIN', 'SWE', 'CZE', 'SVK'];
+const roomNat = (league) => {
+  const home = LEAGUE_COUNTRY[league];
+  if (!home) return pick(NATS);
+  const junior = juniorLeagues.includes(league);
+  if (Math.random() < (junior ? 0.95 : 0.7)) return home;
+  return junior ? pick(NEIGHBOURS[home] || [home]) : pick(IMPORTS.filter(n => n !== home));
+};
+// A name from that country: the room's own lists where it has one, and the
+// staff lists (which cover Norway, Britain, France and the rest) where not.
+const nameFor = (nat) => (FIRST[nat] && LAST[nat]
+  ? { name: `${pick(FIRST[nat])} ${pick(LAST[nat])}`, nat }
+  : staffName(nat));
 
 export const isD = (pos) => pos === 'LD' || pos === 'RD';
 export const isF = (pos) => pos === 'C' || pos === 'LW' || pos === 'RW';
@@ -149,8 +173,7 @@ const planFor = (pos) => {
 };
 
 const makeMan = (seed, { pos, strength, slot, size, league, age }) => {
-  const nat = pick(NATS);
-  const name = `${pick(FIRST[nat])} ${pick(LAST[nat])}`;
+  const { name, nat } = nameFor(roomNat(league));
   const peakAge = 25 + Math.round(gaussianNoise() * 2);
   const peak = peakFrom(drawToday(strength, slot, size, league), age, peakAge);
   const m = {

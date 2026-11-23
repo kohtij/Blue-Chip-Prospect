@@ -3,7 +3,7 @@ import PerkChip from '../components/PerkChip';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
 import { formatComp, offerSheetComp, offerSheetCompLong } from '../utils/contracts';
-import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText, withTeamArticle } from '../utils/gameHelpers';
+import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText, withTeamArticle, rightsExpiryYear, formatLeagueName } from '../utils/gameHelpers';
 import { bonusCeiling } from '../utils/bonuses';
 import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
@@ -43,15 +43,30 @@ export default function TransferScreen() {
   const OwnerThe = withTeamArticle(owningTeamName, owningLeague, true);
   // The Europe-only market: a farewell tour, or a way out of a relegated club.
   const europeBoard = freeAgencyOffers.length > 0 && freeAgencyOffers.every(o => o.state === 'Europe');
+  // An unsigned draft pick between contracts in Europe. Not a free agent: one
+  // NHL club holds his rights. See generateOffers.
+  const rightsBoard = freeAgencyOffers.some(o => o.rightsSummer);
+  const rightsText = (() => {
+    if (!rightsBoard || !player.rights) return null;
+    const nhlName = getFullTeamName(player.rights, 'NHL');
+    const until = rightsExpiryYear(player);
+    const here = getFullTeamName(player.team, player.league);
+    const offered = freeAgencyOffers.some(o => o.league === 'NHL');
+    return offered
+      ? `Your contract with ${here} is up. The ${nhlName} hold your NHL rights${until ? ` until the summer of ${until}` : ''}, so they're the only NHL club you can sign with. Take their entry-level contract now, or sign again in Europe and they keep your rights.`
+      : `Your contract with ${here} is up. The ${nhlName} hold your NHL rights${until ? ` until the summer of ${until}` : ''}, but they haven't offered you a contract this year. Pick where you play next season.`;
+  })();
 
   return (
           <div className="game-panel p-6 sm:p-10 mt-2">
             <h2 className={`${TITLE_MD} mb-4 text-center`}>
-              {freeAgencyOffers.some(o => o.type === 'TRADE') ? 'TRADE REQUEST' : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type)) ? 'OPEN MARKET' : 'FREE AGENCY'}
+              {freeAgencyOffers.some(o => o.type === 'TRADE') ? 'TRADE REQUEST' : rightsBoard ? 'YOUR NEXT CONTRACT' : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type)) ? 'OPEN MARKET' : 'FREE AGENCY'}
             </h2>
             <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10 font-medium text-center max-w-2xl mx-auto">
               {freeAgencyOffers.some(o => o.type === 'TRADE')
                 ? "Your agent has several trade offers. Pick where you want to go."
+                : rightsText
+                  ? rightsText
                 : freeAgencyOffers.some(o => ['SCHOLARSHIP', 'PRO CONTRACT'].includes(o.type))
                   ? "You're looking at other routes: an NCAA scholarship, or a pro contract in Europe."
                   : europeBoard
@@ -233,7 +248,8 @@ export default function TransferScreen() {
                                );
                              })()}
                              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block mt-1" style={{ color: accentText }}>
-                               {[o.league, teamData?.ncaaConf || teamData?.div].filter(Boolean).join(' · ')}
+                               {/* The league's name, not its code: "ALLSV" means nothing to anyone. */}
+                               {[formatLeagueName(o.league), teamData?.ncaaConf || teamData?.div].filter(Boolean).join(' · ')}
                              </span>
                            </div>
                         </div>
