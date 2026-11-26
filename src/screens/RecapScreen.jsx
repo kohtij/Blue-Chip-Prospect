@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { classWord } from '../utils/peers';
 import { useAppContext } from '../AppContext';
-import { getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
+import { championsOf, getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { amateurLeagues, getOpponentPool, getPlayoffRounds, getPrimaryRival, LEAGUE_CONFIG, ncaaTeams } from '../data/teams';
 import { splitPerk } from '../data/offerPerks';
 import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
@@ -259,7 +259,7 @@ export default function RecapScreen() {
                          narrative = `You won the ${titles?.cupName || 'championship'}, and the whole town turned out to see it.`;
                      }
                  } else {
-                     narrativeTitle = titles?.cupName ? `${titles.cupName.toUpperCase()} CHAMPIONS` : 'CHAMPIONS';
+                     narrativeTitle = titles?.cupName ? championsOf(titles.cupName).toUpperCase() : 'CHAMPIONS';
                      narrative = `You won the ${titles?.cupName || 'championship'}, and you skated it around the ice in front of a full building.`;
                  }
           } else if (madePlayoffsForNarrative) {

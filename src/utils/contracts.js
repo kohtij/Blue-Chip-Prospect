@@ -19,6 +19,7 @@
 import { compGroup, groupName, posGroup } from './peers';
 import { defensiveHalf, paceOf } from './production';
 import { careerAwardList } from './awardList';
+import { shopItems } from '../data/economy';
 
 // The player's own history writes goals/assists/games; a classmate's season
 // writes g/a/pts/gp. Both are read here, so neither caller has to care.
@@ -234,6 +235,40 @@ export function marketTier(anchor, year) {
   if (share >= 0.016) return { tier: 'regular', maxYears: 3, rfaMinYears: 2, floorShare: 0.016 };
   return { tier: 'fringe', maxYears: 2, rfaMinYears: 1, floorShare: 0 };
 }
+
+/**
+ * WHAT THE MARKET PAYS HIM.
+ *
+ * The one place an NHL salary is worked out, for free agency and for every
+ * offer that has to agree with it. The mid-season extension and the veteran's
+ * one-year deal each had a formula of their own, so a club offered $6.8M in
+ * February and $20.2M in July for the same player, and an 81-rated
+ * thirty-seven-year-old on $22M was offered the league minimum to stay.
+ *
+ * agentMulti is the agent's cut of the argument, rfa says whether he's
+ * restricted and can go to arbitration, and minimum is the league minimum.
+ */
+export function nhlMarketValue(player, year, { agentMulti = 1, rfa = null, minimum = 850000 } = {}) {
+  const market = comparables(player, player.peers, year);
+  const tier = marketTier(market.anchor, year);
+  const cap = capFor(year);
+  const repMod = (player.stats?.reputation ?? 100) / 100;
+  let salary = Math.max(market.anchor * agentMulti * repMod, cap * tier.floorShare);
+  if (tier.tier === 'fringe') salary = Math.max(minimum + 150000, salary);
+  // A restricted free agent has less leverage than an unrestricted one. See
+  // generateOffers.
+  if (rfa) salary *= rfa.canArbitrate ? 0.88 : 0.72;
+  // The maximum contract is twenty per cent of the cap.
+  salary = Math.min(cap * 0.20, salary);
+  return { salary, market, tier, cap };
+}
+
+/** What hiring the agent from the shop adds to every number. */
+export const agentMultiOf = (player) => ((player?.inventory || []).includes('agent')
+  ? (shopItems.find(i => i.id === 'agent')?.effect?.salaryModifier ?? 1.15) : 1);
+
+/** The league minimum salary that summer. */
+export const leagueMinimumFor = (year) => (year >= 2029 ? 1000000 : year === 2027 ? 900000 : 850000);
 
 const money = (n) => {
   if (n >= 1000000) {

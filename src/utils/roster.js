@@ -117,12 +117,25 @@ const D_ARCHETYPES = ['Puck-Mover', 'Shutdown', 'Two-Way'];
  * matters too: the first name in a room is a top-line player and the last is
  * a depth piece.
  */
+// The lowest a man in the room can be and still be in the league. An NHL
+// room drew men as low as forty-eight, so the worst clubs' depth players, and
+// sometimes their captains, were rated like junior players.
+const LEAGUE_FLOOR = { NHL: 60, AHL: 52 };
+const floorOf = (league) => LEAGUE_FLOOR[league] ?? 48;
+
+// The C goes to one of the club's real players: in the pro leagues a
+// captain who drops below this gives it up. Everywhere else it takes 60 to be
+// given it, and he keeps it.
+const CAPTAIN_FLOOR = { NHL: 70, AHL: 62 };
+const captainFloorOf = (league) => CAPTAIN_FLOOR[league] ?? 60;
+const keepsLetter = (m, league) => m.ovr >= (CAPTAIN_FLOOR[league] ?? 0);
+
 const drawToday = (strength, slot, size, league) => {
   const share = slot / Math.max(1, size);
   const top = 76 + (clamp(strength, 0, 1) - 0.5) * 22;
   const base = top - share * 16;
   const lgShift = league === 'NHL' ? 0 : league === 'AHL' ? -8 : -14;
-  return clamp(Math.round(base + lgShift + gaussianNoise() * 3.5), 48, 95);
+  return clamp(Math.round(base + lgShift + gaussianNoise() * 3.5), floorOf(league), 95);
 };
 
 /**
@@ -222,7 +235,9 @@ export function advanceRoom(room, { strength = 0.5, league = 'NHL' } = {}) {
     // which turns a room over across about a decade.
     const done = (m.age >= 36 && m.ovr < 62) || m.age >= 41;
     const agedOut = m.age > band.hi;
-    if (done || agedOut || Math.random() < 0.11) {
+    // Slipped below the league. He's sent down or let go, not kept on.
+    const cut = m.ovr < floorOf(league);
+    if (done || agedOut || cut || Math.random() < 0.11) {
       left.push({ ...raw, retired: done });
       seed += 1;
       const slot = men.length;
@@ -241,10 +256,15 @@ export function advanceRoom(room, { strength = 0.5, league = 'NHL' } = {}) {
   // The captaincy follows the room. If the captain left, the longest-serving
   // man with something left takes it. Never a goaltender: the league does not
   // let one wear the C, and older saves gave it to one.
+  //
+  // A captain who has aged out of being one of the club's real players hands
+  // it on. He used to keep it for as long as he stayed, which is how an NHL
+  // club came to be captained by a 53.
   for (const m of men) if (m.pos === 'G') m.captain = false;
+  for (const m of men) if (m.captain && !keepsLetter(m, league)) m.captain = false;
   if (!men.some(m => m.captain)) {
     const skaters = men.filter(m => m.pos !== 'G');
-    const eligible = skaters.filter(m => m.age >= 25 && m.ovr >= 60);
+    const eligible = skaters.filter(m => m.age >= 25 && m.ovr >= captainFloorOf(league));
     // With nobody old and good enough, the best player takes it. This used to
     // fall back to the longest-serving man whatever his rating, which is how a
     // 41 OVR ended up wearing the C.
@@ -313,7 +333,7 @@ export function makeRoom({ teamId, league = 'NHL', playerPos = 'C', playerAge = 
   // the letter to whichever fringe player happened to be drawn at twenty-eight.
   // Never a goaltender, who cannot wear the C in this league.
   const skaters = men.filter(m => m.pos !== 'G');
-  const senior = skaters.filter(m => m.age >= 25 && m.ovr >= 60);
+  const senior = skaters.filter(m => m.age >= 25 && m.ovr >= captainFloorOf(league));
   const cap = [...(senior.length ? senior : skaters)].sort((a, b) => b.ovr - a.ovr)[0];
   if (cap) cap.captain = true;
 

@@ -3,6 +3,18 @@ import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { getOpponentPool, isAmateurLeague, JUNIOR_PARENT_LEAGUE, LEAGUE_CONFIG, tradeMarketOf } from '../data/teams';
 import { elcBonuses, salaryParts, veteranBonuses } from '../utils/bonuses';
 
+
+// WHO TRADED HIM. Kept so the club can be told apart from any other on the
+// nights he plays them (see grudgeAgainst). A player in the minors on an NHL
+// deal was traded by the parent club, which holds his rights.
+const tradedAway = (player, toTeam) => {
+  const list = player.tradedAwayBy || [];
+  const fromNhlParent = ['AHL', 'ECHL'].includes(player.league) && player.rights;
+  const from = fromNhlParent ? player.rights : player.team;
+  if (!from || from === toTeam) return list;
+  return [...list, { team: from, league: fromNhlParent ? 'NHL' : player.league, season: player.stats?.seasonsPlayed || 0 }];
+};
+
 export function handleEventChoice(ctx, choice) {
   const { 
     player, setPlayer, setSeasonEvents, setScreen, 
@@ -138,7 +150,10 @@ export function handleEventChoice(ctx, choice) {
     // A one-year deal at thirty-five or over is the one veteran contract the
     // league lets carry performance bonuses, and clubs use them to pay for the
     // games he actually plays.
-    updated.contract = { salary: 850000, years: 1, ...((player.age || 0) >= 35 ? { bonuses: veteranBonuses() } : {}) };
+    // The salary is the one the offer showed (see advanceToOffseason). Older
+    // saves carry no figure and keep the minimum they were shown.
+    const vet = choice.actionData || {};
+    updated.contract = { salary: vet.salary || 850000, years: 1, ...(vet.role ? { role: vet.role } : {}), ...((player.age || 0) >= 35 ? { bonuses: veteranBonuses() } : {}) };
   } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
     // No club is chosen here any more. This used to roll one of two leagues and
     // one of its teams and simply tell you where you had signed, taking the
@@ -159,7 +174,11 @@ export function handleEventChoice(ctx, choice) {
     // sign him is not on the list of clubs offering him a contract days later.
     const heldBy = player.rights || player.draftTeam || null;
     updated.rights = null;
-    if (heldBy && ['RIGHTS EXPIRED', 'RIGHTS DEADLINE'].includes(activeEvent?.title)) updated.rightsLapsedBy = heldBy;
+    if (heldBy && ['RIGHTS EXPIRED', 'RIGHTS DEADLINE'].includes(activeEvent?.title)) {
+      updated.rightsLapsedBy = heldBy;
+      // The summer it happened, so the market can say why he's on it.
+      updated.rightsLapsedIn = 2026 + (player.stats?.seasonsPlayed || 0);
+    }
   } else if (actionStr === 'RIGHTS_LAPSE') {
     // The drafting club's rights ran out while he was signed in Europe. He
     // stays where he is, and when that deal ends any NHL club can sign him.
@@ -203,6 +222,9 @@ export function handleEventChoice(ctx, choice) {
       updated.league = league;
       updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), id]));
     }
+  } else if (actionStr === 'SET_BOYHOOD_TEAM') {
+    // The club he grew up cheering for. Never shown; free agency reads it.
+    updated.boyhoodTeam = choice.actionData || null;
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
     updated.contract = { salary: 925000, years: elcYears(player.age), role: getRole(925000, player), bonuses: elcBonuses(player.pos), nhl: true };
@@ -210,6 +232,7 @@ export function handleEventChoice(ctx, choice) {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
   } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {
         const teamId = choice.actionData?.teamObj?.id || choice.actionData?.team?.id || choice.actionData;
+        updated.tradedAwayBy = tradedAway(player, teamId);
         updated.team = teamId;
         updated.league = choice.actionData?.lg || player.league;
         updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
@@ -232,6 +255,7 @@ export function handleEventChoice(ctx, choice) {
         // that splits the season in two: the year is already filed and he
         // played all of it where he played it.
         const offTeamId = choice.actionData?.teamObj?.id || choice.actionData?.team?.id || choice.actionData;
+        updated.tradedAwayBy = tradedAway(player, offTeamId);
         updated.team = offTeamId;
         updated.league = choice.actionData?.lg || 'NHL';
         updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), offTeamId]));

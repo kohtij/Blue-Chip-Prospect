@@ -8,8 +8,9 @@ import { selectPressQuestions } from '../data/pressQuestions';
 import { checkPlayoffs } from './checkPlayoffs';
 import { isDefence } from '../utils/production';
 import { buildRun } from '../utils/intlRun';
-import { nhlSeasonsOf, onNhlContract } from '../utils/gameHelpers';
+import { grudgeAgainst, nhlSeasonsOf, onNhlContract } from '../utils/gameHelpers';
 import { parentOf } from '../utils/rosterMoves';
+import { boyhoodLine, boyhoodShortlist } from '../utils/boyhood';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings, opts = {}) {
   const { player, playoffs, setActiveEvent, setActivePress, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
@@ -31,6 +32,35 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
       if (madePlayoffs) checkPlayoffs(ctx, currentLg, currentTeam, standings, { sidelined });
       else setScreen('recap');
       return;
+    }
+
+    // THE TEAM HE GREW UP CHEERING FOR. Asked once, in his first season,
+    // before anything else the year has in store. See utils/boyhood.js.
+    if (!player.boyhoodTeam && !player.storylines?.boyhoodAsked && (player.age || 16) <= 17) {
+        const shortlist = boyhoodShortlist(player);
+        if (shortlist.length) {
+            setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), boyhoodAsked: true } }));
+            setActiveEvent({
+                title: '🛏️ THE POSTER ON YOUR WALL',
+                desc: `A reporter from the local paper is writing about the league's youngest players, and she asks you the question every one of them gets: which NHL team did you grow up cheering for?`,
+                choices: shortlist.map((id) => {
+                    const name = getFullTeamName(id, 'NHL');
+                    return {
+                        label: `The ${name}`,
+                        subLabel: boyhoodLine(id, player.nat),
+                        isRisky: false,
+                        feedback: `You told her it was the ${name}, and it ran under your photo the next morning.`,
+                        effect: { fanStatus: 5, ovr: 0, money: 0 },
+                        action: 'SET_BOYHOOD_TEAM',
+                        actionData: id
+                    };
+                }),
+                isSeasonEvent: true,
+                madePlayoffs
+            });
+            setScreen('event');
+            return;
+        }
     }
 
     // ==========================================
@@ -287,17 +317,28 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     if (hometownStage === 2 && !wonHere && currentLg === 'NHL' && Math.random() < 0.4) {
         setPlayer(p => ({ ...p, storylines: { ...p.storylines, hometown: 3 } })); // End arc
         
-        let pool = (getOpponentPool('NHL') || []).filter(t => t.id !== currentTeam);
+        // A warm, low-pressure market, as the story says: the Sun Belt and the
+        // West Coast, not another hockey capital. It used to be any club at
+        // all, and the event never said which until the button did.
+        const WARM = ['CAR', 'FLA', 'TBL', 'DAL', 'NSH', 'ANA', 'LAK', 'SJS', 'VGK', 'UTA'];
+        const others = (getOpponentPool('NHL') || []).filter(t => t.id !== currentTeam);
+        let pool = others.filter(t => WARM.includes(t.id));
+        if (pool.length === 0) pool = others;
         if (pool.length === 0) pool = [{ id: 'UNK', name: 'Unknown Team' }];
         const destTeam = pool[Math.floor(Math.random() * pool.length)];
+        const destName = getFullTeamName(destTeam.id, 'NHL');
 
         setActiveEvent({
             title: '🧳 THE BREAKING POINT',
-            desc: `The season is over, and a club in a warm, low-pressure market has made you an off-the-books promise: let them trade for you, and they will pay you a fortune to get away from all this.`,
+            desc: `The season is over, and the **${destName}** have made you an off-the-books promise: let them trade for you, and they'll pay you a fortune to get away from all this. Warm weather, half-empty press rooms, and nobody waiting for you at the airport.`,
             choices: [
                 { label: 'Stay and fight', subLabel: 'Pledge your loyalty to the city, for better or worse.', isRisky: true, successChance: 0.5, successFeedback: 'You told the city you\'re staying. The fans were in tears, and you won\'t pay for a drink here again.', successEffect: { fanStatus: 150, ovr: 2, rel: { teammates: 20 } }, failFeedback: 'You stayed, and the coverage is wearing away how much you enjoy playing.', failEffect: { fanStatus: 10, ovr: -2, rel: { media: -10 } } },
-                // Plain choice on purpose, same reasoning as the mutiny trade above.
-                { label: 'Take the money and escape', subLabel: `Take the money and leave for the ${destTeam.name}.`, isRisky: false, feedback: `You left for ${destTeam.name}. You're rich and relaxed, and back home they're burning your jersey.`, effect: { fanStatus: -150, ovr: 0, money: 2500000 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 8, madePlayoffs: true } }
+                // The club's own card, as every trade offer in an event gets, so
+                // the club trying to lure him is a crest and a name rather than
+                // a line of grey text in a button. The fortune goes on it too.
+                { label: 'Take the money and escape', subLabel: `Take the money and leave for the ${destName}.`, isRisky: false, feedback: `You left for the ${destName}. You're rich and relaxed, and back home they're burning your jersey.`, effect: { fanStatus: -150, ovr: 0, money: 2500000 },
+                  perks: [{ name: 'Paid to leave', effect: '+$2.5M' }],
+                  action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: destTeam, lg: 'NHL', teamStandings: 8, madePlayoffs: true, showTeamCard: true, keepMarket: true } }
             ],
             madePlayoffs
         });
@@ -486,6 +527,86 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
           setScreen('intl-tournament');
           return;
        }
+    }
+
+    // THE NIGHT AGAINST THE CLUB THAT LET HIM GO.
+    //
+    // The club that traded him away, or the one that drafted him and that he
+    // never played for or left. Nothing marked those nights: they were a game
+    // like any other, and only the playoffs knew about an old club, and only
+    // one he'd played three seasons for. A trade this season is near certain
+    // to come up (he'll have played them by the spring); an older one, or a
+    // club that drafted him, comes up now and then, and no club more than
+    // twice in a career.
+    {
+      const seasonNo = player.stats?.seasonsPlayed || 0;
+      const seen = player.storylines?.returnGames || {};
+      const recentTrades = (player.tradedAwayBy || [])
+        .filter(t => (t.league || 'NHL') === currentLg && seasonNo - (t.season ?? -99) <= 3);
+      const clubs = [
+        ...recentTrades.slice().reverse().map(t => ({ id: t.team, kind: 'traded', thisYear: t.season === seasonNo })),
+        ...(currentLg === 'NHL' && player.draftTeam ? [{ id: player.draftTeam, kind: 'drafted', thisYear: false }] : [])
+      ].filter((c, i, all) => c.id && all.findIndex(x => x.id === c.id) === i
+        && grudgeAgainst(player, c.id, currentLg) && (seen[c.id] || 0) < 2);
+      const club = clubs[0];
+      const odds = !club ? 0 : club.thisYear ? 0.8 : club.kind === 'traded' ? 0.3 : 0.15;
+      if (club && Math.random() < odds) {
+        const name = getFullTeamName(club.id, currentLg);
+        const isG = player.pos === 'G';
+        const isD = isDefence(player.pos);
+        const pick = (g, d, f) => (isG ? g : isD ? d : f);
+        setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), returnGames: { ...(p.storylines?.returnGames || {}), [club.id]: (seen[club.id] || 0) + 1 } } }));
+        const desc = club.kind === 'drafted'
+          ? `The **${name}** drafted you, and then they let you go. Tonight you play them, and the scouts who sat at their table on draft night are in the press box.`
+          : club.thisYear
+            ? `It's your first game against the **${name}** since they traded you. Half their room still has your number in their phones, and the general manager who made the deal is watching from the press box.`
+            : `The **${name}** are on the schedule tonight, the club that traded you away. The fans who used to cheer for you have had a while to decide how they feel about it.`;
+        const who = club.kind === 'drafted' ? 'the club that drafted you' : 'the club that traded you';
+        setActiveEvent({
+          title: club.kind === 'drafted' ? '🎯 THE CLUB THAT DRAFTED YOU' : '🔁 THE CLUB THAT TRADED YOU',
+          desc,
+          choices: [
+            {
+              label: 'Make them regret it',
+              subLabel: 'Put this one on your shoulders.',
+              isRisky: true,
+              successChance: 0.5,
+              successFeedback: pick(
+                `You stopped 38 of 39, and the ${name} left the building beaten by ${who}.`,
+                `You shut down their top line all night and set up the winner, and the ${name} left beaten by ${who}.`,
+                `You scored twice and you won, and the ${name} had to watch ${who} beat them.`),
+              successEffect: { fanStatus: 30, ovr: 1, money: 0 },
+              failFeedback: pick(
+                `You were trying too hard and it showed. They scored four on you, and they lost no sleep over the trade.`,
+                `You chased the big play all night, got caught twice, and they won.`,
+                `You pressed all night, missed the net every time it mattered, and they won.`),
+              failEffect: { fanStatus: -10, ovr: 0, money: 0 }
+            },
+            {
+              label: 'Just another game',
+              subLabel: 'Play your game and let the result say it.',
+              isRisky: false,
+              feedback: `You kept it simple and the team won. You didn't celebrate any more than usual, which said plenty.`,
+              effect: { fanStatus: 10, ovr: 1, money: 0 }
+            },
+            {
+              label: 'Say something before the game',
+              subLabel: 'Give the reporters the line they want.',
+              isRisky: true,
+              successChance: 0.45,
+              successFeedback: `You told the reporters you had a point to prove, then beat the ${name} and proved it. That clip was everywhere by morning.`,
+              successEffect: { fanStatus: 35, ovr: 0, money: 0, rel: { media: 5 } },
+              failFeedback: `You told the reporters you had a point to prove, and then the ${name} beat you. Their fans haven't stopped quoting you.`,
+              failEffect: { fanStatus: -20, ovr: 0, money: 0, rel: { media: -10 } }
+            }
+          ],
+          isSeasonEvent: true,
+          isDemotionEvent: false,
+          madePlayoffs
+        });
+        setScreen('event');
+        return;
+      }
     }
 
     const rivalObj = getPrimaryRival(currentTeam, currentLg);

@@ -1,9 +1,9 @@
-import { getOpponentPool, getTeamData, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues, u18Leagues, U18_NEXT_LEAGUE, LEAGUE_COUNTRY, countryProLeagues, findClubLeague } from '../data/teams';
+import { getOpponentPool, getTeamData, tradeMarketOf, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues, u18Leagues, U18_NEXT_LEAGUE, LEAGUE_COUNTRY, countryProLeagues, findClubLeague } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
 import { ATTR_FLOOR, formatMoney, formatMoney3, gamesInLeague, nhlSeasonsOf, recomputeOvr, isNhlFreeAgentEligible, hasProContract, leagueWithArticle, onNhlContract, withTeamArticle, rightsExpiryYear, lastDraftAge } from '../utils/gameHelpers';
-import { capFor, majorCount, priceOf, recentForm } from '../utils/contracts';
+import { agentMultiOf, capFor, leagueMinimumFor, majorCount, nhlMarketValue, priceOf, recentForm } from '../utils/contracts';
 import { bonusCeiling, buyoutTerms, salaryParts, veteranBonuses } from '../utils/bonuses';
 import { coachOpening, ensureClub, goaliePartner, inTopOfLineup, playerArchetype, roomFor, summerAtClubs } from '../utils/roster';
 import { teammatesFrom } from '../utils/peers';
@@ -246,14 +246,31 @@ export function advanceToOffseason(ctx) {
     const myRoom = roomFor(player.rooms, player.team);
     const partner = goaliePartner(myRoom);
     if (partner && (partner.trust ?? 50) <= 28 && (partner.years || 0) >= 2) {
+      // How a goalie who wants out gets out depends on where they are. A pro
+      // has an agent and gets traded or sold, a college goalie has the
+      // transfer portal, a North American junior's family asks for a trade,
+      // and a European junior just moves clubs in the summer. The event was
+      // written for the NHL, so a college goalie had "his agent briefing
+      // reporters" and was "traded in November".
+      const market = tradeMarketOf(currentLeague);
+      const route = currentLeague === 'NCAA' ? 'college'
+        : isCurrentlyAmateur ? (market ? 'naJunior' : 'euroJunior')
+          : market === 'fees' ? 'euroPro' : 'naPro';
+      const exit = {
+        college: { why: "He's told people he'll enter the transfer portal if nothing changes.", stays: 'He played six weeks, went 11-4, and decided to stay.', leaves: "You said nothing. He entered the transfer portal in the spring and didn't say goodbye.", knew: 'He knew the depth chart when he committed. Say nothing.' },
+        naJunior: { why: 'His family has been on the phone to the GM asking for a trade.', stays: 'He played six weeks, went 11-4, and the GM stopped taking calls about him.', leaves: "You said nothing. He was traded in November and didn't shake your hand on the way out.", knew: 'He knew the depth chart when he got here. Say nothing.' },
+        euroJunior: { why: "He's been telling people he'll move to another club next season.", stays: 'He played six weeks, went 11-4, and decided to stay another season.', leaves: "You said nothing. He left for another club at the end of the season without saying goodbye.", knew: 'He knew the depth chart when he got here. Say nothing.' },
+        euroPro: { why: 'His agent has been talking to other clubs about a move.', stays: 'He played six weeks, went 11-4, and signed his extension in March.', leaves: "You said nothing. He left for another club in November and didn't shake your hand on the way out.", knew: 'He knew what it was when he signed. Say nothing.' },
+        naPro: { why: 'His agent has been briefing reporters about a club that would actually play him.', stays: 'He played six weeks, went 11-4, and signed his extension in March.', leaves: "You said nothing. He was traded in November and didn't shake your hand on the way out.", knew: 'He knew what it was when he signed. Say nothing.' }
+      }[route];
       setPlayer(p => ({ ...p, storylines: { ...p.storylines, netRift: true } }));
       setActiveEvent({
         title: '🥅 THE MAN AT THE OTHER END',
-        desc: `You have taken the net off ${partner.name} for ${partner.years === 2 ? 'two years' : `${partner.years} years`} now, and he has spent them in a ball cap at the end of the bench. Goalies are supposed to be the closest two men in a room and you haven't had a real conversation since training camp. His agent has been briefing reporters about a club that would actually play him.`,
+        desc: `You have taken the net off ${partner.name} for ${partner.years === 2 ? 'two years' : `${partner.years} years`} now, and he has spent them in a ball cap at the end of the bench. Goalies are supposed to be the closest two men in a room and you haven't had a real conversation since training camp. ${exit.why}`,
         choices: [
           { label: 'Go and talk to him', subLabel: 'Say the thing nobody in the room wants to say out loud.', isRisky: false, feedback: 'You drove to his place in July and the two of you had it out over three hours. The depth chart stayed the same, and the two of you have been fine since.', effect: { fanStatus: 0, ovr: 0, rel: { teammates: 18 } } },
-          { label: 'Let him have the net for a stretch', subLabel: 'Tell the coach to run him for a month and take the games back after.', isRisky: true, successChance: 0.5, successFeedback: 'He played six weeks, went 11-4, and signed his extension in March. He has told anyone who will listen whose idea it was.', successEffect: { fanStatus: 10, ovr: 0, rel: { teammates: 25, coach: -8 } }, failFeedback: 'He played six weeks and the coach liked what he saw rather more than you intended. You spent February earning your own net back.', failEffect: { fanStatus: -10, ovr: 0, rel: { coach: -12 } } },
-          { label: 'It\'s a job', subLabel: 'He knew what it was when he signed. Say nothing.', isRisky: false, feedback: 'You said nothing. He was traded in November and didn\'t shake your hand on the way out.', effect: { fanStatus: 0, ovr: 1, rel: { teammates: -20 } } }
+          { label: 'Let him have the net for a stretch', subLabel: 'Tell the coach to run him for a month and take the games back after.', isRisky: true, successChance: 0.5, successFeedback: `${exit.stays} He has told anyone who will listen whose idea it was.`, successEffect: { fanStatus: 10, ovr: 0, rel: { teammates: 25, coach: -8 } }, failFeedback: 'He played six weeks and the coach liked what he saw rather more than you intended. You spent February earning your own net back.', failEffect: { fanStatus: -10, ovr: 0, rel: { coach: -12 } } },
+          { label: isCurrentlyAmateur ? 'It\'s hockey' : 'It\'s a job', subLabel: exit.knew, isRisky: false, feedback: exit.leaves, effect: { fanStatus: 0, ovr: 1, rel: { teammates: -20 } } }
         ],
         isOffseasonEvent: true
       });
@@ -657,12 +674,22 @@ export function advanceToOffseason(ctx) {
            choices.push({ label: 'Play out current contract', subLabel: 'Honour the deal and give it one more year.', isRisky: false, feedback: 'You\'ll play out the last year of your contract.', effect: { fanStatus: 10, ovr: -2, money: 0 } });
        } else {
            if (player.ovr >= 76 && player.league === 'NHL') {
-               // The deal is fixed (see VETERAN_EXTENSION), so it's shown as a
-               // contract like every other offer in an event.
-               choices.push({ label: 'Push for one more NHL season', subLabel: 'Sign a short veteran extension to chase one more shot.',
-                 contract: { salary: 850000, years: 1, role: 'Veteran',
+               // What the year is worth. It was the league minimum for
+               // everybody, so an 81 coming off a $22M deal was offered
+               // $850,000 to stay. A one-year deal for a veteran is priced on
+               // what he still does, the way free agency prices him (see
+               // nhlMarketValue), a little under it because he's the one asking.
+               const vetYear = 2026 + (player.stats?.seasonsPlayed || 0);
+               const vetMin = leagueMinimumFor(vetYear);
+               const vetValue = nhlMarketValue(player, vetYear, { agentMulti: agentMultiOf(player), minimum: vetMin }).salary;
+               const vetSalary = Math.max(vetMin, Math.round((vetValue * 0.9) / 25000) * 25000);
+               const vetRole = getRole(vetSalary, { ...player, league: 'NHL' });
+               // Shown as a contract like every other offer in an event.
+               choices.push({ label: 'Push for one more NHL season', subLabel: 'Sign a one-year veteran extension to chase one more shot.',
+                 contract: { salary: vetSalary, years: 1, role: vetRole,
                    perks: (player.age || 0) >= 35 ? [{ name: 'Games bonuses', effect: `Up to ${formatMoney3(bonusCeiling(veteranBonuses()))}` }] : [] },
-                 isRisky: false, feedback: 'You signed a one-year extension for one more run at it.', effect: { fanStatus: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION' });
+                 isRisky: false, feedback: 'You signed a one-year extension for one more run at it.', effect: { fanStatus: 10, ovr: -2, money: 0 }, action: 'VETERAN_EXTENSION',
+                 actionData: { salary: vetSalary, role: vetRole } });
            } else if (player.ovr >= 68) {
                choices.push({ label: 'Attempt a comeback in the AHL', subLabel: 'Sign a two-way deal and grind it out for a shot back up.',
                  contract: { salary: 150000, years: 1, role: 'Veteran Mentor' },

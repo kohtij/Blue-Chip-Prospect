@@ -172,7 +172,12 @@ export default function EventScreen() {
                       }
                   }
 
-                  if (charCode % 3 === 0) {
+                  // A club whose market the event already describes (the
+                  // Breaking Point's warm, quiet one) doesn't get a second,
+                  // contradicting description from the card.
+                  if (displayChoice.actionData.keepMarket) {
+                       // nothing
+                  } else if (charCode % 3 === 0) {
                        displayChoice.perks.push({ name: 'Big market', effect: '+15 fans' });
                        displayChoice.effect.fanStatus = (displayChoice.effect.fanStatus || 0) + 15;
                   } else if (charCode % 3 === 1) {

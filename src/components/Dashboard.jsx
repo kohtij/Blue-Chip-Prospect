@@ -141,6 +141,30 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
     return { label: 'Domestic', text: 'text-slate-500' };
   })();
 
+  // HIS LETTER FOR HIS COUNTRY.
+  //
+  // The national team names its captain and alternates for each tournament,
+  // and that letter used to show only on the tournament screen and at
+  // retirement. It's the letter from his most recent tournament at his level
+  // (the junior ones while he's a junior, the senior ones after), so it stays
+  // on the card between tournaments and goes if the next one gives it to
+  // somebody else.
+  const natLetter = (() => {
+    const junior = (player.age || 0) <= 19;
+    const isJuniorEvent = (t) => /junior|u20|u18/i.test(String(t?.tournamentName || ''));
+    const all = [];
+    for (const s of player.seasonHistory || []) all.push(...(s.intl || (s.intlData ? [s.intlData] : [])));
+    if (player.pendingIntl?.intlData) all.push(player.pendingIntl.intlData);
+    if (player.intlRun) all.push({ tournamentName: player.intlRun.tournamentName, letter: player.intlRun.letter || null });
+    const mine = all.filter(t => isJuniorEvent(t) === junior);
+    return mine.length ? (mine[mine.length - 1].letter || null) : null;
+  })();
+  // A man wearing a letter is on the team, whatever his rating says about the
+  // bubble. A smaller nation's captain can be rated well under 75.
+  const intlShown = natLetter && ['Domestic', "Nat'l bubble", 'U20 bubble', 'U20 radar'].includes(intlStatus.label)
+    ? (player.age <= 19 ? { label: 'U20 squad', text: 'text-[#3b82f6]' } : { label: "Nat'l squad", text: 'text-[#22E748]' })
+    : intlStatus;
+
   const fanBarColor = (f) =>
     f < 300 ? 'linear-gradient(90deg, color-mix(in srgb, #64748b 55%, #1e293b), #94a3b8)'
       : f < 600 ? 'linear-gradient(90deg, color-mix(in srgb, #3b82f6 55%, #1e3a8a), #60a5fa)'
@@ -395,9 +419,14 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
                   {getFullTeamName(player.team, player.league)}
                 </p>
                 <p className="text-[11px] font-black uppercase tracking-tight leading-tight break-words text-white">
+                  {/* Position, age, then archetype, and the archetype only once
+                      you've picked it at your first camp. A save from before
+                      the flag existed has picked it if a season is done. */}
                   <span className="text-slate-500">Pos </span>{player.pos}
-                  {player.archetype ? <><span className="text-slate-500"> · </span>{player.archetype}</> : null}
                   <span className="text-slate-500"> · Age </span>{player.age}
+                  {player.archetype && (player.archetypeChosen || (player.stats?.seasonsPlayed || 0) > 0)
+                    ? <><span className="text-slate-500"> · </span>{player.archetype}</>
+                    : null}
                 </p>
               </div>
             </div>
@@ -734,13 +763,22 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
 
               {/* Where he stands with his country, which was a line in the
                   facts grid under his name. */}
-              {intlStatus?.label && (
+              {intlShown?.label && (
                 <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[rgba(255,255,255,0.06)]">
                   <span className="flex items-center gap-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                     {flagImg && <img src={flagImg} alt="" className="h-2.5 w-4 rounded-[1px] object-cover" />}
                     National team
                   </span>
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${intlStatus.text}`}>{intlStatus.label}</span>
+                  <span className="flex items-center gap-1.5">
+                    {/* The same patch the club letter wears on the crest. */}
+                    {natLetter && (
+                      <span className={`w-4 h-4 rounded-[4px] text-[9px] font-black leading-none flex items-center justify-center text-white ${natLetter === 'C' ? 'bg-[#ef4444]' : 'bg-[#3b82f6]'}`}
+                            title={natLetter === 'C' ? 'Captain of the national team' : 'Alternate captain of the national team'}>
+                        {natLetter}
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-black uppercase tracking-wider ${intlShown.text}`}>{intlShown.label}</span>
+                  </span>
                 </div>
               )}
             </div>

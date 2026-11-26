@@ -5,7 +5,7 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { formatComp, offerSheetComp, offerSheetCompLong } from '../utils/contracts';
 import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText, withTeamArticle, rightsExpiryYear, formatLeagueName } from '../utils/gameHelpers';
 import { bonusCeiling } from '../utils/bonuses';
-import { getPrimaryRival, getTeamData, nhlTeams, readableAccent, teamAccent } from '../data/teams';
+import { getPrimaryRival, getTeamData, isAmateurLeague, nhlTeams, readableAccent, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import { TITLE_MD } from '../utils/ui';
 
@@ -23,7 +23,7 @@ const getCompensation = (salary) => offerSheetComp(salary);
 const compensationLong = (salary) => offerSheetCompLong(salary);
 
 export default function TransferScreen() {
-  const { freeAgencyOffers, player, signContract, startNegotiation, handleArbitration } = useAppContext();
+  const { freeAgencyOffers, player, signContract, startNegotiation, handleArbitration, setScreen } = useAppContext();
 
   let owningTeam = player.team;
   let owningLeague = player.league;
@@ -43,6 +43,24 @@ export default function TransferScreen() {
   const OwnerThe = withTeamArticle(owningTeamName, owningLeague, true);
   // The Europe-only market: a farewell tour, or a way out of a relegated club.
   const europeBoard = freeAgencyOffers.length > 0 && freeAgencyOffers.every(o => o.state === 'Europe');
+  // The farewell tour. He chose Europe over retiring, and seeing the offers
+  // shouldn't take retiring away: it was a one-way door until now.
+  const twilightBoard = europeBoard && freeAgencyOffers.some(o => o.twilight);
+  // A player leaving amateur hockey with nobody holding his rights: aged out
+  // of junior or done with college undrafted, or a pick whose club let the
+  // rights run out this summer. "The Flint Firebirds elected not to offer you
+  // a new contract" was wrong for all of them: a junior club can't sign a
+  // player to a pro deal, and nobody had passed on anything.
+  const summerNow = 2026 + (player.stats?.seasonsPlayed || 0);
+  const leavingAmateur = (() => {
+    if (player.rightsLapsedBy && player.rightsLapsedIn === summerNow) {
+      return `The ${getFullTeamName(player.rightsLapsedBy, 'NHL')} let their rights to you run out, so you're a free agent and any club can sign you. These are the clubs that want you.`;
+    }
+    if (!isAmateurLeague(player.league) || player.rights) return null;
+    return player.league === 'NCAA'
+      ? "Your college hockey is done and nobody drafted you, so you're free to sign with any club. These are the clubs that want you."
+      : "You've aged out of junior hockey without being drafted, so you're free to sign with any club. These are the clubs that want you.";
+  })();
   // An unsigned draft pick between contracts in Europe. Not a free agent: one
   // NHL club holds his rights. See generateOffers.
   const rightsBoard = freeAgencyOffers.some(o => o.rightsSummer);
@@ -81,6 +99,8 @@ export default function TransferScreen() {
                           ? `You're a restricted free agent. The ${owningTeamName} qualified you at ${formatMoney3(qo.salary)} for one year, which keeps your rights with them. Take their longer deal, sign the qualifying offer and be restricted again next summer${qo.arbitration ? ', or file for arbitration' : ''}. Other clubs can send you an offer sheet, and the ${owningTeamName} can match it.`
                           : `You're a restricted free agent. The ${owningTeamName} hold your rights, and other clubs can send you an offer sheet that they can match.`;
                       })()
+                    : leavingAmateur
+                      ? leavingAmateur
                     : teamDidNotOffer
                         ? (isRestricted(player)
                             ? `${OwnerThe} elected not to extend a Qualifying Offer. You're now an Unrestricted Free Agent testing the open market.`
@@ -415,7 +435,7 @@ export default function TransferScreen() {
                              onClick={() => signContract(discountOffer)} 
                              className="btn-secondary w-full py-2.5 mb-1 rounded-xl cursor-pointer sports-font tracking-widest text-[10px] sm:text-xs flex flex-col items-center leading-tight"
                            >
-                             <span>HOMETOWN DISCOUNT</span>
+                             <span>{discountOffer.discountReason === 'boyhood' ? 'THE TEAM YOU GREW UP ON' : 'HOMETOWN DISCOUNT'}</span>
                              <span className="text-[8px] sm:text-[9px] opacity-80 mt-0.5 font-sans uppercase tracking-wider">
                                Take {formatMoney3(discountOffer.salary)}/yr for +100 fans
                              </span>
@@ -456,6 +476,19 @@ export default function TransferScreen() {
                 });
               })()}
             </div>
+
+            {twilightBoard && (
+              <div className="flex flex-col items-center gap-2 mb-8 px-2">
+                <p className="text-xs sm:text-sm text-slate-400 text-center">None of these for you? You can still call it a career.</p>
+                <button
+                  type="button"
+                  onClick={() => setScreen('retirement')}
+                  className="btn-secondary py-3 px-6 rounded-xl sports-font tracking-widest text-xs sm:text-sm cursor-pointer"
+                >
+                  RETIRE INSTEAD
+                </button>
+              </div>
+            )}
 
             {/* THE OFFERS COME FIRST.
 

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useAppContext } from '../AppContext';
 import { getFullTeamName } from '../utils/appHelpers';
-import { NO_ARTICLE_LEAGUES, ordinal, withTeamArticle } from '../utils/gameHelpers';
+import { ordinal, rightsExpiryYear, withTeamArticle } from '../utils/gameHelpers';
 import { classSalt, compGroup, draftBoard, flagFor, groupName, positionDraftSlot, roomProspect } from '../utils/peers';
 import LeagueTag from '../components/LeagueTag';
-import { euroLeagues, juniorLeagues } from '../data/teams';
+import { euroLeagues, getTeamData, juniorLeagues, readableAccent, teamAccent } from '../data/teams';
 import { leagueLabel } from '../utils/peers';
-import { kickerClass, TITLE_LG } from '../utils/ui';
+import { kickerClass, TITLE_LG, TITLE_SM } from '../utils/ui';
 
 export default function DraftScreen() {
   const { TeamLogo, handleDraftChoice, player, seasonRecap } = useAppContext();
@@ -52,7 +52,7 @@ export default function DraftScreen() {
         : 'BACK TO JUNIORS';
     return (
       <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
-        <span className={`${kickerClass('neutral')} mb-4`}>The {seasonRecap.draftYear} NHL draft</span>
+        <h1 className={`${TITLE_SM} mb-6`}>The {seasonRecap.draftYear} NHL Draft</h1>
         {/* Straight on the panel. It sat in a box of its own inside it, a
             card on a card holding nothing but three lines of text. */}
         <div className="mt-2 mb-8 max-w-2xl mx-auto flex flex-col items-center">
@@ -109,42 +109,73 @@ export default function DraftScreen() {
     return said.length ? said.join(' ') : null;
   })();
 
+  // The club that took him. Its colour takes over the panel's strip and wash
+  // for this one screen, the way the player's own club's does everywhere else.
+  const clubId = seasonRecap?.draftedBy?.id;
+  const accent = teamAccent(getTeamData(clubId, 'NHL'));
+  const accentText = readableAccent(accent);
+  const pick = seasonRecap?.draftPick;
+
+  // How many players at his position the whole draft took before him. The
+  // night is run pick by pick and kept, so this is a count, not an estimate.
+  // It used to be told only against the classmates the scouts followed, about
+  // one pick in eight, which made the 57th pick "the 2nd left winger taken"
+  // when a real draft has taken eight or nine by then.
+  const draftSlot = (() => {
+    if (!pick) return null;
+    const group = compGroup(player.pos);
+    if (night) return night.picks.filter(r => !r.me && r.pick < night.myPick && compGroup(r.pos) === group).length + 1;
+    return positionDraftSlot(player.peers, player.pos, pick).draftSlot;
+  })();
+  const takenLine = draftSlot
+    ? `You were the ${draftSlot === 1 ? 'first' : ordinal(draftSlot)} ${groupName(compGroup(player.pos), false)} taken.`
+    : null;
+
   return (
-    <div className="game-panel p-6 sm:p-10 mt-2 text-center relative">
-      
+    <div className="game-panel p-6 sm:p-10 mt-2 text-center relative" style={accent ? { '--club': accent } : undefined}>
 
-      <span className={`${kickerClass('neutral')} mb-4`}>{seasonRecap?.draftYear ? `The ${seasonRecap.draftYear} NHL draft` : 'The NHL draft'}</span>
-      
-      <div className="bg-[#0d110d] border border-[rgba(255,255,255,0.08)] p-8 sm:p-12 rounded-2xl mb-10 max-w-2xl mx-auto relative overflow-hidden flex flex-col items-center">
-        <div className="absolute top-0 w-full bg-[#2563eb] text-white font-black text-xs sm:text-sm py-1.5 text-center tracking-widest">
-          ROUND {seasonRecap?.draftRound} • PICK {seasonRecap?.draftPick}
-        </div>
-        
+      {/* THE CALL.
+          It sat in a box of its own inside the panel, a card on a card, with
+          a bright blue banner across the top of it. It's straight on the panel
+          now, the way the playoff screen is, with the drafting club's colour on
+          the panel itself. The round and pick keep the banner's wording. */}
+      <div className="flex flex-col items-center max-w-2xl mx-auto mb-7">
+        <h1 className={TITLE_SM}>
+          {seasonRecap?.draftYear ? `The ${seasonRecap.draftYear} NHL Draft` : 'The NHL Draft'}
+        </h1>
+        <p className="mt-2 sports-font text-sm sm:text-base font-black uppercase tracking-[0.22em] text-slate-300 tabular-nums">
+          Round {seasonRecap?.draftRound}<span className="mx-2.5" style={{ color: accentText }}>•</span>Pick {pick}
+        </p>
+
         <div className="mt-4">
-           <TeamLogo teamId={seasonRecap?.draftedBy?.id} league="NHL" />
+          <TeamLogo teamId={clubId} league="NHL" size="hero" />
         </div>
-        
-        <h2 className="text-sm sm:text-lg font-bold text-slate-300 uppercase mt-6 mb-2 sports-font tracking-wide leading-tight px-4">
-          THE {getFullTeamName(seasonRecap?.draftedBy?.id, 'NHL').toUpperCase()} ARE PROUD TO SELECT, FROM {NO_ARTICLE_LEAGUES.includes(seasonRecap?.juniorLeague) ? '' : 'THE '}{getFullTeamName(seasonRecap?.juniorTeam, seasonRecap?.juniorLeague).toUpperCase()}...
-        </h2>
-        
-        {/* Added break-words, w-full, and responsive sizing so long names wrap cleanly and maintain box padding */}
-        <h2 className={`${TITLE_LG} mt-2 w-full px-2 sm:px-4 break-words`}>
-          {player.name}
-        </h2>
 
-        {/* The card called the name and never said whose flag he skates
-            under or what he plays, which the board underneath it now gives
-            every other prospect in the room. */}
-        <div className="flex items-center justify-center gap-2 mt-3">
+        <p className="mt-4 text-[11px] sm:text-xs font-black uppercase tracking-[0.18em] leading-snug" style={{ color: accentText }}>
+          {withTeamArticle(getFullTeamName(clubId, 'NHL'), 'NHL', true)} select
+        </p>
+
+        <h2 className={`${TITLE_LG} mt-2 w-full break-words`}>{player.name}</h2>
+
+        <div className="flex items-center justify-center flex-wrap gap-x-2 gap-y-1 mt-3">
           {flagFor(player.nat)
             ? <img src={flagFor(player.nat)} alt="" className="w-6 h-[17px] object-cover rounded-[1px]" />
             : null}
-          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-            {player.nat} · {player.pos}
-            {player.archetype ? ` · ${player.archetype}` : ''}
+          <span className="text-[11px] font-black uppercase tracking-wider text-white">
+            {player.nat}
+            <span className="text-slate-500"> · </span>{player.pos}
+            {player.archetype && (player.archetypeChosen || (player.stats?.seasonsPlayed || 0) > 0)
+              ? <><span className="text-slate-500"> · </span>{player.archetype}</>
+              : null}
           </span>
         </div>
+
+        {seasonRecap?.juniorTeam && (
+          <p className="flex items-center justify-center flex-wrap gap-1.5 mt-2 text-xs sm:text-sm text-slate-400">
+            <span>From {withTeamArticle(getFullTeamName(seasonRecap.juniorTeam, seasonRecap.juniorLeague), seasonRecap.juniorLeague)}</span>
+            {seasonRecap.juniorLeague && <LeagueTag league={seasonRecap.juniorLeague} flagClass="w-[14px] h-[10px]" />}
+          </p>
+        )}
       </div>
 
       {/* THE BOARD.
@@ -169,42 +200,53 @@ export default function DraftScreen() {
           an earlier year has no board in this draft, so he gets the plain
           story instead. */}
       {seasonRecap?.draftPick && seasonRecap?.classDone && (player.passedOver || []).length > 0 && (
-        <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
+        <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xl mx-auto mb-6 px-2">
           Passed over in {player.passedOver.join(' and ')}, you went {ordinal(seasonRecap.draftPick)} overall in {seasonRecap.draftYear}.
+          {takenLine ? ` ${takenLine}` : ''}
         </p>
       )}
-      {player.scoutRank && seasonRecap?.draftPick && !seasonRecap?.classDone && (() => {
+      {/* WHERE HE WENT, AND WHERE THE SCOUTS HAD HIM.
+          Two facts, said once each: how many at his position the whole draft
+          took before him, and how the board's ranking played out. The board
+          only ranks the players the scouts followed, so the second fact is
+          told against those players, never against the whole draft. */}
+      {seasonRecap?.draftPick && !seasonRecap?.classDone && (takenLine || player.scoutRank) && (() => {
         const slot = positionDraftSlot(player.peers, player.pos, seasonRecap.draftPick);
-        const many = groupName(slot.group);
         const onBoard = (player.peers || []).filter(p => !p.retired && compGroup(p.pos) === slot.group).length + 1;
         const gap = slot.slot - player.scoutRank;
+        const count = (n) => (n === 1 ? 'one' : n);
+        const tail = gap > 0
+          ? `, but ${count(gap)} they ranked lower went before you.`
+          : gap < 0
+            ? `, and you went ahead of ${count(-gap)} they ranked higher.`
+            : ', and you went right where they had you.';
         return (
-          <p className="text-[11px] sm:text-xs font-bold text-slate-400 max-w-xl mx-auto -mt-6 mb-8 px-2">
-            The final board ranked you <span className="text-white font-black">{ordinal(player.scoutRank)}</span> of
-            the {onBoard} {many} it followed in your draft year. You were the <span className="text-white font-black">{ordinal(slot.slot)}</span> of
-            them taken, {ordinal(seasonRecap.draftPick)} overall
-            {gap > 0
-              ? `, so ${gap === 1 ? 'one player' : `${gap} players`} you were ranked above went before you.`
-              : gap < 0
-                ? `, ${-gap} place${gap === -1 ? '' : 's'} earlier than the board had you.`
-                : ', right where the board had you.'}
+          <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl mx-auto mb-6 px-2">
+            {takenLine}
+            {player.scoutRank
+              ? ` The scouts had you ${ordinal(player.scoutRank)} of ${onBoard} on their board${tail}`
+              : null}
           </p>
         );
       })()}
 
       {(lotteryLine || reasonLine) && (
-        <div className="max-w-xl mx-auto -mt-4 mb-8 px-2 space-y-1.5 text-[11px] sm:text-xs font-bold text-slate-400">
+        <div className="max-w-xl mx-auto mb-8 px-2 space-y-1.5 text-xs sm:text-sm text-slate-400 leading-relaxed">
           {reasonLine && <p>{reasonLine}</p>}
           {lotteryLine && <p className="text-slate-500">{lotteryLine}</p>}
         </div>
       )}
 
+      {/* AROUND YOUR PICK.
+          The player's flag beside his name. Under the name, in one quiet line:
+          his position, the club he's coming from, and its league with the
+          league's flag, the way a league is shown everywhere else. The
+          position used to sit after the name, in a different place on every
+          row. */}
       {board && (board.before.length > 0 || board.after.length > 0) && (
         <div className="max-w-xl mx-auto mb-10 text-left">
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 px-1">
-            Around your pick
-          </p>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.06)] overflow-hidden bg-[#0a0d0a]">
+          <p className={`${kickerClass('neutral')} mb-2 px-1`}>Around Your Pick</p>
+          <div className="rounded-xl overflow-hidden bg-[#0a0d0a]">
             {[
               ...board.before,
               {
@@ -217,57 +259,54 @@ export default function DraftScreen() {
             ].map((r, i) => (
               <div
                 key={`${r.name}-${i}`}
-                className={`flex items-center gap-2.5 px-3 py-2.5 border-b border-[rgba(255,255,255,0.04)] last:border-0 ${
-                  r.me ? 'bg-[#3b82f6]/[0.12]' : 'bg-[#101410]'}`}
+                className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 ${
+                  r.me ? 'bg-[rgba(34,231,72,0.08)]' : i % 2 ? 'bg-[#0d110d]' : 'bg-[#101410]'}`}
               >
-                {/* Fixed-width columns for the pick, the crest and the flag.
-                    Crests aren't all the same shape and TeamLogo falls back
-                    to a coloured disc when one will not load, so letting any
-                    of the three size themselves left the whole board ragged:
-                    every row started its name at a slightly different place. */}
-                <span className={`w-6 shrink-0 text-right text-[11px] font-black number-font ${
-                  r.me ? 'text-[#3b82f6]' : 'text-slate-600'}`}>
+                {/* Fixed widths for the pick and the crest, so every name
+                    starts at the same place whatever shape the crest is. */}
+                <span className={`w-7 shrink-0 text-right text-xs font-black number-font tabular-nums ${
+                  r.me ? 'text-[#22E748]' : 'text-slate-500'}`}>
                   {r.pick}
                 </span>
 
-                {/* Who is on the clock. */}
-                <span className="shrink-0 w-7 h-7 flex items-center justify-center">
-                  {r.team ? <TeamLogo teamId={r.team} league="NHL" size="tiny" /> : null}
-                </span>
-
-                <span className="shrink-0 w-[22px] flex items-center justify-center">
-                  {r.flag
-                    ? <img src={r.flag} alt="" className="w-[20px] h-[14px] object-cover rounded-[1px]" />
-                    : <span className="w-[20px] h-[14px] rounded-[1px] bg-[#151b15]" />}
+                <span className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center">
+                  {r.team ? <TeamLogo teamId={r.team} league="NHL" size="row" /> : null}
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center min-w-0">
-                    {/* Your own row says You, the way it does on every other
-                        board in the game. Your own name read back in a list of
-                        strangers puts you among them. */}
-                    <span className={`break-words text-sm ${r.me ? 'text-white font-black' : 'text-slate-300 font-medium'}`}>
+                  <span className="flex items-center gap-2 min-w-0">
+                    {r.flag
+                      ? <img src={r.flag} alt="" className="w-[18px] h-[13px] object-cover rounded-[1px] shrink-0" />
+                      : <span className="w-[18px] h-[13px] shrink-0" />}
+                    {/* Your own row says You, the way every board in the
+                        game does. */}
+                    <span className={`break-words text-sm ${r.me ? 'text-white font-black' : 'text-slate-200 font-medium'}`}>
                       {r.me ? 'You' : r.name}
                     </span>
                   </span>
-                  {/* Where he is coming from. */}
-                  <span className="flex items-center gap-1 min-w-0 text-[10px] text-slate-600 mt-0.5">
-                    {r.from && <span className="break-words">{getFullTeamName(r.from, r.fromLeague)}</span>}
-                    {r.from && r.fromLeague && <span className="shrink-0 text-slate-700">·</span>}
-                    {r.fromLeague && (
-                      <span className="flex shrink-0 items-center gap-1">
-                        <LeagueTag league={r.fromLeague} flagClass="w-[12px] h-[9px]" />
+                  {/* Each part carries the dot in front of it, so a line that
+                      wraps never leaves a dot hanging at the end. */}
+                  <span className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] text-slate-500 leading-snug mt-0.5">
+                    <span className={`font-black ${r.me ? 'text-[#22E748]' : 'text-slate-400'}`}>{r.pos}</span>
+                    {r.from && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-slate-600">·</span>{getFullTeamName(r.from, r.fromLeague)}
                       </span>
                     )}
-                    {/* A pick that changed hands says whose it was. */}
-                    {r.via && <span className="shrink-0 text-slate-700">·</span>}
-                    {r.via && <span className="shrink-0 text-slate-500">Pick from {r.via}</span>}
+                    {r.fromLeague && (
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="text-slate-600">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <LeagueTag league={r.fromLeague} flagClass="w-[12px] h-[9px]" />
+                        </span>
+                      </span>
+                    )}
+                    {r.via && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-slate-600">·</span>Pick from {r.via}
+                      </span>
+                    )}
                   </span>
-                </span>
-
-                <span className={`shrink-0 text-[10px] font-black uppercase tracking-widest w-7 text-right ${
-                  r.me ? 'text-[#3b82f6]' : 'text-slate-500'}`}>
-                  {r.pos}
                 </span>
               </div>
             ))}
@@ -275,30 +314,48 @@ export default function DraftScreen() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-        {(isFirstRound || player.ovr >= 65) ? (
-          <button 
-            onClick={() => handleDraftChoice('ELC')} 
-            className="btn-primary w-full sm:w-auto py-4 px-6 rounded-xl text-sm sm:text-base sports-font tracking-widest cursor-pointer"
-          >
-            SIGN ELC (TURN PRO)
-          </button>
-        ) : (
-          <div className="bg-[#101410] border border-[rgba(255,255,255,0.065)] text-slate-500 py-4 px-6 rounded-xl text-sm sm:text-base sports-font tracking-widest w-full sm:w-auto flex items-center justify-center">
-            ELC NOT OFFERED YET
-          </div>
-        )}
-        
-        {player.league === 'USHL' ? (
-           <button onClick={() => handleDraftChoice('EXPLORE_OPTIONS')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
-             EXPLORE OPTIONS
-           </button>
-        ) : (
-           <button onClick={() => handleDraftChoice('RETURN')} className="btn-secondary py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto">
-             {player.league === 'NCAA' ? 'RETURN TO NCAA' : euroLeagues.includes(player.league) ? 'RETURN TO EUROPE' : 'RETURN TO JUNIORS'}
-           </button>
-        )}
-      </div>
+      {/* WHAT HAPPENS NOW.
+          A club that's offering the entry-level deal gets a button for it. One
+          that isn't used to get a greyed-out "ELC NOT OFFERED YET" box shaped
+          like a button that did nothing. It's a sentence now, saying how long
+          the club has to change its mind. */}
+      {(() => {
+        const offered = isFirstRound || player.ovr >= 65;
+        const until = rightsExpiryYear(player);
+        const backLabel = player.league === 'NCAA' ? 'RETURN TO THE NCAA'
+          : euroLeagues.includes(player.league) ? `BACK TO ${leagueLabel(player.league).toUpperCase()}`
+            : 'RETURN TO JUNIORS';
+        const btn = offered ? 'btn-secondary' : 'btn-primary';
+        return (
+          <>
+            {!offered && (
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xl mx-auto mb-5 px-2">
+                {ClubName(seasonRecap?.draftedBy?.id)} want you to develop for another year before they offer you an entry-level contract.
+                {until ? ` They hold your rights until the summer of ${until}.` : ''}
+              </p>
+            )}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              {offered && (
+                <button
+                  onClick={() => handleDraftChoice('ELC')}
+                  className="btn-primary w-full sm:w-auto py-4 px-6 rounded-xl text-sm sm:text-base sports-font tracking-widest cursor-pointer"
+                >
+                  SIGN YOUR ENTRY-LEVEL DEAL
+                </button>
+              )}
+              {player.league === 'USHL' ? (
+                <button onClick={() => handleDraftChoice('EXPLORE_OPTIONS')} className={`${btn} py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto`}>
+                  EXPLORE OPTIONS
+                </button>
+              ) : (
+                <button onClick={() => handleDraftChoice('RETURN')} className={`${btn} py-4 px-6 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-widest w-full sm:w-auto`}>
+                  {backLabel}
+                </button>
+              )}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

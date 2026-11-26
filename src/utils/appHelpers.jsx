@@ -145,6 +145,14 @@ export const isLeagueCup = (award) => {
   return CUP_LEAGUES.some(lg => a.includes(getPlayoffTitles(lg).cupName));
 };
 
+// WHO WON IT, IN WORDS.
+//
+// "Masaryk Cup Champions" reads fine. A title that's only called a
+// championship doesn't: the Swiss champions were "Swiss Championship
+// Champions". The word is dropped before it's said twice.
+export const championsOf = (cupName) =>
+  `${String(cupName || '').replace(/\s*championship$/i, '').trim() || 'League'} Champions`;
+
 // Dynamic Playoff Title Generator
 export const getPlayoffTitles = (league) => {
   switch (league) {

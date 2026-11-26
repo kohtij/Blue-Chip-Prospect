@@ -2378,3 +2378,24 @@ export const luckOf = (p) => {
 };
 export const withLuck = (chance, p) =>
   Math.max(0.05, Math.min(0.95, chance + ((luckOf(p) - 50) / 50) * 0.08));
+
+
+/**
+ * WHY A CLUB IS PERSONAL.
+ *
+ * The club that traded him away, or the club that drafted him and that he's
+ * no longer with. Beating either is a different night from beating anyone
+ * else, and the playoffs only knew about a club he'd played three seasons
+ * for. Returns 'traded', 'drafted' or null, for the club in this league.
+ *
+ * Trades are kept on tradedAwayBy from now on; a save from before that still
+ * has the season it happened in, marked with where he went.
+ */
+export function grudgeAgainst(player, teamId, league = player?.league) {
+  if (!player || !teamId || teamId === player.team) return null;
+  const traded = (player.tradedAwayBy || []).some(t => t.team === teamId && (t.league || 'NHL') === league)
+    || (player.seasonHistory || []).some(s => s.tradedTo && s.team === teamId && (s.league || league) === league);
+  if (traded) return 'traded';
+  if (league === 'NHL' && player.draftTeam === teamId && player.rights !== teamId) return 'drafted';
+  return null;
+}

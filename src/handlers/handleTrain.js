@@ -1,8 +1,8 @@
-import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, gamesInLeague, nhlSeasonsOf, ordinal, summariseStints, withTeamArticle, formatMoney } from '../utils/gameHelpers';
+import { simulateSeason, isNineGameCandidate, nineGameVerdict, madeAllStarGame, gamesInLeague, nhlSeasonsOf, ordinal, summariseStints, withTeamArticle, formatMoney, isRestricted, arbitrationEligible } from '../utils/gameHelpers';
 import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
-import { priceOf, recentForm, majorCount } from '../utils/contracts';
+import { priceOf, recentForm, majorCount, agentMultiOf, leagueMinimumFor, nhlMarketValue } from '../utils/contracts';
 import { getOpponentPool, inIihfEvents, isAmateurLeague, LEAGUE_CONFIG } from '../data/teams';
 import { rollInjury, injuryLine, injuryEvent } from '../utils/injuries';
 import { coachOpening, ensureClub, playerArchetype, recordSeason, roomFor, roomTrust } from '../utils/roster';
@@ -831,18 +831,28 @@ export function handleTrain(ctx, t) {
       // IN-SEASON EXTENSION (New)
       const isExpiring = (player.contract?.years || 0) === 1;
       if (player.league === 'NHL' && isExpiring && coachTrustLvl >= 70 && player.ovr >= 82 && Math.random() < 0.25 && !player.storylines?.declinedExtension) {
-        // Offer them 80% of what they might get in July, but guaranteed right now.
-        const cap = 88000000; // Rough baseline cap
-        const baseVal = Math.min(cap * 0.20, (player.ovr - 70) * 450000);
-        const extSalary = Math.round((baseVal * 0.8) / 25000) * 25000;
+        // What he'd be worth in July, priced the way free agency prices him
+        // (see nhlMarketValue) against next season's cap, less a little for
+        // the certainty of signing now. It was its own formula on his rating
+        // against a fixed $88M cap, so an 89 was offered $6.8M here and his
+        // own club offered him $20.2M in the summer once he'd turned it down.
+        const nextYear = (ctx.currentYear || 2026) + 1;
+        const mv = nhlMarketValue(livePlayer, nextYear, {
+          agentMulti: agentMultiOf(livePlayer),
+          minimum: leagueMinimumFor(nextYear),
+          rfa: isRestricted(livePlayer) ? { canArbitrate: arbitrationEligible(livePlayer) } : null
+        });
+        const extSalary = Math.round((mv.salary * 0.93) / 25000) * 25000;
         // The term, which the offer never said and was always five years. A
         // club signs a young core player for as long as it's allowed to (eight
-        // years, re-signing its own) and an older one for less.
+        // years, re-signing its own) and an older one for less, and never for
+        // longer than his market would give him.
         const age = player.age || 25;
-        const extYears = age <= 26 ? 6 + Math.floor(Math.random() * 3)
+        const extYears = Math.min(mv.tier.maxYears, age <= 26 ? 6 + Math.floor(Math.random() * 3)
           : age <= 29 ? 5 + Math.floor(Math.random() * 3)
             : age <= 32 ? 3 + Math.floor(Math.random() * 3)
-              : 1 + Math.floor(Math.random() * 3);
+              : 1 + Math.floor(Math.random() * 3));
+        const extRole = getRole(extSalary, { ...livePlayer, league: 'NHL' });
         const extTerm = `${extYears} ${extYears === 1 ? 'year' : 'years'}`;
         
         advanceTo(stints, 2);
@@ -853,12 +863,12 @@ export function handleTrain(ctx, t) {
                 { 
                   label: 'Sign the extension', 
                   subLabel: 'Lock in your future now and skip free agency in July.',
-                  contract: { salary: extSalary, years: extYears, role: 'Core Player', starts: 'Next season' },
+                  contract: { salary: extSalary, years: extYears, role: extRole, starts: 'Next season' },
                   isRisky: false, 
                   feedback: 'You signed the extension. The city loves you for staying, and you don\'t have to worry about July 1st.', 
                   effect: { fanStatus: 50, ovr: 0, rel: { coach: 25, teammates: 15 } },
                   action: 'SIGN_EXTENSION',
-                  actionData: { salary: extSalary, years: extYears, role: 'Core Player' }
+                  actionData: { salary: extSalary, years: extYears, role: extRole }
                 },
                 { 
                   label: 'Bet on yourself', 
@@ -1094,7 +1104,7 @@ export function handleTrain(ctx, t) {
 
   if (season?.satOut) recap.holdout = `You held out all season. December 1 passed without a deal, so you didn't play, and the ${getFullTeamName(player.team, player.league)} still hold your rights.`;
   else if (player.holdoutMissed) recap.holdout = `You held out into the season and signed after missing ${player.holdoutMissed} games.`;
-  if (thisYearInjury) recap.injury = injuryLine(thisYearInjury);
+  if (thisYearInjury) recap.injury = injuryLine(thisYearInjury, thisYearInjury.seasonGames || LEAGUE_CONFIG?.[player.league]?.games || 82);
   else if (lingering) recap.injury = `The ${lingering.label} from last season was still bothering you in October, and it cost you the start of this one.`;
 
   // The season is finished, so the trial is spent.

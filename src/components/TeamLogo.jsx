@@ -29,8 +29,14 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
 
   // Standardized container sizing across components (SCALED UP)
   // 'backdrop' is sized by its className: the crest behind the retirement hero.
+  // 'hero' is the one crest a screen is about (the club that just drafted
+  // you); 'row' sits in a list row beside a name.
   const containerSize = size === "backdrop"
     ? ""
+    : size === "hero"
+    ? "w-32 h-32 sm:w-44 sm:h-44"
+    : size === "row"
+    ? "w-7 h-7 sm:w-8 sm:h-8"
     : size === "tiny"
     ? "w-4 h-4 sm:w-5 sm:h-5"
     : size === "small"
@@ -122,4 +128,4 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
   );
 };
 
-export default TeamLogo;
+export default TeamLogo;

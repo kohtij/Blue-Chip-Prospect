@@ -1,10 +1,10 @@
 import  { useEffect } from 'react';
 import { useAppContext } from '../AppContext';
-import { getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
+import { championsOf, getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
 import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
-import { applyOvrDelta, recomputeOvr } from '../utils/gameHelpers';
+import { applyOvrDelta, grudgeAgainst, recomputeOvr } from '../utils/gameHelpers';
 import { CHOICE_ROW, kickerClass, TAG_RED, TITLE_MD, TITLE_SM } from '../utils/ui';
 
 // The heading over each half of a conference bracket.
@@ -93,7 +93,14 @@ export default function PlayoffsScreen() {
   const activeOpponentId = activeMatch?.team2?.id || activeMatch?.team2 || 'UNK';
   const isRivalMatchup = getPrimaryRival(player.team, player.league)?.id === activeOpponentId;
   const seasonsWithOpponent = (player.seasonHistory || []).filter(s => s.team === activeOpponentId).length;
-  const isFormerTeam = seasonsWithOpponent >= 3;
+  // A club he played three seasons for, or one that made it personal: the
+  // club that traded him away, or the one that drafted him and let him go.
+  const grudge = grudgeAgainst(player, activeOpponentId, playoffs.currentLg || player.league);
+  const isFormerTeam = seasonsWithOpponent >= 3 || !!grudge;
+  const badBloodWho = isRivalMatchup ? { kicker: 'Arch-rivals', text: 'your arch-rivals' }
+    : grudge === 'traded' ? { kicker: 'The club that traded you', text: 'the club that traded you away' }
+      : grudge === 'drafted' ? { kicker: 'The club that drafted you', text: 'the club that drafted you' }
+        : { kicker: 'Your old club', text: 'your former team' };
   const isSidelined = !!playoffs.playerSidelined;
   // Injured players watch from the press box, so there is no Bad Blood moment.
   const isBadBlood = !isSidelined && (isRivalMatchup || isFormerTeam);
@@ -210,15 +217,25 @@ export default function PlayoffsScreen() {
        if (activeMatch.status === 'won') {
            ovrDelta = 1; 
            fanStatusDelta = choice === 'guarantee' ? 50 : 15;
-           feedbackMsg = choice === 'guarantee' 
-              ? "You guaranteed it and delivered. The fans are going wild." 
-              : "You put your rivals out and kept your mouth shut doing it.";
+           // Putting out the club that traded him is worth a little more to
+           // the people who wanted him kept.
+           if (grudge && !isRivalMatchup) fanStatusDelta += 10;
+           feedbackMsg = choice === 'guarantee'
+              ? (grudge === 'traded' ? "You guaranteed it and delivered, against the club that traded you. The fans are going wild."
+                : grudge === 'drafted' ? "You guaranteed it and delivered, against the club that drafted you. The fans are going wild."
+                  : "You guaranteed it and delivered. The fans are going wild.")
+              : (grudge === 'traded' ? "You put out the club that traded you, and you never said a word about it. You didn't have to."
+                : grudge === 'drafted' ? "You put out the club that drafted you. Somebody in their front office is in for a long summer."
+                  : isRivalMatchup ? "You put your rivals out and kept your mouth shut doing it."
+                    : "You put your old club out and kept your mouth shut doing it.");
        } else {
            relDelta = { media: -15, coach: -15 };
            fanStatusDelta = choice === 'guarantee' ? -50 : -10;
-           feedbackMsg = choice === 'guarantee' 
-              ? "You guaranteed a win and choked. The media is roasting you." 
-              : "Knocked out by the team you least wanted to lose to.";
+           feedbackMsg = choice === 'guarantee'
+              ? "You guaranteed a win and choked. The media is roasting you."
+              : grudge === 'traded' ? "Knocked out by the club that traded you. They'll enjoy that one."
+                : grudge === 'drafted' ? "Knocked out by the club that drafted you, of all people."
+                  : "Knocked out by the team you least wanted to lose to.";
        }
 
        setPlayer(p => {
@@ -243,7 +260,7 @@ export default function PlayoffsScreen() {
           return { ...prev, bracket: newBracket };
        });
     }
-  }, [activeMatch, isBadBlood, playerMatchIndex, playoffs.activeRoundIndex, setPlayer, setPlayoffs]);
+  }, [activeMatch, grudge, isBadBlood, isRivalMatchup, playerMatchIndex, playoffs.activeRoundIndex, setPlayer, setPlayoffs]);
 
   // THE SCOREBOARD over the cards. His club sits on the left and the
   // opponent on the right, each with a pip per win the round needs, and the
@@ -363,7 +380,7 @@ export default function PlayoffsScreen() {
                     )}
                     <h3 className={`text-[1.7rem] sm:text-4xl font-black sports-font uppercase leading-[0.95] tracking-tight ${finalResult.won ? 'text-[#F59E0B]' : 'text-slate-200'}`}
                         style={finalResult.won ? { textShadow: '0 0 30px rgba(245,158,11,0.35)' } : undefined}>
-                      {finalResult.won ? `${finalResult.cup} Champions` : `${finalResult.cup} Final`}
+                      {finalResult.won ? championsOf(finalResult.cup) : `${finalResult.cup} Final`}
                     </h3>
                     {finalResult.score && (
                       <p className={`mt-2 text-[12px] sm:text-sm font-black ${finalResult.won ? 'text-[#fcd34d]' : 'text-[#f87171]'}`}>{finalResult.score}</p>
@@ -415,10 +432,10 @@ export default function PlayoffsScreen() {
                     taller of the two for the whole round. */}
                 {isBadBlood && (
                <div className={`[grid-area:1/1] w-full flex flex-col items-center pb-2 ${badBloodPending ? 'animate-fade-in' : 'invisible pointer-events-none'}`} aria-hidden={!badBloodPending}>
-                  <span className={`${kickerClass('red')} mb-2`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
+                  <span className={`${kickerClass('red')} mb-2`}>{badBloodWho.kicker}</span>
                   <h2 className={`${TITLE_SM} mb-3`}>Bad blood</h2>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
-                     You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
+                     You are facing {badBloodWho.text} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
                   </p>
                   <div className="flex flex-col gap-3 w-full">
                      {/* The same choice rows as every event in the game. */}
@@ -483,10 +500,10 @@ export default function PlayoffsScreen() {
                     taller of the two for the whole round. */}
                 {isBadBlood && (
                <div className={`[grid-area:1/1] w-full flex flex-col items-center pb-2 ${badBloodPending ? 'animate-fade-in' : 'invisible pointer-events-none'}`} aria-hidden={!badBloodPending}>
-                  <span className={`${kickerClass('red')} mb-2`}>{isRivalMatchup ? 'Arch-rivals' : 'Your old club'}</span>
+                  <span className={`${kickerClass('red')} mb-2`}>{badBloodWho.kicker}</span>
                   <h2 className={`${TITLE_SM} mb-3`}>Bad blood</h2>
                   <p className="text-slate-300 font-sans text-sm sm:text-base mb-6 text-center">
-                     You are facing {isRivalMatchup ? 'your arch-rivals' : 'your former team'} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
+                     You are facing {badBloodWho.text} in the playoffs. Reporters are crowded round your stall, looking for a headline. What do you give them?
                   </p>
                   <div className="flex flex-col gap-3 w-full">
                      {/* The same choice rows as every event in the game. */}

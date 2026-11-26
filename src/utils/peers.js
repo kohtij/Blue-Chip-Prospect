@@ -57,27 +57,64 @@ const LAST = {
 
 const NATS = ['CAN', 'CAN', 'CAN', 'USA', 'USA', 'SWE', 'FIN', 'RUS', 'CZE', 'SVK', 'SUI', 'GER', 'DEN'];
 
-// How a class of skaters breaks down, before the player's own position is
-// weighted up below. Twice as many centres as anything else, which is roughly
-// how a draft reads.
-const SKATER_POS = ['C', 'C', 'LW', 'RW', 'LD', 'RD'];
-
 // WHO A REAL DRAFT TAKES, ROUND BY ROUND.
 //
-// The share of forwards, defencemen and goalies in each round, averaged over
-// the twelve NHL drafts from 2014 to 2025 (QuantHockey's draft pages). The
-// first round is seven forwards in ten and almost never a goalie; from the
-// second round on a third of the picks are defencemen and one in nine or so
-// is a goalie.
-export const DRAFT_POS_SHARE = [
-  { F: 69.8, D: 27.8, G: 2.1 },
-  { F: 56.3, D: 34.6, G: 8.8 },
-  { F: 53.1, D: 35.4, G: 11.6 },
-  { F: 56.7, D: 31.5, G: 11.7 },
-  { F: 50.6, D: 35.8, G: 13.6 },
-  { F: 55.1, D: 32.5, G: 12.3 },
-  { F: 57.4, D: 30.6, G: 12.0 }
+// Every pick of the fifteen NHL drafts from 2011 to 2025, 3,252 of them, by
+// the position each player was listed at (the round-by-round tables on each
+// draft's Wikipedia page, checked against QuantHockey's forward, defence and
+// goalie split; a "C/LW" counts half to each). Over a whole draft that's 26.5%
+// centres, 15.2% left wings, 14.8% right wings, 33.2% defencemen and 10.3%
+// goalies.
+//
+// The first round leans on centres (more than a third of it) and takes a goalie
+// about once every other year. After that the skaters settle at the same split
+// every round and only the goalies move, from one pick in eleven in the second
+// round to one in eight from the third on. The two wings are taken at the same
+// rate, so they're split evenly here; the round-to-round wobble between them in
+// the raw counts is noise.
+//
+// It used to be forwards, defence and goalies only, and the room's own picks
+// were a third centres, a third defence and a sixth for each wing in every
+// round, with a goalie at every pick ending in 7. That put a goalie in the top
+// ten every year.
+export const DRAFT_POS_MIX = [
+  { C: 36.5, LW: 15.85, RW: 15.85, D: 29.6, G: 2.2 },
+  { C: 25.55, LW: 15.3, RW: 15.3, D: 34.75, G: 9.1 },
+  { C: 24.7, LW: 14.8, RW: 14.8, D: 33.6, G: 12.1 },
+  { C: 25.05, LW: 15.05, RW: 15.05, D: 34.05, G: 10.8 },
+  { C: 24.6, LW: 14.75, RW: 14.75, D: 33.4, G: 12.5 },
+  { C: 24.5, LW: 14.7, RW: 14.7, D: 33.2, G: 12.9 },
+  { C: 24.65, LW: 14.8, RW: 14.8, D: 33.45, G: 12.3 }
 ];
+
+// The same, as forwards, defence and goalies.
+export const DRAFT_POS_SHARE = DRAFT_POS_MIX.map(r => ({ F: r.C + r.LW + r.RW, D: r.D, G: r.G }));
+
+// The mix for one pick.
+export const draftMixAt = (pick, perRound = 32) =>
+  DRAFT_POS_MIX[Math.min(DRAFT_POS_MIX.length - 1, Math.max(0, Math.floor((pick - 1) / perRound)))];
+
+// A position for a pick, from one random number, at that pick's mix. The
+// defence splits evenly between the two sides. weights scale each position
+// before the draw (see runDraftNight).
+export function drawDraftPos(u, pick, weights = null) {
+  const row = draftMixAt(pick);
+  const parts = [['C', row.C], ['LW', row.LW], ['RW', row.RW], ['LD', row.D / 2], ['RD', row.D / 2], ['G', row.G]]
+    .map(([k, v]) => [k, v * (weights?.[k] ?? 1)]);
+  const total = parts.reduce((a, [, v]) => a + v, 0);
+  let x = u * total;
+  for (const [k, v] of parts) {
+    if (x < v) return k;
+    x -= v;
+  }
+  return 'RD';
+}
+
+// How a class of skaters breaks down, before the player's own position is
+// weighted up below. A real draft's skaters, from the table above: three in ten
+// centres, a sixth on each wing, and the rest defencemen split between the
+// sides. The centres used to be a third and the defence a third.
+const SKATER_MIX = { C: 29.5, LW: 17, RW: 16.5, LD: 18.5, RD: 18.5 };
 
 // The player's own position, as a share of the skaters in his class.
 //
@@ -99,9 +136,10 @@ const GOALIE_FLOOR = 4;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 const drawSkaterPos = (own) => {
+  // In units of one wing, so OWN_WEIGHT means what it always has.
   const w = {};
-  for (const p of SKATER_POS) w[p] = (w[p] || 0) + 1;
-  if (w[own]) w[own] = OWN_WEIGHT;
+  for (const [p, v] of Object.entries(SKATER_MIX)) w[p] = v / SKATER_MIX.LW;
+  if (w[own]) w[own] = Math.max(w[own], OWN_WEIGHT);
   const total = Object.values(w).reduce((s, n) => s + n, 0);
   let roll = Math.random() * total;
   for (const [pos, n] of Object.entries(w)) {
@@ -1121,17 +1159,14 @@ export function positionDraftSlot(peers, pos, playerPick) {
   };
 }
 
-// How many players of a position a real draft has taken before this pick.
-// Forwards split 40/30/30 between centres and the two wings, and the
-// defence evenly between the two sides.
-const POS_OF_GROUP = { C: ['F', 0.40], LW: ['F', 0.30], RW: ['F', 0.30], LD: ['D', 0.5], RD: ['D', 0.5], G: ['G', 1] };
+// How many players of a position a real draft has taken before this pick,
+// round by round from DRAFT_POS_MIX. The defence splits evenly between the two
+// sides. At the 57th pick that's about nine left wingers.
+const POS_OF_GROUP = { C: ['C', 1], LW: ['LW', 1], RW: ['RW', 1], LD: ['D', 0.5], RD: ['D', 0.5], G: ['G', 1] };
 export function expectedTakenBefore(group, pick, perRound = 32) {
   const [kind, share] = POS_OF_GROUP[group] || POS_OF_GROUP.C;
   let n = 0;
-  for (let k = 1; k < pick; k++) {
-    const r = DRAFT_POS_SHARE[Math.min(DRAFT_POS_SHARE.length - 1, Math.floor((k - 1) / perRound))];
-    n += (r[kind] / 100) * share;
-  }
+  for (let k = 1; k < pick; k++) n += (draftMixAt(k, perRound)[kind] / 100) * share;
   return n;
 }
 
@@ -1688,7 +1723,7 @@ export function draftBoard(peers, playerPick, playerName, count = 2, leagueState
     const route = routeFrom(nat, rnd);
     return {
       name, nat, pick: pickNo,
-      pos: SKATER_POS[Math.floor(rnd() * SKATER_POS.length)],
+      pos: drawDraftPos(rnd(), pickNo),
       team: order.length ? order[(pickNo - 1) % order.length] : null,
       flag: flagFor(nat),
       from: route.juniorTeam,
@@ -1724,7 +1759,7 @@ export function classSalt(peers) {
   return hash((peers || []).filter(p => p.pick).slice(0, 4).map(p => p.name).join('|'));
 }
 
-export function roomProspect(salt, n, taken = new Set()) {
+export function roomProspect(salt, n, taken = new Set(), weights = null) {
   const rnd = rngFrom(salt ^ Math.imul(n, 2654435761));
   const nat = NATS[Math.floor(rnd() * NATS.length)];
   let name = '';
@@ -1736,7 +1771,8 @@ export function roomProspect(salt, n, taken = new Set()) {
   const route = routeFrom(nat, rnd);
   return {
     name, nat,
-    pos: SKATER_POS[Math.floor(rnd() * SKATER_POS.length)],
+    // Drawn at the rate a real draft takes each position at this pick.
+    pos: drawDraftPos(rnd(), n, weights),
     juniorTeam: route.juniorTeam, juniorLeague: route.juniorLeague,
     // How far his ceiling sits above where he is now, for the general managers
     // who draft for one or the other.

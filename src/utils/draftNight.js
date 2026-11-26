@@ -2,7 +2,7 @@ import { nhlTeams } from '../data/teams';
 import { draftOrder, teamStrengthOf } from './leagueState';
 import { gaussianNoise } from './production';
 import {
-  boardOrderPicks, classSalt, DRAFT_DAY_NOISE, peerBoardScore,
+  boardOrderPicks, classSalt, DRAFT_DAY_NOISE, DRAFT_POS_MIX, peerBoardScore,
   playerBoardScore, projectedPeak, roomProspect
 } from './peers';
 import { addToPool, ensureFrontOffices, poolGroup, routeOf } from './frontOffice';
@@ -207,17 +207,46 @@ export function runDraftNight(player, { combine = 0, year = 2026, classDone = fa
   const taken = new Set(cands.map(c => c.name));
   const classGaps = cands.filter(c => !c.me).map(c => c.gap);
   const avgGap = classGaps.length ? classGaps.reduce((a, v) => a + v, 0) / classGaps.length : 8;
+
+  // WHO THE REST OF THE ROOM PLAYS.
+  //
+  // The room is drawn pick by pick at the rate real drafts take each position
+  // there (DRAFT_POS_MIX). The class he came up with is built with extra
+  // players at his own position, so he has a board to read, and those men are
+  // on the night too. Left alone that made a draft with a third more of his
+  // position in it than a real one, all of them around him. So the room is
+  // drawn short of whatever the class has too many of, and the whole night
+  // comes out at a real draft's mix.
+  const slots = SIM_ROUNDS * ROUND + 24 - held.size;
+  const picks224 = SIM_ROUNDS * ROUND;
+  const overall = {};
+  for (const k of ['C', 'LW', 'RW', 'D', 'G']) {
+    overall[k] = DRAFT_POS_MIX.reduce((a, r) => a + r[k], 0) / DRAFT_POS_MIX.length / 100;
+  }
+  overall.LD = overall.RD = overall.D / 2;
+  delete overall.D;
+  const inClass = { C: 0, LW: 0, RW: 0, LD: 0, RD: 0, G: 0 };
+  for (const c of cands) if (c.pos in inClass) inClass[c.pos] += 1;
+  const weights = {};
+  for (const k of Object.keys(overall)) {
+    const want = picks224 * overall[k];
+    weights[k] = Math.max(0.25, (want - inClass[k]) / Math.max(1, slots * overall[k]));
+  }
+
   for (let n = 1; n <= SIM_ROUNDS * ROUND + 24; n++) {
     if (held.has(n)) continue;
-    const r = roomProspect(salt, n, taken);
-    // About one in ten of a real draft is a goalie. The rest of the room was
-    // all skaters, so the only goalies on draft night were the two or three
-    // in his class.
-    const pos = n % 10 === 7 ? 'G' : r.pos;
+    const r = roomProspect(salt, n, taken, weights);
     cands.push({
-      key: `room${n}`, name: r.name, nat: r.nat, pos,
+      key: `room${n}`, name: r.name, nat: r.nat, pos: r.pos,
       juniorTeam: r.juniorTeam, juniorLeague: r.juniorLeague, route: routeOf(r.juniorLeague),
-      score: scoreAt(n), gap: avgGap + (r.gap - 0.5) * 8
+      // A goalie in the room already sits where real drafts take goalies, so
+      // he starts with the usual goalie discount handed back. Clubs that rate
+      // goalies higher or lower than most still move him (see taste). In the
+      // first round only half of it comes back: a club that likes goalies
+      // early was pulling one into the top thirty-two most years, and real
+      // drafts take one there about every other year.
+      score: scoreAt(n) + (r.pos === 'G' ? GOALIE_PENALTY.normal * (n <= ROUND ? 0.5 : 1) : 0),
+      gap: avgGap + (r.gap - 0.5) * 8
     });
   }
 

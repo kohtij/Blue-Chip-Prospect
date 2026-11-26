@@ -75,13 +75,35 @@ const MONTHS = ['October', 'November', 'December'];
 /** "a" or "an", so the labels can start with any letter. */
 export const withArticle = (label) => `${/^[aeiou]/i.test(label || '') ? 'an' : 'a'} ${label}`;
 
-/** Roughly how long a number of games is, in the words a player would use. */
-export function timeOut(games) {
-  const weeks = Math.round((games || 0) / 3.5);
+/**
+ * Roughly how long a number of games is, in the words a player would use.
+ *
+ * Read off the league's own schedule: every league here plays its regular
+ * season over about twenty-six weeks, so an 82-game season is three games a
+ * week and a 68-game junior season is fewer. Forty-one NHL games is half the
+ * season and about three months, which is right, but "about 3 months" on its
+ * own hid that it was half the year.
+ */
+const SEASON_WEEKS = 26;
+export function timeOut(games, seasonGames = 82) {
+  const perWeek = Math.max(1, (seasonGames || 82) / SEASON_WEEKS);
+  const weeks = Math.round((games || 0) / perWeek);
   if (weeks <= 1) return 'about a week';
   if (weeks <= 8) return `about ${weeks} weeks`;
-  return `about ${Math.round(weeks / 4.3)} months`;
+  const months = Math.round(weeks / 4.3);
+  return `about ${months === 1 ? 'a month' : `${months} months`}`;
 }
+
+// How much of his season that was, once it's a real share of it.
+const shareOfSeason = (games, seasonGames = 82) => {
+  const s = (games || 0) / Math.max(1, seasonGames || 82);
+  if (s >= 0.9) return 'nearly the whole season';
+  if (s >= 0.6) return 'most of the season';
+  if (s >= 0.42) return 'half the season';
+  if (s >= 0.3) return 'a third of the season';
+  if (s >= 0.22) return 'a quarter of the season';
+  return null;
+};
 
 // A goaltender gets hurt differently: fewer collisions, more of the same two
 // joints over and over.
@@ -182,6 +204,9 @@ export function rollInjury(player, { games = 82 } = {}) {
     key: type.key,
     label: type.label,
     games: out,
+    // The length of his league's season, so the time out can be said in
+    // weeks of that league's schedule.
+    seasonGames: games,
     // What he carries into next year. A nagging injury takes something off him
     // until it is behind him, which is what "playing hurt" actually means.
     lingers: !careerEnding && type.nag && Math.random() < 0.45,
@@ -192,13 +217,16 @@ export function rollInjury(player, { games = 82 } = {}) {
 }
 
 /** A line for the recap, in the voice the rest of the game uses. */
-export function injuryLine(inj) {
+export function injuryLine(inj, seasonGames = 82) {
   if (!inj) return null;
   const n = inj.games;
+  const share = shareOfSeason(n, seasonGames);
   const after = n >= 25
-    ? `That was ${timeOut(n)} out of the lineup.`
+    ? (share
+      ? `That was ${share}, ${timeOut(n, seasonGames)} out of the lineup.`
+      : `That was ${timeOut(n, seasonGames)} out of the lineup.`)
     : n >= 10
-      ? `${timeOut(n).replace(/^a/, 'A')} in the press box, and the room got used to playing without you.`
+      ? `${timeOut(n, seasonGames).replace(/^a/, 'A')} in the press box, and the room got used to playing without you.`
       : 'You were back before most people outside the building noticed you had gone.';
   return `You missed ${n} game${n === 1 ? '' : 's'} with ${withArticle(inj.label)}. ${after}`;
 }
@@ -223,7 +251,7 @@ export function injuryEvent(inj) {
   const how = HOW[inj.key] || 'you got hurt';
   const who = inj.key === 'head' ? 'the doctors' : 'the staff';
   const what = WHAT[inj.key] || `It's ${withArticle(inj.label)}.`;
-  const desc = `In ${month}, ${how}. ${what} ${who === 'the doctors' ? 'The doctors' : 'The staff'} have you out for ${timeOut(inj.games)}.`;
+  const desc = `In ${month}, ${how}. ${what} ${who === 'the doctors' ? 'The doctors' : 'The staff'} have you out for ${timeOut(inj.games, inj.seasonGames)}.`;
   const title = '🩹 OUT OF THE LINEUP';
 
   const wait = {

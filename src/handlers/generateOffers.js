@@ -5,7 +5,7 @@ import { nhlGamesIn } from '../utils/rosterMoves';
 import { withOfferPerks } from '../data/offerPerks';
 import { getRole } from '../utils/appHelpers';
 import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
-import { capFor, comparables, marketTier } from '../utils/contracts';
+import { leagueMinimumFor, nhlMarketValue } from '../utils/contracts';
 import { veteranBonuses } from '../utils/bonuses';
 
 // A club's projected finish, read out of one table for the whole league.
@@ -139,7 +139,10 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
           years: 1 + Math.floor(Math.random() * 2),
           role: (player.age || 0) >= 32 ? 'Veteran Leader' : 'Pro Roster',
           fanHit: 0,
-          state: 'Europe'
+          state: 'Europe',
+          // A farewell tour rather than a way out of a relegated club, so the
+          // screen keeps the option to retire under the offers.
+          ...(opts.reason === 'relegation' ? {} : { twilight: true })
         };
       });
 
@@ -185,12 +188,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     const agentModifier = agentItem?.effect?.salaryModifier ?? 1.15;
     const multi = (player.inventory || []).includes('agent') ? agentModifier : 1.0;
 
-    // NEW: League-wide reputation modifier
-    const repMod = (player.stats?.reputation ?? 100) / 100;
-
-    let leagueMinimum = 850000;
-    if (currentYear === 2027) leagueMinimum = 900000;
-    else if (currentYear >= 2029) leagueMinimum = 1000000;
+    const leagueMinimum = leagueMinimumFor(currentYear);
 
     let baseSalary;
     let maxYears;
@@ -211,19 +209,21 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       // player.ovr. It is now his recent form priced against the classmates
       // who are actually playing in this league, so there are names and
       // numbers behind the figure. See utils/contracts.js for the whole of it.
-      market = comparables(player, player.peers, currentYear);
-      const tier = marketTier(market.anchor, currentYear);
-      const cap = capFor(currentYear);
-
+      //
       // The agent takes his cut of the argument: multi is the club's appetite
-      // and repMod is what the player's reputation is doing to it.
-      baseSalary = Math.max(market.anchor * multi * repMod, cap * tier.floorShare);
+      // and the player's reputation moves it too. The price itself, including
+      // the restricted free agent's discount and the maximum contract, comes
+      // from nhlMarketValue, so every other offer in the game that quotes him
+      // a salary gets the same number.
+      const mv = nhlMarketValue(player, currentYear, {
+        agentMulti: multi, minimum: leagueMinimum,
+        rfa: isRFA ? { canArbitrate } : null
+      });
+      market = mv.market;
+      const tier = mv.tier;
+      baseSalary = mv.salary;
       maxYears = tier.maxYears;
       if (isRFA) minYears = tier.rfaMinYears;
-
-      if (tier.tier === 'fringe') {
-        baseSalary = Math.max(leagueMinimum + 150000, baseSalary);
-      }
 
       if (player.age >= 37) {
          maxYears = Math.min(maxYears, 1);
@@ -234,17 +234,6 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
          maxYears = Math.min(maxYears, 4);
       }
       minYears = Math.min(minYears, maxYears);
-
-      // A restricted free agent has less leverage than an unrestricted one.
-      // Without arbitration rights his only threat is an offer sheet, so his
-      // second deal is usually a bridge well under what the same numbers earn
-      // on the open market; with them, the hearing pulls the price most of the
-      // way back up. Every RFA used to be priced as if he could walk.
-      if (isRFA) baseSalary *= canArbitrate ? 0.88 : 0.72;
-
-      // The maximum contract is twenty per cent of the cap, as the real one is,
-      // rather than a hand-written number needing its own inflation term.
-      baseSalary = Math.min(cap * 0.20, baseSalary);
     } else {
       // Minor league / amateur fallback pay
       baseSalary = (leagueMinimum + (Math.random() * 150000)) * multi;
@@ -353,15 +342,27 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
              });
          }
 
-         // NEW: HOMETOWN DISCOUNT (For Beloved Players)
-         // Note: RFAs can now take hometown discounts too, signing long-term for less AAV to help the cap.
-         if (actingLeague === 'NHL' && (player.fanStatus || 0) >= 600) {
+         // THE HOMETOWN DISCOUNT.
+         //
+         // Taking less to stay is something a player does for a club that
+         // means something to him: the one that drafted him, or the one he
+         // grew up cheering for (see utils/boyhood.js). It used to be offered
+         // by whatever club he was at, the moment his fans passed six hundred.
+         // The club that drafted him still has to be one whose fans love him;
+         // the boyhood club doesn't. RFAs can take it too, signing long-term
+         // for less to help the cap.
+         const discountReason = actingLeague !== 'NHL' ? null
+           : actingTeam === player.boyhoodTeam ? 'boyhood'
+             : actingTeam === player.draftTeam && (player.fanStatus || 0) >= 600 ? 'drafted'
+               : null;
+         if (discountReason) {
              // We base the cut on the TRUE baseSalary, regardless of if the QO inflated the perceived baseline.
              const discountSalary = Math.max(leagueMinimum, Math.round((baseSalary * 0.65) / 25000) * 25000);
              offers.push({
                  team: actingTeam,
                  league: actingLeague,
                  type: 'HOMETOWN DISCOUNT',
+                 discountReason,
                  salary: discountSalary,
                  years: Math.min(8, Math.max(5, maxYears + 2)), // Guaranteed long-term security
                  role: getRole(baseSalary, { ...player, league: 'NHL' }),
@@ -533,6 +534,31 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       }
     }
     
+    // THE CLUB HE GREW UP CHEERING FOR, BIDDING FOR HIM.
+    //
+    // When they're one of the clubs in his free agency, they come with the
+    // same hometown discount his own club would: less a year, more years, the
+    // no-movement clause, and a city that already loves him.
+    const boyhoodBid = !isTradeRequest && player.boyhoodTeam && player.boyhoodTeam !== actingTeam
+      && offers.find(o => o.team === player.boyhoodTeam && o.league === 'NHL' && o.type === 'FREE AGENCY' && o.salary > 925000);
+    if (boyhoodBid) {
+      const bSalary = Math.max(leagueMinimum, Math.round((boyhoodBid.salary * 0.75) / 25000) * 25000);
+      offers.push({
+        team: boyhoodBid.team,
+        league: 'NHL',
+        type: 'HOMETOWN DISCOUNT',
+        discountReason: 'boyhood',
+        salary: bSalary,
+        years: Math.min(8, Math.max(5, (boyhoodBid.years || 1) + 2)),
+        role: boyhoodBid.role,
+        fanHit: 100,
+        state: boyhoodBid.state,
+        standing: boyhoodBid.standing,
+        nmc: true,
+        perks: [{ text: '🔒 Coming home (+100 Fans)', fanStatus: 100, ovr: 0, money: 0, color: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' }]
+      });
+    }
+
     // RUSSIAN FACTOR KHL MEGADEAL INJECTION
     if (player.storylines?.russianFactorChoice === 'KHL' && !offers.some(o => o.league === 'KHL')) {
       const khlPool = getOpponentPool('KHL') || [];

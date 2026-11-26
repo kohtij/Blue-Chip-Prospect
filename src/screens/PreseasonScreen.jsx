@@ -226,6 +226,11 @@ export default function PreseasonScreen() {
                                 ...player,
                                 // The first camp of a career also sets who you are.
                                 archetype: isArchetypeChoice ? (t.archetype || player.archetype) : player.archetype,
+                                // The dashboard shows the archetype from here on.
+                                // Creation fills one in from the starting stats,
+                                // and showing that one read as a choice already
+                                // made for you.
+                                archetypeChosen: player.archetypeChosen || isArchetypeChoice,
                                 shooting: cap((player.shooting ?? 50) + (eff.shooting || 0)),
                                 skating: cap((player.skating ?? 50) + (eff.skating || 0)),
                                 physicality: cap((player.physicality ?? 50) + (eff.physicality || 0)),
