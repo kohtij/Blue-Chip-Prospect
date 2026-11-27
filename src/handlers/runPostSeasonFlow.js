@@ -11,6 +11,7 @@ import { buildRun } from '../utils/intlRun';
 import { grudgeAgainst, nhlSeasonsOf, onNhlContract } from '../utils/gameHelpers';
 import { parentOf } from '../utils/rosterMoves';
 import { boyhoodLine, boyhoodShortlist } from '../utils/boyhood';
+import { seasonYear } from '../utils/season';
 
 export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madePlayoffs, nextYear, standings, opts = {}) {
   const { player, playoffs, setActiveEvent, setActivePress, setMinigameContext, setPendingPlayoffs, setPlayer, setScreen, triggerMinigame } = ctx;
@@ -270,7 +271,7 @@ export function runPostSeasonFlow(ctx, pAge, pOvr, currentLg, currentTeam, madeP
     // keeps a record of who won what and when, so the club in front of him
     // has its own history, and a club that is not actually waiting for
     // anything does not get the storyline at all.
-    const nowYear = 2026 + (player.stats?.seasonsPlayed || 0);
+    const nowYear = seasonYear(player);
     const drought = lastTitle(player.titleLedger, currentTeam, nowYear, currentLg);
     const realDrought = drought.never || (drought.gap ?? 0) >= 12;
     const cityName = getFullTeamName(currentTeam, currentLg);

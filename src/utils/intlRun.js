@@ -22,6 +22,7 @@ import { PRESTIGE } from './stakes';
 import { fanGain, applyOvrDelta, recomputeOvr } from './gameHelpers';
 import { inTopOfLineup, nhlRegular } from './roster';
 import { getRole } from './appHelpers';
+import { isDefence } from './production';
 
 const TOURNEY_NAME = {
   wjc: 'World Juniors',
@@ -633,7 +634,7 @@ function produce(player, isClean, oppTier) {
     return { shots, saves, sho: 0, ...blank };
   }
 
-  const isD = pos === 'LD' || pos === 'RD';
+  const isD = isDefence(pos);
   const gRate = edge * tierPull * (isD ? 0.26 : 0.62);
   const aRate = edge * tierPull * (isD ? 0.72 : 0.78);
   const roll = (rate) => (Math.random() < rate ? 1 : 0) + (Math.random() < rate * 0.25 ? 1 : 0);

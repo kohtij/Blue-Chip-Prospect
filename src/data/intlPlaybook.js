@@ -615,4 +615,3 @@ export const PICK_PROMPT = {
 };
 
 export const getPlaybook = (pos) => PLAYBOOKS[pos] || WINGER;
-export const findPlay = (pos, id) => getPlaybook(pos).find(p => p.id === id) || null;

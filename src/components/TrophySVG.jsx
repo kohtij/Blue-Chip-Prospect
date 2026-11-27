@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { chlLeagues } from '../data/teams';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const TrophySVG = ({ league, className = "w-24 h-24 sm:w-32 sm:h-32" }) => {
@@ -66,7 +67,7 @@ const TrophySVG = ({ league, className = "w-24 h-24 sm:w-32 sm:h-32" }) => {
         </g>
       )}
 
-      {['OHL', 'WHL', 'QMJHL'].includes(league) && (
+      {chlLeagues.includes(league) && (
         <g className="drop-shadow-2xl">
           {/* THE MEMORIAL CUP - Large distinct handles */}
           <path d="M 25 115 L 75 115 L 70 85 L 30 85 Z" fill={wood} stroke="#1a0a00" strokeWidth="0.5"/>

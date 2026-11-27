@@ -4,14 +4,15 @@ import { useAppContext } from '../AppContext';
 import { championsOf, getFullTeamName, getPlayoffTitles } from '../utils/appHelpers';
 import { amateurLeagues, getOpponentPool, getPlayoffRounds, getPrimaryRival, LEAGUE_CONFIG, ncaaTeams } from '../data/teams';
 import { splitPerk } from '../data/offerPerks';
-import { capFanStatus, formatMoney, ordinal } from '../utils/gameHelpers';
+import { capFanStatus, formatMoney, ordinal, summariseStints } from '../utils/gameHelpers';
 import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/gameHelpers';
-import { rateSeason } from '../utils/production';
+import { rateSeason, isDefence } from '../utils/production';
 import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
 import { awardsFor } from '../data/leagueAwards';
 import { TITLE_MD } from '../utils/ui';
 import TrophyImage from '../components/TrophyImage';
+import { FIRST_SEASON, seasonYear } from '../utils/season';
 
 // Leagues that don't count toward a player's pro season number.
 const AMATEUR_LEAGUES = amateurLeagues;
@@ -218,7 +219,7 @@ export default function RecapScreen() {
           const streak = (() => {
             const hist = player.seasonHistory || [];
             // The season being recapped may already be written; skip it once.
-            const thisYear = 2026 + ((player.stats?.seasonsPlayed || 1) - 1);
+            const thisYear = Math.max(FIRST_SEASON, seasonYear(player) - 1);
             const written = hist.length > 0 && hist[hist.length - 1].year === thisYear;
             const now = written ? hist[hist.length - 1] : { league: player.league, team: player.team };
             let n = 1;
@@ -397,53 +398,93 @@ export default function RecapScreen() {
                   rest of the game shows a stat line, and one sentence under
                   them says what kind of year it was. */}
               {(() => {
-                const r = seasonRecap || {};
-                const gp = r.games || 0;
                 const isG = player.pos === 'G';
-                const isD = ['LD', 'RD'].includes(player.pos);
-                const pts = (r.g || 0) + (r.a || 0);
-                const sv = r.shots ? r.saves / r.shots : 0;
-                const sog = r.sog || 0;
-                const shPct = sog > 0 ? ((r.g || 0) / sog) * 100 : null;
-                const fot = r.fot || 0;
-                const foPct = fot > 0 ? ((r.fow || 0) / fot) * 100 : null;
+                const isD = isDefence(player.pos);
 
-                const main = isG
-                  ? [['GP', gp], ['Record', `${r.wins || 0}-${r.losses || 0}-${r.otl || 0}`], ['SV%', sv.toFixed(3).replace('0.', '.')], ['SO', r.sho || 0]]
-                  : isD
-                    ? [['GP', gp], ['Points', pts], ['Blocks', r.blk || 0], ['TOI', clock(r.avgToi)], ['+/-', `${(r.pm || 0) > 0 ? '+' : ''}${r.pm || 0}`]]
-                    : [['GP', gp], ['Goals', r.g || 0], ['Assists', r.a || 0], ['Points', pts], ['TOI', clock(r.avgToi)]];
+                // THE CLUB HE PLAYED FOR MOST.
+                //
+                // A year split between clubs (the NHL and the AHL, or a deadline
+                // trade) used to be added up into one line, so thirty games up
+                // top and forty in the minors showed as seventy games of nobody's
+                // league. The tiles are now the club he played the most games
+                // for, named above them; the sentence below says where the rest
+                // of the year went. A year at one club is shown as before.
+                const history = player.seasonHistory?.[player.seasonHistory.length - 1];
+                const stints = (seasonRecap?.stints || history?.stints || []).filter(x => x && (x.games || 0) > 0);
+                const clubs = [];
+                for (const x of stints) {
+                  const key = `${x.league}:${x.team}`;
+                  const c = clubs.find(y => y.key === key);
+                  if (c) c.games += x.games || 0; else clubs.push({ key, team: x.team, league: x.league, games: x.games || 0 });
+                }
+                const top = clubs.length > 1 ? [...clubs].sort((x, y) => y.games - x.games)[0] : null;
+                const asRecap = (sum) => ({
+                  games: sum.games, g: sum.goals, a: sum.assists, pm: sum.plusMinus, blk: sum.blocks,
+                  sog: sum.sog, fot: sum.fot, fow: sum.fow, pim: sum.pim, saves: sum.saves, shots: sum.shots,
+                  sho: sum.shutouts, wins: sum.wins, losses: sum.losses, otl: sum.otl,
+                  avgToi: sum.avgToi, ppToi: sum.ppToi, ozPct: sum.ozPct
+                });
+                const groups = top
+                  ? [{ club: top, r: asRecap(summariseStints(stints.filter(x => x.team === top.team && x.league === top.league))) }]
+                  : [{ club: null, r: seasonRecap || {} }];
 
-                const extra = [
-                  !isG && shPct != null && !isD && ['Shooting', `${shPct.toFixed(1)}%`],
-                  !isG && foPct != null && ['Faceoffs', `${foPct.toFixed(1)}%`],
-                  !isG && (r.ppToi || 0) >= 0.2 && ['PP TOI', clock(r.ppToi)],
-                  !isG && ['PIM', r.pim || 0],
-                  !isG && r.ozPct != null && ['OZ starts', `${r.ozPct}%`],
-                  isD && ['G-A', `${r.g || 0}-${r.a || 0}`]
-                ].filter(Boolean);
-
+                const tilesFor = (r) => {
+                  const gp = r.games || 0;
+                  const pts = (r.g || 0) + (r.a || 0);
+                  const sv = r.shots ? r.saves / r.shots : 0;
+                  const sog = r.sog || 0;
+                  const shPct = sog > 0 ? ((r.g || 0) / sog) * 100 : null;
+                  const fot = r.fot || 0;
+                  const foPct = fot > 0 ? ((r.fow || 0) / fot) * 100 : null;
+                  const main = isG
+                    ? [['GP', gp], ['Record', `${r.wins || 0}-${r.losses || 0}-${r.otl || 0}`], ['SV%', sv.toFixed(3).replace('0.', '.')], ['SO', r.sho || 0]]
+                    : isD
+                      ? [['GP', gp], ['Points', pts], ['Blocks', r.blk || 0], ['TOI', clock(r.avgToi)], ['+/-', `${(r.pm || 0) > 0 ? '+' : ''}${r.pm || 0}`]]
+                      : [['GP', gp], ['Goals', r.g || 0], ['Assists', r.a || 0], ['Points', pts], ['TOI', clock(r.avgToi)]];
+                  const extra = [
+                    !isG && shPct != null && !isD && ['Shooting', `${shPct.toFixed(1)}%`],
+                    !isG && foPct != null && ['Faceoffs', `${foPct.toFixed(1)}%`],
+                    !isG && (r.ppToi || 0) >= 0.2 && ['PP TOI', clock(r.ppToi)],
+                    !isG && ['PIM', r.pim || 0],
+                    !isG && r.ozPct != null && ['OZ starts', `${r.ozPct}%`],
+                    isD && ['G-A', `${r.g || 0}-${r.a || 0}`]
+                  ].filter(Boolean);
+                  return { main, extra };
+                };
 
                 return (
-                  <div className="mb-6">
-                    <div className={`grid ${main.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} gap-1.5 sm:gap-2`}>
-                      {main.map(([label, value]) => (
-                        <div key={label} className="rounded-lg bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] px-1.5 py-2.5 sm:py-3 text-center">
-                          {/* A long value (a goalie's 38-20-6) is set smaller rather
-                              than broken across two lines. */}
-                          <p className={`number-font font-black text-white leading-none tabular-nums whitespace-nowrap ${
-                            String(value).length > 5 ? 'text-[15px] sm:text-2xl' : 'text-xl sm:text-3xl'}`}>{value}</p>
-                          <p className="mt-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                  <div className="mb-6 space-y-4">
+                    {groups.map(({ club, r }) => {
+                      const { main, extra } = tilesFor(r);
+                      return (
+                        <div key={club ? club.key : 'all'}>
+                          {club && (
+                            <div className="mb-2 flex items-center flex-wrap gap-x-2 gap-y-1 text-xs sm:text-sm text-slate-400">
+                              <span>With {withTeamArticle(getFullTeamName(club.team, club.league), club.league)}</span>
+                              <LeagueTag league={club.league} flagClass="w-[14px] h-[10px]" />
+                            </div>
+                          )}
+                          <div className={`grid ${main.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} gap-1.5 sm:gap-2`}>
+                            {main.map(([label, value]) => (
+                              <div key={label} className="rounded-lg bg-[#0a0d0a] border border-[rgba(255,255,255,0.065)] px-1.5 py-2.5 sm:py-3 text-center">
+                                {/* A long value (a goalie's 38-20-6) is set smaller rather
+                                    than broken across two lines. */}
+                                <p className={`number-font font-black text-white leading-none tabular-nums whitespace-nowrap ${
+                                  String(value).length > 5 ? 'text-[15px] sm:text-2xl' : 'text-xl sm:text-3xl'}`}>{value}</p>
+                                <p className="mt-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {extra.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
+                              {extra.map(([label, value]) => (
+                                <span key={label} className="text-slate-500">{label} <span className="text-slate-200 number-font">{value}</span></span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                    {extra.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
-                        {extra.map(([label, value]) => (
-                          <span key={label} className="text-slate-500">{label} <span className="text-slate-200 number-font">{value}</span></span>
-                        ))}
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
                 );
               })()}
@@ -452,6 +493,12 @@ export default function RecapScreen() {
                 <li className="border-l-4 border-[#3b82f6] pl-4 pr-3 py-2.5 rounded-r-lg">
                   {(() => {
                      const currentHistory = player.seasonHistory?.[player.seasonHistory.length - 1];
+                     // A three-team deadline deal says so, and names the club in
+                     // the middle that held back part of his salary.
+                     const via = currentHistory?.tradeVia;
+                     const viaLine = via
+                       ? <> A three-team trade sent you to <strong className="text-white">{withTeamArticle(getFullTeamName(currentHistory.team, currentHistory.league || player.league), currentHistory.league || player.league)}</strong>, with {withTeamArticle(getFullTeamName(via.team, via.league || 'NHL'), via.league || 'NHL')} holding back {via.retained === 50 ? 'half' : 'a quarter'} of your salary.</>
+                       : null;
 
                      // A season split across two leagues, as the nine-game rule
                      // produces: nine games up top, the rest back in junior. A trade
@@ -486,12 +533,12 @@ export default function RecapScreen() {
                           const joint = i === 0 ? '' : i === stops.length - 1 ? ', and then ' : ', then ';
                           return <span key={`${s.team}-${i}`}>{joint}{body}</span>;
                         });
-                        return <>🏅 {parts}.</>;
+                        return <>🏅 {parts}.{viaLine}</>;
                      }
 
-                     if (currentHistory?.tradedTo) {
+                     if (currentHistory?.tradedFrom) {
                         return (
-                          <>🏅 Started the year with <strong className="text-white">{getFullTeamName(currentHistory.team, player.league)}</strong> ({currentHistory.gamesWithOriginal} GP) before {player.league === 'NCAA' ? 'transferring to' : 'a trade to'} <strong className="text-white">{getFullTeamName(currentHistory.tradedTo, player.league)}</strong> ({currentHistory.gamesWithNew} GP).</>
+                          <>🏅 Started the year with <strong className="text-white">{getFullTeamName(currentHistory.tradedFrom, currentHistory.tradedFromLeague || player.league)}</strong> ({currentHistory.gamesWithOriginal} GP) before {player.league === 'NCAA' ? 'transferring to' : 'a trade to'} <strong className="text-white">{getFullTeamName(currentHistory.team, player.league)}</strong> ({currentHistory.gamesWithNew} GP).{viaLine}</>
                         );
                      }
                      return (
@@ -638,11 +685,17 @@ export default function RecapScreen() {
                           happened. */}
                       {bar.classBest && (
                         <span className="block text-slate-400 mt-1">
+                          {/* When he led the whole league, "nobody from your
+                              class outscored you" only said the line above
+                              again, so it names the next best of them instead.
+                              The league takes its article ("in the NHL"). */}
                           {mine > bar.classBest.pts
-                            ? `Nobody from your ${cw} in ${formatLeagueName(lg)} outscored you. ${bar.classBest.name} was the next best on ${bar.classBest.pts}.`
+                            ? (won
+                              ? `The next best from your ${cw} was ${bar.classBest.name}, on ${bar.classBest.pts}.`
+                              : `You were the top scorer from your ${cw} in ${where}. ${bar.classBest.name} was next, on ${bar.classBest.pts}.`)
                             : mine === bar.classBest.pts
                               ? `${bar.classBest.name}, from your ${cw}, finished level with you on ${bar.classBest.pts} points.`
-                              : `${bar.classBest.name} was the best of your ${cw} in ${formatLeagueName(lg)} on ${bar.classBest.pts} points.`}
+                              : `${bar.classBest.name} was the best of your ${cw} in ${where}, on ${bar.classBest.pts} points.`}
                         </span>
                       )}
                     </RecapRow>
@@ -913,7 +966,8 @@ export default function RecapScreen() {
                   PROCEED TO OFFSEASON
                 </button>
                 
-                {player.league === 'NCAA' && (
+                {/* Only with eligibility left: a transfer doesn't buy a fifth year. */}
+                {player.league === 'NCAA' && (player.seasonHistory || []).filter(s => s.league === 'NCAA').length < 4 && (
                    <button onClick={() => {
                        unlockAchievement('transfer_portal'); 
                        setPlayer(p => ({ ...p, fanStatus: capFanStatus((p.fanStatus || 0) - 15) }));

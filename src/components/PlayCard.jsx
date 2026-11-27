@@ -64,41 +64,41 @@ export default function PlayCard({ play, state = 'open', disabled, onPick, myLab
 
   const Tag = disabled ? 'div' : 'button';
 
+  // The line under the name, if the card has one.
+  const tag =
+    state === 'tape' ? { text: 'On tape', cls: 'text-slate-500' }
+      : state === 'flagged' ? { text: 'In their pre-scout', cls: 'text-[#F59E0B]' }
+        : state === 'favourite' ? { text: 'The room’s play', cls: 'text-[#38bdf8]' }
+          : state === 'burned' ? { text: 'Scouted', cls: 'text-[#ef4444]' }
+            : null;
+
+  // EVERY CARD THE SAME SHAPE.
+  //
+  // A card is a button, and a button centres what's in it. In a grid row
+  // stretched to its tallest card, that moved the rink down on any card whose
+  // name fit on one line and had no tag under it, so on a phone (Safari most
+  // of all) the rinks in a row sat at three different heights. The content
+  // now starts at the top, the name always has room for two lines, and the
+  // tag line is always there, empty or not.
   return (
     <Tag
       {...(disabled ? {} : { type: 'button', onClick: () => onPick?.(play) })}
       title={play.blurb}
-      className={`group rounded-xl border p-1.5 sm:p-2 text-left transition-all ${frame} ${
+      className={`group h-full w-full flex flex-col justify-start items-stretch rounded-xl border p-1.5 sm:p-2 text-left transition-all ${frame} ${
         disabled ? '' : 'cursor-pointer hover:border-[#22E748]/70 hover:scale-[1.03] active:scale-[0.99]'
       }`}
     >
-      <div className="rounded-lg overflow-hidden">
+      <div className="rounded-lg overflow-hidden shrink-0">
         <Rink diagram={play.diagram} tone={tone} myLabel={myLabel} view={view} />
       </div>
       <div className="mt-1.5 px-0.5 pb-0.5">
-        <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-300 leading-tight break-words">
+        <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-300 leading-tight break-words min-h-[2.5em]">
           {play.name}
         </p>
-        {state === 'tape' && (
-          <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-slate-500 leading-none mt-1">
-            On tape
-          </p>
-        )}
-        {state === 'flagged' && (
-          <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-[#F59E0B] leading-none mt-1">
-            In their pre-scout
-          </p>
-        )}
-        {state === 'favourite' && (
-          <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-[#38bdf8] leading-none mt-1">
-            The room&apos;s play
-          </p>
-        )}
-        {state === 'burned' && (
-          <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-[#ef4444] leading-none mt-1">
-            Scouted
-          </p>
-        )}
+        <p className={`text-[7px] sm:text-[8px] font-black uppercase tracking-widest leading-none mt-1 min-h-[1em] ${tag ? tag.cls : ''}`}
+           aria-hidden={tag ? undefined : true}>
+          {tag ? tag.text : ' '}
+        </p>
       </div>
     </Tag>
   );

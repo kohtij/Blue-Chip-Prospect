@@ -1,4 +1,4 @@
-import { forwardCareerGrade, rateSeason } from './production';
+import { forwardCareerGrade, rateSeason, isDefence } from './production';
 
 // The NHL part of one season. A year split between the NHL and the AHL is one
 // history entry, filed under whichever league it ended in with the whole
@@ -181,7 +181,7 @@ export function computeCareerScore(player) {
   // reachable by turning up for long enough. Rate is the other half of a
   // career, so it is scored here and it gates the top two tiers below.
   const isGoalieScore = player.pos === 'G';
-  const isDefenceScore = ['LD', 'RD'].includes(player.pos);
+  const isDefenceScore = isDefence(player.pos);
   const nhl = player.stats?.nhl || {};
   const nhlPts = (nhl.goals || 0) + (nhl.assists || 0);
   const nhlGp = nhl.games || 0;
@@ -340,7 +340,7 @@ export function peerCareerScore(peer) {
     const sv = (nh.shots || 0) > 0 ? (nh.saves || 0) / nh.shots : 0;
     if (gp >= 100) s += sv >= 0.925 ? 600 : sv >= 0.918 ? 400 : sv >= 0.910 ? 200 : 0;
   } else if (gp >= 100) {
-    const grade = ['LD', 'RD'].includes(peer.pos)
+    const grade = isDefence(peer.pos)
       ? rateSeason({ league: 'NHL', pos: peer.pos, games: gp, g, a: nh.a || 0, pm: nh.pm || 0, blk: nh.blk || null, toi })
       : forwardCareerGrade({ games: gp, goals: g, points: pts, sog: nh.sog || 0, pm: nh.pm || 0, blk: nh.blk ?? null, toi, fot: nh.fot || 0, fow: nh.fow || 0 });
     s += grade >= 7.9 ? 600 : grade >= 7.2 ? 400 : grade >= 6.2 ? 200 : grade >= 5.4 ? 75 : 0;

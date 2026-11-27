@@ -105,10 +105,6 @@ export function lerpDifficulty(easy, hard, difficulty = 0) {
 // to luck rather than skill.
 export const MIN_REACTION_MS = 320;
 
-// Timing a moving marker is anticipated rather than reacted to, so it can be
-// tighter than a cold reaction, but not by much.
-export const MIN_TIMING_MS = 200;
-
 // Scales a reward payout. Relationship changes are left alone: a coach does not
 // think twice as much of you because the game was a final.
 export function applyStakesToReward(payout, rewardMulti = 1) {

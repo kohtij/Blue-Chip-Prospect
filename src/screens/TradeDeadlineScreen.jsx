@@ -10,6 +10,9 @@ import { leagueLabel } from '../utils/peers';
 import TeamLogo from '../components/TeamLogo';
 import { ACTION, CONTRACT, OUTLOOK, RUMOUR, SEASON, SEASON_AMATEUR, STAKES, SUBTITLE, TRADE_FEEDBACK, TRADE_TITLE, TRANSFER_TITLE, pickFlavor, tradeStanding, tradeStory } from '../data/deadlineFlavor';
 import { TITLE_MD } from '../utils/ui';
+import { capFor } from '../utils/contracts';
+import { teamStrengthOf } from '../utils/leagueState';
+import { isElc, seasonYear } from '../utils/season';
 
 export default function TradeDeadlineScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -207,7 +210,7 @@ export default function TradeDeadlineScreen() {
           // neither does, something about the run-in takes their spot.
           // The league minimum entry-level number. A player on one of these is
           // not "signed beyond this season" in any sense he can act on.
-          const isELC = (player.contract?.salary || 0) === 925000;
+          const isELC = isElc(player.contract);
           const contractKey = isExpiring
             ? (isELC ? 'elcExpiring' : 'expiring')
             : (isELC ? 'elc' : 'signed');
@@ -253,6 +256,37 @@ export default function TradeDeadlineScreen() {
                       fanStatus: player.fanStatus || 0,
                       games: gp
                     });
+                    // THE THIRD CLUB.
+                    //
+                    // A contender that wants a big contract and can't fit it
+                    // under the cap finds a third club, nearly always a
+                    // rebuilding one, to hold back part of the salary for a
+                    // pick: a club can retain up to half of a player's salary.
+                    // About one NHL deadline deal in five for a player on a big
+                    // contract goes that way. His pay doesn't change (the
+                    // clubs split it between them), and the middle club never
+                    // had him, so it's no grudge of his (see grudgeAgainst).
+                    const year = seasonYear(player);
+                    const bigContract = (player.contract?.salary || 0) >= capFor(year) * 0.06;
+                    let via = null;
+                    if (!isAHL && tradeLg === 'NHL' && bigContract && Math.random() < 0.2) {
+                       const others = pool.filter(t => t.id !== destTeam.id && t.id !== 'UNK');
+                       const weakest = [...others]
+                         .sort((x, y) => teamStrengthOf(player.leagueState, x.id) - teamStrengthOf(player.leagueState, y.id))
+                         .slice(0, 8);
+                       const mid = weakest[Math.floor(Math.random() * weakest.length)];
+                       if (mid) {
+                          const PICKS = ['a third-round pick', 'a fourth-round pick', 'a fourth-round pick', 'a fifth-round pick', 'a sixth-round pick'];
+                          via = {
+                            team: mid.id, league: 'NHL',
+                            retained: Math.random() < 0.6 ? 50 : 25,
+                            pick: PICKS[Math.floor(Math.random() * PICKS.length)]
+                          };
+                       }
+                    }
+                    const viaName = via ? getFullTeamName(via.team, 'NHL') : null;
+                    const viaShare = via ? (via.retained === 50 ? 'half' : 'a quarter') : null;
+
                     let eventDesc = tradeStory({
                       standing: assetTier,
                       selling: isSelling,
@@ -263,7 +297,9 @@ export default function TradeDeadlineScreen() {
                       // the paragraph, after everything else had been said. It belongs
                       // in the same sentence as the name of the club, because that is
                       // the sentence a player listens for.
-                      destLine: `You're off to ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)}, who sit **#${destStandings}** and in a playoff spot.`,
+                      destLine: via
+                        ? `It took three clubs. The **${viaName}** are holding back ${viaShare} of your salary for ${via.pick}, and you're off to ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)}, who sit **#${destStandings}** and in a playoff spot.`
+                        : `You're off to ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)}, who sit **#${destStandings}** and in a playoff spot.`,
                       seed: `${seed}|trade|${destTeam.id}`
                     });
                     let eventTitle = pickFlavor((isFees ? TRANSFER_TITLE : TRADE_TITLE)[assetTier], `${seed}|${destTeam.id}`, 'tradeTitle');
@@ -290,12 +326,14 @@ export default function TradeDeadlineScreen() {
                            // player to waive a clause is asking him to be the price of
                            // somebody else's arrival, which is a different question.
                            desc: isSelling
-                             ? `Your GM called you in. The season is gone and ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)} have put a package on the table he can't ignore. You hold a ${clauseName}. Will you waive it?`
-                             : `Your GM called you in. The club has a deal agreed with ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)} for the player it has been chasing all year, and you're what they want back. You hold a ${clauseName}. Will you waive it?`,
+                             ? `Your GM called you in. The season is gone and ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)} have put a package on the table he can't ignore.${via ? ` It's a three-team deal: the **${viaName}** would hold back ${viaShare} of your salary so it fits.` : ''} You hold a ${clauseName}. Will you waive it?`
+                             : `Your GM called you in. The club has a deal agreed with ${withTeamArticle(`**${getFullTeamName(destTeam.id, tradeLg)}**`, tradeLg)} for the player it has been chasing all year, and you're what they want back.${via ? ` It's a three-team deal: the **${viaName}** would hold back ${viaShare} of your salary so it fits.` : ''} You hold a ${clauseName}. Will you waive it?`,
                            choices: [
                               // showTeamCard gives this the full team card (logo, rank, perks and
                               // flaws) so the destination can be judged before waiving the clause.
-                              { label: `Waive your ${clauseName}`, subLabel: 'Accept the trade and report to your new club.', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true } },
+                              { label: `Waive your ${clauseName}`, subLabel: 'Accept the trade and report to your new club.', isRisky: false, feedback: 'You waived your clause to chase a Cup elsewhere.', effect: { fanStatus: -10, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE',
+                                ...(via ? { perks: [{ name: `Via the ${viaName}`, effect: `${via.retained}% retained` }] } : {}),
+                                actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, showTeamCard: true, ...(via ? { via } : {}) } },
                               { label: 'Veto the trade', subLabel: `Use your ${clauseName}. You're not going anywhere.`, isRisky: false, feedback: `You used your ${clauseShort}. The GM was frustrated, and you're staying put.`, effect: { fanStatus: 20, ovr: 0, rel: { coach: -15 } } }
                            ],
                            isTradeDeadlineEvent: true
@@ -309,8 +347,8 @@ export default function TradeDeadlineScreen() {
                               // both choices go to the same club, so two identical team cards would
                               // just repeat the destination twice. These choices are about how you
                               // react, so they stay as plain choices with a subLabel.
-                              { label: 'Embrace the fresh start', subLabel: 'Report on good terms and leave the bridge standing.', isRisky: false, feedback: feedback, effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } },
-                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'The fans at your new club loved it. You arrived with a chip on your shoulder.', successEffect: { fanStatus: 20, ovr: 1, money: 0 }, failFeedback: 'You came off bitter and unprofessional, which isn\'t how anyone wants to arrive.', failEffect: { fanStatus: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots } }
+                              { label: 'Embrace the fresh start', subLabel: 'Report on good terms and leave the bridge standing.', isRisky: false, feedback: feedback, effect: { fanStatus: 0, ovr: 0, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, ...(via ? { via } : {}) } },
+                              { label: 'Trash your old GM to the press', subLabel: 'Burn the bridge and try to win over your new fan base.', isRisky: true, successChance: 0.4, successFeedback: 'The fans at your new club loved it. You arrived with a chip on your shoulder.', successEffect: { fanStatus: 20, ovr: 1, money: 0 }, failFeedback: 'You came off bitter and unprofessional, which isn\'t how anyone wants to arrive.', failEffect: { fanStatus: -20, ovr: -1, money: 0 }, action: 'ACCEPT_TRADE_DEADLINE', actionData: { teamObj: targetTeamObj, lg: targetLg, teamStandings: destStandings, madePlayoffs: destStandings <= playoffSpots, ...(via ? { via } : {}) } }
                            ],
                            isTradeDeadlineEvent: true
                         });
@@ -323,7 +361,7 @@ export default function TradeDeadlineScreen() {
                } else {
                    setSeasonRecap(res.recap);
                    try {
-                      runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, 2026 + (player.stats?.seasonsPlayed || 0), standings);
+                      runPostSeasonFlow(player.age, player.ovr, res.currentLg, res.currentTeam, res.madePlayoffs, seasonYear(player), standings);
                    } catch (e) {
                       // If postseason flow throws, log it and let the failsafe below rescue the click.
                       console.error('[TradeDeadlineScreen] runPostSeasonFlow threw:', e);

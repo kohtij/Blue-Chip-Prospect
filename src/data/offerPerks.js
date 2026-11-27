@@ -1,4 +1,4 @@
-import { euroLeagues, juniorLeagues } from './teams';
+import { euroLeagues, juniorLeagues, minorProLeagues } from './teams';
 // What is good and bad about an offer, beyond the money.
 //
 // The transfer screen has always known how to draw perks and flaws, but almost
@@ -90,13 +90,12 @@ const FLAWS = {
 // J20, U20 and the BCHL were missing and fell through to the NHL's set.
 const JUNIOR = juniorLeagues;
 const EURO = euroLeagues;
-const MINOR = ['AHL', 'ECHL', 'SPHL'];
 
 export function offerTier(league) {
   if (league === 'NCAA') return 'college';
   if (JUNIOR.includes(league)) return 'junior';
   if (EURO.includes(league)) return 'euro';
-  if (MINOR.includes(league)) return 'minor';
+  if (minorProLeagues.includes(league)) return 'minor';
   return 'nhl';
 }
 

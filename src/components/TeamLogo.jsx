@@ -63,7 +63,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
     // prefers the vector from nhle.com because it is sharper at badge size, but
     // a silhouette blurred to seven per cent gains nothing from being vector and
     // the pack is one request that is already warm and never missing.
-    const src = finalLogoUrl || (isNHL ? `https://assets.nhle.com/logos/nhl/svg/${teamId}_light.svg` : null);
+    const src = finalLogoUrl || (isNHL ? `/img/nhl/logos/nhl/svg/${teamId}_light.svg` : null);
     if (!src) return null;
     const mask = {
       WebkitMaskImage: `url("${src}")`, maskImage: `url("${src}")`,
@@ -85,7 +85,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
       <div className={`relative ${containerSize} flex items-center justify-center shrink-0 overflow-visible ${className}`}>
         {/* scale-[1.28] counteracts built-in SVG viewBox padding from NHL.com */}
         <img
-          src={`https://assets.nhle.com/logos/nhl/svg/${teamId}_${nhlVariant}.svg`}
+          src={`/img/nhl/logos/nhl/svg/${teamId}_${nhlVariant}.svg`}
           alt={altName}
           className={`w-full h-full object-contain transform-gpu scale-[1.28] ${size === 'backdrop' ? '' : 'drop-shadow-lg'}`}
           onError={(e) => {
@@ -128,4 +128,4 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
   );
 };
 
-export default TeamLogo;
+export default TeamLogo;

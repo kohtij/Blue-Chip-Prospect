@@ -17,6 +17,7 @@
 // at. Without one the player is handed a price and has nothing to argue with.
 
 import { compGroup, groupName, posGroup } from './peers';
+import { leagueMinimumFor } from './season';
 import { defensiveHalf, paceOf } from './production';
 import { careerAwardList } from './awardList';
 import { shopItems } from '../data/economy';
@@ -267,8 +268,8 @@ export function nhlMarketValue(player, year, { agentMulti = 1, rfa = null, minim
 export const agentMultiOf = (player) => ((player?.inventory || []).includes('agent')
   ? (shopItems.find(i => i.id === 'agent')?.effect?.salaryModifier ?? 1.15) : 1);
 
-/** The league minimum salary that summer. */
-export const leagueMinimumFor = (year) => (year >= 2029 ? 1000000 : year === 2027 ? 900000 : 850000);
+// The league minimum lives with the rest of the CBA's fixed money.
+export { leagueMinimumFor };
 
 const money = (n) => {
   if (n >= 1000000) {
@@ -277,35 +278,6 @@ const money = (n) => {
   }
   return `$${Math.round(n / 1000)}k`;
 };
-
-/**
- * What the agent says, in one or two sentences, with the names in it.
- *
- * This is the whole point of the exercise: the player can see who he is being
- * measured against and whether the number in front of him is short.
- */
-export function compLine({ comps, anchor, group }, offered) {
-  if (!comps.length) {
-    return 'Nobody from your draft class is established enough to price you against. Your agent is working off your own numbers alone.';
-  }
-
-  const unit = group === 'G'
-    ? (c) => `${(c.sv || 0).toFixed(3).replace('0.', '.')} in ${c.gp} GP`
-    : (c) => `${c.pts} pts in ${c.gp} GP`;
-
-  const named = comps.slice(0, 3)
-    .map(c => `${c.name} (${unit(c)}) on ${money(c.salary)}`)
-    .join(', ');
-
-  const verdict = offered == null ? ''
-    : offered >= anchor * 1.05
-      ? ` The ${money(offered)} on the table is above that market.`
-      : offered >= anchor * 0.92
-        ? ` The ${money(offered)} on the table is about right.`
-        : ` The ${money(offered)} on the table is ${money(anchor - offered)} short of it.`;
-
-  return `Your agent's comparables: ${named}. That puts your market at ${money(anchor)}.${verdict}`;
-}
 
 export { money as formatComp, groupName };
 

@@ -4,6 +4,8 @@ import { getFullTeamName, getTrainingQuality, getTrainingTierLabel } from '../ut
 import { cap, recomputeOvr, withTeamArticle } from '../utils/gameHelpers';
 import { statPillClass } from '../utils/statColors';
 import { CHOICE_ROW, kickerClass, TITLE_MD, TITLE_SM } from '../utils/ui';
+import { isDefence } from '../utils/production';
+import { withClub } from '../utils/clubs';
 
 // Your identity, chosen before your first game.
 //
@@ -56,7 +58,7 @@ export default function PreseasonScreen() {
   // Lazily initialize random archetypes so they don't re-roll if the screen renders twice
   const [randomizedArchetypes] = useState(() => {
       const isGoalie = player.pos === 'G';
-      const isDef = player.pos === 'LD' || player.pos === 'RD';
+      const isDef = isDefence(player.pos);
       const posType = isGoalie ? 'G' : isDef ? 'D' : 'F';
       
       const data = ARCHETYPE_POOLS[posType];
@@ -120,7 +122,7 @@ export default function PreseasonScreen() {
     if (!move) { carryOn(who); return; }
     const moved = {
       ...who, team: move.team, league: move.lg,
-      teamsPlayedFor: Array.from(new Set([...(who.teamsPlayedFor || []), move.team])),
+      teamsPlayedFor: withClub(who.teamsPlayedFor, move.team, move.lg),
       // Camp has already decided where he starts, so the camp events that ask
       // how he'll handle the week ("decides where you start the season") are
       // skipped this summer. See advanceToOffseason.

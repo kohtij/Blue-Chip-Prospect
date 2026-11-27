@@ -29,7 +29,7 @@ export function buildShot({ physicality = 50, hockeyIQ = 50, difficulty = 0, ran
 
   // Strength in the paint is what gets the blade into the lane at all. This is
   // a half-width, so the blade is in the lane for twice it. The floor sits
-  // under the MIN_TIMING_MS the other games use because those ask you to time a
+  // lower than the other games' timing windows because those ask you to time a
   // marker you can watch, and an interval you already know the length of can be
   // hit more precisely than one you are tracking.
   const windowMs = Math.max(

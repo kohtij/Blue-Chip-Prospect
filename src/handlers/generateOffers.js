@@ -1,4 +1,4 @@
-import { ahlTeams, nhlTeams, echlTeams, sphlTeams, j20Teams, u20Teams, getOpponentPool, isAmateurLeague, euroLeagues, countryProLeagues, LEAGUE_COUNTRY } from '../data/teams';
+import { ahlTeams, nhlTeams, echlTeams, sphlTeams, j20Teams, u20Teams, getOpponentPool, isAmateurLeague, euroLeagues, countryProLeagues, LEAGUE_COUNTRY, nhlFarmLeagues, nhlAndAhl } from '../data/teams';
 import { shopItems } from '../data/economy';
 import { arbitrationEligible, elcYears, gamesInLeague, getTransferImpact, isNhlFreeAgentEligible, isRestricted, onNhlContract, rightsExpiryYear } from '../utils/gameHelpers';
 import { nhlGamesIn } from '../utils/rosterMoves';
@@ -7,6 +7,8 @@ import { getRole } from '../utils/appHelpers';
 import { clubOutlook, placeIn, projectedTable, teamStrengthOf } from '../utils/leagueState';
 import { leagueMinimumFor, nhlMarketValue } from '../utils/contracts';
 import { veteranBonuses } from '../utils/bonuses';
+import { elcSalaryFor } from '../utils/season';
+import { playedInLeagues } from '../utils/clubs';
 
 // A club's projected finish, read out of one table for the whole league.
 //
@@ -60,7 +62,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
       if ((player.ovr || 0) >= (player.pos === 'G' ? 63 : 65)) {
         rightsOffers.push({
           team: player.rights, league: 'NHL', type: 'ENTRY-LEVEL CONTRACT', state: 'Holds your rights',
-          salary: 925000, years: elcYears(player.age), role: getRole(925000, { ...player, league: 'NHL' }),
+          salary: elcSalaryFor(currentYear), years: elcYears(player.age), role: getRole(elcSalaryFor(currentYear), { ...player, league: 'NHL' }), elc: true,
           fanHit: 10, rightsSummer: true, rightsUntil: rightsExpiryYear(player)
         });
       }
@@ -168,7 +170,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     // parent club, and that is who gets to extend him. One on an AHL deal
     // belongs to nobody once it ends: the AHL club can re-sign him, and every
     // NHL club can bid. See onNhlContract.
-    if (['AHL', 'ECHL'].includes(actingLeague) && onNhlContract({ ...player, league: actingLeague })) {
+    if (nhlFarmLeagues.includes(actingLeague) && onNhlContract({ ...player, league: actingLeague })) {
        let parent = (nhlTeams || []).find(t => t.ahlId === actingTeam || t.echlId === actingTeam || t.id === actingTeam);
        
        if (!parent && currentRights) {
@@ -441,10 +443,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
         }
 
         if (targetLg === 'NHL' && currentRights) {
-            const playedProNA = (player.teamsPlayedFor || []).some(tId => 
-                (nhlTeams || []).some(nhl => nhl.id === tId) || 
-                (ahlTeams || []).some(ahl => ahl.id === tId)
-            );
+            const playedProNA = playedInLeagues(player, nhlAndAhl);
             if (!playedProNA) {
                 pool = pool.filter(t => t.id === currentRights);
             }
@@ -511,7 +510,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
             const firstNhlDeal = targetLg === 'NHL' && !isTradeRequest && player.age < 25
               && !onNhlContract(player) && !(player.seasonHistory || []).some(s => gamesInLeague(s, 'NHL') > 0);
             if (firstNhlDeal) {
-              offerSalary = 925000;
+              offerSalary = elcSalaryFor(currentYear);
               offerYears = elcYears(player.age);
             }
             
@@ -540,7 +539,7 @@ export function generateOffers(ctx, isTradeRequest = false, overrideTeam = null,
     // same hometown discount his own club would: less a year, more years, the
     // no-movement clause, and a city that already loves him.
     const boyhoodBid = !isTradeRequest && player.boyhoodTeam && player.boyhoodTeam !== actingTeam
-      && offers.find(o => o.team === player.boyhoodTeam && o.league === 'NHL' && o.type === 'FREE AGENCY' && o.salary > 925000);
+      && offers.find(o => o.team === player.boyhoodTeam && o.league === 'NHL' && o.type === 'FREE AGENCY' && !o.elc);
     if (boyhoodBid) {
       const bSalary = Math.max(leagueMinimum, Math.round((boyhoodBid.salary * 0.75) / 25000) * 25000);
       offers.push({

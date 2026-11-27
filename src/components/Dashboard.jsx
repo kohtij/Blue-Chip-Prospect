@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getTeamData, juniorLeagues, nationalities } from '../data/teams';
+import { getTeamData, juniorLeagues, nationalities, nhlAndAhl } from '../data/teams';
 import { accruedSeasons, careerTrophies, formatMoney, getActiveStat, isRestricted, onNhlContract, ordinal, resolveRole, statBucketOf, summariseStints } from '../utils/gameHelpers';
 import { getFullTeamName } from '../utils/appHelpers';
 import { classWord, compGroup, findRival, groupName, leagueFlag, leagueLabel, peerStatLine, peerUnit, peerValue, playerCareerValue, playerStatLine, scoutingBoard } from '../utils/peers';
@@ -10,6 +10,7 @@ import { COACH_SYSTEMS, depthAhead, goaliePartner, lineFor, roomFor } from '../u
 import { STAT_TEXT, leagueHue, statCode } from '../utils/statColors';
 import TeamLogo from './TeamLogo';
 import LeagueTag from './LeagueTag';
+import { isElc, seasonYear } from '../utils/season';
 
 // The player card.
 //
@@ -108,7 +109,7 @@ const Bar = ({ pct, color, className = '' }) => (
 const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onRetire, setActiveEvent, setScreen, compact = false, onToggleCompact = null }) => {
   const [showMore, setShowMore] = useState(false);
   const safeNationalities = nationalities || [];
-  const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
+  const currentYear = seasonYear(player);
   const nextYear = currentYear + 1;
 
   const isGoalie = player.pos === 'G';
@@ -218,7 +219,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
     coachTrust: player.relationships?.coach ?? 50,
     // The men already doing his job, so the card and the engine cannot say
     // different things about what line he is on.
-    depth: depthAhead(roomFor(player.rooms, player.team), player.pos, player.ovr)
+    depth: depthAhead(roomFor(player.rooms, player.team, player.league), player.pos, player.ovr)
   });
 
   // The one from your draft class whose career is the measuring stick.
@@ -296,7 +297,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
   // the men he plays with, the one directly in front of him on the depth
   // chart, and the captain. A goaltender's first name is always the other
   // goaltender, because that is the relationship his season turns on.
-  const myRoom = roomFor(player.rooms, player.team);
+  const myRoom = roomFor(player.rooms, player.team, player.league);
   const coachHere = (player.coaches || {})[player.team] || null;
   const roomMen = (() => {
     if (!myRoom) return [];
@@ -311,7 +312,7 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
     // codes: NET could have been anything, and nobody knew why one name had a
     // (C) after it.
     const isG = player.pos === 'G';
-    const isDman = player.pos === 'LD' || player.pos === 'RD';
+    const isDman = isDefence(player.pos);
     if (isG) add(goaliePartner(myRoom), 'The other goalie', 'text-[#F59E0B]');
     lineFor(myRoom, player.pos).forEach(m => add(m,
       isG ? 'Plays in front of you' : isDman ? 'Your defence partner' : 'Your linemate',
@@ -348,13 +349,13 @@ const Dashboard = ({ player, tier, statChanges, isJunior, isAHL, onOpenShop, onR
       return yrs ? { term: yrs, status: 'Eligibility', tone: 'text-white' } : null;
     }
     if (junior || !yrs) return null;
-    if (!['NHL', 'AHL'].includes(player.league)) return { term: yrs, status: 'Left', tone: 'text-white' };
+    if (!nhlAndAhl.includes(player.league)) return { term: yrs, status: 'Left', tone: 'text-white' };
     // The same rule free agency uses, so the two can't disagree. An AHL deal
     // is with the AHL club alone and carries no NHL status at all.
     const nhlDeal = onNhlContract(player);
     if (!nhlDeal) return { term: yrs, status: `${player.league} deal`, tone: 'text-white' };
     const isRFA = isRestricted(player);
-    const isELC = player.contract.salary === 925000
+    const isELC = isElc(player.contract)
       || (isRFA && accruedSeasons(player) < 3 && player.contract.salary <= 1000000);
     return {
       term: yrs,

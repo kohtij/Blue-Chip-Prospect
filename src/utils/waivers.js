@@ -1,3 +1,4 @@
+import { isElc } from './season';
 // WHO HAS TO GO THROUGH WAIVERS.
 //
 // There were three answers to this question in three files, and none of them
@@ -21,7 +22,6 @@ const GOALIE = { 18: [6, 80], 19: [5, 80], 20: [4, 80], 21: [4, 60], 22: [3, 60]
 const OLDER = [1, Infinity];
 
 const PRO = ['NHL', 'AHL', 'ECHL'];
-export const ELC_SALARY = 925000;
 
 // Pro games in one season of the history. A season split between junior and
 // the NHL only counts its pro half.
@@ -41,7 +41,7 @@ export function proSeasonsOf(player) {
 
 export function waiverExempt(player) {
   if (!player) return true;
-  if (player.contract?.salary === ELC_SALARY) return true;
+  if (isElc(player.contract)) return true;
 
   const hist = player.seasonHistory || [];
   const firstPro = hist.findIndex(s => proGames(s) >= 11);

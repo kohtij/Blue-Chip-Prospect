@@ -11,6 +11,7 @@ import { getAwardImage } from '../data/awards';
 import { getTeamData, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import TrophyImage from '../components/TrophyImage';
+import { isDefence } from '../utils/production';
 
 // THE END OF A CAREER, ON ONE PAGE.
 //
@@ -1187,7 +1188,7 @@ export default function RetirementScreen() {
                             {r.name}
                           </span>
                         </td>
-                        <td className="px-2 py-2 text-slate-500 font-bold">{r.pos === 'LD' || r.pos === 'RD' ? 'D' : r.pos}</td>
+                        <td className="px-2 py-2 text-slate-500 font-bold">{isDefence(r.pos) ? 'D' : r.pos}</td>
                         {r.pick ? (
                           <>
                             <td className="pl-2 pr-0 py-2 text-right text-slate-500 tabular-nums">#{r.pick}</td>

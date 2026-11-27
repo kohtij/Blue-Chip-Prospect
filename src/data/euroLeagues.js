@@ -14,8 +14,8 @@
 //
 // This file is generated from a spec and a logo match; edit the data here.
 
-const T = 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/';
-const LG = 'https://raw.githubusercontent.com/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/';
+const T = '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_teams/';
+const LG = '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/';
 
 // HockeyAllsvenskan
 export const allsvTeams = [

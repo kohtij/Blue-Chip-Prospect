@@ -1,14 +1,10 @@
 import  { useState, useEffect, useCallback, useRef } from 'react';
 
-import {
-  nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, j20Teams, u20Teams, ncaaTeams, echlTeams,
-  nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds, getTeamData, teamAccent, LEAGUE_CONFIG,
-  getOpponentPool, setClubMoves
-} from './data/teams';
+import { nhlTeams, ohlTeams, whlTeams, qmjhlTeams, ushlTeams, shlTeams, liigaTeams, j20Teams, u20Teams, ncaaTeams, echlTeams, nationalities, juniorLeagues, euroLeagues, getPrimaryRival, getPlayoffRounds, getTeamData, teamAccent, LEAGUE_CONFIG, getOpponentPool, setClubMoves, chlLeagues, nhlFarmLeagues } from './data/teams';
 import { skaterTrainingPool, goalieTrainingPool } from './data/economy';
 import { getMinigamePool, findMinigame } from './data/minigames';
 import { awardsFor } from './data/leagueAwards';
-import { FO_EDGE_CAP } from './utils/production';
+import { FO_EDGE_CAP, isDefence } from './utils/production';
 import {
   cap, elcYears, fanGain, gamesInLeague, getFanTier, applyOvrDelta, recomputeOvr, statBucketOf
 } from './utils/gameHelpers';
@@ -75,6 +71,9 @@ import { waiverExempt } from './utils/waivers';
 import { makesNhlRoster, parentOf } from './utils/rosterMoves';
 import { formatMoney3, isNineGameCandidate, onNhlContract, withTeamArticle } from './utils/gameHelpers';
 import { clubMatchesOfferSheet, offerSheetCompLong } from './utils/contracts';
+import { elcSalaryFor, isElc, seasonYear } from './utils/season';
+import { clearSave, readSave, writeSave } from './utils/save';
+import { withClub } from './utils/clubs';
 
 function App() {
   const [screen, setScreen] = useState('creation');
@@ -265,6 +264,8 @@ function App() {
   }, [screen]);
 
   const handleNewGame = () => {
+    clearSave();
+    setSavedCareer(null);
     setPlayer(makeInitialPlayer());
     setSeasonRecap(null);
     setActiveEvent(null);
@@ -276,7 +277,7 @@ function App() {
   const safeJuniorLeagues = juniorLeagues || [];
   const safeEuroLeagues = euroLeagues || [];
   const safeNationalities = nationalities || [];
-  const currentYear = 2026 + (player.stats?.seasonsPlayed || 0);
+  const currentYear = seasonYear(player);
   const isJunior = safeJuniorLeagues.includes(player.league);
   // The European men's leagues are professional. They were counted as
   // amateur here, and filed under the junior stat bucket.
@@ -285,6 +286,65 @@ function App() {
   const lgKey = statBucketOf(player.league, player.age);
 
   const [pressAnswerKeys, setPressAnswerKeys] = useState([]);
+
+  // THE SAVE. Everything a career needs to pick up where it left off is written
+  // to the browser a moment after it changes, and straight away when the tab
+  // is hidden, which is the last chance iOS gives before closing it. A finished
+  // career is forgotten, since the retirement screen has already filed it.
+  const [savedCareer, setSavedCareer] = useState(readSave);
+  const latestSave = useRef(null);
+  useEffect(() => {
+    if (screen === 'retirement') { latestSave.current = null; clearSave(); return undefined; }
+    if (screen === 'creation') { latestSave.current = null; return undefined; }
+    latestSave.current = {
+      screen, player, negotiation, activeTrainings, activeEvent, activeMinigame, activePress,
+      minigameContext, seasonEvents, eventFeedback, statChanges, seasonRecap, freeAgencyOffers,
+      hasDemandedTrade, playoffs, memCup, pendingPlayoffs, pendingSeasonResult, arbState,
+      combinePhase, combineScore, pressAnswerKeys
+    };
+    const t = setTimeout(() => writeSave(latestSave.current), 300);
+    return () => clearTimeout(t);
+  }, [screen, player, negotiation, activeTrainings, activeEvent, activeMinigame, activePress,
+      minigameContext, seasonEvents, eventFeedback, statChanges, seasonRecap, freeAgencyOffers,
+      hasDemandedTrade, playoffs, memCup, pendingPlayoffs, pendingSeasonResult, arbState,
+      combinePhase, combineScore, pressAnswerKeys]);
+  useEffect(() => {
+    const flush = () => { if (document.visibilityState === 'hidden' && latestSave.current) writeSave(latestSave.current); };
+    document.addEventListener('visibilitychange', flush);
+    return () => document.removeEventListener('visibilitychange', flush);
+  }, []);
+
+  // Picks the saved career back up, on the screen it was saved on. A live play
+  // that was under way goes back to its brief.
+  const continueCareer = () => {
+    const s = savedCareer?.state;
+    if (!s?.player) return;
+    setPlayer(s.player);
+    setNegotiation(s.negotiation ?? null);
+    setActiveTrainings(s.activeTrainings || []);
+    setActiveEvent(s.activeEvent ?? null);
+    setActiveMinigame(s.activeMinigame ?? null);
+    setMinigameStarted(false);
+    minigameLockedRef.current = false;
+    if (s.activePress) setActivePress(s.activePress);
+    setMinigameContext(s.minigameContext || 'season');
+    setSeasonEvents(s.seasonEvents || []);
+    setEventFeedback(s.eventFeedback || '');
+    setStatChanges(s.statChanges ?? null);
+    setSeasonRecap(s.seasonRecap ?? null);
+    setFreeAgencyOffers(s.freeAgencyOffers || []);
+    setHasDemandedTrade(!!s.hasDemandedTrade);
+    if (s.playoffs) setPlayoffs(s.playoffs);
+    if (s.memCup) setMemCup(s.memCup);
+    setPendingPlayoffs(s.pendingPlayoffs ?? null);
+    setPendingSeasonResult(s.pendingSeasonResult ?? null);
+    setArbState(s.arbState ?? null);
+    setCombinePhase(s.combinePhase ?? 1);
+    setCombineScore(s.combineScore ?? 0);
+    setPressAnswerKeys(s.pressAnswerKeys || []);
+    setSavedCareer(null);
+    setScreen(s.screen || 'preseason');
+  };
 
   useEffect(() => {
     const q = activePress.questions[activePress.currentQ];
@@ -391,7 +451,7 @@ function App() {
     if (isGen) { bSht += 15; bSkt += 15; bPhy += 10; bIq += 20; bSta += 12; }
     if (player.pos === 'C') { bIq += 10; bSkt += 5; bSht -= 5; bPhy -= 5; bSta -= 5; }
     if (['LW', 'RW'].includes(player.pos)) { bSht += 10; bSkt += 5; bPhy -= 5; bIq -= 5; bSta -= 5; }
-    if (['LD', 'RD'].includes(player.pos)) { bPhy += 10; bSta += 5; bIq += 5; bSkt -= 5; bSht -= 15; }
+    if (isDefence(player.pos)) { bPhy += 10; bSta += 5; bIq += 5; bSkt -= 5; bSht -= 15; }
     if (player.pos === 'G') { bSht += 5; bSkt += 5; bPhy += 0; bIq -= 10; bSta -= 20; }
 
     const validReporters = getJournalistsForLeague(lg);
@@ -399,12 +459,12 @@ function App() {
 
     let arch = '';
     if (player.pos === 'G') arch = (bSkt > bPhy && bSkt > bSht) ? 'Butterfly' : (bSht > bSkt && bSht > bPhy) ? 'Reflex' : 'Hybrid';
-    else if (['LD', 'RD'].includes(player.pos)) arch = (bPhy > bSkt && bPhy > bSht) ? 'Shutdown' : (bSkt > bPhy && bSkt > bSht) ? 'Puck-Mover' : 'Two-Way';
+    else if (isDefence(player.pos)) arch = (bPhy > bSkt && bPhy > bSht) ? 'Shutdown' : (bSkt > bPhy && bSkt > bSht) ? 'Puck-Mover' : 'Two-Way';
     else arch = (bSht > bSkt && bSht > bIq) ? 'Sniper' : (bIq > bSht && bIq > bPhy) ? 'Playmaker' : (bPhy > bSht && bPhy > bSkt) ? 'Power Forward' : 'Two-Way';
 
     setPlayer(p => {
       const updated = {
-        ...p, team: startTeam.id, league: lg, nat: currentNat, startLeague: lg, teamsPlayedFor: [startTeam.id],
+        ...p, team: startTeam.id, league: lg, nat: currentNat, startLeague: lg, teamsPlayedFor: withClub([], startTeam.id, lg),
         shooting: bSht, skating: bSkt, physicality: bPhy, hockeyIQ: bIq, stamina: bSta,
         isGenerational: isGen, archetype: arch, storylines: { ...p.storylines, mediaNemesis: isGen ? 1 : 0 },
         // Hidden. Tilts every risky choice a little, for the whole career.
@@ -465,7 +525,7 @@ function App() {
     // The room decides. The lottery, the picks that have changed hands and
     // every club's own list, built from its prospect pool and its general
     // manager's habits. See utils/draftNight.js.
-    const draftYear = 2026 + (who.stats?.seasonsPlayed || 0);
+    const draftYear = seasonYear(who);
     const result = runDraftNight(scouted, { combine: rawCombine, year: draftYear, classDone });
     const overallPick = result.night.myPick;
 
@@ -535,7 +595,7 @@ function App() {
      const actionName = typeof choice === 'string' ? choice : (choice?.action || String(choice));
 
      if (actionName === 'ELC' && draftedBy) {
-       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), draftedBy.id])), contract: { salary: 925000, years: elcYears(p.age), role: getRole(925000, p), bonuses: elcBonuses(p.pos), nhl: true } }));
+       setPlayer(p => ({ ...p, team: draftedBy.id, league: 'NHL', teamsPlayedFor: withClub(p.teamsPlayedFor, draftedBy.id, 'NHL'), contract: { salary: elcSalaryFor(currentYear), years: elcYears(p.age), role: getRole(elcSalaryFor(currentYear), p), bonuses: elcBonuses(p.pos), nhl: true, elc: true } }));
        setEventFeedback("You signed your ELC and are heading to your first NHL training camp.");
      } else if (actionName === 'EXPLORE_OPTIONS' || actionName === 'EXPLORE' || actionName === 'DECLINE') {
        let offers = [];
@@ -580,7 +640,7 @@ function App() {
      }
      generateTraining(player.pos, player);
      setScreen('preseason');
-  }, [generateTraining, player, seasonRecap?.draftedBy]);
+  }, [currentYear, generateTraining, player, seasonRecap?.draftedBy]);
 
   const handlePressAnswer = (vibeId) => {
     const newAnswers = [...activePress.answers, vibeId];
@@ -979,7 +1039,7 @@ function App() {
     // Carried on the result because this is the one route into the post-season
     // that goes through a screen first, and the injury flag has to survive it.
     runPostSeasonFlow(who.age, who.ovr, res.playedLg || res.currentLg, res.playedTeam || res.currentTeam, res.madePlayoffs,
-      2026 + (who.stats?.seasonsPlayed || 0), res.recap.standings || 16, { sidelined: !!res.sidelined });
+      seasonYear(who), res.recap.standings || 16, { sidelined: !!res.sidelined });
   };
   ctx.finishSeason = finishSeason;
   // These are declared after ctx, so they are attached rather than listed in it.
@@ -996,11 +1056,11 @@ function App() {
     const isUnder20 = player.age < 20;
     const isTop10Pick = seasonRecap?.draftPick <= 10;
     
-    const chlSeason = [...(player.seasonHistory || [])].reverse().find(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
+    const chlSeason = [...(player.seasonHistory || [])].reverse().find(s => chlLeagues.includes(s.league));
     const hasCHLHistory = !!chlSeason;
     
     const played10NhlGames = (player.seasonHistory || []).some(s => gamesInLeague(s, 'NHL') >= 10);
-    const isNonELC = player.contract?.salary !== 925000 && player.contract?.salary !== 0;
+    const isNonELC = !isElc(player.contract) && (player.contract?.salary || 0) !== 0;
     const juniorsEligible = isUnder20 && !played10NhlGames && !isNonELC;
 
     const lastSeason = player.seasonHistory?.[player.seasonHistory.length - 1];
@@ -1155,7 +1215,7 @@ function App() {
             const chemistryMod = (player.relationships?.teammates ?? 50) > 75 ? 1.15 : 1.0;
             const ppg = impact * (0.8 + Math.random() * 0.4) * chemistryMod;
             const points = Math.floor(playoffGames * ppg);
-            const goalRatio = ['LD', 'RD'].includes(player.pos) ? 0.25 : 0.45;
+            const goalRatio = isDefence(player.pos) ? 0.25 : 0.45;
             pG = Math.floor(points * goalRatio);
             pA = points - pG;
         }
@@ -1233,7 +1293,7 @@ function App() {
         const poBucket = statBucket + 'Playoffs'; 
         
         const newHistory = [...(p.seasonHistory || [])];
-        const currentYearString = `${2026 + (p.stats?.seasonsPlayed || 0)}`;
+        const currentYearString = `${seasonYear(p)}`;
         // Saved under the league's own trophy. Everything past the NHL and AHL
         // used to go in as a bare "Championship".
         const cupName = getPlayoffTitles(lg).cupName;
@@ -1317,7 +1377,7 @@ function App() {
         };
     });
     
-    if (isCupWon && ['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
+    if (isCupWon && chlLeagues.includes(player.league)) {
       setMemCup({ round: 0, status: 'playing' });
       setScreen('memorial-cup');
     } else setScreen('recap');
@@ -1333,7 +1393,7 @@ function App() {
     // decide. Match, and he stays with them on exactly the sheet's terms;
     // decline, and he goes, and they take draft picks for him.
     if (o.type === 'OFFER SHEET' && !o.matchDecided) {
-      const parent = ['AHL', 'ECHL'].includes(player.league)
+      const parent = nhlFarmLeagues.includes(player.league)
         ? (nhlTeams || []).find(t => t.ahlId === player.team || t.echlId === player.team) : null;
       const holder = parent ? parent.id : player.team;
       const holderName = withTeamArticle(getFullTeamName(holder, 'NHL'), 'NHL', true);
@@ -1383,7 +1443,7 @@ function App() {
     } else {
        newRelationships = { coach: Math.min(100, (p.relationships?.coach ?? 50) + 10), teammates: Math.min(100, (p.relationships?.teammates ?? 50) + 10), media: Math.min(100, (p.relationships?.media ?? 50) + 5) };
     }
-    const newTeams = Array.from(new Set([...(p.teamsPlayedFor || []), o.team]));
+    const newTeams = withClub(p.teamsPlayedFor, o.team, o.league || 'NHL');
 
     // What the perks and flaws on the card were actually worth. Without this
     // they are only decoration: the screen would promise elite coaching and
@@ -1420,6 +1480,7 @@ function App() {
         nhl: nhlDeal,
         ...(sbShare ? { sbShare } : {}),
         ...(perfBonuses ? { bonuses: perfBonuses } : {}),
+        ...(o.elc ? { elc: true } : {}),
         isScholarship: o.type === 'SCHOLARSHIP' || (o.league || '') === 'NCAA'
       },
       relationships: newRelationships,
@@ -1464,7 +1525,7 @@ function App() {
         }
         if (resToUse) {
             // FIX: Use the fully updated player state so the Dashboard doesn't crash during the handoff
-            runPostSeasonFlow(fullyUpdatedPlayer.age, fullyUpdatedPlayer.ovr, o.league || 'NHL', o.team, newMadePlayoffs, 2026 + (fullyUpdatedPlayer.stats?.seasonsPlayed || 0), newStandings);
+            runPostSeasonFlow(fullyUpdatedPlayer.age, fullyUpdatedPlayer.ovr, o.league || 'NHL', o.team, newMadePlayoffs, seasonYear(fullyUpdatedPlayer), newStandings);
             return; 
         }
     }
@@ -1666,7 +1727,7 @@ function App() {
        // into the season and play them, with the new club if there is one.
        if (currentPlayer.season) { handleTrain(null, currentPlayer); return; }
 
-       runPostSeasonFlow(currentPlayer.age, currentPlayer.ovr, currentPlayer.league, currentPlayer.team, newTeamMadePlayoffs, 2026 + (currentPlayer.stats?.seasonsPlayed || 0), newTeamStandings);
+       runPostSeasonFlow(currentPlayer.age, currentPlayer.ovr, currentPlayer.league, currentPlayer.team, newTeamMadePlayoffs, seasonYear(currentPlayer), newTeamStandings);
        return;
     }
     
@@ -1772,7 +1833,7 @@ function App() {
     handleDraftChoice, handleDraftDay, handleEndMemCup,
     handleEndPress, handleEventChoice, handleGridClick, handleInteractiveResult,
     handleMinigameChoice, handleNewGame, handlePressAnswer,
-    handleStart, handleTrain, hasDemandedTrade,
+    handleStart, handleTrain, hasDemandedTrade, savedCareer, continueCareer,
     isJunior, memCup, minigameContext, minigameStarted,
     negotiation, pendingSeasonResult, player, playoffs,
     pressAnswerKeys, proceedFromPlayoffs, proceedToNextScreen, runPostSeasonFlow,
@@ -1783,6 +1844,13 @@ function App() {
     setSeasonRecap, setShowAchievementsMenu, showAchievementsMenu, signContract,
     startNegotiation, triggerMinigame, resetMinigameLock, unlockAchievement, unlockedAchievements,
   };
+
+  // The career checker (npm run check) plays the game in a browser and reads
+  // the state through this. It only exists while developing, never in the
+  // built game.
+  useEffect(() => {
+    if (import.meta.env.DEV) window.__bcp = { ...contextValue, ctx, screen };
+  });
 
   return (
       <AppContext.Provider value={contextValue}>

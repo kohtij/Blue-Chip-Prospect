@@ -1,7 +1,9 @@
 import { capFanStatus, elcYears, fanGain, recomputeOvr, applyOvrDelta, withLuck } from '../utils/gameHelpers';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
-import { getOpponentPool, isAmateurLeague, JUNIOR_PARENT_LEAGUE, LEAGUE_CONFIG, tradeMarketOf } from '../data/teams';
+import { getOpponentPool, isAmateurLeague, JUNIOR_PARENT_LEAGUE, LEAGUE_CONFIG, tradeMarketOf, nhlFarmLeagues } from '../data/teams';
 import { elcBonuses, salaryParts, veteranBonuses } from '../utils/bonuses';
+import { elcSalaryFor, leagueMinimumFor, seasonYear } from '../utils/season';
+import { withClub } from '../utils/clubs';
 
 
 // WHO TRADED HIM. Kept so the club can be told apart from any other on the
@@ -9,7 +11,7 @@ import { elcBonuses, salaryParts, veteranBonuses } from '../utils/bonuses';
 // deal was traded by the parent club, which holds his rights.
 const tradedAway = (player, toTeam) => {
   const list = player.tradedAwayBy || [];
-  const fromNhlParent = ['AHL', 'ECHL'].includes(player.league) && player.rights;
+  const fromNhlParent = nhlFarmLeagues.includes(player.league) && player.rights;
   const from = fromNhlParent ? player.rights : player.team;
   if (!from || from === toTeam) return list;
   return [...list, { team: from, league: fromNhlParent ? 'NHL' : player.league, season: player.stats?.seasonsPlayed || 0 }];
@@ -131,7 +133,7 @@ export function handleEventChoice(ctx, choice) {
     };
     updated.team = d.team;
     updated.league = d.league;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), d.team]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     updated.rightsLapsedBy = d.from || null;
     updated.isCaptain = false;
     updated.isAlternate = false;
@@ -153,7 +155,7 @@ export function handleEventChoice(ctx, choice) {
     // The salary is the one the offer showed (see advanceToOffseason). Older
     // saves carry no figure and keep the minimum they were shown.
     const vet = choice.actionData || {};
-    updated.contract = { salary: vet.salary || 850000, years: 1, ...(vet.role ? { role: vet.role } : {}), ...((player.age || 0) >= 35 ? { bonuses: veteranBonuses() } : {}) };
+    updated.contract = { salary: vet.salary || leagueMinimumFor(seasonYear(player)), years: 1, ...(vet.role ? { role: vet.role } : {}), ...((player.age || 0) >= 35 ? { bonuses: veteranBonuses() } : {}) };
   } else if (actionStr === 'SIGN_TWILIGHT_EUROPE') {
     // No club is chosen here any more. This used to roll one of two leagues and
     // one of its teams and simply tell you where you had signed, taking the
@@ -167,7 +169,7 @@ export function handleEventChoice(ctx, choice) {
     
     updated.team = destTeam;
     updated.league = 'AHL';
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     updated.contract = { salary: 150000, years: 1, role: 'Veteran Mentor' };
   } else if (actionStr === 'BECOME_UFA') {
     // Who just let him go. Free agency reads this so the club that declined to
@@ -177,7 +179,7 @@ export function handleEventChoice(ctx, choice) {
     if (heldBy && ['RIGHTS EXPIRED', 'RIGHTS DEADLINE'].includes(activeEvent?.title)) {
       updated.rightsLapsedBy = heldBy;
       // The summer it happened, so the market can say why he's on it.
-      updated.rightsLapsedIn = 2026 + (player.stats?.seasonsPlayed || 0);
+      updated.rightsLapsedIn = seasonYear(player);
     }
   } else if (actionStr === 'RIGHTS_LAPSE') {
     // The drafting club's rights ran out while he was signed in Europe. He
@@ -187,13 +189,13 @@ export function handleEventChoice(ctx, choice) {
   } else if (actionStr === 'JOIN_NCAA') {
     const teamId = choice.actionData?.id || choice.actionData;
     updated.team = teamId; updated.league = 'NCAA';
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     if ((choice.perks || []).some(perk => String(perk.name || perk.text || '').includes('NIL'))) unlockAchievement('big_nil');
   } else if (actionStr === 'JOIN_CHL') {
     const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData;
     const lg = choice.actionData?.league || 'OHL';
     updated.team = teamId; updated.league = lg;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     unlockAchievement('import_draft');
   } else if (actionStr === 'NORDIC_STEP_UP') {
     // Up from the club's junior side to its men's team. A first professional
@@ -204,7 +206,7 @@ export function handleEventChoice(ctx, choice) {
     updated.team = seniorId;
     updated.league = choice.actionData?.league || JUNIOR_PARENT_LEAGUE[player.league] || 'SHL';
     updated.contract = { salary: 120000, years: 2, role: getRole(120000, player) };
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), seniorId]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
   } else if (actionStr === 'CLUB_LEAGUE_MOVE') {
     // His club was promoted or relegated and he goes with it.
     if (choice.actionData?.league) updated.league = choice.actionData.league;
@@ -220,14 +222,14 @@ export function handleEventChoice(ctx, choice) {
     if (id && league) {
       updated.team = id;
       updated.league = league;
-      updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), id]));
+      updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     }
   } else if (actionStr === 'SET_BOYHOOD_TEAM') {
     // The club he grew up cheering for. Never shown; free agency reads it.
     updated.boyhoodTeam = choice.actionData || null;
   } else if (actionStr === 'SIGN_ELC') {
     updated.team = player.rights; updated.league = 'NHL';
-    updated.contract = { salary: 925000, years: elcYears(player.age), role: getRole(925000, player), bonuses: elcBonuses(player.pos), nhl: true };
+    updated.contract = { salary: elcSalaryFor(seasonYear(player)), years: elcYears(player.age), role: getRole(elcSalaryFor(seasonYear(player)), player), bonuses: elcBonuses(player.pos), nhl: true, elc: true };
   } else if (actionStr === 'DEMOTE') {
     updated.team = choice.actionData.team; updated.league = choice.actionData.lg;
   } else if (actionStr === 'ACCEPT_TRADE_DEADLINE') {
@@ -235,7 +237,7 @@ export function handleEventChoice(ctx, choice) {
         updated.tradedAwayBy = tradedAway(player, teamId);
         updated.team = teamId;
         updated.league = choice.actionData?.lg || player.league;
-        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
+        updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
         
         // The new club's place in the table, which the rest of the season
         // starts from. An AHL assignment is quoted with the parent club's
@@ -244,11 +246,23 @@ export function handleEventChoice(ctx, choice) {
         if (updated.season && typeof destStanding === 'number' && updated.league !== 'AHL') {
            updated.season = { ...updated.season, anchor: { team: teamId, standing: destStanding } };
         }
-        if (updated.seasonHistory && updated.seasonHistory.length > 0) {
-           const currentSeason = updated.seasonHistory[updated.seasonHistory.length - 1];
-           currentSeason.tradedTo = teamId;
-           currentSeason.gamesWithOriginal = Math.floor(currentSeason.games * 0.75);
-           currentSeason.gamesWithNew = currentSeason.games - currentSeason.gamesWithOriginal;
+        // WHO TRADED HIM, FOR THE YEAR'S RECORD.
+        //
+        // This used to be written onto the last season in his history. At the
+        // deadline that's LAST year's, because this one isn't filed until it
+        // ends, so the club he played for a year ago was marked as the one that
+        // traded him (and its games split three-to-one). Every grudge built on
+        // it named the wrong club. It's kept on the season in progress now, and
+        // the year is filed with it (see handleTrain). A trade after the season
+        // is over (the Breaking Point) belongs to no season he played.
+        if (updated.season && (updated.tradedAwayBy || []).length > (player.tradedAwayBy || []).length) {
+           const last = updated.tradedAwayBy[updated.tradedAwayBy.length - 1];
+           updated.season = { ...updated.season, tradedFrom: last.team, tradedFromLeague: last.league };
+        }
+        // A three-team deal: the club in the middle that held back part of his
+        // salary. Kept for the year's record only; it never traded him.
+        if (updated.season && choice.actionData?.via) {
+           updated.season = { ...updated.season, tradeVia: choice.actionData.via };
         }
   } else if (actionStr === 'TRADE_REQUEST_ACCEPTED') {
         // A summer trade. The same move as the deadline one without the part
@@ -258,7 +272,7 @@ export function handleEventChoice(ctx, choice) {
         updated.tradedAwayBy = tradedAway(player, offTeamId);
         updated.team = offTeamId;
         updated.league = choice.actionData?.lg || 'NHL';
-        updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), offTeamId]));
+        updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
   } else if (actionStr === 'HOLDOUT_TRAIN') {
     // Training on his own while camp goes on without him.
     const st = choice.actionData?.stats || {};
@@ -300,7 +314,7 @@ export function handleEventChoice(ctx, choice) {
     if (t9 && !t9.verdict?.stays) {
       updated.team = t9.juniorTeam;
       updated.league = t9.juniorLeague;
-      updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), t9.juniorTeam]));
+      updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     }
   } else if (actionStr === 'RESOLVE_DEBUT') {
     // Nothing to change on the player beyond the choice's own effect. The game
@@ -314,8 +328,8 @@ export function handleEventChoice(ctx, choice) {
     updated.seasonHistory = hist;
   } else if (actionStr === 'CHANGE_LEAGUE') {
     updated.league = choice.actionData;
-    if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < 750000)) {
-      updated.contract = { salary: 750000, years: 1, role: 'Depth' };
+    if (choice.actionData === 'NHL' && (!updated.contract || updated.contract.salary < leagueMinimumFor(seasonYear(updated)))) {
+      updated.contract = { salary: leagueMinimumFor(seasonYear(updated)), years: 1, role: 'Depth' };
     }
   } else if (actionStr === 'RUSSIAN_FACTOR') {
     // Asked before the draft is run, so the answer moves the board the room
@@ -336,7 +350,7 @@ export function handleEventChoice(ctx, choice) {
     const teamId = choice.actionData?.id || choice.actionData?.teamObj?.id || choice.actionData?.team || 'UNK';
     const lg = choice.actionData?.league || 'OHL';
     updated.team = teamId; updated.league = lg;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), teamId]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
     updated.chlRights = teamId; updated.chlRightsLeague = lg;
     unlockAchievement('import_draft');
   } else if (actionStr === 'DECLINE_IMPORT_DRAFT') {
@@ -393,11 +407,11 @@ export function handleEventChoice(ctx, choice) {
 
     updated.team = targetJuniorTeam; 
     updated.league = targetJuniorLeague;
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), targetJuniorTeam]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
   } else if (actionStr === 'ACCEPT_ARBITRATION') {
     updated.team = choice.actionData.team; updated.league = 'NHL';
     updated.contract = { salary: choice.actionData.salary, years: choice.actionData.years, role: choice.actionData.role, nhl: true };
-    updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), choice.actionData.team]));
+    updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
   } else if (actionStr === 'RESOLVE_DOUBLE_DOWN') {
     const isSuccess = outcomeEffect === choice.successEffect;
     if (isSuccess) {
@@ -412,13 +426,13 @@ export function handleEventChoice(ctx, choice) {
             const ahlTeamId = currentTeamObj ? currentTeamObj.ahlId : 'UNK';
             updated.team = ahlTeamId;
             updated.league = 'AHL';
-            updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), ahlTeamId]));
+            updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
         } else {
             // Junior/Euro players just get spite-traded to a random team
             const pool = (getOpponentPool(player.league) || []).filter(t => t.id !== player.team);
             const destTeam = pool[Math.floor(Math.random() * pool.length)]?.id || 'UNK';
             updated.team = destTeam;
-            updated.teamsPlayedFor = Array.from(new Set([...(updated.teamsPlayedFor || []), destTeam]));
+            updated.teamsPlayedFor = withClub(updated.teamsPlayedFor, updated.team, updated.league);
         }
     }
   } else if (actionStr === 'INTL_RISKY') {
@@ -514,6 +528,13 @@ export function handleEventChoice(ctx, choice) {
       } else {
         proceedToNextScreen(activeEvent, minigameContext, finalPlayer);
       }
+  } else if (actionStr === 'JOIN_NCAA' && activeEvent.isPortalEvent) {
+      // A transfer from the end-of-season screen happens before the summer,
+      // not instead of it. It used to go straight to next season's camp, which
+      // skipped the whole offseason: the draft, the contract talks, and the
+      // check that his four years were up. A player could transfer every spring
+      // and stay in college into his late twenties.
+      proceedToNextScreen(activeEvent, minigameContext, finalPlayer);
   } else if (['JOIN_CHL', 'ACCEPT_IMPORT_DRAFT', 'DECLINE_IMPORT_DRAFT', 'JOIN_NCAA'].includes(actionStr)) {
       // Same trap as the draft: these are summer beats, so the card handed out
       // here has to be marked, or the offseason's own training beat offers a

@@ -2,8 +2,8 @@
 // Imported by App.jsx and by every extracted screen so no helper is
 // re-declared in multiple places.
 
-import { getTeamData, getPlayoffRounds, getDeployment, isAmateurLeague, leagueLevel, EXTRA_LEAGUES } from '../data/teams';
-import { getAwardImage } from '../data/awards';
+import { getTeamData, getPlayoffRounds, isAmateurLeague, leagueLevel, EXTRA_LEAGUES } from '../data/teams';
+import { isDefence } from './production';
 
 export const makeInitialPlayer = () => ({
   name: '', number: 97, pos: 'C', age: 16, ovr: 55, nat: 'CAN',
@@ -49,14 +49,14 @@ export function getRole(salary, player) {
   // JUNIOR / AMATEUR LEAGUES
   if (isJunior) {
     if (pos === 'G') return ovr >= 65 ? 'Elite Prospect' : ovr >= 58 ? 'Starting Goalie' : 'Backup Goalie';
-    if (['LD', 'RD'].includes(pos)) return ovr >= 65 ? 'Top Pair Prospect' : ovr >= 58 ? 'Top 4 Defender' : 'Depth Defender';
+    if (isDefence(pos)) return ovr >= 65 ? 'Top Pair Prospect' : ovr >= 58 ? 'Top 4 Defender' : 'Depth Defender';
     return ovr >= 65 ? 'Top Line Star' : ovr >= 58 ? 'Top 6 Forward' : 'Depth Forward';
   }
 
   // AHL
   if (isAHL) {
     if (pos === 'G') return ovr >= 78 ? 'Elite Starter' : ovr >= 72 ? 'Starting Goalie' : 'Backup Goalie';
-    if (['LD', 'RD'].includes(pos)) return ovr >= 78 ? 'Top Pair Anchor' : ovr >= 70 ? 'Top 4 Defender' : 'Depth Defender';
+    if (isDefence(pos)) return ovr >= 78 ? 'Top Pair Anchor' : ovr >= 70 ? 'Top 4 Defender' : 'Depth Defender';
     return ovr >= 78 ? 'Top Line Star' : ovr >= 70 ? 'Middle Six Forward' : 'Bottom Six Forward';
   }
 
@@ -66,7 +66,7 @@ export function getRole(salary, player) {
     if (salary >= 3500000 || ovr >= 82) return '1A/1B Starter';
     return 'Backup Goalie';
   }
-  if (['LD', 'RD'].includes(pos)) {
+  if (isDefence(pos)) {
     if (salary >= 7000000 || ovr >= 86) return 'Franchise Defenseman';
     if (salary >= 4000000 || ovr >= 81) return 'Top 4 Defenseman';
     return 'Bottom Pair / Depth';
@@ -88,14 +88,6 @@ export const getGamesPerMatchup = (league, roundIndex) => {
 
 export const getWinsNeeded = (league, roundIndex) => {
   return Math.ceil(getGamesPerMatchup(league, roundIndex) / 2);
-};
-
-// Ability alone, which is not where a player ends up deployed: his contract has
-// a say and so does his coach. Kept for callers that only have a rating to hand.
-// Anything showing a player his own line uses resolveRole in gameHelpers, and so
-// does the simulation.
-export const getDisplayDeployment = (ovr, pos, league) => {
-  return getDeployment(ovr, pos, league);
 };
 
 export const getFullTeamName = (teamId, league) => {
@@ -191,19 +183,6 @@ export const getPlayoffTitles = (league) => {
       return { banner: `${league || 'LEAGUE'} PLAYOFFS`, final: `${league || 'LEAGUE'} FINAL`, trophy: '🏆', cupName: `${league || 'League'} Championship` };
     }
   }
-};
-
-export const ACCENT = {
-  red:     { border: 'border-t-[#ef4444]', heading: 'text-[#ef4444]' },
-  blue:    { border: 'border-t-[#3b82f6]', heading: 'text-[#3b82f6]' },
-  emerald: { border: 'border-t-[#22E748]', heading: 'text-[#22E748]' },
-  amber:   { border: 'border-t-[#F59E0B]', heading: 'text-[#F59E0B]' },
-};
-
-export const ARCH_PILL = {
-  safe:   { label: 'SAFE',   cls: 'text-slate-300 bg-[#101410] border-[rgba(255,255,255,0.065)]', hover: 'hover:border-slate-500' },
-  skill:  { label: 'SKILL',  cls: 'text-[#22E748] bg-[#22E748]/10 border-[#22E748]/30', hover: 'hover:border-[#22E748]' },
-  gamble: { label: 'GAMBLE', cls: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30', hover: 'hover:border-[#F59E0B]' },
 };
 
 export const MASTER_ACHIEVEMENTS = [
@@ -343,37 +322,6 @@ export const getJournalistsForLeague = (league) => {
       const r = covers(j);
       return r.includes('ALL') || r.includes(region) || r.includes('NA');
    });
-};
-
-// Small pill for the retirement screen, one per award type, showing the
-// award name, its trophy image, and how many times it was won.
-export const getAwardPill = (name, count) => {
-  const gold = ['Stanley Cup', 'Hart', 'Vezina', 'Norris', 'Art Ross', 'Richard', 'Conn Smythe', 'Calder',
-    'Ted Lindsay', 'Selke'];
-  const isGold = gold.some(g => name.includes(g));
-  const cls = isGold
-    ? 'bg-[#F59E0B]/15 border-[#F59E0B]/40 text-[#F59E0B]'
-    : 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6]';
-  const trophy = getAwardImage(name);
-  return (
-    <span
-      key={name}
-      className={`inline-flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-md border text-[10px] sm:text-xs font-black uppercase tracking-wider sports-font ${cls}`}
-    >
-      {trophy ? (
-        <img
-          src={trophy}
-          alt=""
-          className="w-6 h-6 sm:w-7 sm:h-7 object-contain drop-shadow-[0_0_6px_rgba(0,0,0,0.6)]"
-          loading="lazy"
-        />
-      ) : (
-        <span className="text-base">{isGold ? '🏆' : '🥇'}</span>
-      )}
-      <span className="whitespace-nowrap">{name}</span>
-      {count > 1 && <span className="opacity-70">×{count}</span>}
-    </span>
-  );
 };
 
 // Press questions moved to src/data/pressQuestions.js, where they gained a

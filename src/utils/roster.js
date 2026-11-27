@@ -1,5 +1,5 @@
 import { staffFor, staffName } from './staffNames';
-import { gaussianNoise } from './production';
+import { gaussianNoise, isDefence } from './production';
 import { juniorLeagues, EXTRA_LEAGUES, LEAGUE_COUNTRY } from '../data/teams';
 
 // HOW OLD A ROOM CAN BE.
@@ -97,7 +97,7 @@ const nameFor = (nat) => (FIRST[nat] && LAST[nat]
   ? { name: `${pick(FIRST[nat])} ${pick(LAST[nat])}`, nat }
   : staffName(nat));
 
-export const isD = (pos) => pos === 'LD' || pos === 'RD';
+export const isD = isDefence;
 export const isF = (pos) => pos === 'C' || pos === 'LW' || pos === 'RW';
 const otherSide = (pos) => (pos === 'LD' ? 'RD' : 'LD');
 
@@ -341,7 +341,17 @@ export function makeRoom({ teamId, league = 'NHL', playerPos = 'C', playerAge = 
 }
 
 /** Every room the save knows about, keyed by club. */
-export const roomFor = (rooms, teamId) => (teamId ? (rooms || {})[teamId] || null : null);
+//
+// Rooms are kept by club id, and a few ids are shared across leagues: VAN is
+// the Canucks and the WHL's Vancouver Giants. A player who'd been a Giant
+// walked into the Canucks' dressing room and found his junior room in it,
+// sixteen-year-olds and all, introduced as the Canucks' new signings. Given a
+// league, a room that belongs to another league's club isn't his.
+export const roomFor = (rooms, teamId, league = null) => {
+  const room = teamId ? (rooms || {})[teamId] || null : null;
+  if (room && league && room.league && room.league !== league) return null;
+  return room;
+};
 
 /**
  * Where he sits among his own club at his own position: how many men in the
@@ -435,12 +445,6 @@ export function roomTrust(room) {
   return Math.round(men.reduce((a, m) => a + (m.trust ?? 50), 0) / men.length);
 }
 
-/** The man who likes him least, for an event that needs somebody to name. */
-export const coldest = (room) => {
-  const men = [...(room?.men || [])].sort((a, b) => (a.trust ?? 50) - (b.trust ?? 50));
-  return men[0] || null;
-};
-
 /** The man he has played the most games alongside. The retirement screen's. */
 // It carries the room's own league, because a club id alone is ambiguous: an
 // NHL id read as an AHL one names that club's farm team, which is how the
@@ -494,6 +498,9 @@ export function makeCoach({ strength = 0.5, avoid = [], league = 'NHL' } = {}) {
   return {
     name,
     nat,
+    // The league whose bench this is, so a club id shared across leagues
+    // can't hand one club's coach to another (see ensureClub).
+    league,
     // A European club's bench, so an imported coach is told as one.
     euroBench: EURO_BENCH.includes(league),
     system: pick(sysKeys),
@@ -561,14 +568,17 @@ export function ensureClub(player, { teamId, league = 'NHL', strength = 0.5, cla
   const coaches = { ...(player?.coaches || {}) };
   let fresh = false;
 
-  if (!rooms[teamId]) {
+  // A room or a coach kept under this id for a club in another league (the
+  // WHL's Giants and the Canucks are both VAN) is replaced, not reused.
+  const stale = !!rooms[teamId]?.league && rooms[teamId].league !== league;
+  if (!rooms[teamId] || stale) {
     rooms[teamId] = makeRoom({
       teamId, league, playerPos: player?.pos || 'C',
       playerAge: player?.age || 20, strength, classmates
     });
     fresh = true;
   }
-  if (!coaches[teamId]) {
+  if (!coaches[teamId] || stale || (coaches[teamId].league && coaches[teamId].league !== league)) {
     coaches[teamId] = makeCoach({ strength, league, avoid: Object.values(coaches).map(x => x?.name) });
     fresh = true;
   }
@@ -649,17 +659,20 @@ export function summerAtClubs(player, { strengthOf = () => 0.5, barrenYears = 0,
   const fired = [];
 
   // What the summer did to his own room, before and after, so it can be told.
-  const before = here ? rooms[here] : null;
+  // His own, in his own league: a room kept under the same id for another
+  // league's club isn't his (see roomFor).
+  const lg = player?.league || null;
+  const before = here ? roomFor(rooms, here, lg) : null;
   for (const id of Object.keys(rooms)) {
     rooms[id] = advanceRoom(rooms[id], { strength: strengthOf(id), league: rooms[id].league });
   }
-  const news = roomNews(before, here ? rooms[here] : null, player);
+  const news = roomNews(before, here && before ? roomFor(rooms, here, lg) : null, player);
 
   for (const id of Object.keys(coaches)) {
     const c = coaches[id];
     // Only the player's own club is under real scrutiny: the rest of the
     // league turns its staff over quietly and he would never hear about it.
-    const mine = id === here;
+    const mine = id === here && !(lg && c?.league && c.league !== lg);
     const survived = coachSurvives(c, {
       barrenYears: mine ? barrenYears : 0,
       roomTrust: mine ? (roomTrust(rooms[id]) ?? 50) : 50,
@@ -779,7 +792,7 @@ const TOP_ROLES = ['Franchise Centerpiece', 'Top 6 Forward', 'Franchise Defensem
   'Franchise Starter', '1A/1B Starter', 'Top Line Star', 'Top Pair Prospect', 'Top 4 Defender',
   'Top Pair Anchor', 'Starting Goalie', 'Elite Starter', 'Elite Prospect'];
 export function inTopOfLineup(player, roleOf = null) {
-  const room = roomFor(player?.rooms, player?.team);
+  const room = roomFor(player?.rooms, player?.team, player?.league);
   const ahead = room ? depthAhead(room, player.pos, player.ovr) : null;
   if (ahead != null) return ahead <= (player.pos === 'G' ? 0 : 1);
   return roleOf ? TOP_ROLES.includes(roleOf(player.contract?.salary || 0, player)) : false;

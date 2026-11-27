@@ -1,3 +1,4 @@
+import { isDefence } from './production';
 // BONUSES.
 //
 // Two kinds of money on top of a salary, the way NHL contracts actually carry
@@ -75,23 +76,18 @@ const amountOf = (id) => {
 export function elcBonuses(pos) {
   const a = pos === 'G'
     ? ['g_sv', 'g_gaa', 'g_wins', 'g_sho', 'g_starts', 'allstar']
-    : (pos === 'LD' || pos === 'RD')
+    : isDefence(pos)
       ? ['d_goals', 'd_assists', 'd_points', 'd_toi', 'd_blocks', 'd_pm', 'allstar']
       : ['f_goals', 'f_assists', 'f_points', 'f_ppg', 'f_toi', 'f_pm', 'allstar'];
   const b = pos === 'G'
     ? ['b_calder', 'b_vezina', 'b_hart']
-    : (pos === 'LD' || pos === 'RD')
+    : isDefence(pos)
       ? ['b_calder', 'b_norris', 'b_hart']
       : ['b_calder', 'b_hart', 'b_ross', 'b_richard', 'b_lindsay'];
   return [...a, ...b];
 }
 
 export const veteranBonuses = () => ['v_gp10', 'v_gp40', 'v_gp60'];
-
-// Whether a deal of this shape is allowed to carry performance bonuses at all.
-export function bonusEligible({ age, years, elc }) {
-  return !!elc || (age >= 35 && years === 1);
-}
 
 // The most a contract's performance bonuses can pay in one season.
 export function bonusCeiling(ids) {

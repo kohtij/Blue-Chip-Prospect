@@ -3,7 +3,7 @@ import { resolveNatDivision } from '../utils/international';
 import { buildRun } from '../utils/intlRun';
 import { getFullTeamName, getRole } from '../utils/appHelpers';
 import { priceOf, recentForm, majorCount, agentMultiOf, leagueMinimumFor, nhlMarketValue } from '../utils/contracts';
-import { getOpponentPool, inIihfEvents, isAmateurLeague, LEAGUE_CONFIG } from '../data/teams';
+import { getOpponentPool, inIihfEvents, isAmateurLeague, LEAGUE_CONFIG, chlLeagues, nhlAndAhl } from '../data/teams';
 import { rollInjury, injuryLine, injuryEvent } from '../utils/injuries';
 import { coachOpening, ensureClub, playerArchetype, recordSeason, roomFor, roomTrust } from '../utils/roster';
 import { teamStrengthOf } from '../utils/leagueState';
@@ -12,6 +12,9 @@ import { runPostSeasonFlow } from './runPostSeasonFlow';
 import { waiverExempt } from '../utils/waivers';
 import { formTrust, inSlump, slumpEvent } from '../utils/form';
 import { affiliateOf, conditioningEvent, isCorePlayer, midSeasonMove, moveEvent } from '../utils/rosterMoves';
+import { isElc, seasonYear } from '../utils/season';
+import { isDefence } from '../utils/production';
+import { withClub } from '../utils/clubs';
 
 // --- CUT LOOSE IN FEBRUARY -------------------------------------------------
 //
@@ -25,7 +28,7 @@ import { affiliateOf, conditioningEvent, isCorePlayer, midSeasonMove, moveEvent 
 function midSeasonTermination(p, seg, year) {
   const c = p.contract || {};
   if (p.league !== 'NHL' || p.storylines?.terminated) return null;
-  if ((p.age || 0) < 29 || (c.years || 0) < 2 || (c.salary || 0) < 2500000 || c.salary === 925000) return null;
+  if ((p.age || 0) < 29 || (c.years || 0) < 2 || (c.salary || 0) < 2500000 || isElc(c)) return null;
   const fair = priceOf(recentForm(p).rate, year, { age: p.age, awards: majorCount(p) });
   const ratio = fair > 0 ? c.salary / fair : 0;
   const coach = p.relationships?.coach ?? 50;
@@ -37,7 +40,7 @@ function midSeasonTermination(p, seg, year) {
   const nhlPool = (getOpponentPool('NHL') || []).filter(t => t.id !== p.team);
   if (p.ovr >= 74 && nhlPool.length) {
     const t = nhlPool[Math.floor(Math.random() * nhlPool.length)];
-    const salary = Math.max(775000, Math.round(Math.min(2000000, fair * 0.5) / 25000) * 25000);
+    const salary = Math.max(leagueMinimumFor(year), Math.round(Math.min(2000000, fair * 0.5) / 25000) * 25000);
     const name = getFullTeamName(t.id, 'NHL');
     const role = getRole(salary, { ...p, league: 'NHL' });
     choices.push({
@@ -356,7 +359,7 @@ export function handleTrain(ctx, t) {
       // played is the honest answer, and a real club from that league is a
       // better last resort than nothing.
       const lastJunior = [...(player.seasonHistory || [])].reverse()
-        .find(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
+        .find(s => chlLeagues.includes(s.league));
       const juniorLeague = player.chlRightsLeague || player.juniorLeague || lastJunior?.league || 'OHL';
       const fallbackClub = (getOpponentPool(juniorLeague) || [])[0]?.id;
       const juniorTeam = player.chlRights || player.juniorTeam || lastJunior?.team || fallbackClub || 'OHL';
@@ -583,7 +586,7 @@ export function handleTrain(ctx, t) {
           ...prev,
           team: seg.team,
           league: seg.league,
-          teamsPlayedFor: Array.from(new Set([...(prev.teamsPlayedFor || []), seg.team]))
+          teamsPlayedFor: withClub(prev.teamsPlayedFor, seg.team, seg.league)
         }));
       }
       nextCarry = seg.formIndex ?? 1;
@@ -612,7 +615,7 @@ export function handleTrain(ctx, t) {
     advanceTo(stints, nextStage);
     setPlayer(prev => ({
       ...prev, team: move.team, league: move.lg,
-      teamsPlayedFor: Array.from(new Set([...(prev.teamsPlayedFor || []), move.team])),
+      teamsPlayedFor: withClub(prev.teamsPlayedFor, move.team, move.lg),
       // A claim is a new club, and the letter stays with the old one.
       ...(move.type === 'CLAIMED' ? { isCaptain: false, isAlternate: false } : {}),
       season: { ...(prev.season || {}), moves: (prev.season?.moves || 0) + 1, lastMove: move.type === 'RECALL' ? 'UP' : 'DOWN' }
@@ -981,7 +984,7 @@ export function handleTrain(ctx, t) {
 
   // 3. Commit State and Push to History
   const historyEntry = {
-      year: 2026 + ((player.stats?.seasonsPlayed || 0)),
+      year: seasonYear(player),
       team: playedTeam,
       league: playedLg,
       games: recap.games,
@@ -1039,12 +1042,18 @@ export function handleTrain(ctx, t) {
       // Where the year was actually played. A split season carries one entry per
       // club, so the recap can say nine games here and fifty there.
       stints: recap.stints,
-      tradedTo: recap.tradedTo,
+      // A deadline trade, if there was one this year: the club that made it
+      // and the one he finished with, and how the games split between them,
+      // counted off the stints rather than guessed.
+      ...(season?.tradedFrom ? (() => {
+        const st = recap.stints || [];
+        const withOld = st.filter(x => x.team === season.tradedFrom).reduce((n, x) => n + (x.games || 0), 0);
+        const all = st.reduce((n, x) => n + (x.games || 0), 0);
+        return { tradedFrom: season.tradedFrom, tradedFromLeague: season.tradedFromLeague, tradedTo: playedTeam, gamesWithOriginal: withOld, gamesWithNew: Math.max(0, all - withOld), ...(season.tradeVia ? { tradeVia: season.tradeVia } : {}) };
+      })() : {}),
       // A big year in the AHL that earned an NHL start for next season. Camp
       // reads it, so the promotion he was promised isn't taken back in September.
       earnedPromotion: recap.waiverEvent === 'EARNED_PROMOTION',
-      gamesWithOriginal: recap.gamesWithOriginal,
-      gamesWithNew: recap.gamesWithNew,
       // The records this season took. The book only keeps the latest mark, so
       // without this the retirement screen couldn't say when a record first
       // fell or how many times he raised it afterwards.
@@ -1082,7 +1091,7 @@ export function handleTrain(ctx, t) {
   // dressing room: there is one net, and the split of starts decides who is in
   // it. See recordSeason in utils/roster.js.
   const playedForClub = playedTeam;
-  const roomNow = roomFor(updatedPlayer.rooms || club?.rooms, playedForClub);
+  const roomNow = roomFor(updatedPlayer.rooms || club?.rooms, playedForClub, playedLg);
   if (roomNow) {
       const updatedRoom = recordSeason(roomNow, {
           pos: updatedPlayer.pos,
@@ -1121,7 +1130,7 @@ export function handleTrain(ctx, t) {
   let isWaiverClaim = recap.waiverEvent === 'CLAIMED';
   let customWaiverEvent = recap.waiverEvent;
 
-  if (recap.waiverEvent === '9_GAME_RULE' || (isDemoted && ['OHL', 'WHL', 'QMJHL'].includes(currentLg))) {
+  if (recap.waiverEvent === '9_GAME_RULE' || (isDemoted && chlLeagues.includes(currentLg))) {
      const draftTeamName = player.draftTeam ? player.draftTeam : "The team that drafted you";
      customWaiverEvent = `${draftTeamName} decided you need another year to fill out, and sent you back to the junior club that holds your rights.`;
   }
@@ -1155,7 +1164,7 @@ export function handleTrain(ctx, t) {
   }
 
   if (currentLg === 'NCAA') {
-     runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, playedLg, playedTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap?.standings || 16, { sidelined: !!season?.over });
+     runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, playedLg, playedTeam, result.madePlayoffs, seasonYear(updatedPlayer), recap?.standings || 16, { sidelined: !!season?.over });
   } else {
      setPendingSeasonResult(result);
 
@@ -1167,7 +1176,7 @@ export function handleTrain(ctx, t) {
 
      const wasAHLtoNHL = player.league === 'AHL' && currentLg === 'NHL';
      const wasECHLtoAHL = player.league === 'ECHL' && currentLg === 'AHL';
-     const wasJuniorToPro = isAmateurLeague(player.league) && ['NHL', 'AHL'].includes(currentLg);
+     const wasJuniorToPro = isAmateurLeague(player.league) && nhlAndAhl.includes(currentLg);
      const wasNHLtoAHL = player.league === 'NHL' && currentLg === 'AHL';
      const wasAHLtoECHL = player.league === 'AHL' && currentLg === 'ECHL';
      const wasJuniorReturn = recap.waiverEvent === '9_GAME_RULE';
@@ -1226,7 +1235,7 @@ export function handleTrain(ctx, t) {
              moveDesc = `For the second year running, you didn't make the NHL roster out of camp. You spent the season back with your junior club, using up the last of your junior eligibility.`;
          } else {
              moveTitle = '📉 9-GAME TRYOUT CONCLUDED';
-             moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season ${player.pos === 'G' ? 'as the starter in juniors' : ['LD', 'RD'].includes(player.pos) ? 'playing top-pairing minutes in juniors' : 'playing top-line minutes in juniors'}.`;
+             moveDesc = `You started the year in the NHL, but after your 9-game tryout, the front office decided you needed more physical development. You spent the remainder of the season ${player.pos === 'G' ? 'as the starter in juniors' : isDefence(player.pos) ? 'playing top-pairing minutes in juniors' : 'playing top-line minutes in juniors'}.`;
              ctx.setPlayer(p => ({ ...p, storylines: { ...(p.storylines || {}), hadNineGameTryout: true } }));
          }
      } else if (wasNHLtoAHL) {
@@ -1330,7 +1339,7 @@ export function handleTrain(ctx, t) {
          // The break and the deadline are both long past by now, so the end of the
          // year goes to the post-season rather than back to either of them.
          setSeasonRecap(recap);
-         runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, playedLg, playedTeam, result.madePlayoffs, 2026 + (updatedPlayer.stats?.seasonsPlayed || 0), recap.standings || 16, { sidelined: !!season?.over });
+         runPostSeasonFlow(ctx, updatedPlayer.age, updatedPlayer.ovr, playedLg, playedTeam, result.madePlayoffs, seasonYear(updatedPlayer), recap.standings || 16, { sidelined: !!season?.over });
      }
   }
 }

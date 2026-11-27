@@ -1,3 +1,4 @@
+import { isDefence } from '../utils/production';
 // WHAT THE REPORTERS SAID.
 //
 // A tournament game used to end on the score and one line about the play you
@@ -159,7 +160,7 @@ export function intlTweets({ player, entry, countryName, tourney, totals }) {
   const ctx = {
     S, C, Cs: cap(C), O: entry.opponent?.name || 'the other side', score: asReported(entry.score, !!entry.won),
     won: !!entry.won, line: entry.line || {}, entry, isG,
-    isD: player.pos === 'LD' || player.pos === 'RD'
+    isD: isDefence(player.pos)
   };
   const beat = BEAT[player.nat] || BEAT_DEFAULT;
   const posts = [{ ...beat, text: isG ? goaliePost(ctx) : skaterPost(ctx) }];

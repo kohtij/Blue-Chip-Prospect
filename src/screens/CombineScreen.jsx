@@ -3,6 +3,7 @@ import { useAppContext } from '../AppContext';
 import { projectDraftPick } from '../utils/draftScouting';
 import { isPress } from '../utils/a11y';
 import { CHOICE_ROW, TITLE_LG } from '../utils/ui';
+import { isDefence } from '../utils/production';
 
 const SCOUTS = [
   { name: "Old-School GM", trait: "GRIT", color: "text-[#ef4444]", bg: "bg-[#ef4444]/10", border: "border-[#ef4444]/30", desc: "Values toughness, physical play, and hard-nosed traditional hockey." },
@@ -200,7 +201,7 @@ export default function CombineScreen() {
   const [interviewData, setInterviewData] = useState(null);
   const [interviewResult, setInterviewResult] = useState(null);
 
-  const posGroup = player.pos === 'G' ? 'G' : ['LD', 'RD'].includes(player.pos) ? 'D' : 'F';
+  const posGroup = player.pos === 'G' ? 'G' : isDefence(player.pos) ? 'D' : 'F';
 
   // ==========================================
   // FORWARD STATE: Bench Press

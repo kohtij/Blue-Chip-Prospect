@@ -1,4 +1,4 @@
-import { getOpponentPool, getTeamData, tradeMarketOf, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues, u18Leagues, U18_NEXT_LEAGUE, LEAGUE_COUNTRY, countryProLeagues, findClubLeague } from '../data/teams';
+import { getOpponentPool, getTeamData, tradeMarketOf, nhlTeams, ncaaTeams, ohlTeams, whlTeams, qmjhlTeams, nordicJuniorLeagues, JUNIOR_PARENT_LEAGUE, isAmateurLeague, juniorLeagues, u18Leagues, U18_NEXT_LEAGUE, LEAGUE_COUNTRY, countryProLeagues, findClubLeague, chlLeagues, nhlFarmLeagues } from '../data/teams';
 import { getFullTeamName, getPlayoffTitles, getRole } from '../utils/appHelpers';
 import { generateOffers } from './generateOffers';
 import { rollOfferPerks } from '../data/offerPerks';
@@ -13,6 +13,9 @@ import { teamStrengthOf } from '../utils/leagueState';
 import { advanceFrontOffices, ensureFrontOffices } from '../utils/frontOffice';
 import { careerEndingVerdict, endingLabel } from '../utils/injuries';
 import { runProRel } from '../utils/proRel';
+import { isElc, seasonYear } from '../utils/season';
+import { isDefence } from '../utils/production';
+import { clubKey } from '../utils/clubs';
 
 export function advanceToOffseason(ctx) {
   // ADD setSeasonEvents to this line:
@@ -243,7 +246,7 @@ export function advanceToOffseason(ctx) {
   // mood. Nothing else in a dressing room works like this, which is why it is
   // the only relationship that gets its own event.
   if (player.pos === 'G' && !player.storylines?.netRift) {
-    const myRoom = roomFor(player.rooms, player.team);
+    const myRoom = roomFor(player.rooms, player.team, player.league);
     const partner = goaliePartner(myRoom);
     if (partner && (partner.trust ?? 50) <= 28 && (partner.years || 0) >= 2) {
       // How a goalie who wants out gets out depends on where they are. A pro
@@ -338,7 +341,7 @@ export function advanceToOffseason(ctx) {
   barrenYears = Math.max(0, barrenYears - Math.min(8, cupsHere * 2));
 
   const sourStage = player.storylines?.fanSour || 0;
-  const sourYearNum = 2026 + (player.stats?.seasonsPlayed || 0);
+  const sourYearNum = seasonYear(player);
   // The highest-paid man in the room, which is the one qualification that
   // matters here. Priced off the cap rather than a written figure so it still
   // means the same thing in 2048.
@@ -428,9 +431,9 @@ export function advanceToOffseason(ctx) {
     mark('buyout');
     const c = player.contract || {};
     const yearsLeft = c.years || 0;
-    const year = 2026 + (player.stats?.seasonsPlayed || 0);
+    const year = seasonYear(player);
     const eligible = player.league === 'NHL' && yearsLeft >= 1 && (c.salary || 0) >= 2500000
-      && c.salary !== 925000 && !c.isScholarship && (player.age || 0) >= 28;
+      && !isElc(c) && !c.isScholarship && (player.age || 0) >= 28;
     if (eligible) {
       const fair = priceOf(recentForm(player).rate, year, { age: player.age, awards: majorCount(player) });
       const ratio = fair > 0 ? c.salary / fair : 0;
@@ -487,7 +490,7 @@ export function advanceToOffseason(ctx) {
   // player only hears about the clubs that matter to him: the one he plays for
   // and the one holding his rights. See utils/frontOffice.js.
   if (!marks.offices) {
-    const year = 2026 + (player.stats?.seasonsPlayed || 0);
+    const year = seasonYear(player);
     const summerOffice = advanceFrontOffices(
       ensureFrontOffices(player.frontOffice, player.leagueState, year),
       player.leagueState, year
@@ -522,7 +525,7 @@ export function advanceToOffseason(ctx) {
   // club's move, if it has one, is put to him. See utils/proRel.js.
   if (!marks.proRel) {
     mark('proRel');
-    const summer = 2026 + (player.stats?.seasonsPlayed || 0);
+    const summer = seasonYear(player);
     const pr = runProRel({
       summer,
       leagueState: player.leagueState,
@@ -618,7 +621,7 @@ export function advanceToOffseason(ctx) {
     const next = { ...p, rooms: summer.rooms, coaches: summer.coaches };
     if (myFiring) {
       // Introduced here, so camp doesn't introduce him a second time.
-      next.storylines = { ...(p.storylines || {}), metCoaches: [...(p.storylines?.metCoaches || []), `${p.team}:${summer.coaches[p.team]?.name}`] };
+      next.storylines = { ...(p.storylines || {}), metCoaches: [...(p.storylines?.metCoaches || []), `${clubKey(p.team, p.league)}:${summer.coaches[p.team]?.name}`] };
       // A new voice, and a new opinion of him formed from scratch. The system
       // he plays decides most of where it starts.
       next.relationships = {
@@ -679,7 +682,7 @@ export function advanceToOffseason(ctx) {
                // $850,000 to stay. A one-year deal for a veteran is priced on
                // what he still does, the way free agency prices him (see
                // nhlMarketValue), a little under it because he's the one asking.
-               const vetYear = 2026 + (player.stats?.seasonsPlayed || 0);
+               const vetYear = seasonYear(player);
                const vetMin = leagueMinimumFor(vetYear);
                const vetValue = nhlMarketValue(player, vetYear, { agentMulti: agentMultiOf(player), minimum: vetMin }).salary;
                const vetSalary = Math.max(vetMin, Math.round((vetValue * 0.9) / 25000) * 25000);
@@ -770,7 +773,6 @@ export function advanceToOffseason(ctx) {
     // college recruitment is: the club that picked him as a card with what it
     // offers and what it costs, and staying home as the other choice.
     const importDraftEvent = () => {
-      const chlLeagues = ['OHL', 'WHL', 'QMJHL'];
       const lg = chlLeagues[Math.floor(Math.random() * chlLeagues.length)];
       let pool = getOpponentPool(lg) || [];
       if (pool.length === 0) return null;
@@ -829,7 +831,7 @@ export function advanceToOffseason(ctx) {
     // assumed, and he could have signed somewhere else since. An AHL deal
     // signed with the AHL club is not an NHL contract at all, and its holder
     // goes to the AHL club's camp. See onNhlContract.
-    const minors = ['AHL', 'ECHL'].includes(currentLeague);
+    const minors = nhlFarmLeagues.includes(currentLeague);
     if (minors && onNhlContract({ ...player, league: currentLeague })) {
         const parent = (nhlTeams || []).find(t => t.ahlId === currentTeam || t.echlId === currentTeam);
         const club = parent?.id || player.rights;
@@ -849,8 +851,8 @@ export function advanceToOffseason(ctx) {
     // under 24 in the AHL in his first two seasons of any kind, which the CBA
     // has never allowed. We restore the year that simulateSeason decremented.
     const lastSeason = (player.seasonHistory || []).slice(-1)[0];
-    const isElc = updatedContract?.salary === 925000;
-    const slides = isElc && player.age <= 20 && gamesInLeague(lastSeason, 'NHL') < 10;
+    const onElc = isElc(updatedContract);
+    const slides = onElc && player.age <= 20 && gamesInLeague(lastSeason, 'NHL') < 10;
 
     if (updatedContract && slides) {
         updatedContract.years = Math.min(3, updatedContract.years + 1);
@@ -1221,7 +1223,7 @@ export function advanceToOffseason(ctx) {
     // summer: a player passed over this summer was sent to camp and came back
     // through here, met the same test, and was put through the draft again,
     // for ever. passedOver and draftYear both carry the summer of the draft.
-    const thisSummer = 2026 + (player.stats?.seasonsPlayed || 0);
+    const thisSummer = seasonYear(player);
     const draftedOrPassedThisSummer = (player.passedOver || []).includes(thisSummer) || player.draftYear === thisSummer;
     const isDraftEligibleAge = player.age >= 18 && player.age <= lastDraftAge(player)
       && !isNcaaAgedOut && !draftedOrPassedThisSummer;
@@ -1544,7 +1546,7 @@ export function advanceToOffseason(ctx) {
     const hist = player.seasonHistory || [];
     const lastSeason = hist[hist.length - 1];
     const sameRoom = lastSeason?.team === player.team && (lastSeason?.games || 0) >= 30;
-    const skaters = ((roomFor(player.rooms, player.team)?.men) || [])
+    const skaters = ((roomFor(player.rooms, player.team, player.league)?.men) || [])
       .filter(m => m.pos !== 'G').map(m => m.ovr || 0).sort((a, b) => b - a);
     const gen = !!player.isGenerational;
     const age = player.age || 17;
@@ -1654,7 +1656,8 @@ export function advanceToOffseason(ctx) {
     let rooms = player.rooms || {};
     let coaches = player.coaches || {};
     let openingCoach = null;
-    if (team && (!rooms[team] || !coaches[team])) {
+    const otherLeague = (x) => !!x?.league && x.league !== lg;
+    if (team && (!rooms[team] || !coaches[team] || otherLeague(rooms[team]) || otherLeague(coaches[team]))) {
       const club = ensureClub(player, { teamId: team, league: lg, strength: teamStrengthOf(player.leagueState, team), classmates: teammatesFrom(player.peers, team) });
       if (club?.fresh) {
         rooms = club.rooms; coaches = club.coaches;
@@ -1663,10 +1666,12 @@ export function advanceToOffseason(ctx) {
     }
     const coach = coaches[team];
     const lastYear = player.seasonHistory?.[player.seasonHistory.length - 1];
-    const stayed = lastYear?.team === team;
+    // The same club, in the same league: the WHL's Giants and the Canucks
+    // are both VAN, and a Giant who joined the Canucks had 'stayed'.
+    const stayed = lastYear?.team === team && (lastYear?.league || lg) === lg;
     const met = player.storylines?.metCoaches || [];
     const metMen = player.storylines?.metMen || [];
-    const coachKey = coach ? `${team}:${coach.name}` : null;
+    const coachKey = coach ? `${clubKey(team, lg)}:${coach.name}` : null;
     const clubName = getFullTeamName(team, lg);
     const archetype = playerArchetype(player);
 
@@ -1958,7 +1963,7 @@ export function advanceToOffseason(ctx) {
             safeLabel = 'Accept Backup Duty';
             safeSubLabel = 'Settle into a steady backup role without the pressure.';
             safeFeedback = 'You played a quiet, mistake-free camp and accepted the backup role behind the veteran.';
-        } else if (['LD', 'RD'].includes(player.pos)) {
+        } else if (isDefence(player.pos)) {
             campTitle = '⛺ BLUE LINE BATTLE';
             campDesc = 'Training camp has opened, and there\'s an open spot in the top-4 defensive pairings. You\'re locked in a fierce battle for those crucial minutes.';
             riskyLabel = 'Battle for a Top-4 Spot';
@@ -1996,7 +2001,7 @@ export function advanceToOffseason(ctx) {
                   action: 'ROUTE_MINIGAME',
                   // The camp battle for his position, which is the only place
                   // the camp battles are played.
-                  actionData: player.pos === 'G' ? 'camp_battle_g' : (player.pos === 'LD' || player.pos === 'RD') ? 'camp_battle_d' : 'camp_battle'
+                  actionData: player.pos === 'G' ? 'camp_battle_g' : isDefence(player.pos) ? 'camp_battle_d' : 'camp_battle'
                 },
                 {
                   label: safeLabel,

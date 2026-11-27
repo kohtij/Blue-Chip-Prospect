@@ -480,29 +480,6 @@ const D_BLOCK_SPAN = 0.45;
 // rather than the largest.
 const D_DEF_PARTS = { block: 0.38, minutes: 0.35, shield: 0.27 };
 
-/**
- * The half of a defenceman's season that never reaches the scoresheet.
- *
- * A goalie has a save percentage, so his year can be judged without reference
- * to anyone's points. A defenceman's equivalent has to be built out of what the
- * engine actually simulates: the goal difference he was on the ice for, and the
- * minutes the staff gave him. Those minutes are the coaching verdict on his
- * defending, and the nearest thing here to an eye test.
- *
- * Roughly -1 for a liability, +1 for the best defensive year in the league.
- */
-/**
- * The defensive half as a mark out of ten, for a screen rather than a formula.
- *
- * defensiveHalf runs -1 to +1, which is right for feeding a rating and useless
- * to read. This is the same number on the scale the rest of the game shows a
- * player: five is an ordinary NHL defenceman, eight and a half is a season the
- * league notices, and the engine has been computing it for every defence
- * season without ever putting it in front of him.
- */
-export const defenceGrade = (pmPerGame, toi, blkPerGame = null) =>
-  Number((5 + defensiveHalf(pmPerGame, toi, blkPerGame) * 3.5).toFixed(1));
-
 export function defensiveHalf(pmPerGame, toi, blkPerGame = null) {
   const mins = toi ?? D_TOI_MID;
   const clamp = (n) => Math.max(-1, Math.min(1, n));

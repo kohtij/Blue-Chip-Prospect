@@ -4,7 +4,7 @@
 // on kohtij/hockey-awards-and-trophies.
 // ==========================================
 
-const BASE = 'https://raw.githubusercontent.com/kohtij/hockey-awards-and-trophies/main';
+const BASE = '/img/gh/kohtij/hockey-awards-and-trophies/main';
 const AWARDS = `${BASE}/Awards%20Trophies`;
 const PO = `${BASE}/Playoff%20Trophies`;
 
@@ -234,4 +234,4 @@ export const getAwardImage = (name) => {
   return null;
 };
 
-export const getPlayoffTrophyImage = (league) => PLAYOFF_TROPHY_IMAGES[league] || null;
+export const getPlayoffTrophyImage = (league) => PLAYOFF_TROPHY_IMAGES[league] || null;

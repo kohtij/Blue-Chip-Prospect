@@ -1,6 +1,6 @@
-import { nhlTeams } from '../data/teams';
+import { nhlTeams, chlLeagues } from '../data/teams';
 import { teamStrengthOf } from './leagueState';
-import { gaussianNoise } from './production';
+import { gaussianNoise, isDefence } from './production';
 import { staffName } from './staffNames';
 
 // THE FRONT OFFICES.
@@ -35,11 +35,11 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /** The four groups a prospect pool is kept in. */
 export const POOL_GROUPS = ['C', 'W', 'D', 'G'];
 export const poolGroup = (pos) =>
-  pos === 'G' ? 'G' : pos === 'LD' || pos === 'RD' || pos === 'D' ? 'D' : pos === 'C' ? 'C' : 'W';
+  pos === 'G' ? 'G' : isDefence(pos) || pos === 'D' ? 'D' : pos === 'C' ? 'C' : 'W';
 
 /** Where a prospect came up through, as general managers sort them. */
 export const routeOf = (league) =>
-  ['OHL', 'WHL', 'QMJHL'].includes(league) ? 'CHL'
+  chlLeagues.includes(league) ? 'CHL'
     : ['NCAA', 'USHL', 'BCHL', 'NTDP'].includes(league) ? 'NCAA'
       : league ? 'EUR' : null;
 

@@ -303,20 +303,6 @@ export function injuryEvent(inj) {
 }
 
 /**
- * What a body that has been through it is worth now.
- *
- * Small and permanent. One injury is nothing. A career of them is the
- * difference between a thirty-four-year-old who can still play and one who
- * cannot, and the aging curve on its own could never tell those two apart.
- */
-export function wearPenalty(player) {
-  const past = player?.injuryHistory || [];
-  if (past.length < 3) return 0;
-  const serious = past.filter(i => (i.games || 0) >= 20).length;
-  return Math.min(4, Math.floor((past.length - 2) * 0.5) + serious);
-}
-
-/**
  * The summer after a career-ending injury: what the doctors say, for the event
  * that ends the career.
  */

@@ -603,7 +603,7 @@ function playPeerSeason(peer) {
   const team = junior ? (placed.team || placeAt(peer, 'JR')) : placeAt(peer, tier);
 
   const isGoalie = peer.pos === 'G';
-  const isD = peer.pos === 'LD' || peer.pos === 'RD';
+  const isD = isDefence(peer.pos);
   const scheduled = junior ? (JUNIOR_GAMES[league] || 62) : (tier === 'JR' ? 62 : 74);
   const games = Math.max(20, scheduled - 4 + Math.floor(Math.random() * 9));
   const ageCapped = tier === 'JR' || preDraft;
@@ -883,10 +883,10 @@ export function advancePeers(peers) {
  */
 export function classBestAt(peers, league, pos) {
   const isG = pos === 'G';
-  const isD = pos === 'LD' || pos === 'RD';
+  const isD = isDefence(pos);
   const field = (peers || []).filter(p =>
     !p.retired && p.season && p.season.league === league
-    && (isG ? p.pos === 'G' : isD ? (p.pos === 'LD' || p.pos === 'RD') : false)
+    && (isG ? p.pos === 'G' : isD ? isDefence(p.pos) : false)
     && (isG ? p.season.shots > 0 : true));
   if (!field.length) return null;
 
@@ -1105,7 +1105,7 @@ export const playerCareerValue = (player) => {
 // on the table in a negotiation. A centre and a left winger are drafted for
 // different jobs and paid on different numbers, and ranking them together put
 // a winger behind five centres for playing the position he plays.
-export const posGroup = (pos) => (pos === 'G' ? 'G' : (pos === 'LD' || pos === 'RD') ? 'D' : 'F');
+export const posGroup = (pos) => (pos === 'G' ? 'G' : isDefence(pos) ? 'D' : 'F');
 
 const GROUP_NAME = {
   C: ['centre', 'centres'],
@@ -1184,17 +1184,6 @@ export function findRival(peers, playerValue, pos = 'C') {
     const cd = Math.abs(peerValue(closest, pos) - playerValue);
     return d < cd ? p : closest;
   }, byCareer[0]);
-}
-
-/**
- * The class table, best career first, for the retirement screen.
- */
-export function classTable(peers, limit = 10, pos = 'C') {
-  const group = compGroup(pos);
-  return [...(peers || [])]
-    .filter(p => compGroup(p.pos) === group && p.career.seasons > 0)
-    .sort((x, y) => peerValue(y, pos) - peerValue(x, pos))
-    .slice(0, limit);
 }
 
 // ---------------------------------------------------------------------------

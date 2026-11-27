@@ -1,7 +1,4 @@
-import {
-  nhlTeams, ahlTeams, ohlTeams, whlTeams, qmjhlTeams, juniorLeagues, euroLeagues,
-  LEAGUE_CONFIG, getOpponentPool, isAmateurLeague, leagueLevel, EXTRA_LEAGUES
-} from '../data/teams';
+import { nhlTeams, ahlTeams, whlTeams, qmjhlTeams, juniorLeagues, juniorLeagues as allJuniorLeagues, euroLeagues, LEAGUE_CONFIG, getOpponentPool, isAmateurLeague, leagueLevel, EXTRA_LEAGUES, chlLeagues, nhlFarmLeagues, nhlAndAhl } from '../data/teams';
 
 // WHICH CAREER TOTAL A SEASON COUNTS TOWARD.
 //
@@ -27,6 +24,8 @@ import { waiverExempt } from './waivers';
 import { earnedBonuses, salaryParts } from './bonuses';
 import { careerAwardList } from './awardList';
 import { advancePeers, classBestAt, classNews, dmanBar, ensureClass, goalieBar, scoringBar, scoutingBoard } from './peers';
+import { isElc, seasonYear } from './season';
+import { clubOf, playedInLeagues, withClub } from './clubs';
 
 // Fisher-Yates. The old one-liner, sort(() => Math.random() - 0.5), is not a
 // shuffle: comparison sorts assume a consistent comparator, so elements drift
@@ -255,7 +254,7 @@ export const resolveRole = ({ contractRole = '', ovr = 50, pos = 'C', league = '
   }
 
   // The name for where that lands him.
-  const isDef = pos === 'LD' || pos === 'RD';
+  const isDef = isDefence(pos);
   let label;
   // Boundaries moved down to meet the interpolated minutes.
   //
@@ -368,23 +367,6 @@ export const getActiveStat = (p, stat) => {
   return cap(val);
 };
 
-export const PROMOTE_OVR = 68;
-export const DEMOTE_OVR = 64;
-
-export const choiceChance = (player, choice) => {
-  if (!choice || !choice.stats || choice.stats.length === 0) return 0.50;
-  const statTotal = choice.stats.reduce((acc, stat) => acc + (player[stat] || 50), 0);
-  const avgStat = statTotal / choice.stats.length;
-  let chance = choice.baseChance + ((avgStat - 50) * 0.005);
-  return Math.min(0.95, Math.max(0.05, chance));
-};
-
-export const CHOICE_REWARD = {
-  safe:   { win: { fanStatus: 3 },  loss: { fanStatus: -2 } },
-  skill:  { win: { fanStatus: 7 },  loss: { fanStatus: -3 } },
-  gamble: { win: { fanStatus: 15, money: 300000 }, loss: { fanStatus: -8 } },
-};
-
 export const recomputeOvr = (p) => {
   if (!p) return 50;
 
@@ -404,7 +386,7 @@ export const recomputeOvr = (p) => {
     return Math.round((sht * 0.3) + (skt * 0.3) + (phy * 0.2) + (iq * 0.1) + (sta * 0.1));
   }
 
-  if (['LD', 'RD'].includes(p.pos)) {
+  if (isDefence(p.pos)) {
     return Math.round((phy * 0.30) + (skt * 0.25) + (iq * 0.25) + (sta * 0.10) + (sht * 0.10));
   }
 
@@ -490,7 +472,7 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // player of the last decade has five scoring titles and three MVPs.
   const mvpPace = pts >= field.total * 1.04;
   const isGoalie = player.pos === 'G';
-  const isDefense = ['LD', 'RD'].includes(player.pos);
+  const isDefense = isDefence(player.pos);
   const svPct = saves / (shots || 1);
   const careerHighGoals = player.stats?.careerHighGoals || 0;
 
@@ -750,14 +732,14 @@ function _computeAwards({ player, rating, g, a, saves, shots, games, standings, 
   // There's no NHL First All-Star Team any more. It sat beside the Hart and
   // the Art Ross as one more line for the same great season, so a big year
   // read as a pile of near-duplicates.
-  if (player.storylines?.allStarSelected && ['NHL', 'AHL'].includes(player.league)) {
+  if (player.storylines?.allStarSelected && nhlAndAhl.includes(player.league)) {
     awards.push(player.league === 'NHL' ? 'NHL All-Star' : 'AHL All-Star');
   }
 
   if (rating >= 8.5) {
     if (player.league === 'NHL') {
       // Nothing extra: see above.
-    } else if (['OHL', 'WHL', 'QMJHL'].includes(player.league)) {
+    } else if (chlLeagues.includes(player.league)) {
       awards.push(`${player.league} 1st All-Star Team`);
     } else if (player.league === 'NCAA') {
       awards.push('1st Team All-American');
@@ -800,7 +782,7 @@ export function nationalAward({ nat, pos, league, awards = [], games = 0, pts = 
     const major = ['mvp', 'scoring', 'goals', 'dman', 'goalie', 'players'].some(won);
     if (major) return award.name;
     if (pos === 'G' || !bar?.total) return null;
-    const line = award.share * (pos === 'LD' || pos === 'RD' ? 0.6 : 1);
+    const line = award.share * (isDefence(pos) ? 0.6 : 1);
     return pts >= bar.total * line ? award.name : null;
   }
   // Outside the NHL, only the MVP of a top European league is in the
@@ -898,7 +880,7 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
       currentLg = 'NHL';
     } else {
       const isUnder20 = p.age < 20;
-      const hasCHLHistory = (p.teamsPlayedFor || []).some(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
+      const hasCHLHistory = playedInLeagues(p, chlLeagues);
       const needsAHLDevelopment = currentLg === 'NHL' && p.ovr < 78 && p.age < 24 && Math.random() < 0.85;
 
       // A no-movement clause means he cannot be sent down or waived without
@@ -939,9 +921,10 @@ function _computeLeaguePlacement(p, isJuniorLg, isEuroLg, isNCAA) {
              // and none for a goalie
 
              const toLastCHL = () => {
-               const lastCHL = (p.teamsPlayedFor || []).slice().reverse().find(team => (ohlTeams || []).find(o=>o.id===team) || (whlTeams || []).find(o=>o.id===team) || (qmjhlTeams || []).find(o=>o.id===team));
-               currentTeam = lastCHL || p.chlRights || 'UNK';
-               if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
+               const lastCHL = (p.teamsPlayedFor || []).map(clubOf).reverse().find(c => chlLeagues.includes(c.league));
+               currentTeam = lastCHL?.team || p.chlRights || 'UNK';
+               if (lastCHL) currentLg = lastCHL.league;
+               else if ((whlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'WHL';
                else if ((qmjhlTeams || []).find(team=>team.id===currentTeam)) currentLg = 'QMJHL';
                else currentLg = 'OHL';
              };
@@ -1041,7 +1024,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // summer. See utils/roster.js. A career with no room (an old save, a league
   // the player is only passing through) gets the neutral answers and plays
   // exactly as it always did.
-  const room = roomFor(p.rooms, currentTeam);
+  const room = roomFor(p.rooms, currentTeam, currentLg);
   const blockedAhead = room ? depthAhead(room, p.pos, p.ovr) : 0;
   const line = lineEffect(room, p.pos);
 
@@ -1300,7 +1283,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
       sho = Math.round(baseShutouts * (games / 82)); // Shutouts now scale proportionally to games played
   } else {
       let gpg, apg;
-      if (['LD', 'RD'].includes(p.pos)) {
+      if (isDefence(p.pos)) {
           gpg = Math.max(0, (simSht - 55) * 0.004 + (simIq - 50) * 0.002);
           apg = Math.max(0, (simIq - 50) * 0.009 + (simSkt - 50) * 0.004);
           // A DEFENCEMAN'S PLUS-MINUS IS HIS SAVE PERCENTAGE.
@@ -1618,7 +1601,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
   // judged on his season in that league and not on the nine games he played
   // for the club he left in October. A club record uses the club he finished
   // with, which is the only club a single-club record can belong to.
-  const recordSeasonYear = 2026 + (p.stats?.seasonsPlayed || 0);
+  const recordSeasonYear = seasonYear(p);
   const lgStints = stints.filter(s => s.league === playedLg);
   const recordClub = lgStints[lgStints.length - 1]?.team || currentTeam;
   const recordClaim = (leagueYear.games || 0) > 0
@@ -1648,7 +1631,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
           else if (st.hockeyIQ > 0) st.hockeyIQ--;
       } else if (avgToi > 17.0 && p.age < 23) {
           // Prospect Fast-Track: Top-6 minutes accelerate young players
-          const primaryStat = ['LD', 'RD'].includes(p.pos) ? 'physicality' : (p.pos === 'C' ? 'hockeyIQ' : 'shooting');
+          const primaryStat = isDefence(p.pos) ? 'physicality' : (p.pos === 'C' ? 'hockeyIQ' : 'shooting');
           st[primaryStat] = (st[primaryStat] || 0) + 1;
       }
   }
@@ -1794,7 +1777,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     team: currentTeam,
     league: currentLg,
     currentAsg: rating >= 8.5 ? playedLg : null,
-    teamsPlayedFor: Array.from(new Set([...(p.teamsPlayedFor || []), currentTeam])),
+    teamsPlayedFor: withClub(p.teamsPlayedFor, currentTeam, currentLg),
     relationships: (currentTeam !== p.team) ? { coach: 50, teammates: 50, media: 50 } : p.relationships,
     // A letter belongs to the room that gave it. A player claimed off waivers or
     // sent down to the affiliate does not walk into a dressing room he has never
@@ -1821,7 +1804,7 @@ export function simulateSeason(player, trainingEffect = {}, gamesMissed = 0, opt
     // The good works this season's awards have already looked at.
     communityCounted: p.communityWork || 0,
     peakFanStatus: Math.max(p.peakFanStatus || 0, p.fanStatus || 0, fanGain(fanFade(p.fanStatus || 0), fanStatusGain)),
-    contract: { ...p.contract, splitYear: undefined, years: (p.age < 20 && p.contract?.years > 0 && ['OHL', 'WHL', 'QMJHL'].includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
+    contract: { ...p.contract, splitYear: undefined, years: (p.age < 20 && p.contract?.years > 0 && chlLeagues.includes(currentLg)) ? p.contract.years : (p.contract?.years > 0 ? p.contract.years - 1 : 0) },
     stats: {
       ...p.stats,
       value: newVal,
@@ -2096,8 +2079,8 @@ export const onNhlContract = (p) => {
   if (!c || !((c.salary || 0) > 0) || c.isScholarship) return false;
   if (typeof c.nhl === 'boolean') return c.nhl;
   if (p.league === 'NHL') return true;
-  if (['AHL', 'ECHL'].includes(p.league)) return c.role !== 'Pro Roster' && c.salary >= 500000;
-  if (['OHL', 'WHL', 'QMJHL'].includes(p.league)) return c.salary >= 500000;
+  if (nhlFarmLeagues.includes(p.league)) return c.role !== 'Pro Roster' && c.salary >= 500000;
+  if (chlLeagues.includes(p.league)) return c.salary >= 500000;
   return false;
 };
 
@@ -2107,7 +2090,7 @@ export const onNhlContract = (p) => {
 // played anywhere, so a 22-year-old with four junior years and one in the AHL
 // already had five of the seven that make a player unrestricted.
 export const accruedSeasons = (p) => {
-  const nowYear = 2026 + (p?.stats?.seasonsPlayed || 0);
+  const nowYear = seasonYear(p);
   return (p?.seasonHistory || []).filter(s => {
     const nhlGames = Array.isArray(s.stints) && s.stints.length
       ? s.stints.filter(x => (x?.league || s.league) === 'NHL').reduce((n, x) => n + (x?.games || 0), 0)
@@ -2130,9 +2113,9 @@ export const isRestricted = (p) =>
 // junior can't file, which is why their second contracts are bridge deals.
 // Seasons in the NHL or the AHL count.
 export const arbitrationEligible = (p) => {
-  const nowYear = 2026 + (p?.stats?.seasonsPlayed || 0);
+  const nowYear = seasonYear(p);
   const pro = (p?.seasonHistory || []).filter(s =>
-    ['NHL', 'AHL'].includes(s.league) || (s.stints || []).some(x => ['NHL', 'AHL'].includes(x?.league)));
+    nhlAndAhl.includes(s.league) || (s.stints || []).some(x => nhlAndAhl.includes(x?.league)));
   if (!pro.length) return false;
   const ageThen = (p.age || 0) - (nowYear - (pro[0].year ?? nowYear));
   const need = ageThen <= 20 ? 4 : ageThen === 21 ? 3 : ageThen <= 23 ? 2 : 1;
@@ -2147,9 +2130,9 @@ export const isNineGameCandidate = (p) => {
   // would take a backup half the season.
   if (p.pos === 'G') return false;
   if ((p.age ?? 99) > 19) return false;
-  if ((p.contract?.salary || 0) !== 925000) return false;
+  if (!isElc(p.contract)) return false;
   const hasJuniorRights = !!p.chlRights
-    || (p.seasonHistory || []).some(s => ['OHL', 'WHL', 'QMJHL'].includes(s.league));
+    || (p.seasonHistory || []).some(s => chlLeagues.includes(s.league));
   if (!hasJuniorRights) return false;
   // The nine-game look happens once in a career, not once a season. The old
   // guard only disqualified a year of ten games or more, so a player sent back
@@ -2194,7 +2177,7 @@ export const nineGameVerdict = (p, seg, isTop10Pick = false) => {
 // on how many people want to watch you, so fan status counts towards it.
 // There is no All-Star Game in an Olympic year, so the caller gates on that.
 export const madeAllStarGame = (p, seg) => {
-  if (!seg || !['NHL', 'AHL'].includes(seg.league)) return false;
+  if (!seg || !nhlAndAhl.includes(seg.league)) return false;
   const gp = seg.games || 0;
   if (gp < 15) return false; // too little of a half season to be judged on
 
@@ -2220,7 +2203,7 @@ export const madeAllStarGame = (p, seg) => {
 // free agency straight off his season recap. A player is only a free agent if he
 // has actually been a pro whose deal has run out, or has exhausted his amateur
 // eligibility. An undrafted teenager still inside his junior window is neither.
-export function isNhlFreeAgentEligible(player, juniorLeagues = ['OHL', 'WHL', 'QMJHL', 'USHL']) {
+export function isNhlFreeAgentEligible(player, juniorLeagues = allJuniorLeagues) {
   if (!player) return false;
 
   const hasSignedDeal = (player.contract?.salary || 0) > 0;
@@ -2228,8 +2211,11 @@ export function isNhlFreeAgentEligible(player, juniorLeagues = ['OHL', 'WHL', 'Q
   const league = player.league;
   const isAmateur = juniorLeagues.includes(league) || league === 'NCAA';
 
-  // Junior players age out at 21, college and everyone else at 22.
-  const ageOut = ['OHL', 'WHL', 'QMJHL'].includes(league) ? 21 : 22;
+  // Junior players age out at 21, college and everyone else at 22. Every junior
+  // league counts, not only the CHL: the graduation event fires for all of them
+  // at 21, and a Finnish U20 player it sent here at 21 was turned away, sent
+  // back to the same event, and stuck there for good.
+  const ageOut = juniorLeagues.includes(league) ? 21 : 22;
   const agedOut = player.age >= ageOut;
 
   // Has been a pro and the deal has lapsed.
@@ -2388,13 +2374,17 @@ export const withLuck = (chance, p) =>
  * else, and the playoffs only knew about a club he'd played three seasons
  * for. Returns 'traded', 'drafted' or null, for the club in this league.
  *
- * Trades are kept on tradedAwayBy from now on; a save from before that still
- * has the season it happened in, marked with where he went.
+ * Trades are kept on tradedAwayBy, and each season filed since knows the club
+ * that traded him away that year (tradedFrom).
  */
 export function grudgeAgainst(player, teamId, league = player?.league) {
   if (!player || !teamId || teamId === player.team) return null;
+  // Only the two records written at the moment of a trade count. Seasons filed
+  // before this fix carry a tradedTo written onto the wrong year (the one
+  // before the trade), so the club they name is whoever he played for the
+  // season before, and they're not read for this.
   const traded = (player.tradedAwayBy || []).some(t => t.team === teamId && (t.league || 'NHL') === league)
-    || (player.seasonHistory || []).some(s => s.tradedTo && s.team === teamId && (s.league || league) === league);
+    || (player.seasonHistory || []).some(s => s.tradedFrom === teamId && (s.tradedFromLeague || s.league || league) === league);
   if (traded) return 'traded';
   if (league === 'NHL' && player.draftTeam === teamId && player.rights !== teamId) return 'drafted';
   return null;

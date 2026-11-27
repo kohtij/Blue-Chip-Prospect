@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
-import { MASTER_ACHIEVEMENTS } from '../utils/appHelpers';
+import { MASTER_ACHIEVEMENTS, getFullTeamName } from '../utils/appHelpers';
+import { seasonYear } from '../utils/season';
 import { formatMoney } from '../utils/gameHelpers';
 import TeamLogo from '../components/TeamLogo';
 import { leagueNation } from '../utils/peers';
 
 export default function CreationScreen() {
-  const { handleStart, player, safeNationalities, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements } = useAppContext();
+  const { continueCareer, handleStart, player, safeNationalities, savedCareer, setPlayer, setShowAchievementsMenu, showAchievementsMenu, unlockedAchievements } = useAppContext();
+  // A career saved in this browser, if there is one to pick back up.
+  const saved = savedCareer?.state?.player;
+  const savedYear = saved ? seasonYear(saved) : null;
   
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
@@ -295,6 +299,23 @@ export default function CreationScreen() {
                   </span>
                 </h1>            
                 
+                {saved && (
+                  <div className="relative z-10 mb-8 max-w-sm mx-auto rounded-xl border border-[#22E748]/40 bg-[#22E748]/[0.06] p-4 text-left shadow-[0_0_24px_rgba(34,231,72,0.12)]">
+                    <p className="text-[10px] font-black tracking-[0.18em] text-[#22E748] uppercase">Your Saved Career</p>
+                    <p className="mt-1 text-lg font-black text-white uppercase sports-font break-words">{saved.name || 'Unnamed'}</p>
+                    <p className="text-sm text-slate-300 break-words">
+                      {[saved.pos, `Age ${saved.age}`, saved.team ? getFullTeamName(saved.team, saved.league) : null, `${savedYear}/${String(savedYear + 1).slice(2)}`].filter(Boolean).join(' · ')}
+                    </p>
+                    <button
+                      onClick={continueCareer}
+                      className="mt-3 w-full btn-primary py-3 rounded-xl text-sm sm:text-base cursor-pointer sports-font tracking-[0.18em]"
+                    >
+                      CONTINUE
+                    </button>
+                    <p className="mt-2 text-xs text-slate-400">Starting a new career replaces this one.</p>
+                  </div>
+                )}
+
                 {/* Silver Stamped Name Input */}
                 <div className="relative mb-8 max-w-sm mx-auto z-10">
                   <input
@@ -611,4 +632,4 @@ export default function CreationScreen() {
             </div>
           </div>
         );
-}
+}

@@ -5,9 +5,11 @@ import { getFullTeamName } from '../utils/appHelpers';
 import { formatComp, offerSheetComp, offerSheetCompLong } from '../utils/contracts';
 import { formatMoney, formatMoney3, isRestricted, onNhlContract, ovrEffectText, withTeamArticle, rightsExpiryYear, formatLeagueName } from '../utils/gameHelpers';
 import { bonusCeiling } from '../utils/bonuses';
-import { getPrimaryRival, getTeamData, isAmateurLeague, nhlTeams, readableAccent, teamAccent } from '../data/teams';
+import { getPrimaryRival, getTeamData, isAmateurLeague, nhlTeams, readableAccent, teamAccent, nhlFarmLeagues } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
 import { TITLE_MD } from '../utils/ui';
+import { seasonYear } from '../utils/season';
+import { hasPlayedFor } from '../utils/clubs';
 
 // Each club already carries its own two colours, and `teamAccent` picks the one
 // that reads against a near-black card. That gives every offer its own identity.
@@ -29,7 +31,7 @@ export default function TransferScreen() {
   let owningLeague = player.league;
   
   // Only an NHL deal belongs to the parent club. See onNhlContract.
-  if (['AHL', 'ECHL'].includes(owningLeague) && onNhlContract(player)) {
+  if (nhlFarmLeagues.includes(owningLeague) && onNhlContract(player)) {
      const parent = (nhlTeams || []).find(t => t.ahlId === player.team || t.echlId === player.team);
      if (parent) {
          owningTeam = parent.id;
@@ -51,7 +53,7 @@ export default function TransferScreen() {
   // rights run out this summer. "The Flint Firebirds elected not to offer you
   // a new contract" was wrong for all of them: a junior club can't sign a
   // player to a pro deal, and nobody had passed on anything.
-  const summerNow = 2026 + (player.stats?.seasonsPlayed || 0);
+  const summerNow = seasonYear(player);
   const leavingAmateur = (() => {
     if (player.rightsLapsedBy && player.rightsLapsedIn === summerNow) {
       return `The ${getFullTeamName(player.rightsLapsedBy, 'NHL')} let their rights to you run out, so you're a free agent and any club can sign you. These are the clubs that want you.`;
@@ -165,9 +167,9 @@ export default function TransferScreen() {
                   const rivalObj = getPrimaryRival ? getPrimaryRival(player.team, player.league) : null;
                   const isRival = rivalObj && (rivalObj.id === o.team || rivalObj.name === o.team);
                   const isDraftTeam = (player.draftTeam || player.rights) === o.team;
-                  const hasPlayedFor = (player.teamsPlayedFor || []).includes(o.team);
+                  const playedHere = hasPlayedFor(player, o.team, o.league || 'NHL');
                   const isLovedStatus = player.fanStatus >= 400;
-                  const isReturnHome = isDraftTeam && player.team !== o.team && hasPlayedFor && isLovedStatus;
+                  const isReturnHome = isDraftTeam && player.team !== o.team && playedHere && isLovedStatus;
                   const isExtension = o.team === owningTeam || ['EXTENSION', 'QUALIFYING OFFER', 'RFA EXTENSION', 'HOMETOWN DISCOUNT'].includes(o.type);
 
                   const teamData = getTeamData(o.team, o.league);

@@ -64,16 +64,6 @@ export function lastTitle(ledger, teamId, year, league = 'NHL') {
   return { year: year - gap, gap, never: false };
 }
 
-/** One clause, for dropping into a sentence about the city. */
-export function droughtLine(ledger, teamId, year, league = 'NHL') {
-  const t = lastTitle(ledger, teamId, year, league);
-  if (t.never) return 'has never won a championship';
-  if (t.gap === 0) return 'won it this season';
-  if (t.gap === 1) return 'won it last season';
-  if (t.gap <= 3) return `last won it ${t.gap} seasons ago`;
-  return `hasn't won since ${t.year}, ${t.gap} years ago`;
-}
-
 /**
  * Write a championship into the ledger. Returns a new object; the caller
  * stores it on the player beside leagueState.

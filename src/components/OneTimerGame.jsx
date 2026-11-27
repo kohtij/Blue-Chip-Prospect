@@ -58,11 +58,16 @@ export default function OneTimerGame({ player, onComplete, difficulty = 0 }) {
     setTimeout(() => onComplete(win), delay);
   }, [onComplete]);
 
+  // The set-up pause has its own effect. It used to share the one below, which
+  // restarts whenever the screen around it redraws, so a busy screen kept
+  // pushing the pass back and it never came.
   useEffect(() => {
-    if (status === 'waiting') {
-      const t = setTimeout(() => setStatus('live'), 600 + Math.random() * 1700);
-      return () => clearTimeout(t);
-    }
+    if (status !== 'waiting') return;
+    const t = setTimeout(() => setStatus('live'), 600 + Math.random() * 1700);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  useEffect(() => {
     if (status !== 'live') return;
 
     // Capped so the pass never outruns the eye.

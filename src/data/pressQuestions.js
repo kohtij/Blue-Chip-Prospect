@@ -1,5 +1,6 @@
 import { classPressQuestion } from '../utils/peers';
-import { euroLeagues, juniorLeagues } from './teams';
+import { euroLeagues, juniorLeagues, minorProLeagues } from './teams';
+import { isDefence } from '../utils/production';
 
 // What the press asks, and who it makes sense to ask it of.
 //
@@ -21,14 +22,13 @@ import { euroLeagues, juniorLeagues } from './teams';
 // J20, U20 and the BCHL were missing and fell through to the NHL's set.
 const JUNIOR = juniorLeagues;
 const EURO = euroLeagues;
-const MINOR = ['AHL', 'ECHL', 'SPHL'];
 
 /** One tag per league, which every question's `scope` is matched against. */
 export const leagueTag = (league) => {
   if (league === 'NCAA') return 'ncaa';
   if (JUNIOR.includes(league)) return 'junior';
   if (EURO.includes(league)) return 'euro';
-  if (MINOR.includes(league)) return 'minor';
+  if (minorProLeagues.includes(league)) return 'minor';
   if (league === 'NHL') return 'nhl';
   return 'nhl';
 };
@@ -36,7 +36,7 @@ export const leagueTag = (league) => {
 /** Forwards, defencemen and goalies get asked about different things. */
 export const positionTag = (pos) => {
   if (pos === 'G') return 'goalie';
-  if (pos === 'LD' || pos === 'RD') return 'defence';
+  if (isDefence(pos)) return 'defence';
   return 'forward';
 };
 
