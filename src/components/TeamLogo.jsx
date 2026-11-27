@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getTeamData, nhlTeams } from '../data/teams';
 import { readableOn } from '../utils/a11y';
+import { isImageRetry, remoteImage } from '../utils/images';
 
 // Extracted from App.jsx. Pure component; dependencies imported explicitly.
 const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) => {
@@ -65,8 +66,12 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
     // the pack is one request that is already warm and never missing.
     const src = finalLogoUrl || (isNHL ? `/img/nhl/logos/nhl/svg/${teamId}_light.svg` : null);
     if (!src) return null;
+    // The outside copy is layered under the local one, so the crest still
+    // draws if the local file hasn't been downloaded.
+    const remote = remoteImage(src);
+    const layers = remote ? `url("${src}"), url("${remote}")` : `url("${src}")`;
     const mask = {
-      WebkitMaskImage: `url("${src}")`, maskImage: `url("${src}")`,
+      WebkitMaskImage: layers, maskImage: layers,
       WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
       WebkitMaskPosition: 'center', maskPosition: 'center',
       WebkitMaskSize: 'contain', maskSize: 'contain'
@@ -89,6 +94,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
           alt={altName}
           className={`w-full h-full object-contain transform-gpu scale-[1.28] ${size === 'backdrop' ? '' : 'drop-shadow-lg'}`}
           onError={(e) => {
+            if (isImageRetry(e)) return;
             if (nhlVariant === 'dark') { setNhlVariant('light'); return; }
             e.target.style.display = 'none'; setImgError(true);
           }}
@@ -105,7 +111,7 @@ const TeamLogo = ({ teamId, league, isAHL, size = "normal", className = "" }) =>
           src={finalLogoUrl}
           alt={altName}
           className={`w-full h-full object-contain ${size === 'backdrop' ? '' : 'drop-shadow-lg p-0.5'}`}
-          onError={(e) => { e.target.style.display = 'none'; setImgError(true); }}
+          onError={(e) => { if (isImageRetry(e)) return; e.target.style.display = 'none'; setImgError(true); }}
         />
       </div>
     );

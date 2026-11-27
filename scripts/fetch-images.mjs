@@ -19,13 +19,6 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'public');
 
-// Where each local folder's images come from.
-const SOURCES = {
-  '/img/gh/': 'https://raw.githubusercontent.com/',
-  '/img/flags/': 'https://flagcdn.com/',
-  '/img/wiki/': 'https://upload.wikimedia.org/',
-  '/img/nhl/': 'https://assets.nhle.com/'
-};
 
 // Every image path the game can ask for. Most are written out in the data
 // files; a few are put together in code, so those are listed from the data.
@@ -44,8 +37,11 @@ for (const file of walk(path.join(root, 'src'))) {
 }
 
 // Paths the data files build.
+// Where each local folder's images come from (see src/utils/images.js).
+let SOURCES = {};
 const server = await createServer({ root, logLevel: 'error', server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' });
 try {
+  ({ IMAGE_SOURCES: SOURCES } = await server.ssrLoadModule('/src/utils/images.js'));
   for (const mod of ['/src/data/teams.js', '/src/data/euroLeagues.js', '/src/data/awards.js']) collect(await server.ssrLoadModule(mod));
   // Each NHL club's crest comes in a light and a dark version.
   const { nhlTeams } = await server.ssrLoadModule('/src/data/teams.js');

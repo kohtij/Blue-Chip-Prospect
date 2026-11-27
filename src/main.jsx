@@ -2,6 +2,11 @@ import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { installImageFallback } from './utils/images'
+
+// A logo or flag that hasn't been downloaded into public/img loads from where
+// it came from instead. See utils/images.
+installImageFallback()
 
 // Catches any render-time exception in App and shows the actual error
 // instead of a black screen. Without this, one undefined variable in any
@@ -75,4 +80,4 @@ createRoot(document.getElementById('root')).render(
       <App />
     </ErrorBoundary>
   </StrictMode>,
-)
+)
