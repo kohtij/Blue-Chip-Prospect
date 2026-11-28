@@ -297,7 +297,7 @@ export default function DraftScreen() {
                       <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                         <span className="text-slate-600">·</span>
                         <span className="inline-flex items-center gap-1">
-                          <LeagueTag league={r.fromLeague} flagClass="w-[12px] h-[9px]" />
+                          <LeagueTag league={r.fromLeague} flagClass="w-[12px] h-[9px]" logoClass="w-5 h-4" />
                         </span>
                       </span>
                     )}

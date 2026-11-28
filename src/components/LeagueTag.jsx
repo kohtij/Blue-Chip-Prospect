@@ -1,4 +1,5 @@
 import { leagueFlag, leagueLabel } from '../utils/peers';
+import LeagueLogo from './LeagueLogo';
 
 /**
  * A league, as its flag and its code.
@@ -16,15 +17,27 @@ import { leagueFlag, leagueLabel } from '../utils/peers';
  * The NHL and the AHL have no flag, because they are two countries' leagues
  * and either flag alone would be wrong. They get an empty box the same size
  * instead, so a column of codes stays in line.
+ *
+ * `logoClass` swaps the flag for the league's own logo, at that size. A league
+ * without one keeps its flag.
  */
-export default function LeagueTag({ league, flagClass = 'w-[14px] h-[10px]' }) {
+export default function LeagueTag({ league, flagClass = 'w-[14px] h-[10px]', logoClass = null }) {
   if (!league) return <span className="text-slate-600">&mdash;</span>;
   const flag = leagueFlag(league);
+  const flagImg = flag
+    ? <img src={flag} alt="" className={`${flagClass} shrink-0 object-cover rounded-[1px]`} />
+    : <span className={`${flagClass} shrink-0`} aria-hidden="true" />;
+  if (logoClass) {
+    return (
+      <>
+        <LeagueLogo league={league} className={logoClass} fallback={flagImg} />
+        <span className="break-words">{leagueLabel(league)}</span>
+      </>
+    );
+  }
   return (
     <>
-      {flag
-        ? <img src={flag} alt="" className={`${flagClass} shrink-0 object-cover rounded-[1px]`} />
-        : <span className={`${flagClass} shrink-0`} aria-hidden="true" />}
+      {flagImg}
       <span className="break-words">{leagueLabel(league)}</span>
     </>
   );

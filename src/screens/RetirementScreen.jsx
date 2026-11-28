@@ -10,6 +10,7 @@ import { leagueHue } from '../utils/statColors';
 import { getAwardImage } from '../data/awards';
 import { getTeamData, teamAccent } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
+import LeagueLogo from '../components/LeagueLogo';
 import TrophyImage from '../components/TrophyImage';
 import { isDefence } from '../utils/production';
 
@@ -915,7 +916,7 @@ export default function RetirementScreen() {
                   <tr className="border-y border-[rgba(255,255,255,0.07)] bg-[#0d110d] text-[10px] font-bold text-slate-500 [&>th]:bg-[#0d110d]">
                     <th className="pl-4 sm:pl-6 pr-2 py-2 font-bold">Season</th>
                     <th className="px-2 py-2 font-bold">Team</th>
-                    <th className="px-2 py-2 font-bold">League</th>
+                    <th className="px-2 py-2 font-bold text-center">League</th>
                     <th className="px-2 py-2 text-right font-bold border-l border-[rgba(255,255,255,0.06)]">GP</th>
                     {isGoalie ? (<>
                       <th className="px-2 py-2 text-right font-bold">W-L-OT</th>
@@ -968,7 +969,9 @@ export default function RetirementScreen() {
                             <span className="block mt-1.5"><YearHonours season={r} /></span>
                           )}
                         </td>
-                        <td className="px-2 py-2 text-[11px] font-bold" style={{ color: hue }}>{r.league}</td>
+                        <td className="px-2 py-2 text-[11px] font-bold" style={{ color: hue }}>
+                          <span className="flex justify-center"><LeagueLogo league={r.league} className="w-7 h-7" /></span>
+                        </td>
                         <td className={`${cell} !text-slate-500 border-l border-[rgba(255,255,255,0.06)]`}>{r.games || 0}</td>
                         {isGoalie ? (<>
                           <td className={cell}>{r.wins}-{r.losses}-{r.otl}</td>

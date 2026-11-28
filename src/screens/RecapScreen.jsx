@@ -9,6 +9,7 @@ import { formatLeagueName, leagueWithArticle, withTeamArticle } from '../utils/g
 import { rateSeason, isDefence } from '../utils/production';
 import { recordLine } from '../utils/records';
 import LeagueTag from '../components/LeagueTag';
+import LeagueLogo from '../components/LeagueLogo';
 import { awardsFor } from '../data/leagueAwards';
 import { TITLE_MD } from '../utils/ui';
 import TrophyImage from '../components/TrophyImage';
@@ -325,6 +326,10 @@ export default function RecapScreen() {
                       shares one list with the season counter instead of keeping its own. */}
                   {AMATEUR_LEAGUES.includes(player.league) ? 'AMATEUR CAMPAIGN' : `PRO SEASON ${proSeasonNumber}`}
                 </p>
+                {/* The league the season was played in, by its logo. */}
+                <span className="ml-auto pl-3 flex items-center">
+                  <LeagueLogo league={seasonRecap?.league || player.league} className="w-9 h-9 sm:w-10 sm:h-10" fallback={false} />
+                </span>
               </div>
 
               {/* A CHAMPIONSHIP.
@@ -835,7 +840,7 @@ export default function RecapScreen() {
                                 and has the whole middle of the row to do it
                                 in. */}
                             <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 w-[58px] sm:w-16">
-                              <LeagueTag league={r.league} flagClass="w-[13px] h-[9px]" />
+                              <LeagueLogo league={r.league} className="w-[22px] h-[22px]" />
                             </span>
                             <span className={`shrink-0 text-[11px] font-black number-font w-[52px] sm:w-16 text-right ${
                               r.me ? 'text-[#38bdf8]' : 'text-slate-400'}`}>

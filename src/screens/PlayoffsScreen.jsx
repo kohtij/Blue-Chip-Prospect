@@ -3,6 +3,7 @@ import { useAppContext } from '../AppContext';
 import { championsOf, getFullTeamName, getGamesPerMatchup, getPlayoffTitles, getWinsNeeded } from '../utils/appHelpers';
 import { getPlayoffRounds, getTeamData, getPrimaryRival } from '../data/teams';
 import TeamLogo from '../components/TeamLogo';
+import LeagueLogo from '../components/LeagueLogo';
 import TrophyImage from '../components/TrophyImage';
 import { applyOvrDelta, grudgeAgainst, recomputeOvr } from '../utils/gameHelpers';
 import { CHOICE_ROW, kickerClass, TAG_RED, TITLE_MD, TITLE_SM } from '../utils/ui';
@@ -336,6 +337,12 @@ export default function PlayoffsScreen() {
 
             {/* MATCHUP HEADER */}
             <div className="flex flex-col items-center w-full mb-5">
+              {/* The league's logo and what's being played for. The final's
+                  name already says the trophy, so it isn't said twice. */}
+              <LeagueLogo league={playoffs.currentLg || player.league} className="w-11 h-11 mb-2" fallback={false} />
+              {!isLastRound && titles.cupName && (
+                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.16em] text-amber-400 mb-1 text-center">{titles.cupName}</span>
+              )}
               <span className={`${kickerClass('neutral')} mb-4`}>{roundName}</span>
               {/* The middle column has a fixed width, wide enough for its longest
                   label ("Series won"), so the label and score changing never

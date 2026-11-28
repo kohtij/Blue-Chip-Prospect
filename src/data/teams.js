@@ -5,28 +5,31 @@ import { EXTRA_LEAGUES, mhlTeams } from './euroLeagues';
 export { EXTRA_LEAGUES, mhlTeams };
 
 export const leagueLogos = {
-  NHL: '/img/nhl/logos/nhl/svg/NHL_light.svg',
-  AHL: '/img/wiki/wikipedia/en/thumb/7/7b/American_Hockey_League_logo.svg/250px-American_Hockey_League_logo.svg.png',
+  // The pack's silver shield. The NHL's own light version is drawn for white pages.
+  NHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/national_hockey_league.png',
+  AHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/american_hockey_league.png',
   ECHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/echl.png',
-  OHL: '/img/wiki/wikipedia/en/thumb/0/07/Ontario_Hockey_League_logo.svg/250px-Ontario_Hockey_League_logo.svg.png',
-  WHL: '/img/wiki/wikipedia/en/thumb/4/4e/Western_Hockey_League_logo.svg/250px-Western_Hockey_League_logo.svg.png',
-  QMJHL: '/img/wiki/wikipedia/en/thumb/f/f6/QMJHL_logo.svg/250px-QMJHL_logo.svg.png',
-  USHL: '/img/wiki/wikipedia/en/thumb/d/d7/USHL_logo.svg/250px-USHL_logo.svg.png',
+  OHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/ontario_hockey_league.png',
+  WHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/western_hockey_league.png',
+  QMJHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/quebec_maritimes_junior_hockey_league.png',
+  USHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/united_states_hockey_league.png',
   NCAA: '/img/wiki/wikipedia/commons/thumb/d/dd/NCAA_logo.svg/250px-NCAA_logo.svg.png',
-  SHL: '/img/wiki/wikipedia/en/thumb/1/18/Swedish_Hockey_League_logo.svg/250px-Swedish_Hockey_League_logo.svg.png',
+  // The logo pack's SHL mark is black, which vanishes on the game's dark
+  // background. This is the same mark in white, kept in our own folder.
+  SHL: '/img/leagues/swedish_hockey_league_white.png',
   // The junior tiers run under their federations' own marks; the senior league
   // crest stands in, the same way the league label carries the distinction.
-  J20: '/img/wiki/wikipedia/en/thumb/1/18/Swedish_Hockey_League_logo.svg/250px-Swedish_Hockey_League_logo.svg.png',
-  U20: '/img/wiki/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png',
-  LIIGA: '/img/wiki/wikipedia/en/thumb/d/d1/Liiga_logo.svg/250px-Liiga_logo.svg.png',
+  J20: '/img/leagues/swedish_hockey_league_white.png',
+  U20: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/liiga.png',
+  LIIGA: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/liiga.png',
   KHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/kontinental_hockey_league.png',
   SWISS: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/national_league.png',
-  DEL: '/img/wiki/wikipedia/en/thumb/7/74/Deutsche_Eishockey_Liga_logo.svg/250px-Deutsche_Eishockey_Liga_logo.svg.png',
-  ICEHL: '/img/wiki/wikipedia/en/thumb/f/f6/ICE_Hockey_League_logo.svg/250px-ICE_Hockey_League_logo.svg.png',
-  BCHL: '',
-  SPHL: '',
-  CZECH: '',
-  SLOVAK: '',
+  DEL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/deutsche_eishockey_liga.png',
+  ICEHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/win2day_ice_hockey_league.png',
+  BCHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/british_columbia_hockey_league.png',
+  SPHL: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/southern_professional_hockey_league.png',
+  CZECH: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/tipsport_extraliga.png',
+  SLOVAK: '/img/gh/JacobC6799/FHM12-Logo-Pack/main/quickstart_games/OpeningDay.quick/graphics/logo_leagues/tipos_extraliga.png',
   // The leagues in data/euroLeagues.js bring their own.
   ...Object.fromEntries(Object.entries(EXTRA_LEAGUES).map(([id, l]) => [id, l.logo]))
 };
